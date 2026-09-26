@@ -1,0 +1,10 @@
+{
+  "name": "@lintel/storage",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "FileStorageProvider abstraction with in-memory and local-filesystem providers. No cloud SDKs.",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

@@ -3377,6 +3377,98 @@
         "x-lintel-identity": "ANY"
       }
     },
+    "/api/v1/me/invitations": {
+      "get": {
+        "operationId": "MyInvitations_mine",
+        "summary": "Pending invitations addressed to the caller's verified email",
+        "tags": [
+          "MyInvitations"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyInvitations_mine_200"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "RFC 9457 problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-lintel-access": {
+          "kind": "authenticated"
+        },
+        "x-lintel-identity": "ANY"
+      }
+    },
+    "/api/v1/me/invitations/{invitationId}/accept": {
+      "post": {
+        "operationId": "MyInvitations_accept",
+        "summary": "Accept an invitation: provisions the caller's identity and the invited roles",
+        "tags": [
+          "MyInvitations"
+        ],
+        "parameters": [
+          {
+            "name": "invitationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyInvitations_accept_200"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "RFC 9457 problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-lintel-access": {
+          "kind": "authenticated"
+        },
+        "x-lintel-identity": "ANY"
+      }
+    },
     "/api/v1/me/organizations": {
       "get": {
         "operationId": "Me_organizations",
@@ -3415,6 +3507,556 @@
           "kind": "authenticated"
         },
         "x-lintel-identity": "ANY"
+      }
+    },
+    "/api/v1/org/invitations": {
+      "get": {
+        "operationId": "Organization_invitations",
+        "summary": "List the organization's invitations",
+        "tags": [
+          "Organization"
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "ACCEPTED",
+                "REVOKED"
+              ]
+            }
+          },
+          {
+            "name": "X-Org",
+            "in": "header",
+            "required": false,
+            "description": "The organization to act in (required when the caller belongs to several)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Organization_invitations_200"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "RFC 9457 problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-lintel-access": {
+          "actions": [
+            "org.members.manage"
+          ]
+        },
+        "x-lintel-identity": "INTERNAL"
+      },
+      "post": {
+        "operationId": "Organization_invite",
+        "summary": "Invite a named person with internal roles",
+        "tags": [
+          "Organization"
+        ],
+        "parameters": [
+          {
+            "name": "X-Org",
+            "in": "header",
+            "required": false,
+            "description": "The organization to act in (required when the caller belongs to several)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Organization_invite_Request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Organization_invite_201"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "RFC 9457 problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-lintel-access": {
+          "actions": [
+            "org.members.manage"
+          ]
+        },
+        "x-lintel-identity": "INTERNAL"
+      }
+    },
+    "/api/v1/org/invitations/{invitationId}": {
+      "get": {
+        "operationId": "Organization_invitation",
+        "summary": "Get an invitation",
+        "tags": [
+          "Organization"
+        ],
+        "parameters": [
+          {
+            "name": "invitationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "X-Org",
+            "in": "header",
+            "required": false,
+            "description": "The organization to act in (required when the caller belongs to several)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Organization_invite_201"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "RFC 9457 problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-lintel-access": {
+          "actions": [
+            "org.members.manage"
+          ]
+        },
+        "x-lintel-identity": "INTERNAL"
+      }
+    },
+    "/api/v1/org/invitations/{invitationId}/revoke": {
+      "post": {
+        "operationId": "Organization_revokeInvitation",
+        "summary": "Revoke a pending invitation",
+        "tags": [
+          "Organization"
+        ],
+        "parameters": [
+          {
+            "name": "invitationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "X-Org",
+            "in": "header",
+            "required": false,
+            "description": "The organization to act in (required when the caller belongs to several)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Organization_revokeInvitation_Request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Organization_invite_201"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "RFC 9457 problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-lintel-access": {
+          "actions": [
+            "org.members.manage"
+          ]
+        },
+        "x-lintel-identity": "INTERNAL"
+      }
+    },
+    "/api/v1/org/members": {
+      "get": {
+        "operationId": "Organization_members",
+        "summary": "List the organization's members and their roles",
+        "tags": [
+          "Organization"
+        ],
+        "parameters": [
+          {
+            "name": "X-Org",
+            "in": "header",
+            "required": false,
+            "description": "The organization to act in (required when the caller belongs to several)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Organization_members_200"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "RFC 9457 problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-lintel-access": {
+          "kind": "authenticated"
+        },
+        "x-lintel-identity": "INTERNAL"
+      }
+    },
+    "/api/v1/org/members/{userId}": {
+      "get": {
+        "operationId": "Organization_member",
+        "summary": "Get a member and their roles",
+        "tags": [
+          "Organization"
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "X-Org",
+            "in": "header",
+            "required": false,
+            "description": "The organization to act in (required when the caller belongs to several)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Organization_member_200"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "RFC 9457 problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-lintel-access": {
+          "kind": "authenticated"
+        },
+        "x-lintel-identity": "INTERNAL"
+      }
+    },
+    "/api/v1/org/members/{userId}/roles": {
+      "post": {
+        "operationId": "Organization_grantRole",
+        "summary": "Grant an existing member another role",
+        "tags": [
+          "Organization"
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "X-Org",
+            "in": "header",
+            "required": false,
+            "description": "The organization to act in (required when the caller belongs to several)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Organization_grantRole_Request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Organization_member_200"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "RFC 9457 problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-lintel-access": {
+          "actions": [
+            "org.members.manage"
+          ]
+        },
+        "x-lintel-identity": "INTERNAL"
+      }
+    },
+    "/api/v1/org/members/{userId}/roles/revoke": {
+      "post": {
+        "operationId": "Organization_revokeRole",
+        "summary": "Revoke a member's role",
+        "tags": [
+          "Organization"
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "X-Org",
+            "in": "header",
+            "required": false,
+            "description": "The organization to act in (required when the caller belongs to several)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Organization_revokeRole_Request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Organization_member_200"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "RFC 9457 problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-lintel-access": {
+          "actions": [
+            "org.members.manage"
+          ]
+        },
+        "x-lintel-identity": "INTERNAL"
       }
     },
     "/api/v1/pricing-snapshots/{snapshotId}": {
@@ -6183,6 +6825,106 @@
         ],
         "additionalProperties": false
       },
+      "MyInvitations_accept_200": {
+        "type": "object",
+        "properties": {
+          "invitationId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "orgId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "userId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "ADMIN",
+                "DESIGNER",
+                "DESIGN_HEAD",
+                "SALES",
+                "COSTING",
+                "FINANCE",
+                "PROCUREMENT",
+                "PRODUCTION",
+                "SITE_ENGINEER"
+              ]
+            }
+          },
+          "acceptedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "invitationId",
+          "orgId",
+          "userId",
+          "displayName",
+          "roles",
+          "acceptedAt"
+        ],
+        "additionalProperties": false
+      },
+      "MyInvitations_mine_200": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/Uuid"
+                },
+                "orgId": {
+                  "$ref": "#/components/schemas/Uuid"
+                },
+                "displayName": {
+                  "type": "string"
+                },
+                "roles": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "ADMIN",
+                      "DESIGNER",
+                      "DESIGN_HEAD",
+                      "SALES",
+                      "COSTING",
+                      "FINANCE",
+                      "PROCUREMENT",
+                      "PRODUCTION",
+                      "SITE_ENGINEER"
+                    ]
+                  }
+                },
+                "expiresAt": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "orgId",
+                "displayName",
+                "roles",
+                "expiresAt"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
       "MyOrganizationsResponse": {
         "type": "object",
         "properties": {
@@ -6574,6 +7316,359 @@
             }
           }
         },
+        "additionalProperties": false
+      },
+      "Organization_grantRole_Request": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "ADMIN",
+              "DESIGNER",
+              "DESIGN_HEAD",
+              "SALES",
+              "COSTING",
+              "FINANCE",
+              "PROCUREMENT",
+              "PRODUCTION",
+              "SITE_ENGINEER"
+            ]
+          },
+          "reason": {
+            "$ref": "#/components/schemas/ReasonInput"
+          }
+        },
+        "required": [
+          "role",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "Organization_invitations_200": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Organization_invite_201"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "Organization_invite_201": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "orgId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "email": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "ADMIN",
+                "DESIGNER",
+                "DESIGN_HEAD",
+                "SALES",
+                "COSTING",
+                "FINANCE",
+                "PROCUREMENT",
+                "PRODUCTION",
+                "SITE_ENGINEER"
+              ]
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "ACCEPTED",
+              "REVOKED"
+            ]
+          },
+          "expired": {
+            "type": "boolean"
+          },
+          "invitedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string"
+          },
+          "acceptedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "acceptedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "revokedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revokedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "orgId",
+          "email",
+          "displayName",
+          "roles",
+          "status",
+          "expired",
+          "invitedBy",
+          "createdAt",
+          "expiresAt",
+          "acceptedBy",
+          "acceptedAt",
+          "revokedBy",
+          "revokedAt"
+        ],
+        "additionalProperties": false
+      },
+      "Organization_invite_Request": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "roles": {
+            "minItems": 1,
+            "maxItems": 9,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "ADMIN",
+                "DESIGNER",
+                "DESIGN_HEAD",
+                "SALES",
+                "COSTING",
+                "FINANCE",
+                "PROCUREMENT",
+                "PRODUCTION",
+                "SITE_ENGINEER"
+              ]
+            }
+          }
+        },
+        "required": [
+          "email",
+          "displayName",
+          "roles"
+        ],
+        "additionalProperties": false
+      },
+      "Organization_member_200": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "email": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "identityKind": {
+            "$ref": "#/components/schemas/IdentityKind"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "DISABLED"
+            ]
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "ADMIN",
+                "DESIGNER",
+                "DESIGN_HEAD",
+                "SALES",
+                "COSTING",
+                "FINANCE",
+                "PROCUREMENT",
+                "PRODUCTION",
+                "SITE_ENGINEER",
+                "CLIENT"
+              ]
+            }
+          },
+          "memberships": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "ADMIN",
+                    "DESIGNER",
+                    "DESIGN_HEAD",
+                    "SALES",
+                    "COSTING",
+                    "FINANCE",
+                    "PROCUREMENT",
+                    "PRODUCTION",
+                    "SITE_ENGINEER",
+                    "CLIENT"
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "ACTIVE",
+                    "REVOKED"
+                  ]
+                },
+                "grantedBy": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/Uuid"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "grantedAt": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "role",
+                "status",
+                "grantedBy",
+                "grantedAt"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "userId",
+          "email",
+          "displayName",
+          "identityKind",
+          "status",
+          "roles",
+          "memberships"
+        ],
+        "additionalProperties": false
+      },
+      "Organization_members_200": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Organization_member_200"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "Organization_revokeInvitation_Request": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "$ref": "#/components/schemas/ReasonInput"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "Organization_revokeRole_Request": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "ADMIN",
+              "DESIGNER",
+              "DESIGN_HEAD",
+              "SALES",
+              "COSTING",
+              "FINANCE",
+              "PROCUREMENT",
+              "PRODUCTION",
+              "SITE_ENGINEER"
+            ]
+          },
+          "reason": {
+            "$ref": "#/components/schemas/ReasonInput"
+          }
+        },
+        "required": [
+          "role",
+          "reason"
+        ],
         "additionalProperties": false
       },
       "OutputPurpose": {
@@ -7188,6 +8283,7 @@
               "DEPENDENCY_NOT_APPROVED",
               "DRAWING_REFUSED",
               "DUPLICATE_RESOURCE",
+              "EMAIL_NOT_VERIFIED",
               "FILE_REFERENCED",
               "IDEMPOTENCY_CONFLICT",
               "IDEMPOTENCY_IN_PROGRESS",
@@ -7198,6 +8294,7 @@
               "INVALID_REFERENCE",
               "INVITATION_INVALID",
               "ISSUE_PRECONDITIONS_FAILED",
+              "LAST_ADMIN",
               "LIFECYCLE_TRANSITION_REJECTED",
               "MEMBERSHIP_RULE_VIOLATION",
               "METHOD_NOT_ALLOWED",

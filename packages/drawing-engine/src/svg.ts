@@ -1,4 +1,4 @@
-import type { Drawing, DrawingLayer, DrawingPrimitive } from "@lintel/types";
+import type { Drawing, DrawingLayer, DrawingPrimitive, RoomDrawing } from "@lintel/types";
 import { coord } from "./format.js";
 
 /** Render order (watermark first, behind everything). */
@@ -36,7 +36,7 @@ function primitiveSvg(p: DrawingPrimitive): string {
  * Deterministic SVG for one sheet (millimetre viewBox). Traceability metadata is carried as
  * data attributes so a file on disk can be checked for staleness against the live model.
  */
-export function renderSvg(drawing: Drawing, sheetIndex = 0): string {
+export function renderSvg(drawing: Drawing | RoomDrawing, sheetIndex = 0): string {
   const sheet = drawing.sheets[sheetIndex];
   if (sheet === undefined) throw new RangeError(`Drawing ${drawing.drawingId} has no sheet ${sheetIndex}`);
   const { width, height } = sheet.paper;
@@ -49,6 +49,8 @@ export function renderSvg(drawing: Drawing, sheetIndex = 0): string {
     `data-classification="${drawing.trace.dataClassification}"`,
     `data-content-hash="${drawing.contentHash}"`,
     `data-sheet="${sheet.sheetNumber}/${drawing.sheets.length}"`,
+    // Room drawings also identify the room and the objects shown.
+    ...("roomId" in drawing.trace && "objectIds" in drawing ? [`data-room-id="${esc(drawing.trace.roomId)}"`, `data-objects="${esc(drawing.objectIds.join(","))}"`] : []),
   ].join(" ");
   const lines: string[] = [
     `<?xml version="1.0" encoding="UTF-8"?>`,

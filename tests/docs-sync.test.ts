@@ -123,8 +123,30 @@ describe("KIT_BASE_STANDARD_BENCHMARK_V1.md", () => {
   it("records no number where the mapping would need inference", () => {
     for (const f of ["FRONT_BETWEEN_GAP", "INSET_GAP", "FRONT_FINISHED_FACES"]) expect(row(bodyOf(f), "Benchmark value")).toBe("NO VERIFIED PUBLIC BENCHMARK FOUND");
   });
+  it("never derives overlay gaps from shutter reduction (fields 6–8)", () => {
+    for (const f of ["OVERLAY_EDGE_GAP", "OVERLAY_TOP_GAP", "OVERLAY_BOTTOM_GAP"]) {
+      expect(row(bodyOf(f), "Benchmark value")).toBe("NO VERIFIED PUBLIC BENCHMARK FOUND");
+      expect(row(bodyOf(f), "Source URL")).toBe("—");
+      expect(doc).toMatch(new RegExp(`^\\| \\d+ \\| ${f} \\| NO VERIFIED PUBLIC BENCHMARK FOUND \\|`, "m"));
+    }
+    const reduction = doc.slice(doc.indexOf("## Shutter reduction (source fact, not a Lintel field)"));
+    expect(reduction).toMatch(/shutter reduction\*\* of 1 mm on all four sides/);
+    expect(reduction).toMatch(/not\*\* used by the Lintel recipe/);
+  });
   it("does not change the production standard", () => {
     for (const v of allVariables) expect(LINTEL_CONSTRUCTION_STANDARD_DRAFT.variables[v]).toBeNull();
     for (const b of bodies) expect(row(b, "Lintel production value")).toBe("NULL / UNVERIFIED (unchanged)");
+  });
+});
+
+describe("08-planning-standards.md", () => {
+  it("lists every planning variable individually and the Lintel draft keeps them NULL", async () => {
+    const { PLANNING_VARIABLES, LINTEL_PLANNING_STANDARD_DRAFT } = await import("@lintel/catalog-engine");
+    const doc = read("production-data/08-planning-standards.md");
+    for (const v of PLANNING_VARIABLES) {
+      expect(doc).toMatch(new RegExp(`\\| P\\d+ \\| ${v.key} \\|`));
+      expect(LINTEL_PLANNING_STANDARD_DRAFT.variables[v.key]).toBeNull();
+    }
+    expect(Object.keys(LINTEL_PLANNING_STANDARD_DRAFT.variables).sort()).toEqual(PLANNING_VARIABLES.map((v) => v.key).sort());
   });
 });

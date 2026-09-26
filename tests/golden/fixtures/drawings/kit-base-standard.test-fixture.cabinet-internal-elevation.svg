@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="420mm" height="297mm" viewBox="0 0 420 297" data-drawing-id="DRW:dv_001:obj_001:CABINET_INTERNAL_ELEVATION:KIT-CI-001:RA" data-drawing-type="CABINET_INTERNAL_ELEVATION" data-status="PRELIMINARY" data-design-version="dv_001" data-model-fingerprint="0d8691345c4075" data-classification="TEST_FIXTURE" data-content-hash="101c9dae51eef6" data-sheet="1/1">
+<title>KIT-CI-001 CABINET INTERNAL ELEVATION - OBJ-KIT-001 (PRELIMINARY)</title>
+<rect x="0" y="0" width="420" height="297" fill="#ffffff"/>
+<g id="WATERMARK" fill="#d9534f" stroke="#d9534f" opacity="0.25" font-family="Helvetica, Arial, sans-serif" stroke-linecap="round">
+<text stroke="none" x="210" y="124" font-size="12.714" text-anchor="middle" font-weight="bold" transform="rotate(-20 210 124)">TEST FIXTURE DATA - NOT FOR PRODUCTION</text>
+<text stroke="none" x="210" y="15" font-size="4.286" text-anchor="middle" font-weight="bold">TEST FIXTURE DATA - NOT FOR PRODUCTION</text>
+</g>
+<g id="BORDER" fill="#000000" stroke="#000000" font-family="Helvetica, Arial, sans-serif" stroke-linecap="round">
+<line fill="none" x1="10" y1="10" x2="410" y2="10" stroke-width="0.5"/>
+<line fill="none" x1="410" y1="10" x2="410" y2="287" stroke-width="0.5"/>
+<line fill="none" x1="410" y1="287" x2="10" y2="287" stroke-width="0.5"/>
+<line fill="none" x1="10" y1="287" x2="10" y2="10" stroke-width="0.5"/>
+<text stroke="none" x="13" y="15" font-size="4.286" text-anchor="start" font-weight="bold">LINTEL DESIGN OS</text>
+<text stroke="none" x="407" y="15" font-size="3.571" text-anchor="end">SHEET 1 OF 1</text>
+</g>
+<g id="HIDDEN" fill="#555555" stroke="#555555" font-family="Helvetica, Arial, sans-serif" stroke-linecap="round">
+<line fill="none" x1="152" y1="194" x2="268" y2="194" stroke-width="0.18" stroke-dasharray="3 1.5"/>
+<line fill="none" x1="152" y1="194" x2="152" y2="52" stroke-width="0.18" stroke-dasharray="3 1.5"/>
+<line fill="none" x1="268" y1="194" x2="268" y2="52" stroke-width="0.18" stroke-dasharray="3 1.5"/>
+</g>
+<g id="VISIBLE" fill="#000000" stroke="#000000" font-family="Helvetica, Arial, sans-serif" stroke-linecap="round">
+<line fill="none" x1="150" y1="196" x2="270" y2="196" stroke-width="0.35"/>
+<line fill="none" x1="153.6" y1="192.4" x2="266.4" y2="192.4" stroke-width="0.35"/>
+<line fill="none" x1="153.8" y1="125.8" x2="266.2" y2="125.8" stroke-width="0.35"/>
+<line fill="none" x1="153.8" y1="122.2" x2="266.2" y2="122.2" stroke-width="0.35"/>
+<line fill="none" x1="153.6" y1="55.6" x2="266.4" y2="55.6" stroke-width="0.35"/>
+<line fill="none" x1="150" y1="52" x2="270" y2="52" stroke-width="0.35"/>
+<line fill="none" x1="150" y1="196" x2="150" y2="52" stroke-width="0.35"/>
+<line fill="none" x1="153.6" y1="196" x2="153.6" y2="52" stroke-width="0.35"/>
+<line fill="none" x1="153.8" y1="125.8" x2="153.8" y2="122.2" stroke-width="0.35"/>
+<line fill="none" x1="266.2" y1="125.8" x2="266.2" y2="122.2" stroke-width="0.35"/>
+<line fill="none" x1="266.4" y1="196" x2="266.4" y2="52" stroke-width="0.35"/>
+<line fill="none" x1="270" y1="196" x2="270" y2="52" stroke-width="0.35"/>
+</g>
+<g id="DIMENSION" fill="#1f4e9c" stroke="#1f4e9c" font-family="Helvetica, Arial, sans-serif" stroke-linecap="round">
+<line fill="none" x1="150" y1="197" x2="150" y2="209.5" stroke-width="0.18"/>
+<line fill="none" x1="148.8" y1="209.2" x2="151.2" y2="206.8" stroke-width="0.35"/>
+<line fill="none" x1="270" y1="197" x2="270" y2="209.5" stroke-width="0.18"/>
+<line fill="none" x1="268.8" y1="209.2" x2="271.2" y2="206.8" stroke-width="0.35"/>
+<line fill="none" x1="150" y1="208" x2="270" y2="208" stroke-width="0.18"/>
+<text stroke="none" x="210" y="207" font-size="3.571" text-anchor="middle">600</text>
+<line fill="none" x1="149" y1="196" x2="136.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="136.8" y1="197.2" x2="139.2" y2="194.8" stroke-width="0.35"/>
+<line fill="none" x1="149" y1="52" x2="136.5" y2="52" stroke-width="0.18"/>
+<line fill="none" x1="136.8" y1="53.2" x2="139.2" y2="50.8" stroke-width="0.35"/>
+<line fill="none" x1="138" y1="196" x2="138" y2="52" stroke-width="0.18"/>
+<text stroke="none" x="137" y="124" font-size="3.571" text-anchor="middle" transform="rotate(-90 137 124)">720</text>
+</g>
+<g id="ANNOTATION" fill="#000000" stroke="#000000" font-family="Helvetica, Arial, sans-serif" stroke-linecap="round">
+<text stroke="none" x="210" y="123" font-size="4.286" text-anchor="middle" font-weight="bold">BCK</text>
+<text stroke="none" x="210" y="127.5" font-size="3.143" text-anchor="middle">580 x 710 x 6</text>
+<text stroke="none" x="210" y="133" font-size="4.286" text-anchor="middle" font-weight="bold">SHF-01</text>
+<text stroke="none" x="210" y="137.5" font-size="3.143" text-anchor="middle">562 x 518 x 18</text>
+<text stroke="none" x="210" y="216" font-size="4.286" text-anchor="middle" font-weight="bold">CABINET INTERNAL ELEVATION (FRONTS REMOVED)  OBJ-KIT-001  SCALE 1:5</text>
+<text stroke="none" x="14" y="236" font-size="3.571" text-anchor="start" font-weight="bold">NOTES</text>
+<text stroke="none" x="14" y="240.5" font-size="2.857" text-anchor="start">1. All dimensions in millimetres. Panel sizes are finished sizes (cut-size allowances are applied in</text>
+<text stroke="none" x="14" y="244.7" font-size="2.857" text-anchor="start">   manufacturing).</text>
+<text stroke="none" x="14" y="248.9" font-size="2.857" text-anchor="start">2. Front view with fronts removed to show internal construction; hidden edges dashed. Dimensions are</text>
+<text stroke="none" x="14" y="253.1" font-size="2.857" text-anchor="start">   read from the resolved model.</text>
+<text stroke="none" x="14" y="257.3" font-size="2.857" text-anchor="start">3. Derived from design version dv_001; product KIT_BASE_STANDARD v1.0.0; recipe</text>
+<text stroke="none" x="14" y="261.5" font-size="2.857" text-anchor="start">   KITCHEN_BASE_STANDARD_V1 v1.1.0; standard TEST_FIXTURE_CONSTRUCTION_STANDARD v0.0.2 (TEST_FIXTURE).</text>
+<text stroke="none" x="14" y="265.7" font-size="2.857" text-anchor="start">4. TEST FIXTURE data in use: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; hardware</text>
+<text stroke="none" x="14" y="269.9" font-size="2.857" text-anchor="start">   dataset HETTICH_TEST_FIXTURE. Values are synthetic.</text>
+<text stroke="none" x="14" y="274.1" font-size="2.857" text-anchor="start">5. 7 validation BLOCKER(s) outstanding: this drawing must not be used for production.</text>
+</g>
+<g id="TITLE_BLOCK" fill="#000000" stroke="#000000" font-family="Helvetica, Arial, sans-serif" stroke-linecap="round">
+<line fill="none" x1="230" y1="232" x2="410" y2="232" stroke-width="0.35"/>
+<line fill="none" x1="410" y1="232" x2="410" y2="287" stroke-width="0.35"/>
+<line fill="none" x1="410" y1="287" x2="230" y2="287" stroke-width="0.35"/>
+<line fill="none" x1="230" y1="287" x2="230" y2="232" stroke-width="0.35"/>
+<line fill="none" x1="272" y1="232" x2="272" y2="287" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="235.5" font-size="2.286" text-anchor="start">PROJECT</text>
+<text stroke="none" x="273.5" y="235.6" font-size="3.143" text-anchor="start">LSA-BLR-2026-0001 (project_001)</text>
+<line fill="none" x1="230" y1="237" x2="410" y2="237" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="240.5" font-size="2.286" text-anchor="start">ROOM</text>
+<text stroke="none" x="273.5" y="240.6" font-size="3.143" text-anchor="start">Kitchen</text>
+<line fill="none" x1="230" y1="242" x2="410" y2="242" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="245.5" font-size="2.286" text-anchor="start">DRAWING TITLE</text>
+<text stroke="none" x="273.5" y="245.6" font-size="3.143" text-anchor="start" font-weight="bold">CABINET INTERNAL ELEVATION - OBJ-KIT-001</text>
+<line fill="none" x1="230" y1="247" x2="410" y2="247" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="250.5" font-size="2.286" text-anchor="start">DRAWING NO. / SHEET</text>
+<text stroke="none" x="273.5" y="250.6" font-size="3.143" text-anchor="start">KIT-CI-001   SHEET 1 OF 1</text>
+<line fill="none" x1="230" y1="252" x2="410" y2="252" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="255.5" font-size="2.286" text-anchor="start">REVISION / DATE</text>
+<text stroke="none" x="273.5" y="255.6" font-size="3.143" text-anchor="start">A   2026-09-26</text>
+<line fill="none" x1="230" y1="257" x2="410" y2="257" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="260.5" font-size="2.286" text-anchor="start">DESIGNER / CHECKER</text>
+<text stroke="none" x="273.5" y="260.6" font-size="3.143" text-anchor="start">TEST DESIGNER / UNASSIGNED</text>
+<line fill="none" x1="230" y1="262" x2="410" y2="262" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="265.5" font-size="2.286" text-anchor="start">SCALE</text>
+<text stroke="none" x="273.5" y="265.6" font-size="3.143" text-anchor="start">1:5</text>
+<line fill="none" x1="230" y1="267" x2="410" y2="267" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="270.5" font-size="2.286" text-anchor="start">APPROVAL STATUS</text>
+<text stroke="none" x="273.5" y="270.6" font-size="3.143" text-anchor="start" font-weight="bold">PRELIMINARY</text>
+<line fill="none" x1="230" y1="272" x2="410" y2="272" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="275.5" font-size="2.286" text-anchor="start">SOURCE DESIGN VERSION</text>
+<text stroke="none" x="273.5" y="275.6" font-size="3.143" text-anchor="start">dv_001 (DRAFT)</text>
+<line fill="none" x1="230" y1="277" x2="410" y2="277" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="280.5" font-size="2.286" text-anchor="start">MODEL FINGERPRINT</text>
+<text stroke="none" x="273.5" y="280.6" font-size="3.143" text-anchor="start">0d8691345c4075</text>
+<line fill="none" x1="230" y1="282" x2="410" y2="282" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="285.5" font-size="2.286" text-anchor="start">DATA CLASSIFICATION</text>
+<text stroke="none" x="273.5" y="285.6" font-size="3.143" text-anchor="start">TEST_FIXTURE</text>
+</g>
+</svg>

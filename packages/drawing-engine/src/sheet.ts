@@ -86,10 +86,10 @@ function wrap(value: string, width: number): string[] {
 }
 
 /** Numbered notes left of the title block, wrapped; overflow is stated, never silently dropped. */
-export function notes(items: readonly string[]): DrawingPrimitive[] {
+export function notes(items: readonly string[], wrapAt: number = NOTE_WRAP): DrawingPrimitive[] {
   const lines: string[] = [];
   items.forEach((n, i) => {
-    wrap(`${i + 1}. ${n}`, NOTE_WRAP).forEach((l, j) => {
+    wrap(`${i + 1}. ${n}`, wrapAt).forEach((l, j) => {
       lines.push(j === 0 ? l : `   ${l}`);
     });
   });

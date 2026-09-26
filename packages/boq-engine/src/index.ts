@@ -39,3 +39,5 @@ export function generateBoq(resolved: ResolvedCabinet, product: ProductDefinitio
   };
   return { boqId: `BOQ:${resolved.trace.designVersionId}:${resolved.trace.objectId}`, trace: resolved.trace, items: [item] };
 }
+
+export { generateRoomBoq } from "./room.js";

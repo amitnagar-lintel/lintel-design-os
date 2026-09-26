@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="420mm" height="297mm" viewBox="0 0 420 297" data-drawing-id="DRW:dv_001:room_001:WALL_INTERNAL_ELEVATION:A:KIT-WE-A:RA" data-drawing-type="WALL_INTERNAL_ELEVATION" data-status="PRELIMINARY" data-design-version="dv_001" data-model-fingerprint="1421ab7d38594e" data-classification="PRODUCTION" data-content-hash="0fa9121b3b1058" data-sheet="1/1" data-room-id="room_001" data-objects="obj_001,obj_002,obj_003">
+<title>KIT-WE-A WALL A INTERNAL ELEVATION - KITCHEN (PRELIMINARY)</title>
+<rect x="0" y="0" width="420" height="297" fill="#ffffff"/>
+<g id="WATERMARK" fill="#d9534f" stroke="#d9534f" opacity="0.25" font-family="Helvetica, Arial, sans-serif" stroke-linecap="round">
+<text stroke="none" x="210" y="124" font-size="10.143" text-anchor="middle" font-weight="bold" transform="rotate(-20 210 124)">BLOCKED DATA - NOT FOR PRODUCTION (104 BLOCKERS)</text>
+<text stroke="none" x="210" y="15" font-size="4.286" text-anchor="middle" font-weight="bold">BLOCKED DATA - NOT FOR PRODUCTION (104 BLOCKERS)</text>
+</g>
+<g id="BORDER" fill="#000000" stroke="#000000" font-family="Helvetica, Arial, sans-serif" stroke-linecap="round">
+<line fill="none" x1="10" y1="10" x2="410" y2="10" stroke-width="0.5"/>
+<line fill="none" x1="410" y1="10" x2="410" y2="287" stroke-width="0.5"/>
+<line fill="none" x1="410" y1="287" x2="10" y2="287" stroke-width="0.5"/>
+<line fill="none" x1="10" y1="287" x2="10" y2="10" stroke-width="0.5"/>
+<text stroke="none" x="13" y="15" font-size="4.286" text-anchor="start" font-weight="bold">LINTEL DESIGN OS</text>
+<text stroke="none" x="407" y="15" font-size="3.571" text-anchor="end">SHEET 1 OF 1</text>
+</g>
+<g id="VISIBLE" fill="#000000" stroke="#000000" font-family="Helvetica, Arial, sans-serif" stroke-linecap="round">
+<line fill="none" x1="131" y1="180" x2="299" y2="180" stroke-width="0.5"/>
+<line fill="none" x1="131" y1="60" x2="299" y2="60" stroke-width="0.5"/>
+<line fill="none" x1="131" y1="180" x2="131" y2="60" stroke-width="0.5"/>
+<line fill="none" x1="299" y1="180" x2="299" y2="60" stroke-width="0.5"/>
+<line fill="none" x1="131" y1="180" x2="209" y2="180" stroke-width="0.35"/>
+<line fill="none" x1="131.72" y1="179.28" x2="154.28" y2="179.28" stroke-width="0.35"/>
+<line fill="none" x1="155.72" y1="179.28" x2="184.28" y2="179.28" stroke-width="0.35"/>
+<line fill="none" x1="185.72" y1="179.28" x2="208.28" y2="179.28" stroke-width="0.35"/>
+<line fill="none" x1="131" y1="151.2" x2="131.72" y2="151.2" stroke-width="0.35"/>
+<line fill="none" x1="154.28" y1="151.2" x2="155.72" y2="151.2" stroke-width="0.35"/>
+<line fill="none" x1="184.28" y1="151.2" x2="185.72" y2="151.2" stroke-width="0.35"/>
+<line fill="none" x1="208.28" y1="151.2" x2="209" y2="151.2" stroke-width="0.35"/>
+<line fill="none" x1="131" y1="180" x2="131" y2="151.2" stroke-width="0.35"/>
+<line fill="none" x1="131.72" y1="180" x2="131.72" y2="151.2" stroke-width="0.35"/>
+<line fill="none" x1="154.28" y1="180" x2="154.28" y2="151.2" stroke-width="0.35"/>
+<line fill="none" x1="155" y1="180" x2="155" y2="151.2" stroke-width="0.35"/>
+<line fill="none" x1="155.72" y1="180" x2="155.72" y2="151.2" stroke-width="0.35"/>
+<line fill="none" x1="184.28" y1="180" x2="184.28" y2="151.2" stroke-width="0.35"/>
+<line fill="none" x1="185" y1="180" x2="185" y2="151.2" stroke-width="0.35"/>
+<line fill="none" x1="185.72" y1="180" x2="185.72" y2="151.2" stroke-width="0.35"/>
+<line fill="none" x1="208.28" y1="180" x2="208.28" y2="151.2" stroke-width="0.35"/>
+<line fill="none" x1="209" y1="180" x2="209" y2="151.2" stroke-width="0.35"/>
+</g>
+<g id="DIMENSION" fill="#1f4e9c" stroke="#1f4e9c" font-family="Helvetica, Arial, sans-serif" stroke-linecap="round">
+<line fill="none" x1="131" y1="181" x2="131" y2="191.5" stroke-width="0.18"/>
+<line fill="none" x1="129.8" y1="191.2" x2="132.2" y2="188.8" stroke-width="0.35"/>
+<line fill="none" x1="155" y1="181" x2="155" y2="191.5" stroke-width="0.18"/>
+<line fill="none" x1="153.8" y1="191.2" x2="156.2" y2="188.8" stroke-width="0.35"/>
+<line fill="none" x1="131" y1="190" x2="155" y2="190" stroke-width="0.18"/>
+<text stroke="none" x="143" y="189" font-size="3.571" text-anchor="middle">600</text>
+<line fill="none" x1="155" y1="181" x2="155" y2="191.5" stroke-width="0.18"/>
+<line fill="none" x1="153.8" y1="191.2" x2="156.2" y2="188.8" stroke-width="0.35"/>
+<line fill="none" x1="185" y1="181" x2="185" y2="191.5" stroke-width="0.18"/>
+<line fill="none" x1="183.8" y1="191.2" x2="186.2" y2="188.8" stroke-width="0.35"/>
+<line fill="none" x1="155" y1="190" x2="185" y2="190" stroke-width="0.18"/>
+<text stroke="none" x="170" y="189" font-size="3.571" text-anchor="middle">750</text>
+<line fill="none" x1="185" y1="181" x2="185" y2="191.5" stroke-width="0.18"/>
+<line fill="none" x1="183.8" y1="191.2" x2="186.2" y2="188.8" stroke-width="0.35"/>
+<line fill="none" x1="209" y1="181" x2="209" y2="191.5" stroke-width="0.18"/>
+<line fill="none" x1="207.8" y1="191.2" x2="210.2" y2="188.8" stroke-width="0.35"/>
+<line fill="none" x1="185" y1="190" x2="209" y2="190" stroke-width="0.18"/>
+<text stroke="none" x="197" y="189" font-size="3.571" text-anchor="middle">600</text>
+<line fill="none" x1="209" y1="181" x2="209" y2="191.5" stroke-width="0.18"/>
+<line fill="none" x1="207.8" y1="191.2" x2="210.2" y2="188.8" stroke-width="0.35"/>
+<line fill="none" x1="299" y1="181" x2="299" y2="191.5" stroke-width="0.18"/>
+<line fill="none" x1="297.8" y1="191.2" x2="300.2" y2="188.8" stroke-width="0.35"/>
+<line fill="none" x1="209" y1="190" x2="299" y2="190" stroke-width="0.18"/>
+<text stroke="none" x="254" y="189" font-size="3.571" text-anchor="middle">2250</text>
+<line fill="none" x1="131" y1="181" x2="131" y2="201.5" stroke-width="0.18"/>
+<line fill="none" x1="129.8" y1="201.2" x2="132.2" y2="198.8" stroke-width="0.35"/>
+<line fill="none" x1="299" y1="181" x2="299" y2="201.5" stroke-width="0.18"/>
+<line fill="none" x1="297.8" y1="201.2" x2="300.2" y2="198.8" stroke-width="0.35"/>
+<line fill="none" x1="131" y1="200" x2="299" y2="200" stroke-width="0.18"/>
+<text stroke="none" x="215" y="199" font-size="3.571" text-anchor="middle">4200</text>
+<line fill="none" x1="130" y1="180" x2="117.5" y2="180" stroke-width="0.18"/>
+<line fill="none" x1="117.8" y1="181.2" x2="120.2" y2="178.8" stroke-width="0.35"/>
+<line fill="none" x1="130" y1="60" x2="117.5" y2="60" stroke-width="0.18"/>
+<line fill="none" x1="117.8" y1="61.2" x2="120.2" y2="58.8" stroke-width="0.35"/>
+<line fill="none" x1="119" y1="180" x2="119" y2="60" stroke-width="0.18"/>
+<text stroke="none" x="118" y="120" font-size="3.571" text-anchor="middle" transform="rotate(-90 118 120)">3000</text>
+<line fill="none" x1="130" y1="180" x2="105.5" y2="180" stroke-width="0.18"/>
+<line fill="none" x1="105.8" y1="181.2" x2="108.2" y2="178.8" stroke-width="0.35"/>
+<line fill="none" x1="130" y1="151.2" x2="105.5" y2="151.2" stroke-width="0.18"/>
+<line fill="none" x1="105.8" y1="152.4" x2="108.2" y2="150" stroke-width="0.35"/>
+<line fill="none" x1="107" y1="180" x2="107" y2="151.2" stroke-width="0.18"/>
+<text stroke="none" x="106" y="165.6" font-size="3.571" text-anchor="middle" transform="rotate(-90 106 165.6)">720</text>
+</g>
+<g id="ANNOTATION" fill="#000000" stroke="#000000" font-family="Helvetica, Arial, sans-serif" stroke-linecap="round">
+<text stroke="none" x="143" y="165.6" font-size="3.714" text-anchor="middle" font-weight="bold">OBJ-KIT-001</text>
+<text stroke="none" x="143" y="169.4" font-size="2.857" text-anchor="middle">600 x 720</text>
+<text stroke="none" x="170" y="165.6" font-size="3.714" text-anchor="middle" font-weight="bold">OBJ-KIT-002</text>
+<text stroke="none" x="170" y="169.4" font-size="2.857" text-anchor="middle">750 x 720</text>
+<text stroke="none" x="197" y="165.6" font-size="3.714" text-anchor="middle" font-weight="bold">OBJ-KIT-003</text>
+<text stroke="none" x="197" y="169.4" font-size="2.857" text-anchor="middle">600 x 720</text>
+<text stroke="none" x="133" y="65" font-size="2.857" text-anchor="start">CORNER A/D: OBJ-KIT-004 + OBJ-KIT-001 (gap 40)</text>
+<text stroke="none" x="215" y="208" font-size="4.286" text-anchor="middle" font-weight="bold">WALL A INTERNAL ELEVATION  KITCHEN  SCALE 1:25</text>
+<text stroke="none" x="14" y="236" font-size="3.571" text-anchor="start" font-weight="bold">NOTES</text>
+<text stroke="none" x="14" y="240.5" font-size="2.857" text-anchor="start">1. All dimensions in millimetres. Dimensions are read from the resolved room model, not measured from this drawing.</text>
+<text stroke="none" x="14" y="244.7" font-size="2.857" text-anchor="start">2. View from inside the room facing wall A; visible edges only. Objects on other walls are shown on their own wall</text>
+<text stroke="none" x="14" y="248.9" font-size="2.857" text-anchor="start">   elevations.</text>
+<text stroke="none" x="14" y="253.1" font-size="2.857" text-anchor="start">3. RUN:A:1: OBJ-KIT-001, OBJ-KIT-002, OBJ-KIT-003 (length 1950).</text>
+<text stroke="none" x="14" y="257.3" font-size="2.857" text-anchor="start">4. Adjacency: OBJ-KIT-001/OBJ-KIT-002 touching; OBJ-KIT-002/OBJ-KIT-003 touching.</text>
+<text stroke="none" x="14" y="261.5" font-size="2.857" text-anchor="start">5. Corner D/A: OBJ-KIT-004 + OBJ-KIT-001, gap 40.</text>
+<text stroke="none" x="14" y="265.7" font-size="2.857" text-anchor="start">6. Derived from design version dv_001; planning standard LINTEL_PLANNING_STANDARD v0.1.0 (DRAFT); 4 object(s).</text>
+<text stroke="none" x="14" y="269.9" font-size="2.857" text-anchor="start">7. 104 validation BLOCKER(s) outstanding: this drawing must not be used for production.</text>
+</g>
+<g id="TITLE_BLOCK" fill="#000000" stroke="#000000" font-family="Helvetica, Arial, sans-serif" stroke-linecap="round">
+<line fill="none" x1="230" y1="232" x2="410" y2="232" stroke-width="0.35"/>
+<line fill="none" x1="410" y1="232" x2="410" y2="287" stroke-width="0.35"/>
+<line fill="none" x1="410" y1="287" x2="230" y2="287" stroke-width="0.35"/>
+<line fill="none" x1="230" y1="287" x2="230" y2="232" stroke-width="0.35"/>
+<line fill="none" x1="272" y1="232" x2="272" y2="287" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="235.5" font-size="2.286" text-anchor="start">PROJECT</text>
+<text stroke="none" x="273.5" y="235.6" font-size="3.143" text-anchor="start">LSA-BLR-2026-0001 (project_001)</text>
+<line fill="none" x1="230" y1="237" x2="410" y2="237" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="240.5" font-size="2.286" text-anchor="start">ROOM</text>
+<text stroke="none" x="273.5" y="240.6" font-size="3.143" text-anchor="start">Kitchen</text>
+<line fill="none" x1="230" y1="242" x2="410" y2="242" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="245.5" font-size="2.286" text-anchor="start">DRAWING TITLE</text>
+<text stroke="none" x="273.5" y="245.6" font-size="3.143" text-anchor="start" font-weight="bold">WALL A INTERNAL ELEVATION - KITCHEN</text>
+<line fill="none" x1="230" y1="247" x2="410" y2="247" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="250.5" font-size="2.286" text-anchor="start">DRAWING NO. / SHEET</text>
+<text stroke="none" x="273.5" y="250.6" font-size="3.143" text-anchor="start">KIT-WE-A   SHEET 1 OF 1</text>
+<line fill="none" x1="230" y1="252" x2="410" y2="252" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="255.5" font-size="2.286" text-anchor="start">REVISION / DATE</text>
+<text stroke="none" x="273.5" y="255.6" font-size="3.143" text-anchor="start">A   2026-09-26</text>
+<line fill="none" x1="230" y1="257" x2="410" y2="257" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="260.5" font-size="2.286" text-anchor="start">DESIGNER / CHECKER</text>
+<text stroke="none" x="273.5" y="260.6" font-size="3.143" text-anchor="start">TEST DESIGNER / UNASSIGNED</text>
+<line fill="none" x1="230" y1="262" x2="410" y2="262" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="265.5" font-size="2.286" text-anchor="start">SCALE</text>
+<text stroke="none" x="273.5" y="265.6" font-size="3.143" text-anchor="start">1:25</text>
+<line fill="none" x1="230" y1="267" x2="410" y2="267" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="270.5" font-size="2.286" text-anchor="start">APPROVAL STATUS</text>
+<text stroke="none" x="273.5" y="270.6" font-size="3.143" text-anchor="start" font-weight="bold">PRELIMINARY</text>
+<line fill="none" x1="230" y1="272" x2="410" y2="272" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="275.5" font-size="2.286" text-anchor="start">SOURCE DESIGN VERSION</text>
+<text stroke="none" x="273.5" y="275.6" font-size="3.143" text-anchor="start">dv_001 (DRAFT)</text>
+<line fill="none" x1="230" y1="277" x2="410" y2="277" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="280.5" font-size="2.286" text-anchor="start">MODEL FINGERPRINT</text>
+<text stroke="none" x="273.5" y="280.6" font-size="3.143" text-anchor="start">1421ab7d38594e</text>
+<line fill="none" x1="230" y1="282" x2="410" y2="282" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="285.5" font-size="2.286" text-anchor="start">DATA CLASSIFICATION</text>
+<text stroke="none" x="273.5" y="285.6" font-size="3.143" text-anchor="start">PRODUCTION</text>
+</g>
+</svg>

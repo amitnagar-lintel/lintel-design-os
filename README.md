@@ -8,7 +8,7 @@ manufacturing data are all derived from the same parametric model.
 - Engineering rules for Claude Code: [`CLAUDE.md`](CLAUDE.md)
 - Architecture decisions: [`docs/architecture/`](docs/architecture/)
 
-## Status — M1 (parametric cabinet engine) + M2 (pricing) + M3 (execution drawings)
+## Status — M1 (cabinet engine) + M2 (pricing) + M3 (execution drawings) + M4 (room model)
 
 `KIT_BASE_STANDARD` runs end-to-end as pure TypeScript (no UI, no database):
 
@@ -16,8 +16,10 @@ manufacturing data are all derived from the same parametric model.
 DesignObject ─► parameter resolver ─► formula engine ─► construction rules
      ─► component generator ─► geometry metadata ─► Hettich adapter (hardware)
      ─► validation ─► BOM ─► BOQ ─► pricing ─► immutable PriceSnapshot
-     ─► drawing model ─► Front Elevation + Panel Schedule ─► SVG / PDF
-                                        (all stamped with DesignVersion trace)
+     ─► drawing model ─► Front Elevation / Side Section / Cabinet Internal Elevation / Panel Schedule ─► SVG / PDF
+Room (M4): objects ─► resolveRoom (placement, collision, clearance, relationships, PlanningStandard)
+     ─► room BOM / BOQ ─► quotation snapshot (tax by rate group) ─► Wall Internal Elevations + Room Panel Schedule
+                                        (all stamped with DesignVersion / room trace)
 ```
 
 | Package | Responsibility |
@@ -40,7 +42,7 @@ exist as documented placeholders.
 rate card / pricing rules are all empty (`NULL / UNVERIFIED`). The production configuration reports exactly
 which values are missing, blocks approval and returns production pricing as `UNAVAILABLE`. A clearly
 labelled TEST_FIXTURE configuration exercises the full pipeline in tests and can never reach production
-(ADR-0004 to ADR-0007).
+(ADR-0004 to ADR-0008).
 
 - What Lintel must supply: [`docs/catalog/KIT_BASE_STANDARD_DATA_REQUIRED.md`](docs/catalog/KIT_BASE_STANDARD_DATA_REQUIRED.md)
 - Intake templates: [`docs/catalog/production-data/`](docs/catalog/production-data/)

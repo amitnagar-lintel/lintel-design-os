@@ -136,3 +136,6 @@ export function overlapVolume(a: Box3, b: Box3): number {
   const dz = Math.min(am.z, bm.z) - Math.max(a.min.z, b.min.z);
   return dx > 0 && dy > 0 && dz > 0 ? dx * dy * dz : 0;
 }
+
+export { asQuarterTurn, BACK_WALL, containment, placeBox, planDistance, QUARTER_TURNS, relativeToWall, roomWalls, wallFrame } from "./room.js";
+export type { ContainmentViolation, WallFrame } from "./room.js";

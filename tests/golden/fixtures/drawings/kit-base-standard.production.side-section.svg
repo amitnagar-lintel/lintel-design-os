@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="420mm" height="297mm" viewBox="0 0 420 297" data-drawing-id="DRW:dv_001:obj_001:SIDE_SECTION:KIT-SS-001:RA" data-drawing-type="SIDE_SECTION" data-status="PRELIMINARY" data-design-version="dv_001" data-model-fingerprint="1d2641701afd8a" data-classification="PRODUCTION" data-content-hash="1392ce8ec69f37" data-sheet="1/1">
+<title>KIT-SS-001 SIDE SECTION - OBJ-KIT-001 (PRELIMINARY)</title>
+<rect x="0" y="0" width="420" height="297" fill="#ffffff"/>
+<g id="WATERMARK" fill="#d9534f" stroke="#d9534f" opacity="0.25" font-family="Helvetica, Arial, sans-serif" stroke-linecap="round">
+<text stroke="none" x="210" y="124" font-size="10.286" text-anchor="middle" font-weight="bold" transform="rotate(-20 210 124)">BLOCKED DATA - NOT FOR PRODUCTION (25 BLOCKERS)</text>
+<text stroke="none" x="210" y="15" font-size="4.286" text-anchor="middle" font-weight="bold">BLOCKED DATA - NOT FOR PRODUCTION (25 BLOCKERS)</text>
+</g>
+<g id="BORDER" fill="#000000" stroke="#000000" font-family="Helvetica, Arial, sans-serif" stroke-linecap="round">
+<line fill="none" x1="10" y1="10" x2="410" y2="10" stroke-width="0.5"/>
+<line fill="none" x1="410" y1="10" x2="410" y2="287" stroke-width="0.5"/>
+<line fill="none" x1="410" y1="287" x2="10" y2="287" stroke-width="0.5"/>
+<line fill="none" x1="10" y1="287" x2="10" y2="10" stroke-width="0.5"/>
+<text stroke="none" x="13" y="15" font-size="4.286" text-anchor="start" font-weight="bold">LINTEL DESIGN OS</text>
+<text stroke="none" x="407" y="15" font-size="3.571" text-anchor="end">SHEET 1 OF 1</text>
+</g>
+<g id="HIDDEN" fill="#555555" stroke="#555555" font-family="Helvetica, Arial, sans-serif" stroke-linecap="round">
+<line fill="none" x1="154" y1="194.5" x2="155.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="154" y1="193" x2="157" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="154.9" y1="192.4" x2="158.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="156.4" y1="192.4" x2="160" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="157.9" y1="192.4" x2="161.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="159.4" y1="192.4" x2="163" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="160.9" y1="192.4" x2="164.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="162.4" y1="192.4" x2="166" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="163.9" y1="192.4" x2="167.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="165.4" y1="192.4" x2="169" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="166.9" y1="192.4" x2="170.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="168.4" y1="192.4" x2="172" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="169.9" y1="192.4" x2="173.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="171.4" y1="192.4" x2="175" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="172.9" y1="192.4" x2="176.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="174.4" y1="192.4" x2="178" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="175.9" y1="192.4" x2="179.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="177.4" y1="192.4" x2="181" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="178.9" y1="192.4" x2="182.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="180.4" y1="192.4" x2="184" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="181.9" y1="192.4" x2="185.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="183.4" y1="192.4" x2="187" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="184.9" y1="192.4" x2="188.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="186.4" y1="192.4" x2="190" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="187.9" y1="192.4" x2="191.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="189.4" y1="192.4" x2="193" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="190.9" y1="192.4" x2="194.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="192.4" y1="192.4" x2="196" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="193.9" y1="192.4" x2="197.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="195.4" y1="192.4" x2="199" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="196.9" y1="192.4" x2="200.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="198.4" y1="192.4" x2="202" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="199.9" y1="192.4" x2="203.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="201.4" y1="192.4" x2="205" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="202.9" y1="192.4" x2="206.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="204.4" y1="192.4" x2="208" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="205.9" y1="192.4" x2="209.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="207.4" y1="192.4" x2="211" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="208.9" y1="192.4" x2="212.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="210.4" y1="192.4" x2="214" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="211.9" y1="192.4" x2="215.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="213.4" y1="192.4" x2="217" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="214.9" y1="192.4" x2="218.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="216.4" y1="192.4" x2="220" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="217.9" y1="192.4" x2="221.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="219.4" y1="192.4" x2="223" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="220.9" y1="192.4" x2="224.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="222.4" y1="192.4" x2="226" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="223.9" y1="192.4" x2="227.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="225.4" y1="192.4" x2="229" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="226.9" y1="192.4" x2="230.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="228.4" y1="192.4" x2="232" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="229.9" y1="192.4" x2="233.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="231.4" y1="192.4" x2="235" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="232.9" y1="192.4" x2="236.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="234.4" y1="192.4" x2="238" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="235.9" y1="192.4" x2="239.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="237.4" y1="192.4" x2="241" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="238.9" y1="192.4" x2="242.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="240.4" y1="192.4" x2="244" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="241.9" y1="192.4" x2="245.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="243.4" y1="192.4" x2="247" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="244.9" y1="192.4" x2="248.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="246.4" y1="192.4" x2="250" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="247.9" y1="192.4" x2="251.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="249.4" y1="192.4" x2="253" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="250.9" y1="192.4" x2="254.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="252.4" y1="192.4" x2="256" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="253.9" y1="192.4" x2="257.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="255.4" y1="192.4" x2="259" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="256.9" y1="192.4" x2="260.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="258.4" y1="192.4" x2="262" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="259.9" y1="192.4" x2="263.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="261.4" y1="192.4" x2="265" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="262.9" y1="192.4" x2="266" y2="195.5" stroke-width="0.18"/>
+<line fill="none" x1="264.4" y1="192.4" x2="266" y2="194" stroke-width="0.18"/>
+<line fill="none" x1="265.9" y1="192.4" x2="266" y2="192.5" stroke-width="0.18"/>
+</g>
+<g id="VISIBLE" fill="#000000" stroke="#000000" font-family="Helvetica, Arial, sans-serif" stroke-linecap="round">
+<line fill="none" x1="154" y1="196" x2="266" y2="196" stroke-width="0.35"/>
+<line fill="none" x1="154" y1="192.4" x2="266" y2="192.4" stroke-width="0.35"/>
+<line fill="none" x1="154" y1="52" x2="266" y2="52" stroke-width="0.35"/>
+<line fill="none" x1="154" y1="196" x2="154" y2="52" stroke-width="0.35"/>
+<line fill="none" x1="266" y1="196" x2="266" y2="52" stroke-width="0.35"/>
+<line fill="none" x1="154" y1="192.4" x2="266" y2="192.4" stroke-width="0.5"/>
+<line fill="none" x1="266" y1="192.4" x2="266" y2="196" stroke-width="0.5"/>
+<line fill="none" x1="266" y1="196" x2="154" y2="196" stroke-width="0.5"/>
+<line fill="none" x1="154" y1="196" x2="154" y2="192.4" stroke-width="0.5"/>
+</g>
+<g id="DIMENSION" fill="#1f4e9c" stroke="#1f4e9c" font-family="Helvetica, Arial, sans-serif" stroke-linecap="round">
+<line fill="none" x1="153" y1="196" x2="140.5" y2="196" stroke-width="0.18"/>
+<line fill="none" x1="140.8" y1="197.2" x2="143.2" y2="194.8" stroke-width="0.35"/>
+<line fill="none" x1="153" y1="52" x2="140.5" y2="52" stroke-width="0.18"/>
+<line fill="none" x1="140.8" y1="53.2" x2="143.2" y2="50.8" stroke-width="0.35"/>
+<line fill="none" x1="142" y1="196" x2="142" y2="52" stroke-width="0.18"/>
+<text stroke="none" x="141" y="124" font-size="3.571" text-anchor="middle" transform="rotate(-90 141 124)">720</text>
+<line fill="none" x1="154" y1="197" x2="154" y2="207.5" stroke-width="0.18"/>
+<line fill="none" x1="152.8" y1="207.2" x2="155.2" y2="204.8" stroke-width="0.35"/>
+<line fill="none" x1="266" y1="197" x2="266" y2="207.5" stroke-width="0.18"/>
+<line fill="none" x1="264.8" y1="207.2" x2="267.2" y2="204.8" stroke-width="0.35"/>
+<line fill="none" x1="154" y1="206" x2="266" y2="206" stroke-width="0.18"/>
+<text stroke="none" x="210" y="205" font-size="3.571" text-anchor="middle">560</text>
+</g>
+<g id="ANNOTATION" fill="#000000" stroke="#000000" font-family="Helvetica, Arial, sans-serif" stroke-linecap="round">
+<text stroke="none" x="210" y="195.2" font-size="3.143" text-anchor="middle" font-weight="bold">BOT</text>
+<text stroke="none" x="210" y="222" font-size="4.286" text-anchor="middle" font-weight="bold">SIDE SECTION A-A  OBJ-KIT-001  CUT AT X = 300  SCALE 1:5</text>
+<text stroke="none" x="154" y="30" font-size="3.143" text-anchor="start">BACK</text>
+<text stroke="none" x="266" y="30" font-size="3.143" text-anchor="end">FRONT</text>
+<text stroke="none" x="14" y="236" font-size="3.571" text-anchor="start" font-weight="bold">NOTES</text>
+<text stroke="none" x="14" y="240.5" font-size="2.857" text-anchor="start">1. All dimensions in millimetres. Panel sizes are finished sizes (cut-size allowances are applied in</text>
+<text stroke="none" x="14" y="244.7" font-size="2.857" text-anchor="start">   manufacturing).</text>
+<text stroke="none" x="14" y="248.9" font-size="2.857" text-anchor="start">2. Section viewed from the left (back on the left, front on the right); cut panels heavy and</text>
+<text stroke="none" x="14" y="253.1" font-size="2.857" text-anchor="start">   hatched. Dimensions are read from the resolved model.</text>
+<text stroke="none" x="14" y="257.3" font-size="2.857" text-anchor="start">3. Derived from design version dv_001; product KIT_BASE_STANDARD v1.0.0; recipe</text>
+<text stroke="none" x="14" y="261.5" font-size="2.857" text-anchor="start">   KITCHEN_BASE_STANDARD_V1 v1.1.0; standard LINTEL_CONSTRUCTION_STANDARD v0.2.0 (DRAFT).</text>
+<text stroke="none" x="14" y="265.7" font-size="2.857" text-anchor="start">4. Components NOT GENERATED (construction values undefined): OBJ-KIT-001-BCK, OBJ-KIT-001-SHF-01,</text>
+<text stroke="none" x="14" y="269.9" font-size="2.857" text-anchor="start">   OBJ-KIT-001-SHT-L, OBJ-KIT-001-SHT-R, OBJ-KIT-001-TSB, OBJ-KIT-001-TSF.</text>
+<text stroke="none" x="14" y="274.1" font-size="2.857" text-anchor="start">5. 25 validation BLOCKER(s) outstanding: this drawing must not be used for production.</text>
+</g>
+<g id="TITLE_BLOCK" fill="#000000" stroke="#000000" font-family="Helvetica, Arial, sans-serif" stroke-linecap="round">
+<line fill="none" x1="230" y1="232" x2="410" y2="232" stroke-width="0.35"/>
+<line fill="none" x1="410" y1="232" x2="410" y2="287" stroke-width="0.35"/>
+<line fill="none" x1="410" y1="287" x2="230" y2="287" stroke-width="0.35"/>
+<line fill="none" x1="230" y1="287" x2="230" y2="232" stroke-width="0.35"/>
+<line fill="none" x1="272" y1="232" x2="272" y2="287" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="235.5" font-size="2.286" text-anchor="start">PROJECT</text>
+<text stroke="none" x="273.5" y="235.6" font-size="3.143" text-anchor="start">LSA-BLR-2026-0001 (project_001)</text>
+<line fill="none" x1="230" y1="237" x2="410" y2="237" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="240.5" font-size="2.286" text-anchor="start">ROOM</text>
+<text stroke="none" x="273.5" y="240.6" font-size="3.143" text-anchor="start">Kitchen</text>
+<line fill="none" x1="230" y1="242" x2="410" y2="242" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="245.5" font-size="2.286" text-anchor="start">DRAWING TITLE</text>
+<text stroke="none" x="273.5" y="245.6" font-size="3.143" text-anchor="start" font-weight="bold">SIDE SECTION - OBJ-KIT-001</text>
+<line fill="none" x1="230" y1="247" x2="410" y2="247" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="250.5" font-size="2.286" text-anchor="start">DRAWING NO. / SHEET</text>
+<text stroke="none" x="273.5" y="250.6" font-size="3.143" text-anchor="start">KIT-SS-001   SHEET 1 OF 1</text>
+<line fill="none" x1="230" y1="252" x2="410" y2="252" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="255.5" font-size="2.286" text-anchor="start">REVISION / DATE</text>
+<text stroke="none" x="273.5" y="255.6" font-size="3.143" text-anchor="start">A   2026-09-26</text>
+<line fill="none" x1="230" y1="257" x2="410" y2="257" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="260.5" font-size="2.286" text-anchor="start">DESIGNER / CHECKER</text>
+<text stroke="none" x="273.5" y="260.6" font-size="3.143" text-anchor="start">TEST DESIGNER / UNASSIGNED</text>
+<line fill="none" x1="230" y1="262" x2="410" y2="262" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="265.5" font-size="2.286" text-anchor="start">SCALE</text>
+<text stroke="none" x="273.5" y="265.6" font-size="3.143" text-anchor="start">1:5</text>
+<line fill="none" x1="230" y1="267" x2="410" y2="267" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="270.5" font-size="2.286" text-anchor="start">APPROVAL STATUS</text>
+<text stroke="none" x="273.5" y="270.6" font-size="3.143" text-anchor="start" font-weight="bold">PRELIMINARY</text>
+<line fill="none" x1="230" y1="272" x2="410" y2="272" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="275.5" font-size="2.286" text-anchor="start">SOURCE DESIGN VERSION</text>
+<text stroke="none" x="273.5" y="275.6" font-size="3.143" text-anchor="start">dv_001 (DRAFT)</text>
+<line fill="none" x1="230" y1="277" x2="410" y2="277" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="280.5" font-size="2.286" text-anchor="start">MODEL FINGERPRINT</text>
+<text stroke="none" x="273.5" y="280.6" font-size="3.143" text-anchor="start">1d2641701afd8a</text>
+<line fill="none" x1="230" y1="282" x2="410" y2="282" stroke-width="0.18"/>
+<text stroke="none" x="231.5" y="285.5" font-size="2.286" text-anchor="start">DATA CLASSIFICATION</text>
+<text stroke="none" x="273.5" y="285.6" font-size="3.143" text-anchor="start">PRODUCTION</text>
+</g>
+</svg>

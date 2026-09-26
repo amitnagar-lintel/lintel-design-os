@@ -274,6 +274,7 @@ Tracked individually in [`production-data/`](production-data/):
 - Verified Hettich records and calculation rules — [`04-hardware-standards.md`](production-data/04-hardware-standards.md)
 - Dimensional limits — [`05-dimensional-limits.md`](production-data/05-dimensional-limits.md)
 - Manufacturing standards — [`06-manufacturing-standards.md`](production-data/06-manufacturing-standards.md)
-- Production rate card and pricing rules — [`07-pricing-standards.md`](production-data/07-pricing-standards.md)
+- Production rate card, pricing rules and quotation / tax policy — [`07-pricing-standards.md`](production-data/07-pricing-standards.md)
+- Room planning standard (clearances, gaps, fillers, run length) — [`08-planning-standards.md`](production-data/08-planning-standards.md)
 - Approval of product `KIT_BASE_STANDARD`, recipe `KITCHEN_BASE_STANDARD_V1` (including its listed
   assumptions) and hardware rule set `HINGE_STANDARD` — [`01-construction-standards.md`](production-data/01-construction-standards.md)

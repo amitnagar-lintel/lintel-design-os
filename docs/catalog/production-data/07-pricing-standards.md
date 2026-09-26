@@ -33,3 +33,20 @@ rates, not unit costs, and has not been approved for Design OS.
 | GST rate applicable to this product | % | NULL | NULL / UNVERIFIED (finance / tax adviser) | — |
 | Transport (PRD §23) | — | NULL | NULL / UNVERIFIED — not modelled in M2 | — |
 | Installation (PRD §23) | — | NULL | NULL / UNVERIFIED — not modelled in M2 | — |
+
+## Quotation / tax policy (finance and tax review)
+Data set: `LINTEL_PRODUCTION_QUOTATION_POLICY` (`packages/pricing-engine/src/data/quotation-policy.ts`) —
+v0.1.0, `DRAFT`, every field `null`. Flow: line taxable amounts → grouped by applicable tax rate → tax per the
+tax policy → configured rounding → quotation totals. No legacy discount or tax rule has been ported.
+
+| Field | Options | Value | Status | Approved by / date |
+|---|---|---|---|---|
+| GST rate(s) (rate id → %) | percent, ≤ 2 decimals | NULL | NULL / UNVERIFIED (finance / tax adviser) | — |
+| Tax rate by product category (KITCHEN_BASE → rate id) | rate id | NULL | NULL / UNVERIFIED | — |
+| Tax policy | `PER_LINE` (tax rounded per line) / `PER_RATE_GROUP` (tax on each rate group's total) | NULL | NULL / UNVERIFIED | — |
+| Tax rounding | mode `HALF_UP` / `HALF_EVEN` / `DOWN` / `UP`; increment in paise | NULL | NULL / UNVERIFIED | — |
+| Grand-total rounding | mode and increment (e.g. to whole rupees) | NULL | NULL / UNVERIFIED | — |
+| Discount policy | only `NONE` exists in M4; any other mode requires finance approval before it is built | NULL | NULL / UNVERIFIED | — |
+
+The GST percentage in the pricing rules and the quotation policy's rate for the same product must agree
+(`QUOTATION_TAX_RATE_CONFLICT` otherwise). The TEST_FIXTURE policy uses `PER_RATE_GROUP` with synthetic values.

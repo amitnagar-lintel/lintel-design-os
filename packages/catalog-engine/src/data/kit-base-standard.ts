@@ -49,7 +49,7 @@ export const KIT_BASE_STANDARD: ProductDefinition = {
  */
 export const KITCHEN_BASE_STANDARD_V1: ConstructionRecipe = {
   recipeId: "KITCHEN_BASE_STANDARD_V1",
-  version: "1.0.0",
+  version: "1.1.0",
   status: "DRAFT",
   productType: "KITCHEN_BASE",
   description: "Frameless base carcass: two full-height sides, bottom between sides, front and back top support rails, grooved back, loose shelves, hinged shutters.",
@@ -58,7 +58,7 @@ export const KITCHEN_BASE_STANDARD_V1: ConstructionRecipe = {
     "Back panel is housed in grooves in both sides and the bottom (depth BACK_GROOVE_DEPTH) and runs to the top of the carcass.",
     "Rear top rail sits directly in front of the back panel.",
     "Shelves are loose, spaced evenly in the internal height, and sit in front of the back panel.",
-    "Overlay shutters cover the carcass front face; inset shutters sit inside the opening below the top rails.",
+    "Overlay shutters cover the carcass front face, held SHUTTER_BACK_GAP in front of it; inset shutters sit inside the opening below the top rails (no back gap).",
     "Cabinet height excludes legs/plinth and worktop (none modelled in V1).",
     "Panel dimensions are finished sizes; cut-size allowances belong to the manufacturing engine.",
   ],
@@ -74,6 +74,8 @@ export const KITCHEN_BASE_STANDARD_V1: ConstructionRecipe = {
     { key: "FRONT_BETWEEN_GAP", description: "Gap between adjacent shutters", unit: "MM" },
     { key: "INSET_GAP", description: "Inset front clearance to the opening on each side", unit: "MM" },
     { key: "FRONT_FINISHED_FACES", description: "Number of shutter faces receiving the front finish", unit: "COUNT" },
+    // Additional construction parameter identified during benchmark research (M3); not one of the original 11.
+    { key: "SHUTTER_BACK_GAP", description: "Gap between the back face of an overlay shutter and the carcass front face", unit: "MM" },
   ],
   formulas: [
     { formulaId: "INTERNAL_WIDTH", expression: "W - 2*T", variables: ["W", "T"], unit: "MM" },
@@ -219,7 +221,7 @@ export const KITCHEN_BASE_STANDARD_V1: ConstructionRecipe = {
       width: "OVERLAY_SHUTTER_WIDTH",
       height: "OVERLAY_SHUTTER_HEIGHT",
       thickness: "T_FRONT",
-      position: { x: "OVERLAY_EDGE_GAP + i*(OVERLAY_SHUTTER_WIDTH + FRONT_BETWEEN_GAP)", y: "OVERLAY_BOTTOM_GAP", z: "D" },
+      position: { x: "OVERLAY_EDGE_GAP + i*(OVERLAY_SHUTTER_WIDTH + FRONT_BETWEEN_GAP)", y: "OVERLAY_BOTTOM_GAP", z: "D + SHUTTER_BACK_GAP" },
       materialRole: "FRONT",
       finish: { role: "FRONT_FINISH", faces: "FRONT_FINISHED_FACES" },
       grainDirection: "HEIGHT",

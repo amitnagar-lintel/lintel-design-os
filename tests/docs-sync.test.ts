@@ -9,23 +9,34 @@ import { LINTEL_PRODUCTION_RATE_CARD } from "@lintel/pricing-engine";
 
 const DOCS = join(dirname(fileURLToPath(import.meta.url)), "..", "docs", "catalog");
 const read = (p: string): string => readFileSync(join(DOCS, p), "utf8");
-const variables = KITCHEN_BASE_STANDARD_V1.constructionVariables.map((v) => v.key);
+const allVariables = KITCHEN_BASE_STANDARD_V1.constructionVariables.map((v) => v.key);
+/** Parameters added after the original 11-field list, documented separately (section A1, …). */
+const ADDITIONAL = ["SHUTTER_BACK_GAP"];
+/** The original 11-field list. */
+const variables = allVariables.filter((v) => !ADDITIONAL.includes(v));
 
 describe("KIT_BASE_STANDARD_DATA_REQUIRED.md", () => {
   const doc = read("KIT_BASE_STANDARD_DATA_REQUIRED.md");
   const sections = [...doc.matchAll(/^### (\d+)\. `([A-Z_]+)`$/gm)].map((m) => m[2]);
 
-  it("lists exactly the recipe's construction variables, one section each", () => {
+  it("lists exactly the recipe's construction variables: the original 11, then additional ones (A1…)", () => {
     expect(variables).toHaveLength(11);
     expect(sections).toEqual(variables);
+    const additional = [...doc.matchAll(/^### A(\d+)\. `([A-Z_]+)`$/gm)].map((m) => m[2]);
+    expect(additional).toEqual(ADDITIONAL);
+    expect([...sections, ...additional].sort()).toEqual([...allVariables].sort());
+  });
+  it("defines the front-geometry terms separately, with SHUTTER_REDUCTION unused by the recipe", () => {
+    for (const t of ["OVERLAY_EDGE_GAP", "OVERLAY_TOP_GAP", "OVERLAY_BOTTOM_GAP", "FRONT_BETWEEN_GAP", "INSET_GAP", "SHUTTER_BACK_GAP", "SHUTTER_REDUCTION"]) expect(doc).toContain(`| \`${t}\` |`);
+    expect(allVariables).not.toContain("SHUTTER_REDUCTION");
   });
   it("every listed value is still NULL in the Lintel standard (doc says NULL / UNVERIFIED)", () => {
-    for (const v of variables) expect(LINTEL_CONSTRUCTION_STANDARD_DRAFT.variables[v]).toBeNull();
+    for (const v of allVariables) expect(LINTEL_CONSTRUCTION_STANDARD_DRAFT.variables[v]).toBeNull();
   });
   it("every section carries all required fields", () => {
     const fields = ["Field name", "Current status", "Current value", "Unit", "Where used", "Affected components", "Affected formulas", "Affected drawings", "Affected manufacturing outputs", "Who provides / approves"];
-    const bodies = doc.split(/^### \d+\. /m).slice(1);
-    expect(bodies).toHaveLength(11);
+    const bodies = doc.split(/^### A?\d+\. /m).slice(1);
+    expect(bodies).toHaveLength(12);
     for (const body of bodies) for (const f of fields) expect(body).toContain(`| ${f} |`);
   });
 });
@@ -35,9 +46,10 @@ describe("production-data intake documents", () => {
   it("all exist", () => {
     for (const f of files) expect(existsSync(join(DOCS, "production-data", f)), f).toBe(true);
   });
-  it("01 lists all 11 construction variables individually", () => {
+  it("01 lists the 11 original and the additional construction variables individually", () => {
     const doc = read("production-data/01-construction-standards.md");
     for (const v of variables) expect(doc).toMatch(new RegExp(`\\| \\d+ \\| ${v} \\|`));
+    for (const v of ADDITIONAL) expect(doc).toMatch(new RegExp(`\\| A\\d+ \\| ${v} \\|`));
   });
   it("03 lists every edge side of every recipe component type", () => {
     const doc = read("production-data/03-edge-banding-standards.md");
@@ -58,10 +70,11 @@ describe("reconciliation of the 11-field list with engine behaviour", () => {
       .resolved.validation.messages.filter((m) => m.code === "CONSTRUCTION_VARIABLE_UNDEFINED")
       .map((m) => (m.path ?? "").replace("standard.variables.", ""));
   };
-  it("overlay reference cabinet blocks on 10 of the 11 (INSET_GAP inactive)", async () => {
+  it("overlay reference cabinet blocks on 10 of the original 11 (INSET_GAP inactive) plus SHUTTER_BACK_GAP", async () => {
     const missing = await undefinedFor("OVERLAY");
-    expect(missing).toHaveLength(10);
+    expect(missing).toHaveLength(11);
     expect(variables.filter((v) => !missing.includes(v))).toEqual(["INSET_GAP"]);
+    expect(missing).toContain("SHUTTER_BACK_GAP");
   });
   it("inset cabinet blocks on 8 of the 11 (overlay reveals inactive)", async () => {
     const missing = await undefinedFor("INSET");
@@ -71,16 +84,17 @@ describe("reconciliation of the 11-field list with engine behaviour", () => {
 
 describe("KIT_BASE_STANDARD_BENCHMARK_V1.md", () => {
   const doc = read("KIT_BASE_STANDARD_BENCHMARK_V1.md");
-  const bodies = doc.split(/^### \d+\. /m).slice(1);
+  const bodies = doc.split(/^### A?\d+\. /m).slice(1);
   const row = (body: string, name: string): string => new RegExp(`^\\| ${name} \\| (.+) \\|$`, "m").exec(body)?.[1] ?? "";
   const bodyOf = (field: string): string => bodies.find((b) => b.startsWith(`\`${field}\``)) ?? "";
 
   it("is labelled as an industry benchmark, not the Lintel production standard", () => {
     expect(doc).toContain("INDUSTRY BENCHMARK - NOT LINTEL PRODUCTION STANDARD");
   });
-  it("covers all 11 fields, each with the required rows", () => {
+  it("covers the original 11 fields and the additional parameters, each with the required rows", () => {
     const sections = [...doc.matchAll(/^### (\d+)\. `([A-Z_]+)`$/gm)].map((m) => m[2]);
     expect(sections).toEqual(variables);
+    expect([...doc.matchAll(/^### A(\d+)\. `([A-Z_]+)`$/gm)].map((m) => m[2])).toEqual(ADDITIONAL);
     const rows = ["Field", "Benchmark value", "Source", "Source URL", "Source type", "Confidence", "Applicability", "Stated or inferred"];
     for (const body of bodies) for (const r of rows) expect(body).toContain(`| ${r} |`);
   });
@@ -100,11 +114,17 @@ describe("KIT_BASE_STANDARD_BENCHMARK_V1.md", () => {
     expect(row(b, "Stated or inferred")).toBe("Not converted");
     expect(b).not.toMatch(/\+0\.5/);
   });
+  it("records SHUTTER_BACK_GAP as a directly stated 2 mm benchmark from its own source", () => {
+    const b = bodyOf("SHUTTER_BACK_GAP");
+    expect(row(b, "Benchmark value")).toBe("2 mm");
+    expect(row(b, "Source URL")).toBe("https://help.infurnia.com/en/articles/9669837-how-to-change-the-shutter-back-gap");
+    expect(row(b, "Stated or inferred")).toBe("Directly stated");
+  });
   it("records no number where the mapping would need inference", () => {
     for (const f of ["FRONT_BETWEEN_GAP", "INSET_GAP", "FRONT_FINISHED_FACES"]) expect(row(bodyOf(f), "Benchmark value")).toBe("NO VERIFIED PUBLIC BENCHMARK FOUND");
   });
   it("does not change the production standard", () => {
-    for (const v of variables) expect(LINTEL_CONSTRUCTION_STANDARD_DRAFT.variables[v]).toBeNull();
+    for (const v of allVariables) expect(LINTEL_CONSTRUCTION_STANDARD_DRAFT.variables[v]).toBeNull();
     for (const b of bodies) expect(row(b, "Lintel production value")).toBe("NULL / UNVERIFIED (unchanged)");
   });
 });

@@ -9,7 +9,7 @@ import type { ConstructionStandard } from "@lintel/types";
  */
 export const LINTEL_CONSTRUCTION_STANDARD_DRAFT: ConstructionStandard = {
   standardId: "LINTEL_CONSTRUCTION_STANDARD",
-  version: "0.1.0",
+  version: "0.2.0",
   status: "DRAFT",
   description: "Lintel Space Atelier construction standard (to be defined by production).",
   source: "Pending — Lintel production team",
@@ -25,6 +25,7 @@ export const LINTEL_CONSTRUCTION_STANDARD_DRAFT: ConstructionStandard = {
     FRONT_BETWEEN_GAP: null,
     INSET_GAP: null,
     FRONT_FINISHED_FACES: null,
+    SHUTTER_BACK_GAP: null,
   },
   // Edge rules not yet defined for any component type.
   edgeRuleSets: { CARCASS_STANDARD: {} },

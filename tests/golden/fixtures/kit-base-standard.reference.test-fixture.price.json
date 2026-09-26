@@ -21,7 +21,7 @@
         }
       ],
       "classification": "TEST_FIXTURE",
-      "contentHash": "0f34736b314b6a",
+      "contentHash": "0c1a3792997330",
       "createdAt": "2026-09-26T00:00:00.000Z",
       "currency": "INR",
       "designBlockerCount": 7,
@@ -203,7 +203,7 @@
           "unit": "PAISE"
         }
       ],
-      "modelFingerprint": "1fe687c0e5bf78",
+      "modelFingerprint": "0d8691345c4075",
       "priceSnapshotId": "PRICE:dv_001:obj_001:TEST_FIXTURE_RATE_CARD@0.0.1:TEST_FIXTURE_PRICING_RULES@0.0.1",
       "pricingRules": {
         "classification": "TEST_FIXTURE",
@@ -297,12 +297,12 @@
         "recipe": {
           "id": "KITCHEN_BASE_STANDARD_V1",
           "status": "DRAFT",
-          "version": "1.0.0"
+          "version": "1.1.0"
         },
         "standard": {
           "id": "TEST_FIXTURE_CONSTRUCTION_STANDARD",
           "status": "TEST_FIXTURE",
-          "version": "0.0.1"
+          "version": "0.0.2"
         },
         "testFixtureSources": [
           "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",

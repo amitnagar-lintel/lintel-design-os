@@ -1,6 +1,6 @@
 # KIT_BASE_STANDARD — production data required
 
-**Status: BLOCKED for production.** Lintel construction standard `LINTEL_CONSTRUCTION_STANDARD` v0.1.0
+**Status: BLOCKED for production.** Lintel construction standard `LINTEL_CONSTRUCTION_STANDARD` v0.2.0
 is `DRAFT` and every value below is `NULL / UNVERIFIED`. The engine will not generate the affected
 components, and production output, production pricing and approval stay blocked until each value is
 provided, verified and approved in a new standard version with status `APPROVED`.
@@ -47,10 +47,31 @@ Classification of each field:
 | 10 | INSET_GAP | Construction value — front reveal | Sizes/positions inset fronts only | **No** (inactive) | Yes |
 | 11 | FRONT_FINISHED_FACES | Construction **specification** (count), not a dimension | Declared in the construction standard because it is a construction decision (balance/finish of both faces); it drives finish quantity, not geometry | Yes | Yes |
 
-So the complete production list is **11 fields**; the reference overlay cabinet currently blocks on **10**
-of them; an inset cabinet blocks on **8** (`BACK_GROOVE_DEPTH`, `BACK_REAR_OFFSET`, `TOP_RAIL_WIDTH`,
+So the original production list is **11 fields**; the reference overlay cabinet blocks on **10** of them; an
+inset cabinet blocks on **8** (`BACK_GROOVE_DEPTH`, `BACK_REAR_OFFSET`, `TOP_RAIL_WIDTH`,
 `SHELF_FRONT_SETBACK`, `SHELF_SIDE_CLEARANCE`, `FRONT_BETWEEN_GAP`, `INSET_GAP`, `FRONT_FINISHED_FACES`).
-A test (`tests/docs-sync.test.ts`) asserts these counts against the engine.
+
+**Update (recipe v1.1.0 / standard v0.2.0):** one **additional** construction parameter, `SHUTTER_BACK_GAP`,
+was identified during benchmark research and added as a separate value (section A1 below). It is deliberately
+**not** renumbered into the original 11. With it, the recipe declares **12** construction values; the overlay
+reference cabinet blocks on **11** (the original 10 + `SHUTTER_BACK_GAP`); an inset cabinet still blocks on **8**
+(`SHUTTER_BACK_GAP` applies to overlay shutters only). A test (`tests/docs-sync.test.ts`) asserts these counts
+against the engine.
+
+## Front-geometry terms (independent semantics)
+
+Each term below is a distinct concept. None may be substituted for, derived from, or aliased to another.
+
+| Term | Meaning | Used by `KITCHEN_BASE_STANDARD_V1`? |
+|---|---|---|
+| `OVERLAY_EDGE_GAP` | Reveal between an overlay front's outer side edge and the carcass outer side face (per side) | Yes — construction variable 6 |
+| `OVERLAY_TOP_GAP` | Reveal between an overlay front's top edge and the carcass top | Yes — construction variable 7 |
+| `OVERLAY_BOTTOM_GAP` | Reveal between an overlay front's bottom edge and the carcass bottom | Yes — construction variable 8 |
+| `FRONT_BETWEEN_GAP` | Gap between the facing edges of two adjacent fronts | Yes — construction variable 9 |
+| `INSET_GAP` | Clearance between an inset front and the carcass opening (per side) | Yes — construction variable 10 |
+| `SHUTTER_BACK_GAP` | Gap between the back face of an overlay front and the carcass front face (depth direction) | Yes — additional construction value A1 |
+| `SHUTTER_REDUCTION` | Amount by which a front is made smaller than a nominal front size, per side | **No.** The recipe sizes fronts from carcass dimensions and reveals, not from a nominal size minus a reduction. Industry sources publish reduction values (see the benchmark); they are **not** converted into any gap above. Adopting a reduction-based parameterisation would be a recipe change for Lintel to decide. |
+
 
 ---
 
@@ -220,6 +241,29 @@ A test (`tests/docs-sync.test.ts`) asserts these counts against the engine.
 | Who provides / approves | Provide: Lintel production engineering with design (finish specification). Approve: Lintel design lead and production lead (named approvers NULL / UNVERIFIED) |
 
 ---
+
+## Additional construction parameters (identified during benchmark research)
+
+Not part of the original 11-field list. Added because benchmark research (Infurnia treats "shutter back gap" as a
+separate, configurable construction parameter) showed the recipe did not represent it. Values here are Lintel
+production values and remain `NULL / UNVERIFIED`; the industry benchmark is recorded only in
+[`KIT_BASE_STANDARD_BENCHMARK_V1.md`](KIT_BASE_STANDARD_BENCHMARK_V1.md).
+
+### A1. `SHUTTER_BACK_GAP`
+
+| Item | Value |
+|---|---|
+| Field name | `SHUTTER_BACK_GAP` — gap between the back face of an overlay shutter and the carcass front face |
+| Current status | NULL / UNVERIFIED (standard DRAFT) |
+| Current value | NULL |
+| Unit | mm |
+| Where used | `SHUTTER_OVERLAY.position.z` = `D + SHUTTER_BACK_GAP` (overlay fronts only; inset fronts have no back gap) |
+| Affected components | SHUTTER (overlay fronts — depth position); cabinet envelope depth |
+| Affected formulas | None of the named recipe formulas; the overlay shutter position expression above |
+| Affected drawings | Side Section (front offset from carcass); Front Elevation unaffected (depth direction) |
+| Affected manufacturing outputs | Hinge selection / mounting-plate choice and hinge drilling (hardware pick list, drilling / CNC program, once modelled); installation / assembly instructions |
+| Who provides / approves | Provide: Lintel production engineering (modular factory), with the chosen hinge system. Approve: Lintel production lead and design lead (named approvers NULL / UNVERIFIED) |
+| Classification | Construction value — front mounting dimension. Additional parameter, not one of the original 11 |
 
 ## Other production data required (not construction variables)
 

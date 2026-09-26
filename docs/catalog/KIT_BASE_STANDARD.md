@@ -1,6 +1,6 @@
 # KIT_BASE_STANDARD — catalog notes
 
-Product `KIT_BASE_STANDARD` v1.0.0 (DRAFT) · recipe `KITCHEN_BASE_STANDARD_V1` v1.0.0 (DRAFT) ·
+Product `KIT_BASE_STANDARD` v1.0.0 (DRAFT) · recipe `KITCHEN_BASE_STANDARD_V1` v1.1.0 (DRAFT) ·
 source: `packages/catalog-engine/src/data/kit-base-standard.ts`.
 
 ## Parameters (PRD §41; defaults = PRD §42 reference cabinet)
@@ -19,7 +19,7 @@ source: `packages/catalog-engine/src/data/kit-base-standard.ts`.
 > intake templates: [`production-data/`](production-data/).
 
 ## Construction values Lintel production must define (LINTEL_CONSTRUCTION_STANDARD)
-All are currently `null`. Until defined, dependent components are not generated (BLOCKER).
+All are currently `null` (11 original + 1 additional). Until defined, dependent components are not generated (BLOCKER).
 
 | Variable | Meaning | Needed for |
 |---|---|---|
@@ -33,6 +33,7 @@ All are currently `null`. Until defined, dependent components are not generated 
 | FRONT_BETWEEN_GAP | Gap between adjacent shutters | shutters |
 | INSET_GAP | Inset clearance to the opening | inset shutters |
 | FRONT_FINISHED_FACES | Shutter faces receiving the finish (0–2) | finish BOM |
+| SHUTTER_BACK_GAP | Overlay shutter back face → carcass front face (additional parameter, see DATA_REQUIRED A1) | overlay shutter depth position |
 
 Also required: edge rules per component type (`edgeRuleSets.CARCASS_STANDARD`), material density
 (for door weight) and grain for HDHMR / back board, and approval of product, recipe and hinge rule set.

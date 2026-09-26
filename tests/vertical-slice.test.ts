@@ -44,9 +44,9 @@ describe("Test A — reference cabinet 600 × 720 × 560, two overlay shutters",
     expect(dims(comp(resolved, "OBJ-KIT-001-SHF-01"))).toEqual([562, 518, 18]); // 564 − 2, 560 − 16 − 6 − 20
     expect(pos(comp(resolved, "OBJ-KIT-001-SHF-01"))).toEqual([19, 351, 22]); // y = 18 + (684 − 18)/2
     expect(dims(comp(resolved, "OBJ-KIT-001-SHT-L"))).toEqual([297, 717, 18]); // (600 − 3 − 3)/2, 720 − 3
-    expect(pos(comp(resolved, "OBJ-KIT-001-SHT-L"))).toEqual([1.5, 0, 560]);
-    expect(pos(comp(resolved, "OBJ-KIT-001-SHT-R"))).toEqual([301.5, 0, 560]);
-    expect(resolved.geometry.envelope).toEqual({ min: { x: 0, y: 0, z: 0 }, size: { x: 600, y: 720, z: 578 } });
+    expect(pos(comp(resolved, "OBJ-KIT-001-SHT-L"))).toEqual([1.5, 0, 561]); // z = D + SHUTTER_BACK_GAP (fixture 1)
+    expect(pos(comp(resolved, "OBJ-KIT-001-SHT-R"))).toEqual([301.5, 0, 561]);
+    expect(resolved.geometry.envelope).toEqual({ min: { x: 0, y: 0, z: 0 }, size: { x: 600, y: 720, z: 579 } }); // 560 + 1 + 18
   });
   it("assigns materials by role, finish and edges from the standard", () => {
     expect(comp(resolved, "OBJ-KIT-001-SL").materialId).toBe("BOARD_BWP_18");
@@ -119,7 +119,7 @@ describe("Test B — width 600 → 750", () => {
   });
   it("updates shutter widths", () => {
     expect(dims(comp(after.resolved, "OBJ-KIT-001-SHT-L"))).toEqual([372, 717, 18]); // (750 − 3 − 3)/2
-    expect(pos(comp(after.resolved, "OBJ-KIT-001-SHT-R"))).toEqual([376.5, 0, 560]);
+    expect(pos(comp(after.resolved, "OBJ-KIT-001-SHT-R"))).toEqual([376.5, 0, 561]);
   });
   it("updates BOM and BOQ", () => {
     expect(bomItem(after.bom, "BOM:obj_001:BOARD:BOARD_BWP_18").quantity).toBe(1.717856); // 806400 + 399840 + 142800 + 368816 mm²
@@ -227,6 +227,7 @@ describe("production configuration — nothing invented", () => {
       "standard.variables.OVERLAY_TOP_GAP",
       "standard.variables.SHELF_FRONT_SETBACK",
       "standard.variables.SHELF_SIDE_CLEARANCE",
+      "standard.variables.SHUTTER_BACK_GAP",
       "standard.variables.TOP_RAIL_WIDTH",
     ]);
   });

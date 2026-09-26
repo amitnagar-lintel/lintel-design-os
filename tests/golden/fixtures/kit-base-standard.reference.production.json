@@ -91,12 +91,12 @@
       "recipe": {
         "id": "KITCHEN_BASE_STANDARD_V1",
         "status": "DRAFT",
-        "version": "1.0.0"
+        "version": "1.1.0"
       },
       "standard": {
         "id": "LINTEL_CONSTRUCTION_STANDARD",
         "status": "DRAFT",
-        "version": "0.1.0"
+        "version": "0.2.0"
       },
       "testFixtureSources": []
     }
@@ -144,12 +144,12 @@
       "recipe": {
         "id": "KITCHEN_BASE_STANDARD_V1",
         "status": "DRAFT",
-        "version": "1.0.0"
+        "version": "1.1.0"
       },
       "standard": {
         "id": "LINTEL_CONSTRUCTION_STANDARD",
         "status": "DRAFT",
-        "version": "0.1.0"
+        "version": "0.2.0"
       },
       "testFixtureSources": []
     }
@@ -397,19 +397,19 @@
       "recipe": {
         "id": "KITCHEN_BASE_STANDARD_V1",
         "status": "DRAFT",
-        "version": "1.0.0"
+        "version": "1.1.0"
       },
       "standard": {
         "id": "LINTEL_CONSTRUCTION_STANDARD",
         "status": "DRAFT",
-        "version": "0.1.0"
+        "version": "0.2.0"
       },
       "testFixtureSources": []
     },
     "validation": {
       "canApprove": false,
       "counts": {
-        "BLOCKER": 24,
+        "BLOCKER": 25,
         "ERROR": 0,
         "INFO": 0,
         "WARNING": 1
@@ -439,9 +439,9 @@
           "code": "COMPONENT_NOT_GENERATED",
           "componentId": "OBJ-KIT-001-SHT-L",
           "details": {
-            "missing": "FRONT_BETWEEN_GAP,FRONT_FINISHED_FACES,OVERLAY_BOTTOM_GAP,OVERLAY_EDGE_GAP,OVERLAY_TOP_GAP"
+            "missing": "FRONT_BETWEEN_GAP,FRONT_FINISHED_FACES,OVERLAY_BOTTOM_GAP,OVERLAY_EDGE_GAP,OVERLAY_TOP_GAP,SHUTTER_BACK_GAP"
           },
-          "message": "OBJ-KIT-001-SHT-L: width, height, position.x, position.y, finishedFaces could not be computed (construction value FRONT_BETWEEN_GAP undefined; construction value FRONT_FINISHED_FACES undefined; construction value OVERLAY_BOTTOM_GAP undefined; construction value OVERLAY_EDGE_GAP undefined; construction value OVERLAY_TOP_GAP undefined)",
+          "message": "OBJ-KIT-001-SHT-L: width, height, position.x, position.y, position.z, finishedFaces could not be computed (construction value FRONT_BETWEEN_GAP undefined; construction value FRONT_FINISHED_FACES undefined; construction value OVERLAY_BOTTOM_GAP undefined; construction value OVERLAY_EDGE_GAP undefined; construction value OVERLAY_TOP_GAP undefined; construction value SHUTTER_BACK_GAP undefined)",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_001"
         },
@@ -449,9 +449,9 @@
           "code": "COMPONENT_NOT_GENERATED",
           "componentId": "OBJ-KIT-001-SHT-R",
           "details": {
-            "missing": "FRONT_BETWEEN_GAP,FRONT_FINISHED_FACES,OVERLAY_BOTTOM_GAP,OVERLAY_EDGE_GAP,OVERLAY_TOP_GAP"
+            "missing": "FRONT_BETWEEN_GAP,FRONT_FINISHED_FACES,OVERLAY_BOTTOM_GAP,OVERLAY_EDGE_GAP,OVERLAY_TOP_GAP,SHUTTER_BACK_GAP"
           },
-          "message": "OBJ-KIT-001-SHT-R: width, height, position.x, position.y, finishedFaces could not be computed (construction value FRONT_BETWEEN_GAP undefined; construction value FRONT_FINISHED_FACES undefined; construction value OVERLAY_BOTTOM_GAP undefined; construction value OVERLAY_EDGE_GAP undefined; construction value OVERLAY_TOP_GAP undefined)",
+          "message": "OBJ-KIT-001-SHT-R: width, height, position.x, position.y, position.z, finishedFaces could not be computed (construction value FRONT_BETWEEN_GAP undefined; construction value FRONT_FINISHED_FACES undefined; construction value OVERLAY_BOTTOM_GAP undefined; construction value OVERLAY_EDGE_GAP undefined; construction value OVERLAY_TOP_GAP undefined; construction value SHUTTER_BACK_GAP undefined)",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_001"
         },
@@ -477,77 +477,84 @@
         },
         {
           "code": "CONSTRUCTION_STANDARD_NOT_APPROVED",
-          "message": "construction standard LINTEL_CONSTRUCTION_STANDARD v0.1.0 is a DRAFT and not verified for production",
+          "message": "construction standard LINTEL_CONSTRUCTION_STANDARD v0.2.0 is a DRAFT and not verified for production",
           "path": "construction_standard",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_001"
         },
         {
           "code": "CONSTRUCTION_VARIABLE_UNDEFINED",
-          "message": "Construction value BACK_GROOVE_DEPTH (Depth of the back-panel groove in sides and bottom) is not defined in LINTEL_CONSTRUCTION_STANDARD v0.1.0",
+          "message": "Construction value BACK_GROOVE_DEPTH (Depth of the back-panel groove in sides and bottom) is not defined in LINTEL_CONSTRUCTION_STANDARD v0.2.0",
           "path": "standard.variables.BACK_GROOVE_DEPTH",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_001"
         },
         {
           "code": "CONSTRUCTION_VARIABLE_UNDEFINED",
-          "message": "Construction value BACK_REAR_OFFSET (Distance from carcass rear edge to the back panel's rear face) is not defined in LINTEL_CONSTRUCTION_STANDARD v0.1.0",
+          "message": "Construction value BACK_REAR_OFFSET (Distance from carcass rear edge to the back panel's rear face) is not defined in LINTEL_CONSTRUCTION_STANDARD v0.2.0",
           "path": "standard.variables.BACK_REAR_OFFSET",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_001"
         },
         {
           "code": "CONSTRUCTION_VARIABLE_UNDEFINED",
-          "message": "Construction value FRONT_BETWEEN_GAP (Gap between adjacent shutters) is not defined in LINTEL_CONSTRUCTION_STANDARD v0.1.0",
+          "message": "Construction value FRONT_BETWEEN_GAP (Gap between adjacent shutters) is not defined in LINTEL_CONSTRUCTION_STANDARD v0.2.0",
           "path": "standard.variables.FRONT_BETWEEN_GAP",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_001"
         },
         {
           "code": "CONSTRUCTION_VARIABLE_UNDEFINED",
-          "message": "Construction value FRONT_FINISHED_FACES (Number of shutter faces receiving the front finish) is not defined in LINTEL_CONSTRUCTION_STANDARD v0.1.0",
+          "message": "Construction value FRONT_FINISHED_FACES (Number of shutter faces receiving the front finish) is not defined in LINTEL_CONSTRUCTION_STANDARD v0.2.0",
           "path": "standard.variables.FRONT_FINISHED_FACES",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_001"
         },
         {
           "code": "CONSTRUCTION_VARIABLE_UNDEFINED",
-          "message": "Construction value OVERLAY_BOTTOM_GAP (Overlay front reveal at the bottom) is not defined in LINTEL_CONSTRUCTION_STANDARD v0.1.0",
+          "message": "Construction value OVERLAY_BOTTOM_GAP (Overlay front reveal at the bottom) is not defined in LINTEL_CONSTRUCTION_STANDARD v0.2.0",
           "path": "standard.variables.OVERLAY_BOTTOM_GAP",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_001"
         },
         {
           "code": "CONSTRUCTION_VARIABLE_UNDEFINED",
-          "message": "Construction value OVERLAY_EDGE_GAP (Overlay front reveal at each outer side edge) is not defined in LINTEL_CONSTRUCTION_STANDARD v0.1.0",
+          "message": "Construction value OVERLAY_EDGE_GAP (Overlay front reveal at each outer side edge) is not defined in LINTEL_CONSTRUCTION_STANDARD v0.2.0",
           "path": "standard.variables.OVERLAY_EDGE_GAP",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_001"
         },
         {
           "code": "CONSTRUCTION_VARIABLE_UNDEFINED",
-          "message": "Construction value OVERLAY_TOP_GAP (Overlay front reveal at the top) is not defined in LINTEL_CONSTRUCTION_STANDARD v0.1.0",
+          "message": "Construction value OVERLAY_TOP_GAP (Overlay front reveal at the top) is not defined in LINTEL_CONSTRUCTION_STANDARD v0.2.0",
           "path": "standard.variables.OVERLAY_TOP_GAP",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_001"
         },
         {
           "code": "CONSTRUCTION_VARIABLE_UNDEFINED",
-          "message": "Construction value SHELF_FRONT_SETBACK (Shelf front edge setback from carcass front) is not defined in LINTEL_CONSTRUCTION_STANDARD v0.1.0",
+          "message": "Construction value SHELF_FRONT_SETBACK (Shelf front edge setback from carcass front) is not defined in LINTEL_CONSTRUCTION_STANDARD v0.2.0",
           "path": "standard.variables.SHELF_FRONT_SETBACK",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_001"
         },
         {
           "code": "CONSTRUCTION_VARIABLE_UNDEFINED",
-          "message": "Construction value SHELF_SIDE_CLEARANCE (Total width clearance of a loose shelf between sides) is not defined in LINTEL_CONSTRUCTION_STANDARD v0.1.0",
+          "message": "Construction value SHELF_SIDE_CLEARANCE (Total width clearance of a loose shelf between sides) is not defined in LINTEL_CONSTRUCTION_STANDARD v0.2.0",
           "path": "standard.variables.SHELF_SIDE_CLEARANCE",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_001"
         },
         {
           "code": "CONSTRUCTION_VARIABLE_UNDEFINED",
-          "message": "Construction value TOP_RAIL_WIDTH (Depth (front-to-back) of each top support rail) is not defined in LINTEL_CONSTRUCTION_STANDARD v0.1.0",
+          "message": "Construction value SHUTTER_BACK_GAP (Gap between the back face of an overlay shutter and the carcass front face) is not defined in LINTEL_CONSTRUCTION_STANDARD v0.2.0",
+          "path": "standard.variables.SHUTTER_BACK_GAP",
+          "severity": "BLOCKER",
+          "sourceObjectId": "obj_001"
+        },
+        {
+          "code": "CONSTRUCTION_VARIABLE_UNDEFINED",
+          "message": "Construction value TOP_RAIL_WIDTH (Depth (front-to-back) of each top support rail) is not defined in LINTEL_CONSTRUCTION_STANDARD v0.2.0",
           "path": "standard.variables.TOP_RAIL_WIDTH",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_001"
@@ -589,7 +596,7 @@
         },
         {
           "code": "RECIPE_NOT_APPROVED",
-          "message": "recipe KITCHEN_BASE_STANDARD_V1 v1.0.0 is a DRAFT and not verified for production",
+          "message": "recipe KITCHEN_BASE_STANDARD_V1 v1.1.0 is a DRAFT and not verified for production",
           "path": "recipe",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_001"

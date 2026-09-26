@@ -10,7 +10,7 @@ rule rather than inventing a value. The PRD defines the reference cabinet (600 Ã
 ## Decision
 - Recipes reference such values only by **named construction variables** (declared in the recipe).
 - Values are supplied by a `ConstructionStandard` (versioned, with `status`).
-- `LINTEL_CONSTRUCTION_STANDARD` v0.1.0 is **DRAFT with every value `null`**. The engine generates only
+- `LINTEL_CONSTRUCTION_STANDARD` (v0.2.0 since `SHUTTER_BACK_GAP` was added) is **DRAFT with every value `null`**. The engine generates only
   components fully defined by known values and reports each missing value as a
   `CONSTRUCTION_VARIABLE_UNDEFINED` BLOCKER (the list production must fill in: `docs/catalog/KIT_BASE_STANDARD.md`).
 - `TEST_FIXTURE_CONSTRUCTION_STANDARD` holds **synthetic** values to exercise mechanics in tests. Any

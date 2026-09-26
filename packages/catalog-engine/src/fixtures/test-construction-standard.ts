@@ -8,7 +8,7 @@ import type { ConstructionStandard } from "@lintel/types";
  */
 export const TEST_FIXTURE_CONSTRUCTION_STANDARD: ConstructionStandard = {
   standardId: "TEST_FIXTURE_CONSTRUCTION_STANDARD",
-  version: "0.0.1",
+  version: "0.0.2",
   status: "TEST_FIXTURE",
   description: "Synthetic construction values for engine tests only. Not for production.",
   source: "Test fixture (synthetic)",
@@ -24,6 +24,8 @@ export const TEST_FIXTURE_CONSTRUCTION_STANDARD: ConstructionStandard = {
     FRONT_BETWEEN_GAP: 3,
     INSET_GAP: 2,
     FRONT_FINISHED_FACES: 2,
+    // Synthetic; deliberately different from the 2 mm industry benchmark so it cannot be mistaken for it.
+    SHUTTER_BACK_GAP: 1,
   },
   edgeRuleSets: {
     CARCASS_STANDARD: {

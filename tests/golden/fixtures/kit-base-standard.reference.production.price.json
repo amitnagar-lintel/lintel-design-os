@@ -10,7 +10,7 @@
       },
       {
         "code": "PRICING_DESIGN_BLOCKED",
-        "message": "Production catalog/design not approved: 24 design BLOCKER(s) outstanding",
+        "message": "Production catalog/design not approved: 25 design BLOCKER(s) outstanding",
         "path": "resolved.validation",
         "severity": "BLOCKER"
       },

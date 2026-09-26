@@ -214,6 +214,34 @@ default rather than a hardware manufacturer's specification or a published stand
 
 ---
 
+## Additional construction parameters (identified during benchmark research)
+
+Not part of the original 11-field list; see `KIT_BASE_STANDARD_DATA_REQUIRED.md` section A1.
+
+### A1. `SHUTTER_BACK_GAP`
+
+| Item | Value |
+|---|---|
+| Field | `SHUTTER_BACK_GAP` — gap between the back face of an overlay shutter and the carcass front face (mm) |
+| Benchmark value | 2 mm |
+| Source | INF-2 — "Shutter back gap" default: 2 mm |
+| Source URL | https://help.infurnia.com/en/articles/9669837-how-to-change-the-shutter-back-gap |
+| Source type | Software vendor product documentation |
+| Confidence | MEDIUM |
+| Applicability | Infurnia treats shutter back gap as its own configurable construction parameter, separate from shutter reduction and from the front reveals; the Lintel field has the same meaning (depth-direction gap between shutter and carcass front). Configurable in Infurnia (INF-2). Applies to overlay fronts in the Lintel recipe. |
+| Stated or inferred | Directly stated |
+| Lintel production value | NULL / UNVERIFIED (unchanged) |
+
+## Shutter reduction (source fact, not a Lintel field)
+
+INF-1 / INF-3 publish a **shutter reduction** of 1 mm on all four sides. Shutter reduction is a distinct concept
+(front made smaller than a nominal size) and is **not** used by the Lintel recipe. It is recorded here as a
+source fact only. It is not converted into `SHUTTER_BACK_GAP`, `FRONT_BETWEEN_GAP`, `INSET_GAP`, or any Lintel
+production value. (Fields 6–8 above are preserved exactly as approved; their "Stated, mapping interpreted"
+status records that equating reduction with a reveal is an interpretation, not a conversion.)
+
+---
+
 ## Other benchmark facts not mapped to a Lintel field
 
 Recorded for completeness from INF-1 / INF-2. None of these changes Lintel data.
@@ -224,4 +252,4 @@ Recorded for completeness from INF-1 / INF-2. None of these changes Lintel data.
 | Base unit default | 720 × 560 mm | INF-1 | Matches PRD §42 reference height and depth. |
 | Back/sink rail depth | 100 mm | INF-1 | See field 3. |
 | Skirting height | 100 mm | INF-1 | Plinth/skirting is not modelled in Lintel V1. |
-| Shutter back gap (default) | 2 mm | INF-2 | Gap between shutter back and carcass front. **Gap identified:** the Lintel recipe has no such variable; overlay shutters currently sit directly on the carcass front (`z = D`). Adding a `FRONT_BACK_GAP` construction variable is a recipe change for Lintel to decide; it is not made here. |
+| Shutter back gap (default) | 2 mm | INF-2 | Now mapped: see additional parameter A1 `SHUTTER_BACK_GAP` (recipe v1.1.0). |

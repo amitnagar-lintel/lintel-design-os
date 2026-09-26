@@ -296,12 +296,12 @@
       "recipe": {
         "id": "KITCHEN_BASE_STANDARD_V1",
         "status": "DRAFT",
-        "version": "1.0.0"
+        "version": "1.1.0"
       },
       "standard": {
         "id": "TEST_FIXTURE_CONSTRUCTION_STANDARD",
         "status": "TEST_FIXTURE",
-        "version": "0.0.1"
+        "version": "0.0.2"
       },
       "testFixtureSources": [
         "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
@@ -352,12 +352,12 @@
       "recipe": {
         "id": "KITCHEN_BASE_STANDARD_V1",
         "status": "DRAFT",
-        "version": "1.0.0"
+        "version": "1.1.0"
       },
       "standard": {
         "id": "TEST_FIXTURE_CONSTRUCTION_STANDARD",
         "status": "TEST_FIXTURE",
-        "version": "0.0.1"
+        "version": "0.0.2"
       },
       "testFixtureSources": [
         "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
@@ -688,7 +688,7 @@
             "min": {
               "x": 1.5,
               "y": 0,
-              "z": 560
+              "z": 561
             },
             "size": {
               "x": 297,
@@ -747,7 +747,7 @@
             "min": {
               "x": 301.5,
               "y": 0,
-              "z": 560
+              "z": 561
             },
             "size": {
               "x": 297,
@@ -789,7 +789,7 @@
         "size": {
           "x": 600,
           "y": 720,
-          "z": 578
+          "z": 579
         }
       },
       "transform": {
@@ -1031,6 +1031,7 @@
       "SHELF_FRONT_SETBACK": 20,
       "SHELF_PITCH": 333,
       "SHELF_SIDE_CLEARANCE": 2,
+      "SHUTTER_BACK_GAP": 1,
       "T": 18,
       "TB": 6,
       "TOP_RAIL_WIDTH": 100,
@@ -1063,12 +1064,12 @@
       "recipe": {
         "id": "KITCHEN_BASE_STANDARD_V1",
         "status": "DRAFT",
-        "version": "1.0.0"
+        "version": "1.1.0"
       },
       "standard": {
         "id": "TEST_FIXTURE_CONSTRUCTION_STANDARD",
         "status": "TEST_FIXTURE",
-        "version": "0.0.1"
+        "version": "0.0.2"
       },
       "testFixtureSources": [
         "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
@@ -1086,7 +1087,7 @@
       "messages": [
         {
           "code": "CONSTRUCTION_STANDARD_NOT_APPROVED",
-          "message": "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD v0.0.1 is a TEST FIXTURE with synthetic values",
+          "message": "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD v0.0.2 is a TEST FIXTURE with synthetic values",
           "path": "construction_standard",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_001"
@@ -1121,7 +1122,7 @@
         },
         {
           "code": "RECIPE_NOT_APPROVED",
-          "message": "recipe KITCHEN_BASE_STANDARD_V1 v1.0.0 is a DRAFT and not verified for production",
+          "message": "recipe KITCHEN_BASE_STANDARD_V1 v1.1.0 is a DRAFT and not verified for production",
           "path": "recipe",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_001"

@@ -849,6 +849,19 @@ column: material_version.superseded_by uuid
 column: material_version.superseded_at timestamp with time zone
 column: material_version.content_hash text NOT NULL
 column: material_version.row_version integer NOT NULL DEFAULT 1
+column: org_invitation.id uuid NOT NULL DEFAULT gen_random_uuid()
+column: org_invitation.org_id uuid NOT NULL
+column: org_invitation.email text NOT NULL
+column: org_invitation.display_name text NOT NULL
+column: org_invitation.roles design_os.design_os_role[] NOT NULL
+column: org_invitation.status text NOT NULL DEFAULT 'PENDING'::text
+column: org_invitation.invited_by uuid
+column: org_invitation.created_at timestamp with time zone NOT NULL DEFAULT now()
+column: org_invitation.expires_at timestamp with time zone NOT NULL DEFAULT (now() + '14 days'::interval)
+column: org_invitation.accepted_by uuid
+column: org_invitation.accepted_at timestamp with time zone
+column: org_invitation.revoked_by uuid
+column: org_invitation.revoked_at timestamp with time zone
 column: org_membership.org_id uuid NOT NULL
 column: org_membership.user_id uuid NOT NULL
 column: org_membership.role design_os.design_os_role NOT NULL
@@ -2001,6 +2014,18 @@ constraint: design_os.material_version material_version_superseded_iff CHECK (((
 constraint: design_os.material_version material_version_thickness_mm_check CHECK ((thickness_mm > (0)::numeric))
 constraint: design_os.material_version material_version_version_number_check CHECK ((version_number >= 1))
 constraint: design_os.material_version material_version_version_number_unique UNIQUE (org_id, entity_id, version_number)
+constraint: design_os.org_invitation org_invitation_accepted_by_fkey FOREIGN KEY (accepted_by) REFERENCES design_os.app_user(id)
+constraint: design_os.org_invitation org_invitation_display_name CHECK (((btrim(display_name) <> ''::text) AND (length(display_name) <= 200)))
+constraint: design_os.org_invitation org_invitation_email_normalized CHECK (((email = lower(btrim(email))) AND (email ~ '^[^@[:space:]]+@[^@[:space:]]+$'::text)))
+constraint: design_os.org_invitation org_invitation_expiry CHECK ((expires_at > created_at))
+constraint: design_os.org_invitation org_invitation_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES design_os.app_user(id)
+constraint: design_os.org_invitation org_invitation_org_id_fkey FOREIGN KEY (org_id) REFERENCES design_os.organization(id)
+constraint: design_os.org_invitation org_invitation_org_id_unique UNIQUE (org_id, id)
+constraint: design_os.org_invitation org_invitation_pkey PRIMARY KEY (id)
+constraint: design_os.org_invitation org_invitation_revoked_by_fkey FOREIGN KEY (revoked_by) REFERENCES design_os.app_user(id)
+constraint: design_os.org_invitation org_invitation_roles CHECK ((((cardinality(roles) >= 1) AND (cardinality(roles) <= 9)) AND (NOT ('CLIENT'::design_os.design_os_role = ANY (roles))) AND design_os.roles_distinct(roles)))
+constraint: design_os.org_invitation org_invitation_state CHECK ((((status = 'PENDING'::text) AND (accepted_by IS NULL) AND (accepted_at IS NULL) AND (revoked_by IS NULL) AND (revoked_at IS NULL)) OR ((status = 'ACCEPTED'::text) AND (accepted_by IS NOT NULL) AND (accepted_at IS NOT NULL) AND (revoked_by IS NULL) AND (revoked_at IS NULL)) OR ((status = 'REVOKED'::text) AND (revoked_at IS NOT NULL) AND (accepted_by IS NULL) AND (accepted_at IS NULL))))
+constraint: design_os.org_invitation org_invitation_status_check CHECK ((status = ANY (ARRAY['PENDING'::text, 'ACCEPTED'::text, 'REVOKED'::text])))
 constraint: design_os.org_membership org_membership_granted_by_fkey FOREIGN KEY (granted_by) REFERENCES design_os.app_user(id)
 constraint: design_os.org_membership org_membership_org_id_fkey FOREIGN KEY (org_id) REFERENCES design_os.organization(id)
 constraint: design_os.org_membership org_membership_pkey PRIMARY KEY (org_id, user_id, role)
@@ -2384,6 +2409,7 @@ constraint: design_os.versioned_table versioned_table_pkey PRIMARY KEY (subject_
 constraint: design_os.versioned_table versioned_table_version_table_key UNIQUE (version_table)
 index: CREATE INDEX audit_log_chain ON design_os.audit_log USING btree (org_id, id)
 index: CREATE INDEX idempotency_record_expires ON design_os.idempotency_record USING btree (expires_at)
+index: CREATE INDEX org_invitation_email ON design_os.org_invitation USING btree (email) WHERE (status = 'PENDING'::text)
 index: CREATE INDEX validation_run_lookup ON design_os.validation_run USING btree (design_version_id, input_hash, input_revision, seq DESC)
 index: CREATE UNIQUE INDEX app_user_email_unique ON design_os.app_user USING btree (lower(email))
 index: CREATE UNIQUE INDEX app_user_pkey ON design_os.app_user USING btree (id)
@@ -2552,6 +2578,9 @@ index: CREATE UNIQUE INDEX material_version_org_entity_id_unique ON design_os.ma
 index: CREATE UNIQUE INDEX material_version_org_id_unique ON design_os.material_version USING btree (org_id, id)
 index: CREATE UNIQUE INDEX material_version_pkey ON design_os.material_version USING btree (id)
 index: CREATE UNIQUE INDEX material_version_version_number_unique ON design_os.material_version USING btree (org_id, entity_id, version_number)
+index: CREATE UNIQUE INDEX org_invitation_org_id_unique ON design_os.org_invitation USING btree (org_id, id)
+index: CREATE UNIQUE INDEX org_invitation_pending_unique ON design_os.org_invitation USING btree (org_id, email) WHERE (status = 'PENDING'::text)
+index: CREATE UNIQUE INDEX org_invitation_pkey ON design_os.org_invitation USING btree (id)
 index: CREATE UNIQUE INDEX org_membership_pkey ON design_os.org_membership USING btree (org_id, user_id, role)
 index: CREATE UNIQUE INDEX organization_code_key ON design_os.organization USING btree (code)
 index: CREATE UNIQUE INDEX organization_pkey ON design_os.organization USING btree (id)
@@ -2698,6 +2727,7 @@ trigger: CREATE TRIGGER audit_row AFTER INSERT OR DELETE OR UPDATE ON design_os.
 trigger: CREATE TRIGGER audit_row AFTER INSERT OR DELETE OR UPDATE ON design_os.material_catalog_version_edge_band FOR EACH ROW EXECUTE FUNCTION design_os.audit_row()
 trigger: CREATE TRIGGER audit_row AFTER INSERT OR DELETE OR UPDATE ON design_os.material_catalog_version_material FOR EACH ROW EXECUTE FUNCTION design_os.audit_row()
 trigger: CREATE TRIGGER audit_row AFTER INSERT OR DELETE OR UPDATE ON design_os.material_version FOR EACH ROW EXECUTE FUNCTION design_os.audit_row()
+trigger: CREATE TRIGGER audit_row AFTER INSERT OR DELETE OR UPDATE ON design_os.org_invitation FOR EACH ROW EXECUTE FUNCTION design_os.audit_row()
 trigger: CREATE TRIGGER audit_row AFTER INSERT OR DELETE OR UPDATE ON design_os.org_membership FOR EACH ROW EXECUTE FUNCTION design_os.audit_row()
 trigger: CREATE TRIGGER audit_row AFTER INSERT OR DELETE OR UPDATE ON design_os.organization FOR EACH ROW EXECUTE FUNCTION design_os.audit_row()
 trigger: CREATE TRIGGER audit_row AFTER INSERT OR DELETE OR UPDATE ON design_os.planning_standard FOR EACH ROW EXECUTE FUNCTION design_os.audit_row()
@@ -2839,6 +2869,7 @@ function: create_catalog_member_table(p_domain text, p_item text) -> void owner=
 function: create_catalog_version_table(p_domain text) -> void owner=design_os_owner src=e8d51ab1c8effe4718825e4b96aff155
 function: create_entity_table(p_name text) -> void owner=design_os_owner src=cf6232eba644481d8982f09a48b1b360
 function: create_snapshot_table(p_name text, p_kind design_os.snapshot_kind) -> void owner=design_os_owner src=61275082d540d0e68dd485dbf76a38ff
+function: current_auth_email() -> text SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=0f0ace8b22bc743afe02fd3332de1f17
 function: current_memberships() -> TABLE(org_id uuid) SECURITY DEFINER search_path=pg_catalog, pg_temp owner=design_os_owner src=c3fa20b747d4b792369e44401cb6424d
 function: current_org_id() -> uuid SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=e16dd340255900740fd41d07da5cc971
 function: current_user_id() -> uuid owner=design_os_owner src=146d8b484b1175a77c42a5109db6a017
@@ -2876,6 +2907,7 @@ function: output_dependency_hashes(p_design_version uuid, p_pricing_standard uui
 function: products_outside_catalog(p_org uuid, p_design_version uuid, p_catalog_version uuid) -> uuid[] SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=b39a84a40d4d7f8d1df79a469812bc14
 function: record_decision(p_org uuid, p_subject_type text, p_id uuid, p_action text, p_actor uuid, p_reason text, p_prev design_os.record_lifecycle_status, p_new design_os.record_lifecycle_status, p_hash text, p_request uuid) -> void owner=design_os_owner src=e5a66bb9c859daa3e0911043b62c3505
 function: record_validation_run(p_purpose text, p_design_version_id uuid, p_input_hash text, p_engine_name text, p_engine_version text, p_engine_build text, p_engine_fingerprint text, p_engine_closure jsonb, p_blocker_count integer, p_warning_count integer, p_messages jsonb, p_content_hash text) -> uuid SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=394329782668bac595eeb64c7e2717e1
+function: roles_distinct(p_roles design_os.design_os_role[]) -> boolean owner=design_os_owner src=06e92dbe2e051f4dc9dd21a6b09f2d8a
 function: room_project(p_room uuid) -> uuid SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=2fc701b3a69dc86e4e0ac5f50fee93d2
 function: seed_org_permissions() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=f6c845acde51f7abe9a6c090d6ae546b
 function: sha256_text(p text) -> text owner=design_os_owner src=5a15a50b55cc5ba1369f13edbe9f090d
@@ -2954,6 +2986,7 @@ table: material_catalog_version owner=design_os_owner rls=true
 table: material_catalog_version_edge_band owner=design_os_owner rls=true
 table: material_catalog_version_material owner=design_os_owner rls=true
 table: material_version owner=design_os_owner rls=true
+table: org_invitation owner=design_os_owner rls=true
 table: org_membership owner=design_os_owner rls=true
 table: organization owner=design_os_owner rls=true
 table: output_engine owner=design_os_owner rls=true
@@ -2989,6 +3022,7 @@ table: tax_rate owner=design_os_owner rls=true
 table: tax_rate_mapping owner=design_os_owner rls=true
 table: validation_run owner=design_os_owner rls=true
 table: versioned_table owner=design_os_owner rls=true
+policy: app_user user_self_provision INSERT design_os_api USING - CHECK ((id = design_os.current_user_id()) AND (identity_kind = 'INTERNAL'::design_os.identity_kind) AND (status = 'ACTIVE'::text) AND (lower(email) = design_os.current_auth_email()) AND (EXISTS ( SELECT 1 FROM design_os.org_invitation i WHERE ((i.status = 'PENDING'::text) AND (i.expires_at > now()) AND (i.email = design_os.current_auth_email()) AND (i.display_name = app_user.display_name)))))
 policy: app_user visible_users SELECT design_os_api USING ((id = design_os.current_user_id()) OR (design_os.is_internal() AND (EXISTS ( SELECT 1 FROM design_os.org_membership m WHERE ((m.user_id = app_user.id) AND (m.org_id = design_os.current_org_id())))))) CHECK -
 policy: appliance ref_delete DELETE design_os_api USING ((org_id = design_os.current_org_id()) AND design_os.has_permission('appliance_catalog.author'::text)) CHECK -
 policy: appliance ref_insert INSERT design_os_api USING - CHECK ((org_id = design_os.current_org_id()) AND design_os.has_permission('appliance_catalog.author'::text))
@@ -3204,6 +3238,13 @@ policy: material_version ref_delete DELETE design_os_api USING ((org_id = design
 policy: material_version ref_insert INSERT design_os_api USING - CHECK ((org_id = design_os.current_org_id()) AND design_os.has_permission('material_catalog.author'::text))
 policy: material_version ref_read SELECT design_os_api USING ((org_id = design_os.current_org_id()) AND design_os.is_internal() AND design_os.has_permission('reference.read'::text)) CHECK -
 policy: material_version ref_update UPDATE design_os_api USING ((org_id = design_os.current_org_id()) AND design_os.has_permission('material_catalog.author'::text)) CHECK ((org_id = design_os.current_org_id()) AND design_os.has_permission('material_catalog.author'::text))
+policy: org_invitation invitation_accept UPDATE design_os_api USING ((status = 'PENDING'::text) AND (expires_at > now()) AND (email = design_os.current_auth_email())) CHECK ((status = 'ACCEPTED'::text) AND (accepted_by = design_os.current_user_id()) AND (expires_at > now()) AND (email = design_os.current_auth_email()))
+policy: org_invitation invitation_insert INSERT design_os_api USING - CHECK ((org_id = design_os.current_org_id()) AND design_os.is_internal() AND design_os.has_permission('org.members.manage'::text) AND (invited_by = design_os.current_user_id()) AND (status = 'PENDING'::text))
+policy: org_invitation invitation_read SELECT design_os_api USING (((org_id = design_os.current_org_id()) AND design_os.is_internal() AND design_os.has_permission('org.members.manage'::text)) OR (email = design_os.current_auth_email())) CHECK -
+policy: org_invitation invitation_revoke UPDATE design_os_api USING ((org_id = design_os.current_org_id()) AND design_os.is_internal() AND design_os.has_permission('org.members.manage'::text) AND (status = 'PENDING'::text)) CHECK ((org_id = design_os.current_org_id()) AND design_os.is_internal() AND design_os.has_permission('org.members.manage'::text) AND (status = 'REVOKED'::text) AND (revoked_by = design_os.current_user_id()))
+policy: org_membership membership_accept INSERT design_os_api USING - CHECK ((user_id = design_os.current_user_id()) AND (status = 'ACTIVE'::text) AND (EXISTS ( SELECT 1 FROM design_os.org_invitation i WHERE ((i.org_id = org_membership.org_id) AND (i.status = 'PENDING'::text) AND (i.expires_at > now()) AND (i.email = design_os.current_auth_email()) AND (org_membership.role = ANY (i.roles)) AND (NOT (org_membership.granted_by IS DISTINCT FROM i.invited_by))))))
+policy: org_membership membership_accept_reactivate UPDATE design_os_api USING ((user_id = design_os.current_user_id()) AND (EXISTS ( SELECT 1 FROM design_os.org_invitation i WHERE ((i.org_id = org_membership.org_id) AND (i.status = 'PENDING'::text) AND (i.expires_at > now()) AND (i.email = design_os.current_auth_email()) AND (org_membership.role = ANY (i.roles)))))) CHECK ((user_id = design_os.current_user_id()) AND (status = 'ACTIVE'::text) AND (EXISTS ( SELECT 1 FROM design_os.org_invitation i WHERE ((i.org_id = org_membership.org_id) AND (i.status = 'PENDING'::text) AND (i.expires_at > now()) AND (i.email = design_os.current_auth_email()) AND (org_membership.role = ANY (i.roles)) AND (NOT (org_membership.granted_by IS DISTINCT FROM i.invited_by))))))
+policy: org_membership membership_accept_read SELECT design_os_api USING ((user_id = design_os.current_user_id()) AND (EXISTS ( SELECT 1 FROM design_os.org_invitation i WHERE ((i.org_id = org_membership.org_id) AND (i.status = 'PENDING'::text) AND (i.expires_at > now()) AND (i.email = design_os.current_auth_email()) AND (org_membership.role = ANY (i.roles)))))) CHECK -
 policy: org_membership membership_delete DELETE design_os_api USING ((org_id = design_os.current_org_id()) AND design_os.has_permission('org.members.manage'::text)) CHECK -
 policy: org_membership membership_insert INSERT design_os_api USING - CHECK ((org_id = design_os.current_org_id()) AND design_os.has_permission('org.members.manage'::text))
 policy: org_membership membership_read SELECT design_os_api USING ((org_id = design_os.current_org_id()) AND (design_os.is_internal() OR (user_id = design_os.current_user_id()))) CHECK -
@@ -3508,6 +3549,8 @@ grant: design_os_api material_catalog_version_material UPDATE
 grant: design_os_api material_version DELETE
 grant: design_os_api material_version INSERT
 grant: design_os_api material_version SELECT
+grant: design_os_api org_invitation INSERT
+grant: design_os_api org_invitation SELECT
 grant: design_os_api org_membership DELETE
 grant: design_os_api org_membership INSERT
 grant: design_os_api org_membership SELECT
@@ -3923,6 +3966,11 @@ column_grant: design_os_api material_version.source_ref UPDATE
 column_grant: design_os_api material_version.substrate UPDATE
 column_grant: design_os_api material_version.thickness_mm UPDATE
 column_grant: design_os_api material_version.version_label UPDATE
+column_grant: design_os_api org_invitation.accepted_at UPDATE
+column_grant: design_os_api org_invitation.accepted_by UPDATE
+column_grant: design_os_api org_invitation.revoked_at UPDATE
+column_grant: design_os_api org_invitation.revoked_by UPDATE
+column_grant: design_os_api org_invitation.status UPDATE
 column_grant: design_os_api org_membership.granted_at UPDATE
 column_grant: design_os_api org_membership.granted_by UPDATE
 column_grant: design_os_api org_membership.org_id UPDATE
@@ -4070,6 +4118,7 @@ routine_grant: design_os_api claims EXECUTE
 routine_grant: design_os_api client_allowed_actions EXECUTE
 routine_grant: design_os_api client_can_read_file EXECUTE
 routine_grant: design_os_api complete_idempotency EXECUTE
+routine_grant: design_os_api current_auth_email EXECUTE
 routine_grant: design_os_api current_memberships EXECUTE
 routine_grant: design_os_api current_org_id EXECUTE
 routine_grant: design_os_api current_user_id EXECUTE
@@ -4081,6 +4130,7 @@ routine_grant: design_os_api is_issued EXECUTE
 routine_grant: design_os_api lifecycle_columns EXECUTE
 routine_grant: design_os_api output_dependency_hashes EXECUTE
 routine_grant: design_os_api record_validation_run EXECUTE
+routine_grant: design_os_api roles_distinct EXECUTE
 routine_grant: design_os_api room_project EXECUTE
 routine_grant: design_os_api transition EXECUTE
 registry: appliance design_os.appliance_version design_os.appliance appliance_catalog.author appliance_catalog.approve

@@ -139,6 +139,22 @@ importers:
         specifier: ^4.23.15
         version: 4.23.15
 
+  apps/db-tools:
+    dependencies:
+      pg:
+        specifier: ^8.23.0
+        version: 8.23.0
+    devDependencies:
+      '@types/node':
+        specifier: ^22.20.4
+        version: 22.20.4
+      '@types/pg':
+        specifier: ^8.23.1
+        version: 8.23.1
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+
   packages/bom-engine:
     dependencies:
       '@lintel/types':

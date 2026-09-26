@@ -23,6 +23,7 @@
 | 0016 | engine_build_provenance | validation_run.engine_build: the immutable engine build identity (Git commit SHA / build revision) required on every new run; record_validation_run() takes it |
 | 0017 | output_provenance | Output model: engineering-only design versions (commercial / manufacturing versions chosen per output); validation-run purposes APPROVAL / OUTPUT_GENERATION; DB-computed dependency content hashes; per-engine snapshot provenance, sources, natural identity; one-to-many sealed drawing files; FOR_REVIEW from SUPERSEDED; issuing a quotation locks its commercial versions |
 | 0018 | issue_finalization | Issue records as complete decision records (project, design version, revision, content hash, exact commercial versions / file manifest), derived and verified by `check_issue`; issue requires LOCKED design, current inputs and dependency content, 0 BLOCKERs in output and evidence; LD027 ALREADY_ISSUED; unique quotation revision / drawing number + revision; CLIENT reads issue records of own projects only |
+| 0019 | org_onboarding | Internal-user onboarding (M6 G4): `org_invitation` (named person, email, INTERNAL roles, PENDING / ACCEPTED / REVOKED, expiry; one PENDING per org and email); RLS lets an administrator (`org.members.manage`) invite and revoke, and lets the signed-in person whose Supabase Auth email matches create their own INTERNAL `app_user` and exactly the invited memberships (granted by the inviter). Declarative only: no new trigger or PL/pgSQL |
 
 Rules:
 
@@ -30,5 +31,7 @@ Rules:
   check: ownership / role model, the `auth.users` REFERENCES grant, SECURITY DEFINER behaviour, RLS behaviour, extensions / functions, and
   migration permissions.
 - Never apply these to a hosted Supabase project yet. Never edit schema in a dashboard.
+- Hosted environments are migrated only with the production migration runner (`pnpm -s db:migrate`, apps/db-tools, M6 G6), which
+  records every migration in `design_os_migrations.applied` and refuses on any drift. See `apps/db-tools/README.md`.
 - Test with `DATABASE_URL=postgresql://… pnpm test:db`. This runs up → down → up, the drift check, and the integration tests.
 - After an intentional schema change, run `pnpm db:schema:update` and commit `database/schema/design_os.schema.txt`.

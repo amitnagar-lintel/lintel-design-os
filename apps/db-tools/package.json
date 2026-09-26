@@ -1,0 +1,19 @@
+{
+  "name": "@lintel/db-tools",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Lintel Design OS database operations: the production migration runner (G6) and organization initialisation (G4). Its own deployable tool, independent of the API and of Lintel Ops.",
+  "scripts": {
+    "migrate": "node --import tsx src/migrate-cli.ts",
+    "org": "node --import tsx src/org-cli.ts"
+  },
+  "dependencies": {
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.23.15"
+  }
+}

@@ -92,6 +92,17 @@ export default tseslint.config(
       }] }],
     },
   },
+  // ---------------------------------------------------------------- database operations tool (apps/db-tools): migration runner, org initialisation
+  {
+    // An operator tool with its own connection (MIGRATION_DATABASE_URL): the PostgreSQL client, nothing else from infrastructure.
+    files: ["apps/db-tools/**/*.ts"],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: [{ ...INFRASTRUCTURE, group: INFRASTRUCTURE.group.filter((g) => g !== "pg") }, {
+        group: ["**/apps/api/**", "@lintel/api", "@lintel/*-engine", "@lintel/*-engine/*"],
+        message: "The database tool is independent of the API and the engines: it applies SQL and writes governance rows only.",
+      }] }],
+    },
+  },
   {
     // Tests may assert presence with `!` after explicit lookups.
     files: ["**/test/**/*.ts", "tests/**/*.ts"],

@@ -104,6 +104,16 @@ export default tseslint.config(
     },
   },
   {
+    // The reference-data intake validates with the engines' own validators and maps with @lintel/persistence (M6 G2).
+    files: ["apps/db-tools/src/intake/**/*.ts", "apps/db-tools/test/**/intake*.ts"],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: [{ ...INFRASTRUCTURE, group: INFRASTRUCTURE.group.filter((g) => g !== "pg") }, {
+        group: ["**/apps/api/**", "@lintel/api"],
+        message: "The intake tool is independent of the API: it writes through the database's own RLS and transition().",
+      }] }],
+    },
+  },
+  {
     // Tests may assert presence with `!` after explicit lookups.
     files: ["**/test/**/*.ts", "tests/**/*.ts"],
     rules: { "@typescript-eslint/no-non-null-assertion": "off" },

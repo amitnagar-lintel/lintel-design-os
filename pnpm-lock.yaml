@@ -141,9 +141,24 @@ importers:
 
   apps/db-tools:
     dependencies:
+      '@lintel/catalog-engine':
+        specifier: workspace:*
+        version: link:../../packages/catalog-engine
+      '@lintel/hettich-engine':
+        specifier: workspace:*
+        version: link:../../packages/hettich-engine
+      '@lintel/persistence':
+        specifier: workspace:*
+        version: link:../../packages/persistence
+      '@lintel/types':
+        specifier: workspace:*
+        version: link:../../packages/types
       pg:
         specifier: ^8.23.0
         version: 8.23.0
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
     devDependencies:
       '@types/node':
         specifier: ^22.20.4

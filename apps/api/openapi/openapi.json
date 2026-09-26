@@ -5191,6 +5191,581 @@
         "x-lintel-identity": "INTERNAL"
       }
     },
+    "/api/v1/reference-data": {
+      "get": {
+        "operationId": "ReferenceData_types",
+        "summary": "The reference-data types and the actions that author / approve them",
+        "tags": [
+          "ReferenceData"
+        ],
+        "parameters": [
+          {
+            "name": "X-Org",
+            "in": "header",
+            "required": false,
+            "description": "The organization to act in (required when the caller belongs to several)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferenceData_types_200"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "RFC 9457 problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-lintel-access": {
+          "actions": [
+            "reference.read"
+          ]
+        },
+        "x-lintel-identity": "INTERNAL"
+      }
+    },
+    "/api/v1/reference-data/hettich_dataset/versions/{versionId}/articles": {
+      "get": {
+        "operationId": "ReferenceData_articles",
+        "summary": "Hettich articles of a dataset version, by position",
+        "tags": [
+          "ReferenceData"
+        ],
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "HINGE",
+                "MOUNTING_PLATE"
+              ]
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "X-Org",
+            "in": "header",
+            "required": false,
+            "description": "The organization to act in (required when the caller belongs to several)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferenceData_articles_200"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "RFC 9457 problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-lintel-access": {
+          "actions": [
+            "reference.read"
+          ]
+        },
+        "x-lintel-identity": "INTERNAL"
+      }
+    },
+    "/api/v1/reference-data/hettich_dataset/versions/{versionId}/calculation-rules": {
+      "get": {
+        "operationId": "ReferenceData_rules",
+        "summary": "Hettich calculation rules of a dataset version, by position",
+        "tags": [
+          "ReferenceData"
+        ],
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "X-Org",
+            "in": "header",
+            "required": false,
+            "description": "The organization to act in (required when the caller belongs to several)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferenceData_rules_200"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "RFC 9457 problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-lintel-access": {
+          "actions": [
+            "reference.read"
+          ]
+        },
+        "x-lintel-identity": "INTERNAL"
+      }
+    },
+    "/api/v1/reference-data/{type}/entities": {
+      "get": {
+        "operationId": "ReferenceData_entities",
+        "summary": "Entities of a reference-data type with their versions",
+        "tags": [
+          "ReferenceData"
+        ],
+        "parameters": [
+          {
+            "name": "type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "construction_standard",
+                "planning_standard",
+                "edge_band_standard",
+                "material",
+                "edge_band",
+                "finish",
+                "hardware_item",
+                "hardware_rule_set",
+                "appliance",
+                "construction_recipe",
+                "product",
+                "material_catalog",
+                "finish_catalog",
+                "hardware_catalog",
+                "appliance_catalog",
+                "product_catalog",
+                "hettich_dataset",
+                "pricing_standard",
+                "quotation_policy"
+              ]
+            }
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "X-Org",
+            "in": "header",
+            "required": false,
+            "description": "The organization to act in (required when the caller belongs to several)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferenceData_entities_200"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "RFC 9457 problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-lintel-access": {
+          "actions": [
+            "reference.read"
+          ]
+        },
+        "x-lintel-identity": "INTERNAL"
+      }
+    },
+    "/api/v1/reference-data/{type}/versions": {
+      "get": {
+        "operationId": "ReferenceData_versions",
+        "summary": "Versions of a reference-data type (filter by entity and exact lifecycle status)",
+        "tags": [
+          "ReferenceData"
+        ],
+        "parameters": [
+          {
+            "name": "type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "construction_standard",
+                "planning_standard",
+                "edge_band_standard",
+                "material",
+                "edge_band",
+                "finish",
+                "hardware_item",
+                "hardware_rule_set",
+                "appliance",
+                "construction_recipe",
+                "product",
+                "material_catalog",
+                "finish_catalog",
+                "hardware_catalog",
+                "appliance_catalog",
+                "product_catalog",
+                "hettich_dataset",
+                "pricing_standard",
+                "quotation_policy"
+              ]
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            }
+          },
+          {
+            "name": "entityCode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "entityId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Org",
+            "in": "header",
+            "required": false,
+            "description": "The organization to act in (required when the caller belongs to several)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferenceData_versions_200"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "RFC 9457 problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-lintel-access": {
+          "actions": [
+            "reference.read"
+          ]
+        },
+        "x-lintel-identity": "INTERNAL"
+      }
+    },
+    "/api/v1/reference-data/{type}/versions/{versionId}": {
+      "get": {
+        "operationId": "ReferenceData_version",
+        "summary": "One exact reference-data version with its content and provenance",
+        "tags": [
+          "ReferenceData"
+        ],
+        "parameters": [
+          {
+            "name": "type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "construction_standard",
+                "planning_standard",
+                "edge_band_standard",
+                "material",
+                "edge_band",
+                "finish",
+                "hardware_item",
+                "hardware_rule_set",
+                "appliance",
+                "construction_recipe",
+                "product",
+                "material_catalog",
+                "finish_catalog",
+                "hardware_catalog",
+                "appliance_catalog",
+                "product_catalog",
+                "hettich_dataset",
+                "pricing_standard",
+                "quotation_policy"
+              ]
+            }
+          },
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "X-Org",
+            "in": "header",
+            "required": false,
+            "description": "The organization to act in (required when the caller belongs to several)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferenceData_version_200"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "RFC 9457 problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-lintel-access": {
+          "actions": [
+            "reference.read"
+          ]
+        },
+        "x-lintel-identity": "INTERNAL"
+      }
+    },
     "/api/v1/room-revisions/{revisionId}": {
       "get": {
         "operationId": "Rooms_revision",
@@ -8668,6 +9243,688 @@
         "type": "string",
         "minLength": 1,
         "maxLength": 2000
+      },
+      "ReferenceData_articles_200": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {}
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "ReferenceData_entities_200": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "construction_standard",
+                    "planning_standard",
+                    "edge_band_standard",
+                    "material",
+                    "edge_band",
+                    "finish",
+                    "hardware_item",
+                    "hardware_rule_set",
+                    "appliance",
+                    "construction_recipe",
+                    "product",
+                    "material_catalog",
+                    "finish_catalog",
+                    "hardware_catalog",
+                    "appliance_catalog",
+                    "product_catalog",
+                    "hettich_dataset",
+                    "pricing_standard",
+                    "quotation_policy"
+                  ]
+                },
+                "id": {
+                  "$ref": "#/components/schemas/Uuid"
+                },
+                "code": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "string"
+                },
+                "versionCount": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "latestVersion": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "$ref": "#/components/schemas/Uuid"
+                        },
+                        "versionNumber": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "versionLabel": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "$ref": "#/components/schemas/LifecycleStatus"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "versionNumber",
+                        "versionLabel",
+                        "status"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "usableVersions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "$ref": "#/components/schemas/Uuid"
+                      },
+                      "versionNumber": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "versionLabel": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "status": {
+                        "$ref": "#/components/schemas/LifecycleStatus"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "versionNumber",
+                      "versionLabel",
+                      "status"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "type",
+                "id",
+                "code",
+                "createdAt",
+                "versionCount",
+                "latestVersion",
+                "usableVersions"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "ReferenceData_rules_200": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {}
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "ReferenceData_types_200": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "construction_standard",
+                    "planning_standard",
+                    "edge_band_standard",
+                    "material",
+                    "edge_band",
+                    "finish",
+                    "hardware_item",
+                    "hardware_rule_set",
+                    "appliance",
+                    "construction_recipe",
+                    "product",
+                    "material_catalog",
+                    "finish_catalog",
+                    "hardware_catalog",
+                    "appliance_catalog",
+                    "product_catalog",
+                    "hettich_dataset",
+                    "pricing_standard",
+                    "quotation_policy"
+                  ]
+                },
+                "authorAction": {
+                  "type": "string"
+                },
+                "approveAction": {
+                  "type": "string"
+                },
+                "contentAction": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "type",
+                "authorAction",
+                "approveAction",
+                "contentAction"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "ReferenceData_version_200": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "construction_standard",
+              "planning_standard",
+              "edge_band_standard",
+              "material",
+              "edge_band",
+              "finish",
+              "hardware_item",
+              "hardware_rule_set",
+              "appliance",
+              "construction_recipe",
+              "product",
+              "material_catalog",
+              "finish_catalog",
+              "hardware_catalog",
+              "appliance_catalog",
+              "product_catalog",
+              "hettich_dataset",
+              "pricing_standard",
+              "quotation_policy"
+            ]
+          },
+          "id": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "entityId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "entityCode": {
+            "type": "string"
+          },
+          "versionNumber": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "versionLabel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/LifecycleStatus"
+          },
+          "dataClassification": {
+            "type": "string",
+            "const": "PRODUCTION"
+          },
+          "source": {
+            "type": "string"
+          },
+          "sourceRef": {
+            "anyOf": [
+              {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "changeReason": {
+            "type": "string"
+          },
+          "contentHash": {
+            "$ref": "#/components/schemas/Sha256Hash"
+          },
+          "rowVersion": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "createdBy": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "submittedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "submittedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "approvedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "approvedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "effectiveFrom": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lockedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lockedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "supersededBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "supersededAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "content": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          },
+          "children": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              }
+            }
+          },
+          "counts": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        "required": [
+          "type",
+          "id",
+          "entityId",
+          "entityCode",
+          "versionNumber",
+          "versionLabel",
+          "status",
+          "dataClassification",
+          "source",
+          "sourceRef",
+          "changeReason",
+          "contentHash",
+          "rowVersion",
+          "createdBy",
+          "createdAt",
+          "submittedBy",
+          "submittedAt",
+          "approvedBy",
+          "approvedAt",
+          "effectiveFrom",
+          "lockedBy",
+          "lockedAt",
+          "supersededBy",
+          "supersededAt",
+          "content",
+          "children",
+          "counts"
+        ],
+        "additionalProperties": false
+      },
+      "ReferenceData_versions_200": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "construction_standard",
+                    "planning_standard",
+                    "edge_band_standard",
+                    "material",
+                    "edge_band",
+                    "finish",
+                    "hardware_item",
+                    "hardware_rule_set",
+                    "appliance",
+                    "construction_recipe",
+                    "product",
+                    "material_catalog",
+                    "finish_catalog",
+                    "hardware_catalog",
+                    "appliance_catalog",
+                    "product_catalog",
+                    "hettich_dataset",
+                    "pricing_standard",
+                    "quotation_policy"
+                  ]
+                },
+                "id": {
+                  "$ref": "#/components/schemas/Uuid"
+                },
+                "entityId": {
+                  "$ref": "#/components/schemas/Uuid"
+                },
+                "entityCode": {
+                  "type": "string"
+                },
+                "versionNumber": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "versionLabel": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "status": {
+                  "$ref": "#/components/schemas/LifecycleStatus"
+                },
+                "dataClassification": {
+                  "type": "string",
+                  "const": "PRODUCTION"
+                },
+                "source": {
+                  "type": "string"
+                },
+                "sourceRef": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "changeReason": {
+                  "type": "string"
+                },
+                "contentHash": {
+                  "$ref": "#/components/schemas/Sha256Hash"
+                },
+                "rowVersion": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "createdBy": {
+                  "$ref": "#/components/schemas/Uuid"
+                },
+                "createdAt": {
+                  "type": "string"
+                },
+                "submittedBy": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/Uuid"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "submittedAt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "approvedBy": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/Uuid"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "approvedAt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "effectiveFrom": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "lockedBy": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/Uuid"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "lockedAt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "supersededBy": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/Uuid"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "supersededAt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "type",
+                "id",
+                "entityId",
+                "entityCode",
+                "versionNumber",
+                "versionLabel",
+                "status",
+                "dataClassification",
+                "source",
+                "sourceRef",
+                "changeReason",
+                "contentHash",
+                "rowVersion",
+                "createdBy",
+                "createdAt",
+                "submittedBy",
+                "submittedAt",
+                "approvedBy",
+                "approvedAt",
+                "effectiveFrom",
+                "lockedBy",
+                "lockedAt",
+                "supersededBy",
+                "supersededAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
       },
       "RevisionResponse": {
         "type": "object",

@@ -231,7 +231,7 @@ The migrations 0001–0018 run unchanged. The procedure:
 - `TEST_FIXTURE_CONSTRUCTION_STANDARD`, `TEST_FIXTURE_EDGE_BAND_STANDARD`, `TEST_FIXTURE_PLANNING_STANDARD` (`packages/catalog-engine/src/fixtures`);
 - `TEST_FIXTURE_RATE_CARD`, `TEST_FIXTURE_PRICING_RULES`, `TEST_FIXTURE_QUOTATION_POLICY` (`packages/pricing-engine/src/fixtures`);
 - `HETTICH_TEST_FIXTURE_DATASET` (`FIXTURE-*` articles);
-- `tests/db/support/synthetic.ts` ("DB TEST ONLY").
+- the synthetic module under `tests/db/support/` (carries the database-test-only marker; its isolation is enforced by `tests/synthetic-data-isolation.test.ts`).
 
 ### 2.2 Intake procedure (per data set)
 

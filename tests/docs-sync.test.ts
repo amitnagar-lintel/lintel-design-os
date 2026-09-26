@@ -71,23 +71,40 @@ describe("reconciliation of the 11-field list with engine behaviour", () => {
 
 describe("KIT_BASE_STANDARD_BENCHMARK_V1.md", () => {
   const doc = read("KIT_BASE_STANDARD_BENCHMARK_V1.md");
+  const bodies = doc.split(/^### \d+\. /m).slice(1);
+  const row = (body: string, name: string): string => new RegExp(`^\\| ${name} \\| (.+) \\|$`, "m").exec(body)?.[1] ?? "";
+  const bodyOf = (field: string): string => bodies.find((b) => b.startsWith(`\`${field}\``)) ?? "";
+
   it("is labelled as an industry benchmark, not the Lintel production standard", () => {
     expect(doc).toContain("INDUSTRY BENCHMARK - NOT LINTEL PRODUCTION STANDARD");
   });
   it("covers all 11 fields, each with the required rows", () => {
     const sections = [...doc.matchAll(/^### (\d+)\. `([A-Z_]+)`$/gm)].map((m) => m[2]);
     expect(sections).toEqual(variables);
-    const bodies = doc.split(/^### \d+\. /m).slice(1);
-    const rows = ["Benchmark value", "Source", "Source URL", "Source type", "Confidence", "Appears configurable", "Notes on applicability"];
+    const rows = ["Field", "Benchmark value", "Source", "Source URL", "Source type", "Confidence", "Applicability", "Stated or inferred"];
     for (const body of bodies) for (const r of rows) expect(body).toContain(`| ${r} |`);
   });
-  it("any recorded benchmark value carries a source URL; otherwise it states no verified benchmark", () => {
-    for (const body of doc.split(/^### \d+\. /m).slice(1)) {
-      const value = /\| Benchmark value \| (.+) \|/.exec(body)?.[1] ?? "";
-      if (value !== "NO VERIFIED PUBLIC BENCHMARK FOUND") expect(body).toMatch(/\| Source URL \| https:\/\//);
+  it("every recorded value cites an https source URL; otherwise it states no verified benchmark", () => {
+    for (const body of bodies) {
+      const value = row(body, "Benchmark value");
+      if (value === "NO VERIFIED PUBLIC BENCHMARK FOUND") expect(row(body, "Stated or inferred")).toBe("—");
+      else {
+        expect(row(body, "Source URL")).toMatch(/^https:\/\//);
+        expect(row(body, "Stated or inferred")).toMatch(/^(Directly stated|Stated, mapping interpreted|Not converted)$/);
+      }
     }
+  });
+  it("keeps SHELF_SIDE_CLEARANCE in source semantics (-0.5 mm extension, not converted)", () => {
+    const b = bodyOf("SHELF_SIDE_CLEARANCE");
+    expect(row(b, "Benchmark value")).toMatch(/^-0\.5 mm/);
+    expect(row(b, "Stated or inferred")).toBe("Not converted");
+    expect(b).not.toMatch(/\+0\.5/);
+  });
+  it("records no number where the mapping would need inference", () => {
+    for (const f of ["FRONT_BETWEEN_GAP", "INSET_GAP", "FRONT_FINISHED_FACES"]) expect(row(bodyOf(f), "Benchmark value")).toBe("NO VERIFIED PUBLIC BENCHMARK FOUND");
   });
   it("does not change the production standard", () => {
     for (const v of variables) expect(LINTEL_CONSTRUCTION_STANDARD_DRAFT.variables[v]).toBeNull();
+    for (const b of bodies) expect(row(b, "Lintel production value")).toBe("NULL / UNVERIFIED (unchanged)");
   });
 });

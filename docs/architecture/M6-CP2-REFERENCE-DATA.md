@@ -135,11 +135,31 @@ Catalog `data` is `{ versionLabel, description, members: [{ itemType, entityCode
 - The reason is `reference-data intake <type> <code> v<n> (<intent>) file <sha256> by operator <who>`.
 - The request id is `intake:<file hash>`.
 
-**Submit and approve:** `submit` and `approve` call `design_os.transition()` as the named person.
-- `submit` is refused while the database's approval preconditions report problems.
-- `approve` requires `--expected-content-hash`.
+**Submit and approve:** both call `design_os.transition()`; the tool never writes a status itself.
+- `submit` runs as the operator-named draft author (`--as`). It is refused while the database's approval preconditions report problems.
+- `approve` runs only as an **authenticated** approver (§2.4) and requires `--expected-content-hash`.
 - The database enforces the rest: the action (LD001), approver ≠ submitter (LD004), the reviewed hash (LD007), dependency lifecycles and completeness.
-- The tool never writes a status itself.
+
+### 2.4 Three identities (operator, draft author, authenticated approver)
+
+| Identity | Who | How it is established | What it may do | Where it is recorded |
+|---|---|---|---|---|
+| **Operator** | The person running the tool with the migration credential | `--operator <who>` (asserted) | Run the tool; never an actor in the data | The audit `reason` of every intake / submit / approve, and the idempotent request id |
+| **Draft author** | The Lintel member who owns the DRAFT content | `--as <email>`, named by the operator. It must be an ACTIVE internal member of the organization holding the type's author action | `import` (a DRAFT only) and `submit` | `created_by`, `submitted_by`, the audit `actor_user_id` and the SUBMIT `approval_decision` |
+| **Authenticated production approver** | The Lintel member who approves | Their **own Supabase Auth access token** (`--access-token-file <path>` or `APPROVER_ACCESS_TOKEN`). It is verified exactly as the API verifies tokens: the same settings (`AUTH_ISSUER`, `AUTH_AUDIENCE`, `AUTH_JWKS_URL` / `AUTH_JWT_SECRET`), signature, issuer, audience, expiry, `role = authenticated` and a UUID `sub`. `approve` refuses `--as` | `approve` | `approved_by`, the audit `actor_user_id` and the APPROVE `approval_decision`, all as the token's `sub` resolved to that user's own ACTIVE membership in the organization |
+
+**Why the approver is authenticated and the author is not.**
+- A DRAFT cannot be used by anything production-facing. It becomes usable only through an APPROVE, so the operator-named author is accepted for drafts.
+- An APPROVE makes data production-usable, so it never rests on an email the operator typed. Whoever holds the database credential cannot approve in another person's name without that person's own, unexpired access token.
+
+**Refusals, before the database is touched:**
+- no token (usage error);
+- an unverifiable, expired, foreign-project or non-`authenticated` token (`APPROVER_NOT_AUTHENTICATED`);
+- missing verification settings.
+
+The authenticated user must also be an ACTIVE internal member of the named organization (`ACTOR_NOT_MEMBER`). The database's approver ≠ submitter rule (LD004) applies unchanged.
+
+**How the approver obtains the token:** by signing in to the project's Supabase Auth, the same identity they use for the API and, later, the UI. The token is short-lived. It is read from a file or the environment, never from the command line. Production approval through the authenticated API / UI path replaces this CLI step later; the rule stays the same.
 
 ## 3. Supabase connections and keys
 
@@ -155,9 +175,10 @@ Catalog `data` is `{ versionLabel, description, members: [{ itemType, entityCode
 
 ## 4. Remaining risks / notes
 
-- **The intake actor is asserted by the operator.** `--as <email>` must be a real, permitted member, and the audit names both the actor and the operator. But the CLI trusts whoever holds the migration credential to name the right person.
-  - Mitigation: the named person runs, or witnesses, their own `approve`, and the operator is recorded.
-  - An authenticated admin UI or API replaces this later (deferred by OD-M6-3).
+- **Draft authors are named by the operator** (`--as`). This is acceptable for DRAFT data only. APPROVE requires the approver's own verified access token (§2.4), so a DB-credential holder cannot approve in someone else's name.
+  - An operator could still create DRAFT content under another member's name. It is audited (author, operator, file hash), and it can never be approved without a different, authenticated approver who states the reviewed hash.
+- **The migration credential itself stays privileged.** Someone holding it could bypass any tool with direct SQL. The tool removes the *tool* path for approving in another person's name. Protecting the credential (secret store, few holders, the audit chain) remains an operational control (plan §1.4, §6).
+- **Token handling:** the approver's access token passes through the operator's machine for the duration of one command. It is short-lived and never logged or stored by the tool. The authenticated API / UI approval path, a later milestone, removes this hand-over.
 - **Some types have no domain model yet:** `hardware_item`, `appliance` and `appliance_catalog`. They are readable through G1 but not importable. The V1 pilot does not need them (OD-M6-5; hardware resolves through the Hettich dataset).
 - **Recipe / product semantics:** there is no engine-level cross-validation of recipe and product formulas at intake beyond the schema and duplicate checks. The design engine validates them when a design uses them (BLOCKERs), and the approver reviews the golden outputs (§2.2 of the plan).
 - **The intake uses repository objects as its schema.** A domain-type change requires a matching schema change (the build enforces it) and a new intake file version.

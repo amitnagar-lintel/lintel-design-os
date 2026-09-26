@@ -113,10 +113,15 @@ One intake file = one new DRAFT version of one entity. The file names its type, 
 | `validate --file f.json [--json]` | Offline report: schema, TEST_FIXTURE, identity, lifecycle, provenance, completeness (UNVERIFIED items), duplicates | 0 accepted · 5 refused |
 | `import --file f.json --env <env> [--confirm <target>] --org <CODE> --as <author email> --operator <who> [--dry-run] [--json]` | Writes the DRAFT version as the named author through RLS (audited). Same file again → `UNCHANGED`; `--dry-run` → `WOULD_CREATE`, nothing written | 0 · 4 refused · 5 invalid |
 | `status --org <CODE> --type <t> --entity <CODE> --version <n> [--json]` | Read-only: lifecycle, content hash, the database's approval problems | 0 |
-| `submit --env … --org … --type … --entity … --version … --as <author email> --operator … --reason …` | SUBMIT through `design_os.transition()`; refused while the version is incomplete | 0 · 4 |
-| `approve … --as <approver email> --expected-content-hash <sha256:…>` | APPROVE through `design_os.transition()`: the database enforces the approve action, approver ≠ submitter and the reviewed hash | 0 · 4 |
+| `submit --env … --org … --type … --entity … --version … --as <author email> --operator … --reason …` | SUBMIT through `design_os.transition()` as the named draft author; refused while the version is incomplete | 0 · 4 |
+| `approve --env … --org … --type … --entity … --version … --access-token-file <path> --operator … --reason … --expected-content-hash <sha256:…>` | APPROVE through `design_os.transition()` as the **authenticated** approver: their own Supabase Auth access token (file or `APPROVER_ACCESS_TOKEN`), verified with the API's `AUTH_ISSUER`, `AUTH_AUDIENCE`, `AUTH_JWKS_URL` / `AUTH_JWT_SECRET`. `--as` is refused. The database enforces the approve action, approver ≠ submitter and the reviewed hash | 0 · 4 |
 
-The tool never marks anything APPROVED itself and never writes as the owner: imports run as the named author under row-level security, and lifecycle changes go only through `transition()`.
+The tool never marks anything APPROVED itself and never writes as the owner:
+- imports and submits run as the operator-named draft author under row-level security;
+- an approval runs only as the user of a verified access token, with that user's own membership;
+- lifecycle changes go only through `transition()`.
+
+The three identities (operator, draft author, authenticated approver) are described in `docs/architecture/M6-CP2-REFERENCE-DATA.md` §2.4.
 
 ## Not yet
 

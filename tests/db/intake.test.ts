@@ -15,12 +15,14 @@ import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { run } from "../../apps/db-tools/src/intake/intake-cli.js";
 import type { ImportSummary } from "../../apps/db-tools/src/intake/importer.js";
 import { importIntake, stableUuid, TABLES } from "../../apps/db-tools/src/intake/importer.js";
+import { verifierFromEnv } from "../../apps/db-tools/src/intake/approver-token.js";
 import { transitionVersion, versionState } from "../../apps/db-tools/src/intake/lifecycle.js";
 import type { Validated } from "../../apps/db-tools/src/intake/spec.js";
 import { validateIntake } from "../../apps/db-tools/src/intake/spec.js";
 import { loadMigrations } from "../../apps/db-tools/src/migrations.js";
 import { up } from "../../apps/db-tools/src/runner.js";
 import { intakeFile } from "../../apps/db-tools/test/support/intake-files.js";
+import { TEST_AUTH_ENV, testToken } from "../../apps/db-tools/test/support/tokens.js";
 import type { Tx } from "./support/db.js";
 import { applyBootstrap } from "./support/migrate.js";
 import { syntheticConstruction, syntheticHettichDataset, syntheticProvenance } from "./support/synthetic.js";
@@ -34,6 +36,7 @@ let w: World;
 let other: World;
 const email: Record<string, string> = {};
 const ORG = "INTAKE_ORG";
+const verify = verifierFromEnv(TEST_AUTH_ENV);
 
 async function admin<T>(fn: (c: pg.Client) => Promise<T>): Promise<T> {
   const c = new pg.Client({ connectionString: inject("dbUrl") });
@@ -192,26 +195,39 @@ describe("dependencies", () => {
 });
 
 describe("lifecycle: only through transition()", () => {
-  it("a complete candidate is submitted by its author and approved by a different authorised person stating the reviewed hash", async () => {
+  it("a complete candidate is submitted by its named author and approved only by a different, AUTHENTICATED approver stating the reviewed hash", async () => {
     const s = await importAs(constructionCandidate(2), "PRODUCTION");
     expect(s.outcome).toBe("CREATED");
     const o = { orgCode: ORG, type: "construction_standard" as const, entityCode: "LINTEL_CONSTRUCTION_STANDARD", versionNumber: 2, operator: "ci-operator", reason: "reviewed against the drawing set" };
     expect((await versionState(client, ORG, "construction_standard", "LINTEL_CONSTRUCTION_STANDARD", 2))?.approvalProblems).toEqual([]);
 
+    const named = (role: string) => ({ kind: "named" as const, email: email[role]! });
+    const authenticated = async (userId: string, t: { expiresIn?: string; secret?: string; role?: string } = {}) => ({ kind: "authenticated" as const, token: await testToken(userId, t), verify });
+
     // The incomplete working draft (v1) can never be put up for approval.
-    const incomplete = await transitionVersion(client, "SUBMIT", { ...o, versionNumber: 1, actorEmail: email.PRODUCTION! });
+    const incomplete = await transitionVersion(client, "SUBMIT", { ...o, versionNumber: 1, actor: named("PRODUCTION") });
     expect(incomplete).toMatchObject({ outcome: "REFUSED", code: "INCOMPLETE_PRODUCTION_DATA" });
     expect(incomplete.outcome === "REFUSED" && incomplete.state?.approvalProblems.length).toBe(12);
 
-    expect(await transitionVersion(client, "SUBMIT", { ...o, actorEmail: email.DESIGNER! })).toMatchObject({ outcome: "REFUSED", code: "LD001" });
-    expect(await transitionVersion(client, "SUBMIT", { ...o, actorEmail: email.PRODUCTION! })).toMatchObject({ outcome: "DONE", after: { status: "IN_REVIEW", submittedBy: w.users.PRODUCTION } });
-    // No approval without the reviewed hash; never by the submitter; never with a different hash; never without the action.
-    expect(await transitionVersion(client, "APPROVE", { ...o, actorEmail: email.DESIGN_HEAD! })).toMatchObject({ outcome: "REFUSED", code: "CONTENT_HASH_REQUIRED" });
-    expect(await transitionVersion(client, "APPROVE", { ...o, actorEmail: email.PRODUCTION!, expectedContentHash: s.contentHash! })).toMatchObject({ outcome: "REFUSED", code: "LD004" });
-    expect(await transitionVersion(client, "APPROVE", { ...o, actorEmail: email.DESIGN_HEAD!, expectedContentHash: `sha256:${"0".repeat(64)}` })).toMatchObject({ outcome: "REFUSED", code: "LD007" });
-    expect(await transitionVersion(client, "APPROVE", { ...o, actorEmail: email.SALES!, expectedContentHash: s.contentHash! })).toMatchObject({ outcome: "REFUSED", code: "LD001" });
-    const approved = await transitionVersion(client, "APPROVE", { ...o, actorEmail: email.DESIGN_HEAD!, expectedContentHash: s.contentHash! });
-    expect(approved).toMatchObject({ outcome: "DONE", after: { status: "APPROVED", approvedBy: w.users.DESIGN_HEAD, submittedBy: w.users.PRODUCTION } });
+    // SUBMIT keeps the operator-named draft author.
+    expect(await transitionVersion(client, "SUBMIT", { ...o, actor: named("DESIGNER") })).toMatchObject({ outcome: "REFUSED", code: "LD001" });
+    expect(await transitionVersion(client, "SUBMIT", { ...o, actor: named("PRODUCTION") })).toMatchObject({ outcome: "DONE", authenticated: false, after: { status: "IN_REVIEW", submittedBy: w.users.PRODUCTION } });
+
+    // APPROVE never trusts an operator-named email — not even the right approver's.
+    expect(await transitionVersion(client, "APPROVE", { ...o, actor: named("DESIGN_HEAD"), expectedContentHash: s.contentHash! })).toMatchObject({ outcome: "REFUSED", code: "AUTHENTICATED_APPROVER_REQUIRED" });
+    // Only a token that verifies: a forged, expired or non-`authenticated` token is refused before the database is touched.
+    expect(await transitionVersion(client, "APPROVE", { ...o, actor: await authenticated(w.users.DESIGN_HEAD, { secret: "someone-elses-secret-0123456789abcdef" }), expectedContentHash: s.contentHash! })).toMatchObject({ outcome: "REFUSED", code: "APPROVER_NOT_AUTHENTICATED" });
+    expect(await transitionVersion(client, "APPROVE", { ...o, actor: await authenticated(w.users.DESIGN_HEAD, { expiresIn: "-1m" }), expectedContentHash: s.contentHash! })).toMatchObject({ outcome: "REFUSED", code: "APPROVER_NOT_AUTHENTICATED" });
+    expect(await transitionVersion(client, "APPROVE", { ...o, actor: await authenticated(w.users.DESIGN_HEAD, { role: "service_role" }), expectedContentHash: s.contentHash! })).toMatchObject({ outcome: "REFUSED", code: "APPROVER_NOT_AUTHENTICATED" });
+    // The authenticated user must be an active internal member of THIS organization.
+    expect(await transitionVersion(client, "APPROVE", { ...o, actor: await authenticated(other.users.DESIGN_HEAD), expectedContentHash: s.contentHash! })).toMatchObject({ outcome: "REFUSED", code: "ACTOR_NOT_MEMBER" });
+    // The database rules still apply to the authenticated approver: the reviewed hash, approver ≠ submitter, the approve action.
+    expect(await transitionVersion(client, "APPROVE", { ...o, actor: await authenticated(w.users.DESIGN_HEAD) })).toMatchObject({ outcome: "REFUSED", code: "CONTENT_HASH_REQUIRED" });
+    expect(await transitionVersion(client, "APPROVE", { ...o, actor: await authenticated(w.users.PRODUCTION), expectedContentHash: s.contentHash! })).toMatchObject({ outcome: "REFUSED", code: "LD004" });
+    expect(await transitionVersion(client, "APPROVE", { ...o, actor: await authenticated(w.users.DESIGN_HEAD), expectedContentHash: `sha256:${"0".repeat(64)}` })).toMatchObject({ outcome: "REFUSED", code: "LD007" });
+    expect(await transitionVersion(client, "APPROVE", { ...o, actor: await authenticated(w.users.SALES), expectedContentHash: s.contentHash! })).toMatchObject({ outcome: "REFUSED", code: "LD001" });
+    const approved = await transitionVersion(client, "APPROVE", { ...o, actor: await authenticated(w.users.DESIGN_HEAD), expectedContentHash: s.contentHash! });
+    expect(approved).toMatchObject({ outcome: "DONE", authenticated: true, actorUserId: w.users.DESIGN_HEAD, after: { status: "APPROVED", approvedBy: w.users.DESIGN_HEAD, submittedBy: w.users.PRODUCTION } });
     expect(approved.outcome === "DONE" && approved.after.effectiveFrom).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     // The decision record: who did what, with the operator-named reason, in the hash-chained audit log.
     const decisions = await client.query<{ action: string; decided_by: string; reason: string }>(
@@ -261,6 +277,23 @@ describe("CLI", () => {
     expect(JSON.parse(t.out[0]!)).toMatchObject({ status: "DRAFT", contentHash: created.contentHash, approvalProblems: expect.arrayContaining([expect.objectContaining({ code: "CONTENT_INCOMPLETE" })]) as unknown[] });
     t = io(() => planning);
     expect(await run(["submit", "--env", "ci", "--org", ORG, "--type", "planning_standard", "--entity", LINTEL_PLANNING_STANDARD_DRAFT.standardId, "--version", "1", "--as", email.PRODUCTION!, "--operator", "ci", "--reason", "x"], t.io)).toBe(4);
+
+    // approve: never --as; only the approver's own verified access token; the audit uses that user's id.
+    const approveArgs = ["approve", "--env", "ci", "--org", ORG, "--type", "construction_standard", "--entity", "LINTEL_CONSTRUCTION_STANDARD", "--version", "2", "--operator", "ci", "--reason", "x", "--expected-content-hash", `sha256:${"0".repeat(64)}`];
+    t = io(() => planning);
+    expect(await run([...approveArgs, "--as", email.DESIGN_HEAD!], t.io)).toBe(64);
+    expect(t.err[0]).toMatch(/never takes --as/);
+    t = io(() => planning);
+    expect(await run(approveArgs, t.io)).toBe(64);
+    expect(t.err[0]).toMatch(/access token/);
+    t = io(() => planning, { MIGRATION_DATABASE_URL: url, APPROVER_ACCESS_TOKEN: await testToken(w.users.DESIGN_HEAD) });
+    expect(await run(approveArgs, t.io)).toBe(4);
+    expect(t.err[0]).toMatch(/AUTH_ISSUER/); // no verification settings: refused, never trusted
+    const token = await testToken(w.users.DESIGN_HEAD);
+    t = io((p) => (p === "token.txt" ? `${token}\n` : planning), { MIGRATION_DATABASE_URL: url, ...TEST_AUTH_ENV });
+    expect(await run([...approveArgs, "--access-token-file", "token.txt", "--json"], t.io)).toBe(4);
+    // Verified as DESIGN_HEAD; v2 is already APPROVED, so the database refuses the transition itself.
+    expect(JSON.parse(t.out[0]!)).toMatchObject({ outcome: "REFUSED", code: "LD006" });
 
     // Migrations and intake never use a Supabase pooler; hosted targets need --confirm.
     t = io(() => planning, { MIGRATION_DATABASE_URL: "postgresql://postgres.abcdefghijklmnopqrst:pw@aws-0-ap-south-1.pooler.supabase.com:6543/postgres" });

@@ -14,6 +14,7 @@
     "@lintel/hettich-engine": "workspace:*",
     "@lintel/persistence": "workspace:*",
     "@lintel/types": "workspace:*",
+    "jose": "^6.2.12",
     "pg": "^8.23.0",
     "zod": "^4.6.5"
   },

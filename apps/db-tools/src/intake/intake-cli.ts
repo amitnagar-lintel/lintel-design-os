@@ -8,8 +8,10 @@
  *   status --org <CODE> --type <type> --entity <CODE> --version <n> [--json]
  *       Read-only: lifecycle, content hash and the database's approval preconditions.
  *   submit  --env … --org … --type … --entity … --version … --as <author email> --operator <who> --reason <text> [--json]
- *   approve --env … --org … --type … --entity … --version … --as <approver email> --operator <who> --reason <text> --expected-content-hash <sha256:…> [--json]
+ *   approve --env … --org … --type … --entity … --version … --access-token-file <path> --operator <who> --reason <text> --expected-content-hash <sha256:…> [--json]
  *       Through design_os.transition() only; the database enforces permission, separation of duties and the reviewed hash.
+ *       APPROVE never accepts `--as`: the approver is the user of their own Supabase Auth access token (the file, or
+ *       APPROVER_ACCESS_TOKEN), verified with the API's settings (AUTH_ISSUER, AUTH_AUDIENCE, AUTH_JWKS_URL / AUTH_JWT_SECRET).
  *
  * Connection: MIGRATION_DATABASE_URL (a direct connection; never a pooler). Usage errors exit 64.
  */
@@ -22,6 +24,8 @@ import { DEFAULT_MIGRATIONS_DIR, loadMigrations } from "../migrations.js";
 import type { Args } from "../target.js";
 import { allowFlags, connectionString, environmentFlag, guard, parseArgs, RefusedError, stringFlag, targetOf } from "../target.js";
 import { importIntake } from "./importer.js";
+import type { TokenVerifier } from "./approver-token.js";
+import { verifierFromEnv } from "./approver-token.js";
 import { transitionVersion, versionState } from "./lifecycle.js";
 import type { Finding, IntakeType } from "./spec.js";
 import { INTAKE_TYPES, validateIntake } from "./spec.js";
@@ -33,6 +37,8 @@ interface Io {
   readonly out: (line: string) => void;
   readonly err: (line: string) => void;
   readonly readFile?: (path: string) => string;
+  /** Tests only: a verifier instead of the one configured by the environment. */
+  readonly verifier?: TokenVerifier;
 }
 
 function required(args: Args, name: string): string {
@@ -119,18 +125,26 @@ export async function run(argv: readonly string[], io: Io, migrationsDir = DEFAU
       }
       case "submit":
       case "approve": {
-        allowFlags(args, ["env", "confirm", "org", "type", "entity", "version", "as", "operator", "reason", "expected-content-hash", "json"]);
+        const approve = args.command === "approve";
+        if (approve && args.flags.has("as")) throw new RefusedError("USAGE", "approve never takes --as: the approver authenticates with their own Supabase Auth access token (--access-token-file or APPROVER_ACCESS_TOKEN)");
+        allowFlags(args, approve
+          ? ["env", "confirm", "org", "type", "entity", "version", "access-token-file", "operator", "reason", "expected-content-hash", "json"]
+          : ["env", "confirm", "org", "type", "entity", "version", "as", "operator", "reason", "json"]);
         const env = environmentFlag(args);
+        const tokenFile = stringFlag(args, "access-token-file");
+        const token = approve ? (tokenFile !== undefined ? read(tokenFile).trim() : io.env.APPROVER_ACCESS_TOKEN?.trim() ?? "") : "";
+        if (approve && token === "") throw new RefusedError("USAGE", "approve needs the approver's access token: --access-token-file <path> or APPROVER_ACCESS_TOKEN");
         const opts = {
           orgCode: required(args, "org"), type: typeFlag(args), entityCode: required(args, "entity"), versionNumber: versionFlag(args),
-          actorEmail: required(args, "as"), operator: required(args, "operator"), reason: required(args, "reason"),
+          actor: approve ? { kind: "authenticated" as const, token, verify: io.verifier ?? verifierFromEnv(io.env) } : { kind: "named" as const, email: required(args, "as") },
+          operator: required(args, "operator"), reason: required(args, "reason"),
           ...(stringFlag(args, "expected-content-hash") === undefined ? {} : { expectedContentHash: stringFlag(args, "expected-content-hash") ?? "" }),
         };
         const url = connectionString(io.env);
         guard(env, targetOf(url), stringFlag(args, "confirm"));
-        const r = await withClient(url, (c) => transitionVersion(c, args.command === "submit" ? "SUBMIT" : "APPROVE", opts));
+        const r = await withClient(url, (c) => transitionVersion(c, approve ? "APPROVE" : "SUBMIT", opts));
         if (json) io.out(JSON.stringify(r));
-        else if (r.outcome === "DONE") io.out(`${r.action} ${opts.type} ${opts.entityCode} v${String(opts.versionNumber)}: ${r.before.status} → ${r.after.status} by ${r.actor}`);
+        else if (r.outcome === "DONE") io.out(`${r.action} ${opts.type} ${opts.entityCode} v${String(opts.versionNumber)}: ${r.before.status} → ${r.after.status} by ${r.actor} (${r.actorUserId}${r.authenticated ? ", authenticated" : ", named by the operator"})`);
         else {
           io.err(`refused: ${r.code}: ${r.message}`);
           for (const p of r.state?.approvalProblems ?? []) io.err(`PROBLEM    ${p.code}: ${p.message}`);

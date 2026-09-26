@@ -1,871 +1,902 @@
-# M5 Step 6: Output Architecture and API Contract (review-only plan, revision 2)
+# M5 Step 6: Output Architecture and API Contract (review-only plan, revision 3)
 
-**Status:** revision 2. It records the decisions OD-S6-1 … OD-S6-8 and the architectural corrections from the review of revision 1.
+**Status:** revision 3. It adds three things to revisions 1 and 2:
 
-**Nothing here is implemented.** This step contains:
+- **OD-S6-9** is resolved: the dependency-closure engine fingerprint.
+- **Correction 1:** commercial dependencies are decoupled from the design version.
+- **Correction 2:** validation runs get a purpose (APPROVAL or OUTPUT_GENERATION).
+
+**Nothing here is implemented.** There is:
 
 - no migration SQL;
 - no engine code;
 - no BOM, BOQ, pricing, quotation, drawing or manufacturing API;
-- no UI;
-- no hosted Supabase;
+- no UI and no hosted Supabase;
 - no production rates, Hettich data or ManufacturingStandard values.
 
 **Builds on:**
 
-- `M5-TECHNICAL-DESIGN.md` §3 and §6.
-- `M5-STEP4-API-PLAN.md` §6–§8.1.
-- `M5-STEP5-CORE-DESIGN-API.md`, with migrations 0015 (catalog/object guard) and 0016 (engine build).
+- `M5-TECHNICAL-DESIGN.md` §3 and §6;
+- `M5-STEP4-API-PLAN.md` §6–§8.1;
+- `M5-STEP5-CORE-DESIGN-API.md` (migrations 0015 and 0016).
 
 **Contents**
 
-0. Decisions recorded
+0. Decisions
 1. Survey findings
 2. Dependency graph
-3. Engineering and commercial dependency model
-4. Output engine identity and provenance
-5. Server-orchestrated dependency resolution
-6. Output snapshot schema
-7. Snapshot uniqueness and idempotency
-8. Staleness algorithm
-9. Validation and purpose rules
-10. Per-output contracts, including the drawing engine → endpoint map and the manufacturing boundary
-11. Drawing file model
-12. Output permission matrix
-13. Endpoint list
-14. Request and response schemas
-15. OpenAPI approach
-16. Prerequisite matrix
-17. Changes the next step must make (described here; not written)
-18. Unresolved risks
-19. Implementation sequence after approval
+3. Engineering dependency model
+4. Commercial dependency model
+5. Validation-run purpose model
+6. Engine identity and fingerprint algorithm
+7. Server-orchestrated dependency resolution
+8. Output snapshot provenance schema
+9. Snapshot uniqueness and idempotency
+10. Staleness algorithm
+11. Purpose and lifecycle rules
+12. Per-output contracts, including the drawing map and the manufacturing boundary
+13. Drawing file model
+14. Output permission matrix
+15. Endpoint list
+16. Request and response schemas
+17. OpenAPI approach
+18. Prerequisite matrix
+19. Changes the next step must make (described; not written)
+20. Unresolved risks
+21. Implementation sequence
 
 ---
 
-## 0. Decisions recorded
+## 0. Decisions
 
 | ID | Decision |
 |---|---|
-| OD-S6-1 | **Manufacturing-document generation is deferred.** No manufacturing engine and no production ManufacturingStandard exist, and no new manufacturing calculation is created to satisfy the roadmap. This step documents the future boundary (§10.6) and the current production blockers (§16). No manufacturing output endpoint is created. |
-| OD-S6-2 | **The server resolves output dependencies.** A client requests the output it wants. The server finds an exact compatible upstream snapshot, or generates one, and records the exact dependency. There is never a global "latest". A client may name an exact existing upstream snapshot only to reproduce an earlier output (§5). |
-| OD-S6-3 | **The fingerprint is per output engine:** `validation`, `bom`, `boq`, `pricing`, `quotation`, `drawing` (and `manufacturing` later). Each output records engine name, semantic version, exact build and fingerprint. There is no generic fingerprint (§4). |
-| OD-S6-4 | **A pure `priceRoom` is added to `@lintel/pricing-engine`.** The API and application layer never calculate a price or total. |
-| OD-S6-5 | **UNAVAILABLE pricing or quotation is not persisted.** The caller receives `UNAVAILABLE` and structured blockers. TEST_FIXTURE pricing stays test-only. |
-| OD-S6-6 | **Engineering and commercial dependency domains are separate.** PricingStandard or QuotationPolicy changes never make BOM, BOQ, drawings or validation stale. The exact hash model is in §3. |
-| OD-S6-7 | **When manufacturing documents exist:** generation requires `output.generate.engineering`, and release to manufacturing requires `manufacturing.release`. The two are never conflated. Deferred for now. |
-| OD-S6-8 | **Both room-level and cabinet-level drawings are included,** using only the existing M3/M4 drawing engine (§10.5). |
-| Dependency rule | **A downstream output uses an exact immutable upstream snapshot.** The server verifies the snapshot's provenance and content hash and uses its payload. It **never re-runs the upstream output engine to check it.** If the upstream is stale or incompatible, the server first generates a new upstream snapshot and uses that one (§5). |
+| OD-S6-1 | **Manufacturing-document generation is deferred.** No manufacturing engine and no production ManufacturingStandard exist. No new calculation is created and no manufacturing output endpoint exists. The future boundary and the current blockers are documented (§12.6). |
+| OD-S6-2 | **The server resolves dependencies.** A client requests the output it wants. The server finds an exact compatible upstream snapshot by natural identity, or generates one, and records its exact id. There is no "latest". A client may name exact upstream snapshots only to reproduce an earlier output (§7). |
+| OD-S6-3 | **A fingerprint is recorded per output engine:** `validation`, `bom`, `boq`, `pricing`, `quotation`, `drawing` (later `manufacturing`). Each output records the engine name, semantic version, exact build and fingerprint (§6). |
+| OD-S6-4 | **A pure `priceRoom` is added to `@lintel/pricing-engine`.** The API never calculates a price or total. |
+| OD-S6-5 | **UNAVAILABLE pricing or quotation results are never persisted.** The response carries structured blockers. TEST_FIXTURE pricing stays test-only. |
+| OD-S6-6 | **Engineering and commercial dependencies are separate domains.** Revision 3 completes this through Correction 1. |
+| OD-S6-7 | **Manufacturing generation and release are separate authorities** (for the future). Generation requires `output.generate.engineering`; release requires `manufacturing.release`. |
+| OD-S6-8 | **Both room and cabinet drawings are included,** using only the existing M3/M4 drawing engine (§12.5). |
+| **OD-S6-9** | **The fingerprint is a dependency-closure fingerprint (§6).** It covers the engine's semantic version, the source files of the engine and of every internal package it reaches, and the locked versions of external dependencies. The human-readable commit/build is recorded **separately**. The repository as a whole is never hashed. |
+| **Correction 1** | **Commercial dependencies are chosen when an output is generated, never pinned on the design version (§4).** The design version's PricingStandard and QuotationPolicy pins are **removed** from the design version. Commercial provenance lives only on Pricing and Quotation snapshots. The ManufacturingStandard pin follows the same rule (§3.3). |
+| **Correction 2** | **Validation runs have a purpose: `APPROVAL` or `OUTPUT_GENERATION` (§5).** Output generation records its own immutable OUTPUT_GENERATION run, for any design status, and never mutates the design. |
+| Dependency rule | **A downstream output uses an exact immutable upstream snapshot.** The server verifies its provenance and content hash and never re-runs the upstream output engine. If the upstream is stale or incompatible, a new one is generated first (§7). |
 
 ---
 
-## 1. Survey findings (from revision 1; unchanged facts)
+## 1. Survey findings (unchanged facts)
 
 | # | Finding |
 |---|---|
-| F1 | **There is no manufacturing engine.** `packages/manufacturing-engine` contains only a README ("not started", PRD Phase 7). There is no ManufacturingStandard type and its variable registry is empty. Every value is NULL / UNVERIFIED. |
-| F2 | **Only three engine version constants exist:** `ENGINE_VERSION` (design, 0.1.0), `PRICING_ENGINE_VERSION` and `DRAWING_ENGINE_VERSION`. The BOM and BOQ engines have none, and the quotation module has none of its own. |
-| F3 | **There is no room-level pricing function.** In addition, `priceQuotation` **re-prices every cabinet internally** (it calls `priceCabinet`), so today it cannot consume an existing pricing snapshot. |
-| F4 | **Snapshot tables have no engine build, engine name or engine fingerprint.** Their `engine_hash` is the engine's 53-bit payload seal (`hash53`), not a fingerprint. |
-| F5 | **`drawing_snapshot_file` has primary key `(snapshot_id, format)`,** which allows one SVG per snapshot. `drawing_type` has no CHECK and defaults to `FRONT_ELEVATION`. |
-| F6 | **The `manufacturing_document_snapshot` INSERT policy requires `manufacturing.release`**, which conflates generation with release (OD-S6-7). |
-| F7 | **No snapshot uniqueness exists in the database.** `M5-TECHNICAL-DESIGN.md` §6 describes one that was never created. |
-| F8 | **All production commercial data is NULL or DRAFT**, so production pricing and quotation return UNAVAILABLE. |
-| F9 | **`record_validation_run()` accepts only DRAFT or IN_REVIEW design versions.** |
-| F10 | **One `input_hash` covers everything today.** `input_hash` (and the DB counter `input_revision`) covers the room revision, objects, overrides **and all 12 pins, commercial ones included**. Validation, SUBMIT (LD010) and APPROVE are bound to it. A commercial pin change on a DRAFT therefore invalidates the validation run today. |
+| F1 | **There is no manufacturing engine.** `packages/manufacturing-engine` contains only a README. There is no ManufacturingStandard type, the variable registry is empty, and every value is NULL / UNVERIFIED. |
+| F2 | **Only some engines have a version constant.** They are `ENGINE_VERSION` (design), `PRICING_ENGINE_VERSION` and `DRAWING_ENGINE_VERSION`. There is none for BOM, BOQ or quotation. |
+| F3 | **There is no room-level pricing function,** and `priceQuotation` re-prices every cabinet internally. |
+| F4 | **Snapshots do not record the engine.** They have no engine name, build or fingerprint. Their `engine_hash` is the engine's `hash53` payload seal. |
+| F5 | **`drawing_snapshot_file` allows only one SVG per snapshot.** Its key is `(snapshot_id, format)`. |
+| F6 | **The manufacturing snapshot INSERT policy requires `manufacturing.release`.** |
+| F7 | **There is no snapshot uniqueness in the database.** |
+| F8 | **All production commercial data is NULL or DRAFT.** |
+| F9 | **`record_validation_run()` accepts only DRAFT or IN_REVIEW versions.** Output-time validation of APPROVED or LOCKED designs is therefore impossible today. |
+| F10 | **The design version's `input_hash` and `input_revision` cover all 12 pins,** commercial pins included. Validation, SUBMIT (LD010) and APPROVE are bound to them. |
+| F11 | **The design package imports four internal packages; the Hettich engine is not among them.** `@lintel/design-engine` imports `types`, `rules-engine`, `geometry-engine` and `catalog-engine`. The Hettich engine reaches `resolveRoom` only through the adapter the API injects (`createHettichAdapter`). Engine inputs are built by the `@lintel/persistence` mappers. The engines have **no external runtime dependencies** today. |
 
 ---
 
 ## 2. Dependency graph
 
 ```
-DesignVersion ──► Validation                      (approval evidence; not an input of any output)
+DesignVersion (engineering inputs only) ─► ValidationRun [APPROVAL]            ─► SUBMIT / APPROVE
+                                        └► ValidationRun [OUTPUT_GENERATION]    ─► gating evidence for every snapshot (§5)
 
-DesignVersion ──► BOM ──► BOQ ──► Pricing ──► Quotation
-   engineering     │       │        ▲  ▲          ▲  ▲
-   inputs          │       │        │  │          │  └── QuotationPolicy pin      (commercial)
-                   │       │        │  └──────────┼───── PricingStandard pin      (commercial)
-                   │       └────────┼─────────────┘      (Quotation uses the BOQ snapshot)
-                   └────────────────┘                    (Pricing uses the BOM and BOQ snapshots)
+DesignVersion ─► BOM ─► BOQ ─► Pricing ─────► Quotation
+                                  ▲               ▲   ▲
+                   PricingStandard version        │   └── QuotationPolicy version (chosen at generation)
+                   (chosen at generation) ────────┘       Quotation uses the Pricing snapshot's PricingStandard
 
-DesignVersion ──► Drawings                         (room-level and cabinet-level; engineering inputs only)
-
-DesignVersion ──► Manufacturing Document            (FUTURE ONLY: engineering inputs + ManufacturingStandard pin)
+DesignVersion ─► Drawings (room-level and cabinet-level)
+DesignVersion ─► Manufacturing Document (FUTURE ONLY; + ManufacturingStandard version chosen at generation)
 ```
 
-**Edges persisted on each snapshot:**
-
-| Snapshot | Upstream snapshots | Inputs from the design version |
-|---|---|---|
-| BOM | none | engineering |
-| BOQ | `bom_snapshot_id` | engineering |
-| Pricing | `bom_snapshot_id`, `boq_snapshot_id` | engineering + pricing |
-| Quotation | `boq_snapshot_id`, `pricing_snapshot_id` | engineering + pricing + quotation policy |
-| Drawing | none | engineering |
-
-**Rules:**
-
-- Commercial dependencies enter only at Pricing and Quotation.
-- Every engineering-domain output stays current when only commercial dependencies change. A Pricing snapshot also stays current when only the QuotationPolicy changes.
-
----
-
-## 3. Engineering and commercial dependency model (OD-S6-6)
-
-### 3.1 Domains
-
-| Domain | Inputs | Consumed by |
-|---|---|---|
-| **ENGINEERING** | room survey revision (id + `content_hash`); design objects (without row ids); relationship overrides (full history); engineering pins: construction standard, planning standard, edge-band standard, material catalog, finish catalog, hardware catalog, product catalog, Hettich dataset, appliance catalog (nullable) | Validation, BOM, BOQ, Drawings, and Pricing, Quotation and Manufacturing through their engineering part |
-| **PRICING** (commercial) | PricingStandard pin (rate card + pricing rules, one version) | Pricing, Quotation |
-| **QUOTATION** (commercial) | QuotationPolicy pin | Quotation |
-| **MANUFACTURING** (future) | ManufacturingStandard pin | Manufacturing Document |
-
-The appliance catalog is engineering because appliances are placed design content. No engine consumes it yet (there is no appliance data), but it cannot be commercial.
-
-### 3.2 Hashes and counters
-
-**On `design_version`** (proposed; §17):
-
-| Column | Definition | Maintained by |
-|---|---|---|
-| `engineering_input_hash` | `@lintel/persistence` `engineeringInputHash()` = SHA-256 of `{ roomRevision: {id, contentHash}, objects (no row ids), overrides, engineeringPins }` | API, recomputed on every draft change (like today's `input_hash`) |
-| `engineering_input_revision` | counter, bumped by any change to objects, overrides, room revision or an engineering pin | **database** triggers (like `input_revision`); the API cannot forge it |
-| `input_hash` (existing) | redefined as `designInputHash()` = SHA-256 of `{ engineeringInputHash, pricingStandardVersionId, quotationPolicyVersionId, manufacturingStandardVersionId }`: the whole version's inputs | API |
-| `input_revision` (existing) | unchanged: bumped by any input change | database |
-
-**Commercial pins need no hash and no counter on the design version.**
-
-- They are plain id columns that the database can compare directly.
-- The counters exist only because the engineering hash is computed in TypeScript over rows the database cannot hash.
-
-**On each snapshot:**
-
-| Column | Meaning |
-|---|---|
-| `engineering_input_hash`, `engineering_input_revision` | copied from the design version; the trigger checks equality at insert |
-| `dependency_hashes` jsonb | `{ pinColumn → dependencyHash }` for **exactly the pins this kind consumes** (§3.3) |
-| `dependency_set_hash` | SHA-256 of `dependency_hashes` (canonical) |
-| `commercial_input_hash` | Pricing: `H({ pricingStandardVersionId, dependencyHash })`. Quotation: `H({ pricing part, quotationPolicyVersionId, dependencyHash })`. NULL for engineering kinds. |
-| `input_hash`, `input_revision` | the design version's whole-input values, **recorded for provenance only**; never used for staleness or uniqueness |
-
-`dependencyHash(pinned version)` is the SHA-256 of the pinned version's envelope content hash **plus its child rows**: values, rules, rate lines, tax rates, catalog members and Hettich articles.
-
-- Reading and hashing the child rows directly means a DRAFT dependency whose child rows changed is detected even though its envelope `content_hash` is set only by the author.
-- For APPROVED and LOCKED versions the child rows are frozen, so the hash is constant.
-
-### 3.3 Consumed pins by kind (the only pins in `dependency_hashes`)
-
-| Kind | Engineering pins | PricingStandard | QuotationPolicy | ManufacturingStandard |
-|---|---|---|---|---|
-| Validation | ✓ | — | — | — |
-| BOM | ✓ | — | — | — |
-| BOQ | ✓ | — | — | — |
-| Drawing | ✓ | — | — | — |
-| Pricing | ✓ | ✓ | — | — |
-| Quotation | ✓ | ✓ | ✓ | — |
-| Manufacturing (future) | ✓ | — | — | ✓ |
-
-Pin columns a kind does not consume are **NULL on its snapshot**. The existing trigger already does this for pricing, quotation and manufacturing.
-
-### 3.4 Consequences (the correction this achieves)
-
-1. Changing the PricingStandard or QuotationPolicy pin on a DRAFT changes `input_hash` and `input_revision` only.
-   - `engineering_input_hash` and `engineering_input_revision` are unchanged.
-   - Validation, BOM, BOQ and drawings stay current.
-   - Changing the QuotationPolicy leaves Pricing current.
-2. **Validation binds to the engineering domain.** Runs record `engineering_input_hash` and `engineering_input_revision`. SUBMIT (LD010) and APPROVE require a run for the **current engineering** hash and revision. A commercial re-pin no longer forces re-validation. This fixes F10.
-3. **Approval rules are unchanged.** Every non-null pin, commercial included, must be APPROVED or LOCKED to approve a design version. Commercial pins remain frozen once the version leaves DRAFT.
-   - Pricing an APPROVED design with a different price list still needs a new design version.
-   - That version's engineering outputs are new snapshots, because snapshots are per exact design version.
-   - The engine work is deterministic, and nothing becomes stale on the old version.
-   - Moving commercial pins off the design version is recorded as risk R1 (§18) and is **not** part of this plan.
-
----
-
-## 4. Output engine identity and provenance (OD-S6-3)
-
-### 4.1 Output engines
-
-| Engine name | Package / entry points | Semantic version | Engines it invokes (components) |
+| Snapshot | Upstream snapshots | Evidence | Commercial versions (recorded on the snapshot) |
 |---|---|---|---|
-| `validation` | `@lintel/design-engine` `resolveRoom` (`.validation`) | `ROOM_ENGINE_VERSION` | design-engine and its rules, geometry, catalog and Hettich libraries |
-| `bom` | `@lintel/bom-engine` `generateRoomBom` | **`BOM_ENGINE_VERSION`** (new) | + design-engine `resolveRoom` |
-| `boq` | `@lintel/boq-engine` `generateRoomBoq` | **`BOQ_ENGINE_VERSION`** (new) | + design-engine `resolveRoom` |
-| `pricing` | `@lintel/pricing-engine` **`priceRoom`** (new) | `PRICING_ENGINE_VERSION` | + design-engine `resolveRoom` |
-| `quotation` | `@lintel/pricing-engine` quotation module, **`quoteRoom`** (new; §10.4) | **`QUOTATION_ENGINE_VERSION`** (new) | + design-engine `resolveRoom` |
-| `drawing` | `@lintel/drawing-engine` `create*`, `renderSvg`, `renderPdf` | `DRAWING_ENGINE_VERSION` | + design-engine `resolveRoom` |
-| `manufacturing` (future) | `@lintel/manufacturing-engine` | future constant | future |
+| BOM | none | OUTPUT_GENERATION run | none |
+| BOQ | BOM | OUTPUT_GENERATION run | none |
+| Pricing | BOM, BOQ | OUTPUT_GENERATION run | PricingStandard |
+| Quotation | BOQ, Pricing | OUTPUT_GENERATION run | PricingStandard (= its Pricing snapshot's), QuotationPolicy |
+| Drawing | none | OUTPUT_GENERATION run | none |
 
-`resolveRoom` is part of each output engine's own invocation. The resolved room is never stored, and it is not an output snapshot, so resolving it is not "re-running an upstream output engine". Upstream *output* engines (bom → boq → pricing → quotation) are **never re-run** by a downstream output.
+**What the evidence link is.** The validation run is **evidence and gating provenance**, not an upstream calculation. No engine reads a validation run as input.
 
-### 4.2 Recorded on every snapshot and validation run
+**What can make an engineering output stale.** Commercial data can never make a design, a validation run, a BOM, a BOQ or a drawing stale.
+
+---
+
+## 3. Engineering dependency model
+
+### 3.1 What a design version is
+
+A DesignVersion is **only** the physical design and its engineering dependencies:
+
+| Group | Inputs |
+|---|---|
+| Room | the room survey revision (exact id + `content_hash`) |
+| Content | design objects (without row ids) and relationship overrides (full version history) |
+| Engineering pins (9) | construction standard, planning standard, edge-band standard, material catalog, finish catalog, hardware catalog, product catalog, appliance catalog (nullable; no data yet), Hettich dataset |
+
+### 3.2 Hashes and counters (existing columns; definition narrowed)
+
+| Column | Definition after Correction 1 | Maintained by |
+|---|---|---|
+| `design_version.input_hash` | **The engineering input hash.** `designInputHash()` = SHA-256 of `{ roomRevision: { id, contentHash }, objects, overrides, engineeringPins (the 9) }`. It no longer contains any commercial or manufacturing pin. | API, recomputed on every draft change (as today) |
+| `design_version.input_revision` | **The engineering input revision.** A counter bumped by any change to objects, overrides, the room revision or an engineering pin. | database triggers (as today); the API cannot forge it |
+
+- The column names stay the same, and the API fields `inputHash` and `inputRevision` keep their names. **Their meaning is "engineering inputs"**, because that is all a design version now has.
+- No separate `engineering_input_hash` column is needed.
+
+### 3.3 The existing commercial and manufacturing pin columns on `design_version`
+
+**`pricing_standard_version_id`, `quotation_policy_version_id` and `manufacturing_standard_version_id` are removed from the design version.** They are not kept as deprecated or ignored columns.
+
+- **Pricing and quotation.** The versions an output used are recorded **on the Pricing and Quotation snapshots**, which already carry these columns (§8). That is the only commercial provenance.
+- **Manufacturing.** ManufacturingStandard is process data that is not part of the physical design. Like commercial data, it is chosen when a manufacturing document is generated and recorded on that snapshot (future). Nothing reads the design-version pin today: manufacturing is deferred, and no ManufacturingStandard version can be approved.
+- **Why removed rather than deprecated.** An ignored column would still appear in queries, pins and `lock_cascade`, and invite misuse. No production data exists; the change is applied to local or CI databases only.
+
+**Everything that references these pins changes with them (§19):**
+
+- the API `PinsInput` and `Pins` (12 → 9 pins);
+- the `@lintel/persistence` `DesignVersionPins`;
+- `designInputHash`;
+- `maintain_input_revision`;
+- the approval pin check;
+- `lock_cascade`;
+- `check_snapshot_provenance`;
+- the design-version tests.
+
+### 3.4 Consequences
+
+- **Design approval covers engineering only.** It requires every engineering pin to be APPROVED or LOCKED, and an APPROVAL validation run with 0 BLOCKERs for the current `input_hash` and `input_revision`.
+- **Commercial approval is checked where commercial data is used:** by Pricing and Quotation generation at FOR_PRODUCTION (§11), and by quotation issue.
+- **LOCK of a design** cascades to its engineering pins only.
+- **Issuing a quotation** additionally locks the exact PricingStandard and QuotationPolicy versions the quotation snapshot used (§4.4).
+
+---
+
+## 4. Commercial dependency model
+
+### 4.1 Chosen at generation, exactly
+
+Each Pricing and Quotation request names **exact** commercial versions:
+
+| Output | Request field | Constraint |
+|---|---|---|
+| Pricing | `pricingStandardVersionId` (required) | same organization |
+| Quotation | `quotationPolicyVersionId` (required) | same organization |
+| Quotation | `pricingStandardVersionId` (required) | the Pricing snapshot used must have been produced with this exact version (the server resolves or generates it with this version, §7) |
+
+- **There is no default and no "current price list" lookup.** A client that wants the newest approved PricingStandard must say which version that is; the API offers the list through the reference-data endpoints.
+- **A future project-level "commercial context"** (a stored choice of versions) could supply these ids, but it would still resolve to exact ids recorded on the snapshot. It is recorded as risk R1 and is not part of this plan.
+
+### 4.2 Commercial provenance on snapshots
+
+| Column | Pricing | Quotation |
+|---|---|---|
+| `pricing_standard_version_id` | NOT NULL, FK (org) | NOT NULL, FK (org); must equal the source Pricing snapshot's |
+| `quotation_policy_version_id` | NULL | NOT NULL, FK (org) |
+| `commercial_input_hash` | `H({ pricingStandard: { id, dependencyHash } })` | `H({ pricingStandard: { id, dependencyHash }, quotationPolicy: { id, dependencyHash } })` |
+| `dependency_hashes` | the 9 engineering pins + PricingStandard | the 9 engineering pins + PricingStandard + QuotationPolicy |
+
+**`dependencyHash(version)`** is the SHA-256 of the version's envelope `content_hash` plus all of its child rows:
+
+| Version type | Child rows |
+|---|---|
+| PricingStandard | rate-card lines |
+| QuotationPolicy | tax rates and tax-rate mappings |
+| Engineering pins | their values, rules, members or articles |
+
+Child rows are read and hashed directly, so a change to a DRAFT version's child rows is detected.
+
+### 4.3 The worked example
+
+```
+Design V12 + PricingStandard V3  → Pricing snapshot A   (natural identity includes PricingStandard V3)
+Design V12 + PricingStandard V4  → Pricing snapshot B   (another identity; no Design V13)
+Pricing B + QuotationPolicy P2   → Quotation Q1
+Pricing B + QuotationPolicy P3   → Quotation Q2         (BOM, BOQ, drawings and Pricing B untouched)
+```
+
+- **The BOM and BOQ snapshots of V12 are reused** by both A and B: they are the same engineering outputs.
+- **The engine version gates.** The engine requires APPROVED commercial data in production mode. A DRAFT PricingStandard or QuotationPolicy therefore yields `UNAVAILABLE`, which is not persisted.
+
+### 4.4 Commercial lifecycle rules
+
+| Purpose | PricingStandard / QuotationPolicy status required |
+|---|---|
+| PRELIMINARY / FOR_REVIEW | any (DRAFT … LOCKED). The engine returns UNAVAILABLE for non-APPROVED data in production mode. Only a real PRICED result is persisted, so in practice every persisted Pricing or Quotation needs APPROVED or LOCKED commercial versions. |
+| FOR_PRODUCTION | APPROVED or LOCKED, **plus** the design APPROVED or LOCKED |
+| Quotation issue | `check_issue` (FOR_PRODUCTION, design LOCKED, 0 BLOCKERs, same design content hash). In the same transaction, the design is LOCKed if it is APPROVED, and the exact PricingStandard and QuotationPolicy versions are LOCKed if they are APPROVED, through `transition(…, 'LOCK')`. **An issued quotation's commercial basis can never change or be superseded out from under it.** |
+
+---
+
+## 5. Validation-run purpose model (Correction 2)
+
+### 5.1 Two purposes
+
+| | `APPROVAL` | `OUTPUT_GENERATION` |
+|---|---|---|
+| Created by | `POST /design-versions/{id}/validation-runs` (exists) | the server, inside every output generation transaction; there is **no public endpoint** that creates one |
+| Design status allowed | DRAFT, IN_REVIEW (unchanged, F9) | **any**: DRAFT, IN_REVIEW, APPROVED, LOCKED, SUPERSEDED |
+| Used by | SUBMIT (LD010) and APPROVE: the latest **APPROVAL** run for the current engineering `input_hash` + `input_revision`, with 0 BLOCKERs for APPROVE | output snapshots, as `validation_run_id` (NOT NULL): gating evidence |
+| Mutates the design? | no | **no.** The design row is only read (`FOR SHARE`); no lifecycle, hash, revision or column changes. |
+| Immutable | yes (insert-only, LD015) | yes (insert-only, LD015) |
+| Records | engine name `validation`, version, build, fingerprint; engineering `input_hash`, `input_revision`, `dependency_set_hash`; blocker and warning counts; messages; `content_hash`; `created_by`; `created_at` | the same |
+| Permission | `design_version.author` or `output.generate.engineering` | the generating action of the output: `output.generate.engineering`, or `output.generate.commercial` for Pricing and Quotation |
+| Reuse | none (each run is approval evidence at a point in time) | natural identity `(org, design_version_id, input_hash, input_revision, dependency_set_hash, engine_fingerprint)`, unique where `purpose = 'OUTPUT_GENERATION'`. Many snapshots can reference one run. |
+
+### 5.2 How output generation validates
+
+1. Every output engine resolves the room with `resolveRoom` for its own calculation, and that resolution yields `room.validation`.
+2. The server records (or reuses, by natural identity) an **OUTPUT_GENERATION** run from **that same resolution**. There is no second engine run. The validation fingerprint is the `validation` engine's (§6).
+3. The snapshot references the run (`validation_run_id`). The run is evidence, not an input: the snapshot's payload is computed from the engine inputs, never from the run.
+
+**Gating:**
+
+| Purpose | Gate |
+|---|---|
+| PRELIMINARY / FOR_REVIEW | none. The run's BLOCKERs are shown and propagated to `blocker_count`. |
+| FOR_PRODUCTION | the OUTPUT_GENERATION run has **0 BLOCKERs** **and** the output's own engine result has 0 BLOCKERs **and** the design is APPROVED or LOCKED |
+
+For FOR_PRODUCTION, the design was approved on an APPROVAL run, possibly from an older build. The OUTPUT_GENERATION run proves that **the running build** also finds no BLOCKERs on the exact same engineering inputs. This resolves F9 without letting old evidence approve new code.
+
+**Database rules** (trigger on insert into the snapshot tables and `validation_run`):
+
+- A snapshot's `validation_run_id` must reference a run with `purpose = 'OUTPUT_GENERATION'`, the same organization and `design_version_id`, and the same `input_hash`, `input_revision` and `dependency_set_hash` of the engineering pins.
+- For FOR_PRODUCTION, the run must have `blocker_count = 0`.
+- An APPROVAL run can never be referenced by a snapshot.
+- An OUTPUT_GENERATION run can never satisfy SUBMIT or APPROVE.
+- `record_validation_run` takes `p_purpose`. APPROVAL keeps the DRAFT / IN_REVIEW rule. OUTPUT_GENERATION accepts any status and requires the output-generation permissions.
+
+---
+
+## 6. Engine identity and fingerprint algorithm (OD-S6-9)
+
+### 6.1 Output engines and their entry points
+
+Each output engine has **one composition entry module** in the API. The entry module is the only place that wires rows to engines: it holds the mapper calls, the adapters and the engine calls.
+
+| Engine name | Entry module (Step 7) | Semantic version | Reaches (import graph) |
+|---|---|---|---|
+| `validation` | `apps/api/src/modules/outputs/engines/validation.ts` | `ROOM_ENGINE_VERSION` | design-engine, rules, geometry, catalog, types; hettich-engine (adapter); persistence mappers |
+| `bom` | `…/engines/bom.ts` | **`BOM_ENGINE_VERSION`** (new) | bom-engine + everything `validation` reaches |
+| `boq` | `…/engines/boq.ts` | **`BOQ_ENGINE_VERSION`** (new) | boq-engine + the same |
+| `pricing` | `…/engines/pricing.ts` | `PRICING_ENGINE_VERSION` | pricing-engine (`priceRoom`, new) + the same |
+| `quotation` | `…/engines/quotation.ts` | **`QUOTATION_ENGINE_VERSION`** (new) | pricing-engine quotation module (`quoteRoom`, new) + the same |
+| `drawing` | `…/engines/drawing.ts` | `DRAWING_ENGINE_VERSION` | drawing-engine + the same |
+| `manufacturing` | future | future | future |
+
+### 6.2 Algorithm
+
+**Build-time manifest.** `pnpm engines:manifest` is run by the build and CI; in development and tests the same function runs at startup. For each output engine it does the following.
+
+**Step 1: find the closure.** Take the static import graph from the engine's entry module. It is resolved with the repository's own TypeScript resolution through the bundler's module graph (rolldown/esbuild metafile). Nothing is executed.
+
+**Step 2: internal source files.** Take every **internal source file** reached: files under `packages/*/src` and the entry module's own `apps/api/src` imports. For each package, compute:
+
+```
+packageSourceHash(pkg) = SHA-256( canonical [ (relativePath, SHA-256(fileBytes)) for every reached file of pkg, sorted by path ]
+                                  + SHA-256(pkg/package.json normalized: name, version, dependencies, exports) )
+```
+
+- Only files that are **reached** count: `src` code actually imported.
+- Tests, READMEs, docs, UI packages, and unreached modules of the same package are excluded **by construction**.
+
+**Step 3: external dependencies.** Take every **external package** reached (resolved into `node_modules`) and record `name@version` plus its `integrity` from `pnpm-lock.yaml`, transitively for everything reached. Today this list is empty (F11); it is still computed and hashed.
+
+**Step 4: the fingerprint.**
+
+```
+engine_fingerprint = "sha256:" + SHA-256( canonicalJSON({
+    engine:   name,                         // e.g. "bom"
+    version:  semanticVersion,              // e.g. BOM_ENGINE_VERSION
+    packages: { "@lintel/bom-engine": packageSourceHash, "@lintel/design-engine": …, "@lintel/persistence": …, … },
+    entry:    SHA-256(entry module bytes),
+    externals:{ "<name>": "<version>+<integrity>", … },
+    runtime:  "node-<major>"                // semantics-relevant runtime; major only
+}))
+```
+
+**Guarantees:**
+
+- Same engine code, same dependency closure and same externals give the **same fingerprint** on any commit, machine or checkout.
+- Any change to a reached file, a reached package's manifest, a locked external version or the semantic version gives a **different fingerprint**. No manual bump is needed.
+- A change to docs, UI, tests, or an unreached file (for example an unrelated API module) **does not** change it. That is the brief's requirement.
+- **The whole repository is never hashed.**
+
+**Human-readable build is separate.** `engine_build` = the commit SHA / build revision (Step 5: `BUILD_REVISION` → `GITHUB_SHA` → Git checkout, with a `+dirty` marker). It is recorded **alongside** the fingerprint and is **not** an input to it.
+
+- **Why the commit is not hashed in.** Hashing the commit would make every commit a new fingerprint, which contradicts "same engine code, same fingerprint".
+- **How the build is still covered.** The fingerprint covers the build's engine content exactly, through the source hashes. The commit answers "which build ran", and the fingerprint answers "which exact engine code ran".
+- **Dirty checkouts.** The file hashes are computed from the working tree, not from Git, so an uncommitted change also changes the fingerprint.
+
+**Deployment.**
+
+- Production artifacts carry the generated `engine-manifest.json`. The API loads it at startup and refuses to start if it is missing or does not match its schema.
+- In development and tests the manifest is computed on startup. A CI test asserts that the computed manifest matches the one the build produced.
+
+### 6.3 Recorded on every snapshot and every validation run
 
 | Column | Value |
 |---|---|
-| `engine_name` | one of §4.1. A registry table `output_engine(name, snapshot_kind)` plus a CHECK tie each snapshot kind to its engine. |
-| `engine_version` | the output engine's semantic version |
-| `engine_build` | Git commit SHA / build revision (Step 5: `BUILD_REVISION` → `GITHUB_SHA` → Git checkout, `+dirty` locally) |
-| `engine_source_hash` | see OD-S6-9 |
-| `engine_components` | jsonb `{ "@lintel/design-engine": "0.1.0", "@lintel/bom-engine": "0.1.0", … }`: the semantic versions of every engine package the output engine invokes |
-| `engine_fingerprint` | SHA-256 of `{ engine: name, version, components, sourceHash, build? }` (see OD-S6-9) |
-| `engine_seal` | the engine's own `hash53` payload seal when it has one (drawing, pricing, quotation); NULL otherwise. For `verify*()` parity only; never authoritative. |
+| `engine_name` | §6.1 name. The `output_engine` registry and a CHECK tie each snapshot kind to its engine. Validation runs use `validation`. |
+| `engine_version` | semantic version |
+| `engine_build` | commit SHA / build revision (human-readable) |
+| `engine_fingerprint` | the §6.2 fingerprint (`sha256:` + 64 hex) |
+| `engine_closure` | jsonb: `{ packages: { name → packageSourceHash }, externals: { … }, runtime }`. Shows *what* the fingerprint covers. |
+| `engine_seal` | the engine's own `hash53` payload seal where one exists (drawing, pricing, quotation); NULL otherwise. Parity only; never authoritative. |
 
-**Validation runs get the same `engine_name` (`validation`) and `engine_fingerprint` scheme.** The existing `engine_hash` column is the validation fingerprint under the new definition. Only development rows exist.
-
-**The platform build.** In this monorepo the API and all engines share the commit SHA, so `engine_build` is also the platform build. A separate platform/orchestrator build column is **not** added now. It can be added later without replacing any engine field.
-
-### 4.3 OD-S6-9 (new decision requested): what the fingerprint hashes
-
-| Option | Fingerprint input | Effect |
-|---|---|---|
-| **A (recommended)** | `{ name, version, components, sourceHash }`, where `sourceHash` is the Git **tree** hash of the output engine's package directory and every workspace package it depends on (for example `git rev-parse HEAD:packages/bom-engine`), computed at build time into a small manifest, with `+dirty` in dirty local checkouts. `engine_build` (commit SHA) is recorded as well. | A code change to that engine or its dependencies changes its fingerprint automatically, with no manual bump. A deploy that changes only the API, docs or another engine does **not** make its outputs stale. |
-| B | `{ name, version, components, build }` (commit SHA) | Simpler, but **every** deploy makes **every** output stale (§8), even when no engine code changed. |
-
-Either way, the output records name, version, exact build and fingerprint, as the brief requires.
+- **Validation runs.** The existing `engine_hash` on `validation_run` is replaced by `engine_fingerprint` and `engine_closure`, together with `engine_name` and `purpose`. Only development rows exist.
+- **Platform build.** A separate platform/orchestrator build id is not added now. It could be added later without replacing any engine field.
 
 ---
 
-## 5. Server-orchestrated dependency resolution (OD-S6-2 and the dependency rule)
+## 7. Server-orchestrated dependency resolution
 
-### 5.1 Compatibility (exact, never "latest")
+### 7.1 Compatibility (exact; never "latest")
 
-An existing snapshot `U` of an upstream kind is **compatible** with a request for output `D` of design version `DV` at purpose `P` exactly when **all** of these hold:
+An existing upstream snapshot `U` of kind `K` is compatible with a request for design version `DV`, purpose `P` and commercial versions `C` exactly when:
 
-1. `U.design_version_id = DV.id`, in the same organization. RLS is still applied.
-2. `U` is **current** by the staleness algorithm (§8): engineering hash and revision, dependency hashes, commercial hashes where its kind consumes them, `engine_fingerprint` equal to the current engine for `U.kind`, and all of its own sources current.
-3. `U.purpose = P`. The server always resolves upstream at the requested purpose, which keeps the choice deterministic.
-4. `verifySnapshotRecord(U)` passes: the SHA-256 of the stored payload equals `U.content_hash`.
-5. Kind-specific conditions:
-   - for FOR_PRODUCTION, `U.blocker_count = 0`;
-   - for FOR_PRODUCTION, a BOM needs `U.output_complete`.
+1. `U.design_version_id = DV.id`, in the same organization (RLS applies).
+2. `U.input_hash = DV.input_hash` and `U.input_revision = DV.input_revision`.
+3. `U.dependency_hashes` equal the current dependency hashes of the same exact versions.
+4. `U.engine_fingerprint = currentFingerprint(K)`.
+5. For Pricing, `U.pricing_standard_version_id = C.pricingStandardVersionId`.
+6. `U`'s own sources are compatible (recursively).
+7. `U.purpose = P`.
+8. `verifySnapshotRecord(U)` holds.
+9. For FOR_PRODUCTION, `U.blocker_count = 0` and, for a BOM, `U.output_complete`.
 
-Conditions 1–3 are exactly the upstream kind's **natural identity** (§7), so at most one compatible snapshot exists. Selecting it is a unique-key lookup, never an ordering.
+Conditions 1–7 are `K`'s **natural identity** (§9), so at most one `U` matches. The lookup is by unique key and never sorts.
 
-### 5.2 Generation algorithm (one REPEATABLE READ transaction)
+### 7.2 Generation (one REPEATABLE READ transaction)
 
 ```
-generate(D, DV, P):
-  lock DV FOR SHARE (as validation does); read current engineering hash/revision, pins, dependency hashes
-  for each upstream kind K of D, in order BOM → BOQ → Pricing:
-      U := lookup natural identity (DV, K, P, current hashes, current engine fingerprint(K), current sources)
-      if U missing:  U := generate(K, DV, P)            -- recursive; caller must hold K's generate permission (§12)
-      verify U (content hash, provenance)
-  input := deserialize(U.payload) through the Zod payload schema (§14) -- never recompute U
-  resolved := resolveRoom(current engineering inputs)
-  result := D's engine(resolved, input, pins...)
-  verify: resolved.roomFingerprint = input.roomFingerprint (engines already assert this for BOQ, pricing, quotation)
-  if D's natural identity already exists (a concurrent or earlier request): return it (200, reused)
-  insert D with the exact source ids; the DB trigger re-checks provenance, sources and purpose; return 201
+generate(D, DV, P, C):
+  lock DV FOR SHARE; read input_hash/input_revision, engineering pins, dependency hashes (engineering + C)
+  resolved := resolveRoom(engineering inputs)                              -- once per request
+  run := findOrRecord OUTPUT_GENERATION validation run (resolved.validation, validation fingerprint)
+  if P = FOR_PRODUCTION and run.blockers > 0 → 409 VALIDATION_BLOCKERS (nothing persisted except the run)
+  for each upstream kind K of D (BOM → BOQ → Pricing), in order:
+      U := natural-identity lookup(K, DV, P, C, current hashes, currentFingerprint(K), sources)
+      if none: U := produce(K, resolved, run, …) and insert                -- caller must hold K's generate permission (§14)
+      input_K := deserialize(U.payload) via the Zod payload schema; verify U.content_hash
+  result := D's engine(resolved, input_BOM/BOQ/Pricing, commercial data C)
+  UNAVAILABLE → 200 { status: "UNAVAILABLE", blockers, dependencies } (not persisted; created upstreams remain valid)
+  existing natural identity → 200 { reused: true }; else insert D (sources, run, provenance) → 201
 ```
 
-**What each engine reads from its upstream snapshots:**
+- **Upstream output engines are never re-run to verify a snapshot.** The stored payload is used after its content hash is verified.
+- **The engines assert the fingerprint links themselves:** `generateRoomBoq` requires the BOM's `roomFingerprint` to equal the room's, and `priceRoom` and `quoteRoom` check their traces. A mismatch means an incompatible source and returns `409 SOURCE_SNAPSHOT_INCOMPATIBLE`.
 
-| Engine | Deserializes | Checks |
-|---|---|---|
-| BOQ | `RoomBOM` from the BOM payload | `generateRoomBoq` requires `roomBom.roomFingerprint === room.roomFingerprint`, so a BOM for other inputs is refused |
-| Pricing | `RoomBOM` and `RoomBOQ` | `priceRoom` checks traces and links (as `priceCabinet` does) |
-| Quotation | `RoomBOQ` and the pricing payload | `quoteRoom` (new) uses the existing `PriceSnapshot`s and **does not re-price** (F3) |
+### 7.3 Explicit reproduction
 
-**If an upstream snapshot is stale, incompatible or missing,** a new upstream snapshot is generated first, then used. Old snapshots are never modified.
-
-### 5.3 Explicit reproduction (optional)
-
-A request may name `sources: { bomSnapshotId?, boqSnapshotId?, pricingSnapshotId? }` to reproduce an earlier output from exact upstream snapshots.
+A request may name `sources` (exact snapshot ids).
 
 **What the server checks:**
 
 - same design version and organization;
 - the content hash verifies;
-- the purpose is equal or stronger;
-- the source's engineering (and, where consumed, commercial) hashes equal the **current** design version values. Otherwise the downstream engine's fingerprint checks would refuse it anyway, with `409 SOURCE_SNAPSHOT_INCOMPATIBLE`.
+- conditions 2, 3 and 5 of §7.1 hold, so the engineering and commercial inputs are the current exact ones;
+- the source purpose is equal or stronger.
 
-**What the server allows:** the source's `engine_fingerprint` may differ from the current engine. That difference is the point of reproducing from an older build. The new snapshot records the exact source id, and its staleness reports `SOURCE_STALE` (§8).
+**What the server allows:** the source's `engine_fingerprint` may differ from the current one. That is how an earlier output is reproduced after the engine has changed. The new snapshot reports `SOURCE_STALE` (§10).
 
 ---
 
-## 6. Output snapshot schema (exact; §17 describes the migration)
+## 8. Output snapshot provenance schema
 
-### 6.1 Columns common to every snapshot table
+### 8.1 Columns common to every snapshot table
 
-| Column | Type / constraint | Source |
+| Column | Type / rule | Source |
 |---|---|---|
-| `id` | uuid PK | server |
-| `org_id` | uuid, FK organization; `UNIQUE (org_id, id)` | context |
+| `id`, `org_id` | uuid PK; `UNIQUE (org_id, id)` | server / context |
 | `kind` | `snapshot_kind`, CHECK = the table's kind | fixed |
-| `purpose` | text, CHECK IN (PRELIMINARY, FOR_REVIEW, FOR_PRODUCTION); FK `(kind, purpose)` → `output_purpose_rule` | request |
-| `design_version_id` | uuid; composite FK → design_version | request path |
-| `design_version_status` | record_lifecycle_status | DV at generation (trigger-checked) |
-| `design_version_content_hash` | sha256 | DV (trigger-checked) |
-| `engineering_input_hash` | sha256, NOT NULL | DV (trigger-checked equal) |
-| `engineering_input_revision` | integer ≥ 1, NOT NULL | DV (trigger-checked equal) |
-| `input_hash`, `input_revision` | sha256, integer; provenance only | DV (trigger-checked equal) |
-| 12 pin columns | uuid; engineering pins NOT NULL (appliance nullable); commercial and manufacturing pins NOT NULL only for kinds that consume them, NULL otherwise | DV pins (trigger-checked, existing) |
-| `dependency_hashes` | jsonb object; keys = exactly the consumed pins of the kind (CHECK on the key set) | server, read in-transaction |
-| `dependency_set_hash` | sha256 | `H(dependency_hashes)` |
-| `commercial_input_hash` | sha256; NOT NULL for PRICING and QUOTATION, NULL otherwise | §3.2 |
-| `engine_name` | text, FK `output_engine`; CHECK matches kind | §4 |
-| `engine_version` | text, non-blank | §4 |
-| `engine_build` | text, `^[0-9A-Za-z][0-9A-Za-z._+-]{6,127}$` | §4 |
-| `engine_source_hash` | text (OD-S6-9 A) | §4.3 |
-| `engine_components` | jsonb object of package → semantic version | §4 |
-| `engine_fingerprint` | sha256, NOT NULL | §4 |
-| `engine_seal` | text NULL (hash53) | engine |
-| `blocker_count`, `warning_count` | integer ≥ 0 | engine result counts |
-| `output_complete` | boolean NOT NULL (BOM: `!incomplete`; others: true) | engine |
-| `payload` | jsonb; no TEST_FIXTURE marker (CHECK) | engine result, verbatim |
-| `content_hash` | sha256 of the payload (`@lintel/persistence`) | server |
+| `purpose` | PRELIMINARY / FOR_REVIEW / FOR_PRODUCTION; FK `(kind, purpose)` → `output_purpose_rule` | request |
+| `design_version_id`, `design_version_status`, `design_version_content_hash` | composite FK; values trigger-checked against the design version | design version |
+| `input_hash`, `input_revision` | engineering input hash and revision; trigger-checked equal to the design version | design version |
+| 9 engineering pin columns | NOT NULL (appliance nullable); trigger-checked equal to the design version's pins | design version |
+| `pricing_standard_version_id`, `quotation_policy_version_id` | per §4.2 (NULL for engineering kinds); composite FKs | request (commercial) |
+| `manufacturing_standard_version_id` | NULL until manufacturing exists (future: chosen at generation) | — |
+| `dependency_hashes` | jsonb; keys = exactly the consumed pins (9 engineering, plus commercial per kind); CHECK on the key set | server |
+| `dependency_set_hash` | sha256 of the canonical `dependency_hashes` | server |
+| `commercial_input_hash` | sha256; NOT NULL for Pricing and Quotation, NULL otherwise | §4.2 |
+| `validation_run_id` | uuid NOT NULL; composite FK → `validation_run`; trigger rules of §5.2 | server |
+| `engine_name`, `engine_version`, `engine_build`, `engine_fingerprint`, `engine_closure`, `engine_seal` | §6.3 | engine manifest |
+| `blocker_count`, `warning_count` | integer ≥ 0; from the engine result, including the run's BLOCKERs | engine |
+| `output_complete` | boolean (BOM: `!incomplete`; others: true) | engine |
+| `payload` | jsonb, the engine result verbatim; no TEST_FIXTURE marker (CHECK) | engine |
+| `content_hash` | SHA-256 of the payload (`@lintel/persistence`) | server |
 | `data_classification` | `'PRODUCTION'` (CHECK) | fixed |
-| `created_by`, `created_at` | uuid = current user (RLS); timestamptz default `now()` | database |
+| `created_by`, `created_at` | current user (RLS); `now()` | database |
 
-**Removed:** `engine_hash` on snapshot tables. It meant "payload seal" and becomes `engine_seal`. All snapshot tables are empty in every environment.
+**Removed or replaced:**
 
-### 6.2 Kind-specific columns
+- `engine_hash` on snapshots becomes `engine_seal`.
+- The DV-equality rule for commercial and manufacturing pins is replaced by §4.2.
+
+### 8.2 Kind-specific columns
 
 | Table | Columns |
 |---|---|
-| `boq_snapshot` | `bom_snapshot_id` uuid NOT NULL, composite FK |
-| `pricing_snapshot` | `bom_snapshot_id`, `boq_snapshot_id` NOT NULL, composite FKs |
-| `quotation_snapshot` | `boq_snapshot_id`, `pricing_snapshot_id` NOT NULL; `revision_number` integer ≥ 1 (exists), `UNIQUE (design_version_id, revision_number)` |
-| `drawing_snapshot` | `drawing_type` (CHECK: the 6 types, §10.5; no default); `drawing_scope` CHECK IN ('ROOM','OBJECT'); `wall_id` CHECK IN ('A','B','C','D'); `object_id` uuid (composite FK → design_object of the same version); `cut_x_mm` numeric; `drawing_number`, `drawing_revision` text; `file_manifest_hash` sha256 (§11); scope CHECKs (a wall type requires `wall_id`, object types require `object_id`, `cut_x_mm` only for SIDE_SECTION) |
-| `manufacturing_document_snapshot` | unchanged until manufacturing exists (future: the same file model as §11) |
+| `boq_snapshot` | `bom_snapshot_id` NOT NULL (composite FK) |
+| `pricing_snapshot` | `bom_snapshot_id`, `boq_snapshot_id` NOT NULL |
+| `quotation_snapshot` | `boq_snapshot_id`, `pricing_snapshot_id` NOT NULL; `revision_number` (UNIQUE per design version) |
+| `drawing_snapshot` | `drawing_type` (CHECK: 6 types; no default), `drawing_scope` (ROOM / OBJECT), `wall_id` (A–D), `object_id` (composite FK → design_object of the same version), `cut_x_mm`, `drawing_number`, `drawing_revision`, `file_manifest_hash`; scope CHECKs |
+| `manufacturing_document_snapshot` | unchanged until manufacturing is revisited |
 
-**The edge trigger** checks, for every source column:
+**The edge trigger** checks, for every source:
 
-- the source has the same `design_version_id`, org, `engineering_input_hash` and `engineering_input_revision`;
-- for Quotation, the source Pricing has the same `commercial_input_hash` pricing part;
-- the source purpose is at least as strong as the snapshot's;
-- the source's content hash is the one read. Snapshots are insert-only, so the id fixes the content.
+- the same organization, `design_version_id`, `input_hash`, `input_revision` and engineering `dependency_hashes`;
+- for Quotation, `pricing_snapshot.pricing_standard_version_id = quotation_snapshot.pricing_standard_version_id`;
+- a source purpose at least as strong as the snapshot's.
 
-**Validation run additions:** `engine_name` (`'validation'`), `engine_source_hash`, `engine_components`, and `engineering_input_hash` / `engineering_input_revision`, which replace `input_hash` / `input_revision` as the binding for SUBMIT and APPROVE.
+### 8.3 Validation-run columns (after Correction 2)
+
+| Column | Rule |
+|---|---|
+| existing | `id`, `seq`, `org_id`, `design_version_id`, `input_hash`, `input_revision`, `content_hash`, `blocker_count`, `warning_count`, `messages`, `created_by`, `created_at` |
+| new | `purpose` (APPROVAL / OUTPUT_GENERATION), `dependency_set_hash` (engineering pins), `engine_name` = `validation`, `engine_fingerprint`, `engine_closure` |
+| kept | `engine_version`, `engine_build` (0016) |
+| replaced | `engine_hash` → `engine_fingerprint` |
 
 ---
 
-## 7. Snapshot uniqueness and idempotency
+## 9. Snapshot uniqueness and idempotency
 
-### 7.1 Natural identity
-
-Two snapshots are **the same output** if and only if everything that determines their content is equal.
+### 9.1 Natural identity (UNIQUE, `NULLS NOT DISTINCT`, PostgreSQL 17)
 
 The key is never just `design_version_id + kind`. Repeated immutable snapshots are legitimate:
 
 - for another purpose;
-- for new inputs (a new engineering revision);
+- for another engineering revision;
+- for other commercial versions;
 - from another engine;
 - with other sources.
 
-| Kind | Natural identity (UNIQUE, `NULLS NOT DISTINCT`, PostgreSQL 17) |
+| Kind | Natural identity |
 |---|---|
-| BOM | `(org_id, design_version_id, purpose, engineering_input_hash, engineering_input_revision, dependency_set_hash, engine_fingerprint)` |
-| BOQ | BOM key + `bom_snapshot_id` |
-| Pricing | BOM key + `commercial_input_hash` + `bom_snapshot_id` + `boq_snapshot_id` |
-| Quotation | BOM key + `commercial_input_hash` + `boq_snapshot_id` + `pricing_snapshot_id` |
-| Drawing | BOM key + `drawing_type`, `drawing_scope`, `wall_id`, `object_id`, `cut_x_mm`, `drawing_number`, `drawing_revision` |
-| Validation run | not unique. A run records evidence at a point in time and is referenced by its id. Behaviour is unchanged. |
+| Engineering base (BOM) | `(org_id, design_version_id, purpose, input_hash, input_revision, dependency_set_hash, engine_fingerprint)` |
+| BOQ | base + `bom_snapshot_id` |
+| Pricing | base + `commercial_input_hash` + `bom_snapshot_id` + `boq_snapshot_id` |
+| Quotation | base + `commercial_input_hash` + `boq_snapshot_id` + `pricing_snapshot_id` |
+| Drawing | base + `drawing_type`, `drawing_scope`, `wall_id`, `object_id`, `cut_x_mm`, `drawing_number`, `drawing_revision` |
+| OUTPUT_GENERATION run | `(org_id, design_version_id, input_hash, input_revision, dependency_set_hash, engine_fingerprint)` (partial unique index) |
+| APPROVAL run | not unique (unchanged) |
 
-**Why each column is there:**
+**Notes on the key:**
 
-- **`engineering_input_revision`** is in the key because it is how the database detects changes the API did not hash (Step 5 model). A revision bump always yields a new snapshot.
-- **`created_at`** is not in the key. Pricing and quotation payloads contain `createdAt`, so their `content_hash` differs between generations. The natural key is therefore over **inputs, engine and sources**, not the payload. A repeated request **reuses** the existing snapshot and returns it with `200` and `reused: true`, instead of creating a new one.
-- **Quotation `revision_number`** is assigned only when a new natural identity is inserted: the next number per design version under `UNIQUE (design_version_id, revision_number)`. Identical inputs never create a new quotation revision.
+- `dependency_set_hash` covers the commercial versions too, so the identity changes whenever a pinned or chosen version's content changes.
+- **`created_at`** is not in the key, and neither is the payload's `createdAt`. A repeat request **reuses** the existing snapshot (`200`, `reused: true`).
+- **Quotation `revision_number`** is assigned only when a new identity is inserted: the next number per design version, `UNIQUE (design_version_id, revision_number)`.
 
-### 7.2 Idempotency layers
+### 9.2 Idempotency layers
 
 | Layer | Behaviour |
 |---|---|
-| `Idempotency-Key` (existing scopes) | The same key and request replay the original response. Snapshots exceed the 60 KB body cap, so replay uses `resource { type, id }` rehydration. The same key with a different body gives `409 IDEMPOTENCY_KEY_REUSED` (LD022). |
-| Natural identity | Different keys, same inputs: the existing snapshot is returned (`200`, `reused: true`). Two concurrent inserts: one wins, and the other catches the unique violation (23505 on the natural-identity index) and returns the winner. |
-| Insert-only | A snapshot is never overwritten. Purpose, content and sources can never change (LD015). |
+| `Idempotency-Key` (existing scopes) | The same key and body replay the original response, by resource rehydration because snapshots exceed the 60 KB cap. The same key with a different body gives `409` (LD022). |
+| Natural identity | Different keys, same inputs: the existing snapshot is returned. Two concurrent inserts: the loser catches 23505 on the identity index and returns the winner. |
+| Insert-only | A snapshot or validation run is never overwritten (LD015). |
 
 ---
 
-## 8. Staleness algorithm (calculated, never stored)
+## 10. Staleness algorithm (calculated, never stored)
 
 ```
 isCurrent(S) → { stale, reasons[], advisories }
-  DV := S.design_version (same org)
-  reasons := []
-  -- engineering domain (every kind)
-  if S.engineering_input_hash ≠ DV.engineering_input_hash
-     or S.engineering_input_revision ≠ DV.engineering_input_revision  → reasons += ENGINEERING_INPUTS_CHANGED
-  -- consumed dependency content (only the pins in S.dependency_hashes)
-  for (pin, h) in S.dependency_hashes:
-     if DV[pin] ≠ S[pin]                                               → reasons += (engineering pin ? ENGINEERING_INPUTS_CHANGED : COMMERCIAL_INPUTS_CHANGED)
-     else if dependencyHash(DV[pin]) ≠ h                               → reasons += DEPENDENCY_CONTENT_CHANGED
+  DV := design_version of S (same org);  reasons := []
+  -- engineering (every kind)
+  if S.input_hash ≠ DV.input_hash or S.input_revision ≠ DV.input_revision   → ENGINEERING_INPUTS_CHANGED
+  for pin in the 9 engineering pins:
+      if S[pin] ≠ DV[pin]                                                     → ENGINEERING_INPUTS_CHANGED
+      else if dependencyHash(DV[pin]) ≠ S.dependency_hashes[pin]              → DEPENDENCY_CONTENT_CHANGED
+  -- commercial (Pricing, Quotation): the snapshot's OWN exact versions; there is no "current" commercial pin
+  for v in {S.pricing_standard_version_id, S.quotation_policy_version_id} \ {null}:
+      if dependencyHash(v) ≠ S.dependency_hashes[v's pin]                      → COMMERCIAL_CONTENT_CHANGED   (DRAFT only)
   -- engine
-  if S.engine_fingerprint ≠ currentEngineFingerprint(S.engine_name)    → reasons += ENGINE_CHANGED
+  if S.engine_fingerprint ≠ currentFingerprint(S.engine_name)                  → ENGINE_CHANGED
   -- sources (transitive, memoised)
-  for U in sources(S): if isCurrent(U).stale                           → reasons += SOURCE_STALE
-  advisories:
-     designSuperseded       := DV.status = SUPERSEDED                  -- historically valid; NOT stale
-     newerSurveyAvailable   := a later revision of DV's room exists    -- not adopted, so NOT stale
-     newerDependencyVersions:= pinned entities with a later APPROVED version -- never followed, so NOT stale
-  return { stale: reasons ≠ [], reasons (deduplicated), advisories }
+  for U in sources(S): if isCurrent(U).stale                                   → SOURCE_STALE
+  advisories (never staleness):
+      designSuperseded        := DV.status = SUPERSEDED           -- historically valid
+      newerSurveyAvailable    := a later survey revision of the room exists and is not pinned
+      newerDependencyVersions := pinned engineering entities with a later APPROVED version
+      newerCommercialVersions := the snapshot's PricingStandard/QuotationPolicy entities with a later APPROVED version
+  return { stale: reasons ≠ ∅, reasons (deduplicated), advisories }
 ```
 
 **What never makes an output stale:**
 
-- **A newer approved catalog (or any dependency) version** that the design does not pin. Outputs follow exact pins, never "latest".
-- **Commercial pin changes, for engineering kinds.** Those pins are not in their `dependency_hashes`, and the engineering hash and revision do not include them.
-- **A QuotationPolicy pin change, for Pricing.**
-- **SUPERSEDED or LOCKED design status.** A superseded design's outputs remain historically valid (`designSuperseded` advisory).
-- **An issue.** An issued quotation or drawing stays issued. If it later becomes stale (only through ENGINE_CHANGED, because a LOCKED version's inputs are frozen), it is flagged so it can be re-issued. It is never altered.
+- **A new PricingStandard or QuotationPolicy version.** Commercial versions are chosen per output. A new one is a new output, not a stale old one; it appears only as a `newerCommercialVersions` advisory on Pricing and Quotation.
+- **Anything commercial, for BOM, BOQ, drawings or validation.** They have no commercial inputs.
+- **A newer approved catalog or standard version the design does not pin.**
+- **A newer survey that is not adopted.**
+- **A SUPERSEDED or LOCKED design.**
+- **An issue.** An issued output is never altered. If it becomes stale through ENGINE_CHANGED, it is flagged for possible re-issue.
 
-**Where staleness is computed:**
+**The validation-run link** is not a separate staleness reason. The run's engineering hash, revision and dependency hashes are equal to the snapshot's by trigger, so it is current exactly when they are.
 
-| Where | Cost |
+**Cost:**
+
+| Where | How |
 |---|---|
-| Snapshot and list reads | the hashes above: indexed reads plus a dependency-hash read for DRAFT pins only. APPROVED and LOCKED pins are immutable, so their hash is compared to the value recorded at generation without re-reading child rows. No engine run. |
-| `GET /{kind}-snapshots/{id}/staleness` | also runs the existing engine comparators, to list which objects changed: `compareRoomTrace`, `checkQuotationStaleness`, `checkRoomDrawingStaleness`, `checkDrawingStaleness`. They are passed through as `changedObjectIds` and `engineReasons`. |
+| Read and list endpoints | computed from the stored hashes. `dependencyHash` is re-read only for DRAFT versions, because APPROVED and LOCKED content is frozen. |
+| `GET /{kind}-snapshots/{id}/staleness` | also runs the engine comparators: `compareRoomTrace`, `checkQuotationStaleness`, `checkRoomDrawingStaleness`, `checkDrawingStaleness`. It reports `changedObjectIds`. |
 
 ---
 
-## 9. Validation and purpose rules
+## 11. Purpose and lifecycle rules (unchanged principles; commercial gates moved)
 
-**Validation is a sibling of the outputs, not an input.** No output requires a validation run to be generated. Every output engine resolves the room and reports its own BLOCKERs and WARNINGs (`blocker_count`, `warning_count`).
-
-| Purpose | Design version state | BLOCKERs in the output | Validation evidence | Sources |
-|---|---|---|---|---|
-| PRELIMINARY | any (DRAFT … SUPERSEDED) | allowed; shown, and watermarked on drawings | none required | any purpose |
-| FOR_REVIEW | IN_REVIEW, APPROVED, LOCKED | allowed; shown and watermarked | implied: SUBMIT required a run for the current engineering inputs (LD010) | FOR_REVIEW or FOR_PRODUCTION |
-| FOR_PRODUCTION | APPROVED or LOCKED | **0** (checked before insert and by the database, LD011); for BOM also `output_complete` | implied: APPROVE required a 0-blocker run for the current engineering inputs | FOR_PRODUCTION only |
-
-**Production guards** (FOR_PRODUCTION only; failures return LD021 or LD011):
-
-| Scope | Guards |
-|---|---|
-| All kinds | every pin APPROVED or LOCKED (guaranteed by design approval); `dependency_hashes` current; engine classification `PRODUCTION` |
-| Pricing | the PricingStandard APPROVED or LOCKED; the engine result `PRICED`; no `PRICING_*` BLOCKER |
-| Quotation | the Pricing guards; the QuotationPolicy APPROVED or LOCKED (FINANCE); the result `PRICED`; no `QUOTATION_*` BLOCKER |
-| Drawing | the drawing engine's own FOR_PRODUCTION guard returns `CREATED` |
-| Issue (quotation, drawing) | design LOCKED; `check_issue` (existing: FOR_PRODUCTION, 0 BLOCKERs, same design content hash) |
-| Release (manufacturing) | deferred (§10.6) |
+| Purpose | Design status | OUTPUT_GENERATION run | Output BLOCKERs | Commercial versions | Sources |
+|---|---|---|---|---|---|
+| PRELIMINARY | any | recorded; BLOCKERs allowed | allowed (shown and watermarked) | any status (the engine gates) | any purpose |
+| FOR_REVIEW | IN_REVIEW, APPROVED, LOCKED | recorded; BLOCKERs allowed | allowed | any status (the engine gates) | FOR_REVIEW or FOR_PRODUCTION |
+| FOR_PRODUCTION | APPROVED or LOCKED | **0 BLOCKERs** | **0**; a BOM must be complete | **APPROVED or LOCKED** | FOR_PRODUCTION |
 
 **Further rules:**
 
-- The existing `output_purpose_rule` and `outputPurposeProblems` remain the single rule source.
-- A purpose is never upgraded. A different purpose is always a new snapshot.
+- **Issue (quotation, drawing):** `check_issue`, plus locking of the design and, for quotations, of the exact commercial versions (§4.4).
+- **Manufacturing release:** deferred (§12.6).
+- **Purpose is never upgraded.** A different purpose is always a new snapshot.
+- **The rule registry stays the single source of truth:** `output_purpose_rule` and `outputPurposeProblems`.
 
 ---
 
-## 10. Per-output contracts
+## 12. Per-output contracts
 
-### 10.1 BOM (design model → physical bill of materials)
+### 12.1 BOM
 
-- **Engine:** `bom`: `generateRoomBom(resolveRoom(engineering inputs))` → `RoomBOM`.
-- **Lines:**
-  - PANEL: per generated component, finished size; cut allowances belong to future manufacturing.
-  - BOARD: m² per material.
-  - EDGE_BAND: m per band.
-  - FINISH: m² × finished faces.
-  - HARDWARE: resolved `MANUFACTURER:ARTICLE`; unresolved requirements appear as `UNRESOLVED` with quantity 0.
-  - Per-cabinet `objectBoms`, room `totals`, `roomFingerprint` and `incomplete`.
-  - The BOM includes no wastage and no prices.
-- **Stored:** `output_complete = !incomplete`. FOR_PRODUCTION requires complete.
+- **Engine:** `bom`: `generateRoomBom(resolved)` → `RoomBOM`.
+- **Lines:** PANEL (finished size), BOARD m², EDGE_BAND m, FINISH m² × faces, HARDWARE (resolved articles, or `UNRESOLVED` with quantity 0).
+- **No wastage and no prices.**
+- **Stored:** `output_complete = !incomplete`.
 
-### 10.2 BOQ (commercial product lines, linked to the BOM and never merged with it)
+### 12.2 BOQ
 
-- **Engine:** `boq`: `generateRoomBoq(room, catalog, roomBomFromSnapshot)` → `RoomBOQ`. One `BOQItem` per object: `itemCode` and `description` from product templates, quantity from the product BOQ formula, `measures`, `linkedBomId`.
+- **Engine:** `boq`: `generateRoomBoq(resolved, catalog, roomBom from the BOM snapshot)` → `RoomBOQ`. One product line per object.
 - **How it differs from the BOM:**
-  - The BOM is physical and engineering: material, panel and hardware lines.
-  - The BOQ is what a client is quoted: product lines.
-- **No engineering logic is duplicated.** The BOQ engine takes the BOM **snapshot** payload and checks its fingerprint and link. It never recounts material.
+  - The BOM is physical and engineering.
+  - The BOQ is the commercial product quantity.
+  - They are linked, never merged.
+- **No engineering logic is duplicated,** and the BOM is never recounted.
 
-### 10.3 Pricing
+### 12.3 Pricing
 
-- **Engine:** `pricing`: **`priceRoom`** (new, pure, `@lintel/pricing-engine`).
-  - Input: `{ mode: "PRODUCTION", room, roomBom, roomBoq (both from snapshots), rateCard, rules, createdAt }`.
-  - It applies the existing `priceCabinet` gates and arithmetic to each cabinet.
-  - It returns `PRICED { priceSnapshots, totals? }` or `UNAVAILABLE { blockers }`.
-- **Room totals:** if a room total is wanted, `priceRoom` computes it. The API never sums.
-- **Pricing model:** the pinned PricingStandard version (rate card + rules), from `pricingStandardFromRows`. The engine requires APPROVED in production mode.
-- **No rates are invented:**
-  - NULL rates give `PRICING_RATE_UNVERIFIED`.
-  - Missing rates give `PRICING_RATE_MISSING`.
-  - Nothing is priced at zero.
-- **UNAVAILABLE results are not persisted (OD-S6-5).** The response is `200 { status: "UNAVAILABLE", blockers, snapshot: null }`. Any BOM or BOQ snapshots created on the way remain valid engineering snapshots.
+- **Engine:** `pricing`: **`priceRoom`** (new, pure).
+  - Input: `{ mode: "PRODUCTION", room: resolved, roomBom, roomBoq (from snapshots), rateCard, rules (from the chosen PricingStandard version), createdAt }`.
+  - It applies the existing `priceCabinet` gates and arithmetic per cabinet, plus any room totals.
+  - It returns `PRICED` or `UNAVAILABLE`.
+- **The API sums nothing.**
+- **No invented rates.** NULL rates give `PRICING_RATE_UNVERIFIED` and missing rates give `PRICING_RATE_MISSING`. Nothing is priced at zero.
+- **UNAVAILABLE is not persisted.**
 
-### 10.4 Quotation
+### 12.4 Quotation
 
-- **Engine:** `quotation`: **`quoteRoom`** (new, pure, in the pricing-engine quotation module).
-  - Input: `{ mode: "PRODUCTION", room, roomBoq, pricing: the pricing snapshot payload (PriceSnapshot[]), policy, catalog, revision, createdAt }`.
-  - It applies the existing policy gate, tax mapping, `PER_LINE` / `PER_RATE_GROUP` tax, rounding and totals code.
-  - It **does not call `priceCabinet`**; it uses the pricing snapshot.
-  - It keeps the `QUOTATION_TAX_RATE_CONFLICT` check against each `PriceSnapshot.pricingRules.gstPercent`.
-- **Keeping existing behaviour:** the existing `priceQuotation` becomes `priceRoom` + `quoteRoom`, so behaviour is byte-identical. Its golden and unit tests stay unchanged.
-- **Nothing financial is decided in a controller or service.** The service only assigns `revision_number` and `createdAt`.
-- **Not added:**
-  - quote validity or expiry (not modelled);
-  - discounts other than `NONE`.
-- **UNAVAILABLE results are not persisted.**
-- **Issue:** `POST /quotation-snapshots/{id}/issue`:
-  1. LOCK the design if it is APPROVED;
-  2. INSERT `quotation_issue`;
-  3. `check_issue`.
+- **Engine:** `quotation`: **`quoteRoom`** (new, pure).
+  - Input: `{ mode: "PRODUCTION", room: resolved, roomBoq, pricing (the Pricing snapshot payload), policy (the chosen QuotationPolicy version), catalog, revision, createdAt }`.
+  - It reuses the existing policy gate, tax mapping, tax policy, rounding and totals.
+  - **It does not re-price.**
+- **Keeping existing behaviour:** `priceQuotation` becomes `priceRoom` + `quoteRoom`, with golden output unchanged.
+- **The service only assigns `revision_number` and `createdAt`.**
+- **Not modelled, not invented:** quote validity or expiry, and discounts other than NONE.
 
-### 10.5 Drawings: existing engine → API map (OD-S6-8)
+### 12.5 Drawings: existing engine → endpoint map
 
-Every drawing uses only `@lintel/drawing-engine`. There is no second drawing calculation.
+All six types use one endpoint, `POST /design-versions/{id}/drawing-snapshots`, with a discriminated `drawingType`.
 
-| Existing engine function | Scope | API `drawingType` | Required parameters | Staleness detail | Verify |
+| Existing engine function | Scope | API `drawingType` | Parameters | Staleness detail | Verify |
 |---|---|---|---|---|---|
-| `createWallInternalElevation` | room | `WALL_INTERNAL_ELEVATION` | `wallId` (A–D) | `checkRoomDrawingStaleness` | `verifyRoomDrawing` |
+| `createWallInternalElevation` | room | `WALL_INTERNAL_ELEVATION` | `wallId` | `checkRoomDrawingStaleness` | `verifyRoomDrawing` |
 | `createRoomPanelSchedule` | room | `ROOM_PANEL_SCHEDULE` | — | `checkRoomDrawingStaleness` | `verifyRoomDrawing` |
 | `createFrontElevation` | cabinet | `FRONT_ELEVATION` | `objectId` | `checkDrawingStaleness` | `verifyDrawing` |
-| `createSideSection` | cabinet | `SIDE_SECTION` | `objectId`, optional `cutXMm` | `checkDrawingStaleness` | `verifyDrawing` |
+| `createSideSection` | cabinet | `SIDE_SECTION` | `objectId`, `cutXMm?` | `checkDrawingStaleness` | `verifyDrawing` |
 | `createCabinetInternalElevation` | cabinet | `CABINET_INTERNAL_ELEVATION` | `objectId` | `checkDrawingStaleness` | `verifyDrawing` |
 | `createPanelSchedule` | cabinet | `PANEL_SCHEDULE` | `objectId` | `checkDrawingStaleness` | `verifyDrawing` |
-| `renderSvg(drawing, sheetIndex)` | both | files: one `SVG` per sheet | — | — | SHA-256 per file |
-| `renderPdf([drawing])` | both | files: one `PDF` document | — | — | SHA-256 per file |
-
-**All six types go through one endpoint,** `POST /design-versions/{id}/drawing-snapshots`, with a discriminated `drawingType` body (§14).
+| `renderSvg(d, i)` / `renderPdf([d])` | both | files: SVG per sheet, one PDF | — | — | SHA-256 per file |
 
 **Rules:**
 
-- **Cabinet drawings** use the cabinet from the room resolution (`room.cabinets` by `objectId`), so room and cabinet drawings of one version share one resolution.
-- **Purpose becomes the engine's `requestedStatus`.** The three values are identical.
-- **A `REFUSED` result** returns `422 DRAWING_REFUSED` with the engine blockers. Nothing is persisted.
-- **A `CREATED` result is persisted.** It may be watermarked because of BLOCKERs.
-- **Title-block metadata comes from records, never free text:**
+- **Cabinet drawings** use `resolved.cabinets` by `objectId`, so both scopes share one resolution.
+- **Purpose becomes the engine's `requestedStatus`.**
+- **`REFUSED`** returns `422 DRAWING_REFUSED` with the engine blockers. Nothing is persisted.
+- **Title-block metadata comes from records:**
 
   | Field | Source |
   |---|---|
-  | `projectCode` | `project.project_code` |
-  | `room` | `room.name` |
-  | `designer` | DV `created_by` display name |
-  | `checker` | DV `approved_by` display name, or `-` |
-  | `date` | generation date, UTC |
-  | `drawingNumber`, `drawingRevision` | the request (validated format) |
+  | project code | `project.project_code` |
+  | room | `room.name` |
+  | designer | DV `created_by` |
+  | checker | DV `approved_by`, or `-` |
+  | date | generation date (UTC) |
+  | number and revision | the request |
 
-### 10.6 Manufacturing Document: future boundary (OD-S6-1, OD-S6-7). No endpoint in this step.
+### 12.6 Manufacturing Document: future boundary; no endpoint
 
 **Future boundary:**
 
-- **Engine:** `manufacturing`, in `@lintel/manufacturing-engine`. It consumes engineering inputs (the resolved room) and an exact ManufacturingStandard version. Inputs from the BOM are expected (panel lines); the dependency edges would be decided when the engine exists.
-- **Domain:** engineering + MANUFACTURING (§3.3). ManufacturingStandard changes never make BOM, drawings or commercial outputs stale.
-- **Snapshot:** `manufacturing_document_snapshot`, with the same common columns (§6.1), the same file model (§11), `engine_name = 'manufacturing'`, and a non-null ManufacturingStandard pin.
-- **Permissions:** generation requires `output.generate.engineering`; release to manufacturing requires `manufacturing.release`. The INSERT policy is corrected when manufacturing is enabled (F6).
-- **Purposes:** PRELIMINARY and FOR_REVIEW become possible once the engine exists. FOR_PRODUCTION and release need all of:
+- **Engine:** `manufacturing`, in `@lintel/manufacturing-engine`, with its own entry module and fingerprint (§6).
+- **Inputs:** the engineering inputs (resolved room), an **exact ManufacturingStandard version chosen at generation** (§3.3), and probably the BOM snapshot.
+- **Snapshot:** the common schema (§8) with its own file table (§13); `engine_name = 'manufacturing'`.
+- **Permissions:** generation requires `output.generate.engineering` (the INSERT policy is corrected then, F6); release requires `manufacturing.release`.
+- **Purposes:** PRELIMINARY and FOR_REVIEW once the engine exists. FOR_PRODUCTION and release need all of:
   - an APPROVED or LOCKED ManufacturingStandard;
   - a LOCKED design;
-  - 0 BLOCKERs;
-  - every production guard (Step 4 §8.1).
+  - an OUTPUT_GENERATION run with 0 BLOCKERs;
+  - 0 output BLOCKERs;
+  - every production guard.
 
 **Current production blockers:**
 
-1. There is no manufacturing engine. Cut sizes, cut list, drilling, labels and CNC do not exist (PRD Phase 7).
-2. There is no ManufacturingStandard type, and the `manufacturing_variable` registry is empty, so no version can be approved (`completeness.test.ts`).
-3. Every manufacturing value is NULL / UNVERIFIED: saw kerf, edge trim, cut versus finished size, groove, system hole pitch, joinery, CNC post-processor, label format, wastage.
-4. The construction standard's cut-size allowances (A7) are NULL / UNVERIFIED.
-
-**Consequence:** no manufacturing output endpoint exists, `POST …/manufacturing-release` stays refused, and nothing is weakened.
+1. There is no manufacturing engine: no cut sizes, cut list, drilling, labels or CNC (PRD Phase 7).
+2. There is no ManufacturingStandard type, and the variable registry is empty, so no version can be approved.
+3. Every manufacturing value is NULL / UNVERIFIED: kerf, trim, cut versus finished size, groove, hole pitch, joinery, CNC post-processor, labels, wastage.
+4. The construction standard's cut-size allowances are NULL / UNVERIFIED.
 
 ---
 
-## 11. Drawing file model (one-to-many; any format)
+## 13. Drawing file model (unchanged from revision 2)
 
-**Registry `output_file_format`:**
-
-- Columns: `code` PK, `content_type`, `extension`, `sort_order`, `sheet_scoped` boolean, `kinds` snapshot_kind[].
-- Seed rows: `PDF` (application/pdf, document-scoped), `SVG` (image/svg+xml, sheet-scoped).
-- A future `DXF` (image/vnd.dxf) is **one registry row**, with no change to the snapshot tables.
-- The registry is not audited, like the other registries.
-
-**`drawing_snapshot_file`** is redefined. The table is empty, so it is dropped and recreated in the migration.
-
-| Column | Constraint |
-|---|---|
-| `org_id`, `snapshot_id` | composite FK → drawing_snapshot |
-| `sequence` | integer ≥ 1; **PK `(snapshot_id, sequence)`** |
-| `format` | FK → `output_file_format(code)` |
-| `sheet_index` | integer ≥ 0; NOT NULL iff the format is `sheet_scoped`, else NULL |
-| `file_object_id` | composite FK → file_object; UNIQUE `(snapshot_id, format, sheet_index) NULLS NOT DISTINCT` |
-
-**Deterministic identity.** `sequence` is assigned by ordering the files on `(format.sort_order, sheet_index)`, so the same drawing always gets the same sequence numbers. For example: PDF is 1, SVG sheet 0 is 2, SVG sheet 1 is 3.
-
-**The manifest seals the file set:**
-
-- `drawing_snapshot.file_manifest_hash` = SHA-256 of the ordered `[{sequence, format, sheetIndex, checksum, byteSize, contentType}]`. It is computed after rendering and before the snapshot insert.
-- A DEFERRABLE INITIALLY DEFERRED constraint trigger checks at commit that the linked files exactly match the manifest.
-- A snapshot therefore can never gain, lose or swap a file.
-
-**Storage.**
-
-- Files go through `FileService` under `buildStorageKey({ orgId, projectId, designVersionId, kind: "drawing", fileId, extension })`.
-- `file_object` is insert-only and stores a SHA-256 checksum.
-- An orphan left by a rollback is harmless and reused on retry (Step 4 §7).
-- Providers are memory (tests) and local file system (development). There is **no hosted bucket**.
-
-**Byte encoding.** `renderPdf` returns an ASCII string, stored as `latin1` bytes. `renderSvg` returns UTF-8.
-
-**Manufacturing documents** use an identical `manufacturing_document_snapshot_file` shape, with their formats as registry rows, when enabled.
+- **Format registry:** `output_file_format(code, content_type, extension, sort_order, sheet_scoped, kinds[])`. It is seeded with PDF (document-scoped) and SVG (sheet-scoped). **DXF and later formats are registry rows only.**
+- **`drawing_snapshot_file`:**
+  - Columns: `org_id`, `snapshot_id`, `sequence` ≥ 1, `format` (FK to the registry), `sheet_index` (NOT NULL iff sheet-scoped), `file_object_id`.
+  - **PK `(snapshot_id, sequence)`**; UNIQUE `(snapshot_id, format, sheet_index) NULLS NOT DISTINCT`.
+  - `sequence` is assigned deterministically by `(sort_order, sheet_index)`.
+- **Manifest seal:** `drawing_snapshot.file_manifest_hash` = SHA-256 of the ordered `[{sequence, format, sheetIndex, checksum, byteSize, contentType}]`. A DEFERRABLE INITIALLY DEFERRED trigger requires the linked files to match exactly at commit.
+- **Storage:** `FileService`, content-addressed org and project keys, insert-only `file_object` with a SHA-256 checksum. Memory and local providers only; no hosted bucket.
+- **Encoding:** the PDF is stored as `latin1` bytes, SVG as UTF-8.
+- **Manufacturing** later uses the identical shape.
 
 ---
 
-## 12. Output permission matrix
-
-**Actions** are the existing permissions (0002 seeds). **Layers:** API guard + RLS policy + database trigger/function, as in Step 5.
+## 14. Output permission matrix
 
 | Output | Generate | Read | Issue / release |
 |---|---|---|---|
-| Validation run | `design_version.author` **or** `output.generate.engineering` (+ `reference.read`) | project scope | — |
-| BOM | `output.generate.engineering` | `output.read.production` | — |
-| BOQ | `output.generate.engineering` | `output.read.production` | — |
-| Pricing | `output.generate.commercial` | `output.read.cost` | — |
-| Quotation | `output.generate.commercial` | `output.read.cost`; issued: `output.read.issued` | `quotation.issue` |
+| Validation run, APPROVAL | `design_version.author` or `output.generate.engineering` | project scope | — |
+| Validation run, OUTPUT_GENERATION | (server) the output's generate action | project scope | — |
+| BOM, BOQ | `output.generate.engineering` | `output.read.production` | — |
 | Drawing | `output.generate.engineering` | `output.read.production`; issued: `output.read.issued` | `drawing.issue` |
-| Manufacturing Document (future) | `output.generate.engineering` (policy corrected, F6) | `output.read.production` | release: `manufacturing.release` |
-| Files (signed URL) | the generating action | `file_read` / `client_can_read_file` | — |
-
-**Default roles today (seeds):**
-
-| Role | Generate | Read | Issue / release |
-|---|---|---|---|
-| DESIGNER | engineering | production, issued | — |
-| DESIGN_HEAD | engineering | cost, production, issued | `drawing.issue`, lock |
-| COSTING | engineering, commercial | cost, production, issued | — |
-| SALES | — | issued | `quotation.issue` |
-| FINANCE | — | cost, issued | — |
-| PROCUREMENT | — | cost, production | — |
-| PRODUCTION | — | production, issued | `manufacturing.release` |
-| SITE_ENGINEER | — | production, issued | — |
-| ADMIN | — | cost, production, issued | — |
-| CLIENT | — | issued only (portal deferred) | — |
+| Pricing | `output.generate.commercial` | `output.read.cost` | — |
+| Quotation | `output.generate.commercial` | `output.read.cost`; issued: `output.read.issued` | `quotation.issue` (also LOCKs the commercial versions used, §4.4) |
+| Manufacturing (future) | `output.generate.engineering` | `output.read.production` | `manufacturing.release` |
+| Files | the generating action | `file_read` / `client_can_read_file` | — |
 
 **Orchestration never escalates.**
 
-- Generating an upstream snapshot on the caller's behalf (§5.2) runs **as the caller**. The caller needs that upstream's generate permission, and read permission for existing upstreams.
-- **Pricing and Quotation callers** (commercial) therefore also need `output.generate.engineering` or `output.read.production` to use BOM and BOQ snapshots. COSTING has all of these. Anyone else gets `403 PERMISSION_DENIED` naming the missing upstream action.
-- There is **no SECURITY DEFINER path** that generates on someone else's authority.
+- Upstream generation runs as the caller, with the caller's own permissions.
+- A Pricing or Quotation caller must hold `output.generate.engineering` to create missing BOM or BOQ snapshots, or `output.read.production` to use existing ones.
+- COSTING holds both today. Anyone else gets `403 PERMISSION_DENIED` naming the missing upstream action.
+- There is no SECURITY DEFINER generation path.
+
+**Commercial reference reads** for the chosen versions use `reference.read`, as today.
 
 ---
 
-## 13. Endpoint list (`/api/v1`)
+## 15. Endpoint list (`/api/v1`)
 
-**Conventions** (as Step 4 and Step 5):
-
-- JWT authentication and an X-Org org context proven by a membership;
-- RFC 9457 problems;
-- keyset pagination;
-- `Idempotency-Key` on every POST (existing scopes).
-
-Snapshots are immutable, so there is no PATCH or DELETE. Their ETags are strong: `"<content_hash>"`.
-
-**Generation** (server-orchestrated dependencies):
+**Generation** (server-orchestrated; `Idempotency-Key` on every POST):
 
 | Method & path | Action | Body | Responses |
 |---|---|---|---|
-| `POST /design-versions/{id}/bom-snapshots` | `output.generate.engineering` | `BomGenerateRequest` | 201 new · 200 reused |
-| `POST /design-versions/{id}/boq-snapshots` | `output.generate.engineering` | `BoqGenerateRequest` | 201 · 200 reused (+ any BOM generated, in `dependencies[]`) |
-| `POST /design-versions/{id}/pricing-snapshots` | `output.generate.commercial` (+ upstream, §12) | `PricingGenerateRequest` | 201 · 200 reused · 200 `UNAVAILABLE` (not persisted) |
-| `POST /design-versions/{id}/quotation-snapshots` | `output.generate.commercial` (+ upstream) | `QuotationGenerateRequest` | 201 · 200 reused · 200 `UNAVAILABLE` |
-| `POST /design-versions/{id}/drawing-snapshots` | `output.generate.engineering` | `DrawingGenerateRequest` (6 types, §10.5) | 201 · 200 reused · 422 `DRAWING_REFUSED` |
-| ~~`POST /design-versions/{id}/manufacturing-document-snapshots`~~ | — | — | **not created (OD-S6-1)** |
+| `POST /design-versions/{id}/bom-snapshots` | `output.generate.engineering` | `{ purpose, sources? }` | 201 · 200 reused |
+| `POST /design-versions/{id}/boq-snapshots` | `output.generate.engineering` | `{ purpose, sources? }` | 201 · 200 reused |
+| `POST /design-versions/{id}/pricing-snapshots` | `output.generate.commercial` (+ upstream, §14) | `{ purpose, pricingStandardVersionId, sources? }` | 201 · 200 reused · 200 UNAVAILABLE |
+| `POST /design-versions/{id}/quotation-snapshots` | `output.generate.commercial` (+ upstream) | `{ purpose, pricingStandardVersionId, quotationPolicyVersionId, sources? }` | 201 · 200 reused · 200 UNAVAILABLE |
+| `POST /design-versions/{id}/drawing-snapshots` | `output.generate.engineering` | `{ purpose, drawingType, … }` (§12.5) | 201 · 200 reused · 422 DRAWING_REFUSED |
+| manufacturing-document generation | — | — | **not created (OD-S6-1)** |
 
 **Reads:**
 
 | Method & path | Action |
 |---|---|
-| `GET /design-versions/{id}/outputs` | the union of the read actions, filtered per kind: a graph of all snapshots (no payloads), with purpose, blockers, current/stale and edges |
-| `GET /design-versions/{id}/{bom,boq,drawing}-snapshots` | `output.read.production` |
-| `GET /design-versions/{id}/{pricing,quotation}-snapshots` | `output.read.cost` |
-| `GET /{bom,boq,drawing}-snapshots/{id}` · `GET /{pricing,quotation}-snapshots/{id}` | as above; includes the payload |
-| `GET /{kind}-snapshots/{id}/staleness` | as the read; runs the engine comparators (§8) |
-| `GET /drawing-snapshots/{id}/files` | `output.read.production` (or issued) |
-| `GET /files/{id}/url` | RLS `file_read` / `client_can_read_file`; signed URL valid 300 s; never persisted |
+| `GET /design-versions/{id}/outputs` | graph of snapshots and OUTPUT_GENERATION runs (no payloads), with staleness and edges, filtered by the caller's read actions |
+| `GET /design-versions/{id}/{bom,boq,drawing}-snapshots` · `GET /{bom,boq,drawing}-snapshots/{id}` | `output.read.production` |
+| `GET /design-versions/{id}/{pricing,quotation}-snapshots` · `GET /{pricing,quotation}-snapshots/{id}` | `output.read.cost` |
+| `GET /{kind}-snapshots/{id}/staleness` | as the read |
+| `GET /design-versions/{id}/validation-runs?purpose=` · `GET /validation-runs/{id}` | project scope. Existing list, plus the `purpose` filter and field. |
+| `GET /drawing-snapshots/{id}/files` · `GET /files/{id}/url` | `output.read.production` or issued; RLS; signed URL valid 300 s, never persisted |
 
-**Issue** (Step 4 §8):
+**Issue:**
 
 | Method & path | Action |
 |---|---|
-| `POST /quotation-snapshots/{id}/issue` `{ reason }` · `GET …/issue` | `quotation.issue` / read |
-| `POST /drawing-snapshots/{id}/issue` `{ reason }` · `GET …/issue` | `drawing.issue` / read |
+| `POST /quotation-snapshots/{id}/issue` `{ reason }` · `GET …/issue` | `quotation.issue` |
+| `POST /drawing-snapshots/{id}/issue` `{ reason }` · `GET …/issue` | `drawing.issue` |
 
-**Manufacturing release.** `POST` / `GET /design-versions/{id}/manufacturing-release` (Step 4 §8.1) remains documented and **deferred with manufacturing documents**. It is not built in Step 7.
+**Changed existing endpoints:**
+
+| Endpoint | Change |
+|---|---|
+| `POST /designs/{id}/versions` · `PATCH /design-versions/{id}` | `pins` has **9** fields; the commercial and manufacturing pins are removed from the schema, and sending them gives 400 |
+| `POST /design-versions/{id}/validation-runs` | creates **APPROVAL** runs only |
+
+**Deferred:** manufacturing release (`POST` / `GET …/manufacturing-release`), together with manufacturing documents.
 
 **New problem codes:**
 
-| Code | Status | Meaning |
-|---|---|---|
-| `SOURCE_SNAPSHOT_INCOMPATIBLE` | 409 | a named or found source does not match the current inputs |
-| `SOURCE_PURPOSE_INSUFFICIENT` | 409 | the source purpose is weaker than requested |
-| `DRAWING_REFUSED` | 422 | the drawing engine's own guard refused |
+| Code | Status |
+|---|---|
+| `SOURCE_SNAPSHOT_INCOMPATIBLE` | 409 |
+| `SOURCE_PURPOSE_INSUFFICIENT` | 409 |
+| `COMMERCIAL_VERSION_NOT_FOUND` | 422 (unknown or foreign commercial version) |
+| `DRAWING_REFUSED` | 422 |
 
-The database-originated ones get LD025 onward in the `error_code` registry.
+The database-originated ones get LD025 onward.
 
 ---
 
-## 14. Request and response schemas (Zod, strict)
-
-### 14.1 Requests
+## 16. Request and response schemas (Zod, strict)
 
 ```ts
 const Purpose = z.enum(["PRELIMINARY", "FOR_REVIEW", "FOR_PRODUCTION"]);
-const Sources = z.strictObject({ bomSnapshotId: Uuid.optional(), boqSnapshotId: Uuid.optional(), pricingSnapshotId: Uuid.optional() });
-const GenerateBase = z.strictObject({ purpose: Purpose.default("PRELIMINARY") });
-
-BomGenerateRequest       = GenerateBase;
-BoqGenerateRequest       = GenerateBase.extend({ sources: Sources.pick({ bomSnapshotId: true }).optional() });
-PricingGenerateRequest   = GenerateBase.extend({ sources: Sources.pick({ bomSnapshotId: true, boqSnapshotId: true }).optional() });
-QuotationGenerateRequest = GenerateBase.extend({ sources: Sources.pick({ boqSnapshotId: true, pricingSnapshotId: true }).optional() });
-DrawingGenerateRequest   = z.discriminatedUnion("drawingType", [
-  GenerateBase.extend({ drawingType: z.literal("WALL_INTERNAL_ELEVATION"), wallId: z.enum(["A", "B", "C", "D"]), ...Numbering }),
-  GenerateBase.extend({ drawingType: z.literal("ROOM_PANEL_SCHEDULE"), ...Numbering }),
-  GenerateBase.extend({ drawingType: z.literal("FRONT_ELEVATION"), objectId: Uuid, ...Numbering }),
-  GenerateBase.extend({ drawingType: z.literal("SIDE_SECTION"), objectId: Uuid, cutXMm: Millimetres.optional(), ...Numbering }),
-  GenerateBase.extend({ drawingType: z.literal("CABINET_INTERNAL_ELEVATION"), objectId: Uuid, ...Numbering }),
-  GenerateBase.extend({ drawingType: z.literal("PANEL_SCHEDULE"), objectId: Uuid, ...Numbering }),
-]);
-// Numbering = { drawingNumber: /^[A-Z0-9][A-Z0-9-]{0,39}$/, drawingRevision: /^[A-Z0-9]{1,4}$/ }
-IssueRequest = z.strictObject({ reason: Reason });
+const Base = z.strictObject({ purpose: Purpose.default("PRELIMINARY") });
+BomGenerateRequest       = Base.extend({ sources: z.strictObject({}).optional() });
+BoqGenerateRequest       = Base.extend({ sources: z.strictObject({ bomSnapshotId: Uuid.optional() }).optional() });
+PricingGenerateRequest   = Base.extend({ pricingStandardVersionId: Uuid,
+                             sources: z.strictObject({ bomSnapshotId: Uuid.optional(), boqSnapshotId: Uuid.optional() }).optional() });
+QuotationGenerateRequest = Base.extend({ pricingStandardVersionId: Uuid, quotationPolicyVersionId: Uuid,
+                             sources: z.strictObject({ boqSnapshotId: Uuid.optional(), pricingSnapshotId: Uuid.optional() }).optional() });
+DrawingGenerateRequest   = z.discriminatedUnion("drawingType", [ /* 6 variants, §12.5; + drawingNumber, drawingRevision */ ]);
+IssueRequest             = z.strictObject({ reason: Reason });
 ```
 
-**What a request can never carry:**
+**A request can never carry:**
 
 - quantities, prices, rates, tax or totals;
-- blocker counts, hashes, engine fields or `createdAt`;
+- hashes, engine fields, blocker counts or `createdAt`;
 - designer or checker;
 - anything that means "latest".
 
-### 14.2 Responses
-
 ```ts
-EngineProvenance = { name, version, build, sourceHash, components: Record<string, string>, fingerprint, seal: string | null };
+Engine = { name, version, build, fingerprint, closure: { packages: Record<string, Sha256>, externals: Record<string, string>, runtime }, seal: string | null };
 SnapshotEnvelope = {
   id, kind, purpose, designVersionId, designVersionStatus, designVersionContentHash,
-  engineering: { inputHash, inputRevision },
-  commercial: { inputHash } | null,                     // pricing / quotation
-  input: { hash, revision },                            // whole design version, provenance only
-  pins: Pins,                                           // the 12; non-consumed = null
-  dependencyHashes: Partial<Record<PinName, Sha256>>, dependencySetHash,
+  input: { hash, revision },                                   // engineering
+  engineeringPins: EngineeringPins,                            // 9
+  commercial: { pricingStandardVersionId, quotationPolicyVersionId?, inputHash } | null,
+  dependencyHashes, dependencySetHash,
+  validationRun: { id, purpose: "OUTPUT_GENERATION", blockerCount, warningCount, engine: Engine },
   sources: { bomSnapshotId?, boqSnapshotId?, pricingSnapshotId? },
-  engine: EngineProvenance,
+  engine: Engine,
   contentHash, blockerCount, warningCount, outputComplete, dataClassification: "PRODUCTION",
   qualifiesForIssue, qualifiesForRelease, issue?: { issuedBy, issuedAt, reason },
-  staleness: { stale, reasons: ("ENGINEERING_INPUTS_CHANGED" | "COMMERCIAL_INPUTS_CHANGED" | "DEPENDENCY_CONTENT_CHANGED"
+  staleness: { stale, reasons: ("ENGINEERING_INPUTS_CHANGED" | "DEPENDENCY_CONTENT_CHANGED" | "COMMERCIAL_CONTENT_CHANGED"
                                 | "ENGINE_CHANGED" | "SOURCE_STALE")[],
-               advisories: { designSuperseded, newerSurveyAvailable, newerDependencyVersions: { pin, versionId }[] } },
+               advisories: { designSuperseded, newerSurveyAvailable, newerDependencyVersions[], newerCommercialVersions[] } },
   createdBy, createdAt,
 };
-GenerateResponse<T>       = { snapshot: T, reused: boolean, dependencies: SnapshotSummary[] /* upstreams generated or reused */ };
-BomSnapshot               = SnapshotEnvelope & { payload: RoomBomPayload };           // RoomBOM
-BoqSnapshot               = SnapshotEnvelope & { payload: RoomBoqPayload };           // RoomBOQ
-PricingSnapshot           = SnapshotEnvelope & { payload: RoomPricingPayload };       // priceRoom PRICED result
-QuotationSnapshot         = SnapshotEnvelope & { revisionNumber, payload: QuotationPayload };  // QuotationSnapshot
-DrawingSnapshot           = SnapshotEnvelope & { drawingType, drawingScope, wallId, objectId, cutXMm, drawingNumber, drawingRevision,
-                                                 fileManifestHash, files: { sequence, format, sheetIndex, fileId, contentType, byteSize, checksum }[],
-                                                 payload: RoomDrawingPayload | DrawingPayload };
-Unavailable               = { status: "UNAVAILABLE", blockers: ValidationMessage[], snapshot: null, dependencies: SnapshotSummary[] };
-Staleness                 = SnapshotEnvelope["staleness"] & { changedObjectIds: string[], engineReasons: string[] };
-OutputsGraph              = { designVersionId, engineering: { inputHash, inputRevision }, nodes: SnapshotSummary[], edges: { from, to }[] };
+GenerateResponse<T> = { snapshot: T, reused: boolean, dependencies: SnapshotSummary[] };
+Unavailable         = { status: "UNAVAILABLE", blockers: ValidationMessage[], snapshot: null, dependencies: SnapshotSummary[] };
+Bom / Boq / Pricing / Quotation (+ revisionNumber) / Drawing (+ type, scope, wallId, objectId, cutXMm, number, revision,
+  fileManifestHash, files[{ sequence, format, sheetIndex, fileId, contentType, byteSize, checksum }]) = SnapshotEnvelope & { payload };
+ValidationRunResponse (existing) + purpose, dependencySetHash, engine: Engine;
 ```
 
-**Payload schemas mirror the engine types.** Each payload schema is a Zod mirror of its `@lintel/types` type and serves three purposes:
+**Payload schemas mirror the engine types.** Each is a Zod mirror of its `@lintel/types` type, used for three things:
 
 1. response validation;
-2. safe **deserialization of upstream payloads** into engine inputs (§5.2);
+2. deserializing upstream payloads;
 3. OpenAPI.
 
-A compile-time equality assertion against the engine type fails the typecheck on drift. No engine logic is duplicated.
+A compile-time equality assertion against the engine type fails the typecheck on drift.
 
-**Encoding:**
-
-- Money is integer paise; the engine guarantees safe integers.
-- Dimensions are millimetres, as the engine emits them.
-- The API never formats or recomputes either.
+**Encoding:** money is integer paise and dimensions are millimetres, both exactly as the engine emits them.
 
 ---
 
-## 15. OpenAPI approach
+## 17. OpenAPI approach (unchanged)
 
-1. **Source of truth:** the Zod schemas (§14 plus Step 4 and Step 5). There are no hand-written YAML files.
-2. **Route metadata:** each route registers its metadata (method, path, action, request and response schemas, problem codes) with explicit decorators, without reflection.
-3. **Build:** `pnpm api:openapi` builds **OpenAPI 3.1** using Zod 4 `z.toJSONSchema()`. Problems use the RFC 9457 schema, with the `type` URN enumerated from `PROBLEM_CODES`.
-4. **Artifact and drift check:** the committed artifact is `apps/api/openapi/openapi.json`. A CI drift test fails on any difference, like the database schema snapshot.
-5. **Timing:**
-   - The final artifact is **generated only when Step 7 implements the output modules.**
-   - Deferred endpoints (manufacturing) are absent.
-   - Until then this document is the contract.
+1. **Source of truth:** the Zod schemas.
+2. **Route metadata:** registered through explicit decorators.
+3. **Build:** `pnpm api:openapi` produces **OpenAPI 3.1** using `z.toJSONSchema()`, with RFC 9457 problems whose `type` URNs come from `PROBLEM_CODES`.
+4. **Drift check:** the committed `apps/api/openapi/openapi.json` is checked by a CI drift test.
+5. **Timing:** generated when Step 7 implements the output modules. Deferred endpoints are absent.
 
 ---
 
-## 16. Prerequisite matrix
+## 18. Prerequisite matrix
 
 | Capability | Existing | Missing (before API generation) | Production blocker |
 |---|---|---|---|
-| **Validation** | `POST/GET validation-runs`; `record_validation_run` (engine build); engine `resolveRoom`; SUBMIT and APPROVE checks | engineering hash and revision binding (F10); `engine_name`, `engine_components`, `engine_source_hash`, per-engine fingerprint (§4) | approved production standards, catalogs and Hettich data. Today's data yields BLOCKERs (for example `EDGE_RULES_UNDEFINED`, `MATERIAL_UNKNOWN`), so no production design can be approved |
-| **BOM** | `generateRoomBom`, types, golden tests | `BOM_ENGINE_VERSION`; snapshot provenance columns (§6); natural identity; payload Zod schema; API module | the approved engineering data above; unresolved Hettich hardware makes the BOM `incomplete` |
-| **BOQ** | `generateRoomBoq` (checks BOM fingerprint), types | `BOQ_ENGINE_VERSION`; BOM-snapshot deserialization; BOQ source edge; API | approved product catalog BOQ templates and quantities (the engineering approvals above) |
-| **Pricing** | `priceCabinet` (gates, BigInt money), `verifyPriceSnapshot`, types | **`priceRoom`**; commercial hash (§3); BOM and BOQ source edges; UNAVAILABLE handling; API | production rate card and pricing rules are DRAFT with every value NULL (F8) → `UNAVAILABLE` |
-| **Quotation** | `priceQuotation` (policy gate, tax, rounding), `verifyQuotation`, `checkQuotationStaleness` | **`QUOTATION_ENGINE_VERSION`**; **`quoteRoom`**, consuming pricing snapshots without re-pricing (F3); BOQ and pricing edges; unique revision; API | production QuotationPolicy (tax rates, tax policy, rounding) is NULL and needs FINANCE approval; validity and expiry are not modelled |
-| **Drawings** | `@lintel/drawing-engine`: 6 drawing functions, SVG/PDF renderers, verify and staleness functions; ADR-0007/0008; golden tests | file model redesign (§11); `drawing_type` and scope columns; storage provider wiring in the API; metadata mapping; byte encoding; issue endpoint | FOR_PRODUCTION needs an APPROVED or LOCKED design with 0 BLOCKERs, which the current production data cannot give; issue needs LOCKED |
-| **Manufacturing** | snapshot table, purpose rules, pins, permissions and idempotency scopes (reserved) | **manufacturing engine; ManufacturingStandard type and variable model;** INSERT policy correction (F6); file formats | no engine, empty variable registry, every value NULL / UNVERIFIED → deferred (OD-S6-1) |
+| **Validation** | APPROVAL runs (endpoint, `record_validation_run`, build); `resolveRoom`; SUBMIT and APPROVE checks | `purpose`; OUTPUT_GENERATION rules (any status, no design mutation, natural identity); `engine_name`, `engine_fingerprint`, `engine_closure`; engineering-only `input_hash` (Correction 1); engine manifest (§6) | unapproved production standards, catalogs and Hettich data. Today's data produces engine BLOCKERs, so no production design can be approved |
+| **BOM** | `generateRoomBom`, types, golden tests | `BOM_ENGINE_VERSION`; entry module and fingerprint; provenance columns (§8); natural identity; payload schema; API | the engineering data above; unresolved hardware makes the BOM incomplete |
+| **BOQ** | `generateRoomBoq` (asserts the BOM fingerprint) | `BOQ_ENGINE_VERSION`; BOM-snapshot deserialization; source edge; API | approved product BOQ templates (engineering approvals) |
+| **Pricing** | `priceCabinet` (gates, BigInt money), `verifyPriceSnapshot` | **`priceRoom`**; commercial version chosen at generation; `commercial_input_hash`; commercial dependency hashes; UNAVAILABLE handling; API | production rate card and pricing rules are DRAFT with all values NULL → UNAVAILABLE |
+| **Quotation** | `priceQuotation` (policy gate, tax, rounding), `verifyQuotation` | **`QUOTATION_ENGINE_VERSION`**; **`quoteRoom`** (consumes Pricing, no re-pricing); unique revision; issue locking the commercial versions; API | production QuotationPolicy is NULL and needs FINANCE approval; validity and expiry not modelled |
+| **Drawings** | drawing engine (6 functions, SVG/PDF, verify, staleness), ADR-0007/0008, golden tests | file model (§13); type and scope columns; storage wiring; metadata mapping; issue | FOR_PRODUCTION needs an APPROVED or LOCKED design and 0 BLOCKERs, which current data cannot give |
+| **Manufacturing** | snapshot table, purpose rules, permissions and scopes (reserved) | **engine; ManufacturingStandard type and variable model;** generation-time standard selection; INSERT policy; file formats | no engine, empty registry, every value NULL → deferred |
+| **Design version (Correction 1)** | 12 pins; `input_hash` over all | remove the 3 commercial and manufacturing pins; narrow `input_hash`, `maintain_input_revision`, approval, `lock_cascade`, provenance, API schemas, tests | — |
 
 ---
 
-## 17. Changes the next step must make (described; **no SQL or code in Step 6**)
+## 19. Changes the next step must make (described; no SQL or code in Step 6)
 
-**Engines** (pure, tested, no calculation change):
+**Engines** (pure; no calculation change):
 
-- `BOM_ENGINE_VERSION`, `BOQ_ENGINE_VERSION` and `QUOTATION_ENGINE_VERSION` constants.
-- `priceRoom` and `quoteRoom`. `priceQuotation` is re-expressed as their composition, with golden output unchanged.
-- A build-time engine source manifest (OD-S6-9 A).
+- `BOM_ENGINE_VERSION`, `BOQ_ENGINE_VERSION` and `QUOTATION_ENGINE_VERSION` constants;
+- `priceRoom` and `quoteRoom`, with `priceQuotation` as their composition and golden output unchanged.
+
+**Tooling:**
+
+- `pnpm engines:manifest`, the closure fingerprint of §6;
+- tests proving that the same closure gives the same fingerprint, and that a changed reached file or locked external version changes it, while docs, tests or unreached files do not.
 
 **`@lintel/persistence`:**
 
-- `engineeringInputHash()`; the redefined `designInputHash()`;
-- `dependencyHash()` readers per pinned type;
-- `SnapshotRecord` / `SnapshotRow` with the §6 fields;
+- `designInputHash` over the 9 engineering pins;
+- `DesignVersionPins` with 9 pins;
+- `dependencyHash()` per pinned type;
+- `commercialInputHash()`;
+- snapshot record and row with the §8 fields;
 - the natural-identity builder;
-- payload Zod schemas (or in the API: decided in implementation, not duplicated).
+- validation-run purpose;
+- payload schemas.
 
 **Migration 0017:**
 
-- **Design versions and validation runs:**
-  - `design_version.engineering_input_hash` and `engineering_input_revision`, maintained by the database with the bump rules of §3.2;
-  - `validation_run` engineering binding, `engine_name`, `engine_components` and `engine_source_hash`;
-  - SUBMIT (LD010) and APPROVE rebound to the engineering domain;
-  - `record_validation_run` updated.
-- **Snapshot tables:**
-  - the common columns of §6.1: engine provenance, engineering binding, dependency hashes, `commercial_input_hash`, `warning_count`, `output_complete`;
-  - `engine_hash` replaced by `engine_seal`;
-  - source columns and the edge trigger (§6.2);
-  - natural-identity unique indexes (§7);
-  - the quotation revision unique index;
-  - drawing type and scope columns and CHECKs.
-- **Files:** the `output_file_format` and `output_engine` registries; `drawing_snapshot_file` redefined (§11) with the deferred manifest trigger.
-- **Provenance:** `check_snapshot_provenance` extended with the engineering binding, consumed-pin key set and commercial hash presence.
-- **Errors:** LD025 onward registered.
+- **Design version:**
+  - drop `pricing_standard_version_id`, `quotation_policy_version_id` and `manufacturing_standard_version_id` from `design_version`, with their FKs;
+  - update `maintain_input_revision`, the approval pin check, `lock_cascade` and `check_snapshot_provenance`.
+- **Validation runs:**
+  - `validation_run.purpose`, `dependency_set_hash`, `engine_name`, `engine_fingerprint` (replacing `engine_hash`) and `engine_closure`;
+  - the OUTPUT_GENERATION partial unique index;
+  - `record_validation_run(p_purpose, …)` with the §5 rules;
+  - SUBMIT and APPROVE restricted to APPROVAL runs.
+- **Snapshots:**
+  - the §8 columns: engine, validation link, dependency hashes, `commercial_input_hash`, counts, `output_complete`;
+  - `engine_hash` → `engine_seal`;
+  - source columns and the edge trigger;
+  - natural-identity indexes and the quotation revision index;
+  - drawing columns.
+- **Files:** the `output_file_format` and `output_engine` registries; `drawing_snapshot_file` redefined with the deferred manifest trigger.
+- **Quotation issue:** the LOCK of the commercial versions used.
+- **Errors:** LD025 onward.
 - **Checks:** up, down and up again; drift; rollback equivalence.
 
-**Not in 0017:** the manufacturing INSERT policy correction and manufacturing file formats. They wait for manufacturing.
+**API:**
+
+- the Step 5 design-version schemas move to 9 pins;
+- the validation-run response gains `purpose` and `engine`.
+
+**Not in 0017:** the manufacturing INSERT policy and manufacturing file formats; they wait for manufacturing.
 
 ---
 
-## 18. Unresolved risks
+## 20. Remaining unresolved risks
 
-| # | Risk | Mitigation / status |
+| # | Risk | Status |
 |---|---|---|
-| R1 | **Commercial pins are still frozen on the design version.** Re-pricing an APPROVED design with a new price list needs a new design version, and that version's engineering outputs are new snapshots, though deterministic and identical in content. | Accept for Step 7. A separate "commercial context" (exact pricing and policy chosen per quotation, independent of design approval) is a product decision for later. |
-| R2 | **Engine staleness churn.** Under OD-S6-9 B every deploy stales every output. | Recommend OD-S6-9 A (per-engine source-tree hash). |
-| R3 | **Engine seals are `hash53`.** | SHA-256 `content_hash` is authoritative; the seal is kept for parity only. Upgrading the engine seal is a separate engine change. |
-| R4 | **All production commercial data is NULL; engineering data is unapproved.** | FOR_PRODUCTION outputs are impossible until real data is approved. Successful paths can be tested only with test-only synthetic data in rolled-back or race databases (existing pattern). Nothing is invented. |
-| R5 | **Deserializing upstream payloads** (RoomBOM, RoomBOQ, PriceSnapshot) into engine inputs relies on a lossless JSON round-trip. | The Zod payload schemas and the content-hash check guard it. Golden round-trip tests are needed in Step 7. |
-| R6 | **BL-1 and BL-2 remain open:** the hardware rule-set version is visible only through the catalog version, and the Hettich dataset status is invisible to the engine. | The pins and dependency hashes still record both exactly. The engine trace is coarser than the provenance. |
-| R7 | **Response size** of drawing payloads and quotations. | Lists never include payloads. Replay uses rehydration. Later: per-sheet payload paging. |
-| R8 | **Storage:** content-addressed orphans after a rollback; only memory and local providers. | Accepted. Hosted buckets wait for the Mumbai gate. |
-| R9 | **`dependencyHash` must cover every child table of each pinned type.** Missing one would hide a DRAFT change. | A database test must enumerate every table with an FK to a pinned version table and assert it is covered. |
-| R10 | **No manufacturing engine or ManufacturingStandard model.** | Deferred (OD-S6-1). |
-| R11 | **Redefining `input_hash` and adding the engineering binding changes the approval rule** (SUBMIT and APPROVE bind to the engineering domain). | This is a deliberate behaviour change. It is covered by database and API tests in 0017. Only development data exists. |
-| R12 | **`M5-TECHNICAL-DESIGN.md` §6 is out of date** (non-existent uniqueness; `engine_version` described as including the SHA). | To be corrected together with 0017. |
+| R1 (revised) | **Commercial versions are chosen per request.** There is no stored "commercial context" (for example a project's agreed price list), so a client must name exact versions each time. | Acceptable and exact. A persisted, versioned commercial context that resolves to exact ids is a later product decision; it would never introduce "latest". |
+| R2 | **The fingerprint closure relies on a static import graph.** Dynamic imports, `require` by computed name, or data files read at runtime would escape it. | Engines have none today. The manifest tool fails the build if the bundler reports a dynamic import or an unresolved module in an engine closure. Engine data files (for example catalog-engine `data/`) are imported modules, so they are covered. |
+| R3 | **Runtime semantics** are covered only by the Node **major** version. The TypeScript compiler version is not hashed. | Acceptable: engines are integer and BigInt heavy. Revisit if a floating-point difference is ever observed. |
+| R4 | **`@lintel/persistence` mappers are in every closure,** so a mapper change stales all outputs. | Intended: mappers decide the engine inputs. Only reached mapper files count, not the whole package. |
+| R5 | **Deserializing upstream payloads** relies on a lossless JSON round-trip. | Zod payload schemas, content-hash verification, and golden round-trip tests in Step 7. |
+| R6 | **All production commercial data is NULL, and engineering data is unapproved.** | FOR_PRODUCTION is impossible until real data is approved. Successful paths are testable only with test-only synthetic data. Nothing is invented. |
+| R7 | **Removing the 3 pins from `design_version` changes Step 5 contracts:** API pin schemas and approval completeness. | A deliberate breaking change before any client exists. Covered by updated database and API tests. Development data only. |
+| R8 | **`dependencyHash` must cover every child table of each pinned or chosen type.** | A database test enumerates every table with an FK to a version table and asserts coverage. |
+| R9 | **Engine seals are `hash53`.** | SHA-256 `content_hash` is authoritative; the seal is kept for parity only. |
+| R10 | **BL-1 and BL-2 remain open:** the hardware rule-set version is visible only through the catalog, and the Hettich status is invisible to the engine. | The pins and dependency hashes still record both exactly. |
+| R11 | **Response size and storage:** large drawing and quotation payloads; memory and local storage only; rollback orphans. | Lists never include payloads; replay uses rehydration; hosted buckets wait for the Mumbai gate. |
+| R12 | **No manufacturing engine or ManufacturingStandard model.** | Deferred (OD-S6-1). |
+| R13 | **`M5-TECHNICAL-DESIGN.md` §6 and `M5-STEP4-API-PLAN.md` §8.1 are out of date:** they assume design-version commercial and manufacturing pins and a non-existent uniqueness rule. | Updated together with 0017. |
 
 ---
 
-## 19. Implementation sequence (only after this revision is approved)
+## 21. Implementation sequence (only after this revision is approved)
 
-1. Engine constants, `priceRoom`, `quoteRoom` (the `priceQuotation` refactor keeps golden output unchanged), and the engine source manifest. Unit and golden tests.
-2. `@lintel/persistence`: hashes, dependency hashes, snapshot record and natural identity, payload schemas. Unit tests.
-3. Migration 0017, with full database tests: engineering binding, provenance, edges, natural identity, purposes, file manifest, R9 coverage.
-4. API: the outputs module, in the order BOM → BOQ → drawings (files) → pricing → quotation → issue. Then the outputs graph and staleness. API database tests for every rule, including cross-tenant and orchestration permissions.
+1. Engine constants, `priceRoom`, `quoteRoom` and the engine manifest (fingerprint), with unit, golden and fingerprint-stability tests.
+2. `@lintel/persistence`: 9-pin design hash, dependency and commercial hashes, snapshot record and natural identity, validation purpose, payload schemas.
+3. Migration 0017 and full database tests. Update the Step 5 API and tests for 9 pins and APPROVAL runs.
+4. API outputs module, in the order BOM → BOQ → drawings (files) → pricing → quotation → issue, then the outputs graph and staleness. API database tests for every rule: orchestration, reuse, staleness, purposes, cross-tenant, permissions.
 5. OpenAPI generator and artifact with a drift check.
 6. Manufacturing: nothing until the engine and ManufacturingStandard exist.
 

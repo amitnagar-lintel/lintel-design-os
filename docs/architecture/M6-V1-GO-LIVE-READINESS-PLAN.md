@@ -66,16 +66,6 @@ The M6 pilot scope stays narrow. **None of the following is added to M6 or to th
 
 If the chosen pilot kitchen cannot be done within this boundary, **a different pilot kitchen is chosen**; the scope is not widened (R3).
 
----|---|---|
-| OD-M6-1 | Where the API runs in production | Same platform as ops (Railway, per REGION-01 notes), Mumbai region, one service. Confirm |
-| OD-M6-2 | Staging environment | A **separate Supabase project** (Mumbai) for staging and the compatibility check, **not** a branch of the ops project |
-| OD-M6-3 | Reference-data intake mechanism (G2) | A reviewed, versioned **intake CLI** that maps signed data files through `@lintel/persistence` and approves them through `design_os.transition()` as the named approvers. Admin UI comes later |
-| OD-M6-4 | V1 pilot product scope | **Base-cabinet runs of `KIT_BASE_STANDARD` only.** It is the only product with a recipe. Wall / tall units need new recipe data and a new milestone |
-| OD-M6-5 | Pilot room scope | **Rectangular kitchen, walls A–D.** The survey model has no openings, services or appliances; these are recorded outside the system for the pilot |
-| OD-M6-6 | Error tracking vendor | Sentry (EU/IN region), with PII scrubbing. Alternatively, structured logs only |
-| OD-M6-7 | Point-in-time recovery | Enable PITR on the production project (Pro add-on) before the pilot's first issue |
-| OD-M6-8 | How pilot outputs reach the client | V1 pilot: internal user downloads the issued PDF (signed URL) and sends it. The client portal is a later milestone |
-
 ---
 
 ## 1. Hosted Supabase cut-over
@@ -141,7 +131,7 @@ The migrations 0001–0018 run unchanged. The procedure:
 
 **Migrations:**
 
-- Apply 0001 → 0018 with the production migration runner (G6).
+- Apply 0001 → latest with the production migration runner (G6), over the **direct** connection (never a pooler).
 - Roll back to empty, then re-apply.
 - Compare `design_os.schema.txt`: the drift check must show zero diff against CI.
 
@@ -182,7 +172,8 @@ The migrations 0001–0018 run unchanged. The procedure:
 
 | Variable | Staging / production source | Notes |
 |---|---|---|
-| `DATABASE_URL` | secret store of the API host | pooler URL, login role `design_os_api_login` |
+| `DATABASE_URL` | secret store of the API host | API runtime only: pooler URL (transaction mode), login role `design_os_api_login`; no DDL rights |
+| `MIGRATION_DATABASE_URL` | secret store of the deploy job (never the API service) | **direct** connection `db.<project-ref>.supabase.co:5432`; used by migrations, org init and intake only; never a pooler |
 | `DB_POOL_MAX` | config | sized to the pooler limit |
 | `AUTH_ISSUER`, `AUTH_AUDIENCE` | config | the Supabase project's auth issuer |
 | `AUTH_JWKS_URL` | config | asymmetric JWT signing keys (preferred over `AUTH_JWT_SECRET`) |
@@ -198,7 +189,7 @@ The migrations 0001–0018 run unchanged. The procedure:
 
 - No secret in the repository, the image or logs. The existing log redaction covers `authorization`, `cookie`, `idempotency-key` and `token`.
 - Separate secrets per environment, and separate from Lintel Ops (OD-M6-1): the Design OS service never reads the Ops service's variables, and vice versa.
-- The `service_role` key is **never** given to the API or the web app.
+- Supabase API keys follow the current model: the web app uses only a **publishable** key (`sb_publishable_…`, formerly `anon`) for Supabase Auth. A **secret** key (`sb_secret_…`, formerly `service_role`) is **never** given to the API or the web app and never appears in browser or client code.
 
 ### 1.5 Backup and recovery
 
@@ -235,7 +226,7 @@ The Design OS API is its **own service** on the Ops hosting platform (OD-M6-1): 
    - For the API: redeploy the previous image. `/api/v1` is backwards-compatible, and engine fingerprints are recorded, so stored snapshots are unaffected.
    - For a migration: forward-fix, or the tested down script after a fresh dump.
 
-**G6 — production migration runner:** promote the logic of `tests/db/support/migrate.ts` into a small CLI (`pnpm db:migrate --target <env>`). It will:
+**G6 — production migration runner:** promote the logic of `tests/db/support/migrate.ts` into a small CLI (`pnpm -s db:migrate up --env <env> --confirm <project-ref>`, over `MIGRATION_DATABASE_URL`, direct connection only). It will:
 - apply each file in its own transaction;
 - write to the same `design_os_migrations.applied` ledger with checksums;
 - refuse a changed checksum;
@@ -411,7 +402,7 @@ Not started. Screens are limited to the pilot scope (§0.2): no wall / tall cabi
 
 - **Framework:** Next.js (App Router) + React + TypeScript, with Tailwind (PRD §7).
 - **Structure:** `apps/web` for the designer studio; `packages/ui` for shared components.
-- **Auth:** Supabase Auth (email and Google, as ops). The web app holds the session and sends `Authorization: Bearer <access token>` and `X-Org` to the API. The web app has **no database access** and no service key.
+- **Auth:** Supabase Auth (email and Google, as ops). The web app holds the session and sends `Authorization: Bearer <access token>` and `X-Org` to the API. The web app has **no database access** and holds only the project's publishable key; no secret key ever reaches browser code.
 - **Data:** TanStack Query for server state (cache keys per resource, ETag-aware mutations). Local UI state only for editor interaction.
 - **3D / 2D:**
   - Three.js via react-three-fiber renders the G3 model (component boxes, placements), read-only geometry.
@@ -481,7 +472,7 @@ Each item needs evidence (link, report or test run) in the go-live record. **V1 
 - [ ] Gate item 9 compatibility verification passed on staging, with outputs attached (§1.2)
 - [ ] Production project migrated 0001 → latest with the migration runner; drift check zero diff
 - [ ] Private storage bucket live; checksums verified on a round trip; orphan reconciliation report runs
-- [ ] Secrets in the host store; nothing in the repository or image; `service_role` not used by the API or web app
+- [ ] Secrets in the host store; nothing in the repository or image; no Supabase secret key (`sb_secret_…` / legacy `service_role`) used by the API or web app; migrations use the separate direct `MIGRATION_DATABASE_URL`
 - [ ] Daily backups on; PITR enabled **and verified** (§1.5, OD-M6-7) before the first production issue; restore drill passed with recovery time recorded
 - [ ] Design OS API deployed as its own service and environments, independent of the Ops deploy lifecycle (OD-M6-1)
 

@@ -88,22 +88,22 @@ erDiagram
   DESIGN_VERSION }o--o| MANUFACTURING_STANDARD_VERSION : pins
   DESIGN_VERSION }o--o| PRICING_STANDARD_VERSION : pins
   DESIGN_VERSION }o--o| QUOTATION_POLICY_VERSION : pins
-  DESIGN_VERSION }o--|| MATERIAL_CATALOG_RELEASE : pins
-  DESIGN_VERSION }o--|| FINISH_CATALOG_RELEASE : pins
-  DESIGN_VERSION }o--|| HARDWARE_CATALOG_RELEASE : pins
+  DESIGN_VERSION }o--|| MATERIAL_CATALOG_VERSION : pins
+  DESIGN_VERSION }o--|| FINISH_CATALOG_VERSION : pins
+  DESIGN_VERSION }o--|| HARDWARE_CATALOG_VERSION : pins
   DESIGN_VERSION }o--|| HETTICH_DATASET_VERSION : pins
-  DESIGN_VERSION }o--o| APPLIANCE_CATALOG_RELEASE : pins
-  DESIGN_VERSION }o--|| PRODUCT_CATALOG_RELEASE : pins
+  DESIGN_VERSION }o--o| APPLIANCE_CATALOG_VERSION : pins
+  DESIGN_VERSION }o--|| PRODUCT_CATALOG_VERSION : pins
   DESIGN_OBJECT }o--|| PRODUCT_VERSION : "instance of"
 
-  MATERIAL_CATALOG_RELEASE ||--o{ MATERIAL_VERSION : includes
-  MATERIAL_CATALOG_RELEASE ||--o{ EDGE_BAND_VERSION : includes
-  FINISH_CATALOG_RELEASE ||--o{ FINISH_VERSION : includes
-  HARDWARE_CATALOG_RELEASE ||--o{ HARDWARE_ITEM_VERSION : includes
-  HARDWARE_CATALOG_RELEASE ||--o{ HARDWARE_RULE_SET_VERSION : includes
-  APPLIANCE_CATALOG_RELEASE ||--o{ APPLIANCE_VERSION : includes
-  PRODUCT_CATALOG_RELEASE ||--o{ PRODUCT_VERSION : includes
-  PRODUCT_CATALOG_RELEASE ||--o{ RECIPE_VERSION : includes
+  MATERIAL_CATALOG_VERSION ||--o{ MATERIAL_VERSION : includes
+  MATERIAL_CATALOG_VERSION ||--o{ EDGE_BAND_VERSION : includes
+  FINISH_CATALOG_VERSION ||--o{ FINISH_VERSION : includes
+  HARDWARE_CATALOG_VERSION ||--o{ HARDWARE_ITEM_VERSION : includes
+  HARDWARE_CATALOG_VERSION ||--o{ HARDWARE_RULE_SET_VERSION : includes
+  APPLIANCE_CATALOG_VERSION ||--o{ APPLIANCE_VERSION : includes
+  PRODUCT_CATALOG_VERSION ||--o{ PRODUCT_VERSION : includes
+  PRODUCT_CATALOG_VERSION ||--o{ RECIPE_VERSION : includes
   HETTICH_DATASET_VERSION ||--o{ HETTICH_ARTICLE : contains
   HETTICH_DATASET_VERSION ||--o{ HETTICH_CALCULATION_RULE : contains
 
@@ -120,13 +120,13 @@ erDiagram
   ORGANIZATION ||--o{ AUDIT_LOG : records
 ```
 
-Each release includes a set of item versions, held in a per-domain join table such as `material_catalog_release_item`.
-The Hettich dataset version is itself the release unit for Hettich data.
+Each catalog VERSION lists exact item versions in per-domain membership tables such as `material_catalog_version_material`.
+The Hettich dataset version is itself the pinned unit for Hettich data.
 
 | Family | Tables | Mutability |
 |---|---|---|
 | Tenancy and access | organization, app_user, role, role_permission, org_membership, client, client_contact, project, project_member | Ordinary rows, audited |
-| Versioned reference data | 6 standards, 6 catalog domains, per-domain catalog releases, Hettich datasets | Entity row plus immutable version rows |
+| Versioned reference data | 6 standards, 6 catalog domains, per-domain catalog versions, Hettich datasets | Entity row plus immutable version rows |
 | Design and outputs | room, room_revision, design, design_version, design_object, relationship_override, validation_run, 6 snapshot tables, file_object | Versions are frozen once out of DRAFT; snapshots and files are insert-only |
 | Cross-cutting | approval_request, approval_decision, audit_log | Insert-only |
 
@@ -206,12 +206,12 @@ The `ops_*_ref` columns are informational text only. There is no foreign key and
 - `manufacturing_standard_version_id` (nullable until the standard exists in code)
 - `pricing_standard_version_id`
 - `quotation_policy_version_id`
-- `material_catalog_release_id`
-- `finish_catalog_release_id`
-- `hardware_catalog_release_id`
+- `material_catalog_version_id`
+- `finish_catalog_version_id`
+- `hardware_catalog_version_id`
 - `hettich_dataset_version_id`
-- `appliance_catalog_release_id` (nullable; no engine consumes appliances yet)
-- `product_catalog_release_id`
+- `appliance_catalog_version_id` (nullable; no engine consumes appliances yet)
+- `product_catalog_version_id`
 
 Pins are editable only while the version is DRAFT and are never re-pointed afterwards.
 
@@ -228,20 +228,21 @@ Pins are editable only while the version is DRAFT and are never re-pointed after
 
 Formulas such as `manufacturingCost` are stored as **text data** and evaluated only by the TypeScript formula engine.
 
-### 2.5 Catalog domains and releases
+### 2.5 Catalog domains and catalog versions
 
 | Domain | Entity / version tables | Release (pinned by design versions) |
 |---|---|---|
-| Material (boards + edge bands) | `material`/`material_version`, `edge_band`/`edge_band_version` | `material_catalog_release` + `material_catalog_release_item` |
-| Finish | `finish`/`finish_version` + `finish_material_compatibility` | `finish_catalog_release` + items |
-| Hardware (manufacturer-neutral) | `hardware_item`/`hardware_item_version`, `hardware_rule_set`/`hardware_rule_set_version` + `hardware_rule` | `hardware_catalog_release` + items |
-| Hettich | `hettich_dataset`/`hettich_dataset_version` + `hettich_article`, `hettich_calculation_rule`, `hettich_drilling_pattern` (insert-only rows mirroring `HettichProductionRecord`, with licence status and source) | The dataset version is the release |
-| Appliance | `appliance`/`appliance_version` | `appliance_catalog_release` + items |
-| Product and recipe | `product`/`product_version`, `construction_recipe`/`recipe_version` | `product_catalog_release` + items |
+| Material (boards + edge bands) | `material`/`material_version`, `edge_band`/`edge_band_version` | `material_catalog_version` + `material_catalog_version_material`, `material_catalog_version_edge_band` |
+| Finish | `finish`/`finish_version` + `finish_material_compatibility` | `finish_catalog_version` + items |
+| Hardware (manufacturer-neutral) | `hardware_item`/`hardware_item_version`, `hardware_rule_set`/`hardware_rule_set_version` + `hardware_rule` | `hardware_catalog_version` + items |
+| Hettich | `hettich_dataset`/`hettich_dataset_version` + `hettich_article`, `hettich_calculation_rule` (rows frozen once the version leaves DRAFT, mirroring `HettichProductionRecord`, with licence status and source) | The dataset version is the pinned record |
+| Appliance | `appliance`/`appliance_version` | `appliance_catalog_version` + items |
+| Product and recipe | `product`/`product_version`, `construction_recipe`/`recipe_version` | `product_catalog_version` + items |
 
-- Each release is a versioned record with the full envelope.
-- Each release item table has a typed FK to that domain's version table only, so there is no polymorphic cross-domain list.
-- `@lintel/persistence` assembles the engine's `CatalogSnapshot` from the pinned releases.
+- Each catalog version is an immutable versioned record with the full envelope; its membership is frozen once it leaves DRAFT.
+- Each membership table has a typed FK to that domain's version table only, so there is no polymorphic cross-domain list.
+- A "release" is only the act of approving (publishing) a catalog version; publishing a newer one never changes a version a design pins.
+- `@lintel/persistence` assembles the engine's `CatalogSnapshot` from the pinned catalog versions.
 
 ### 2.6 Snapshots, files, approval and audit
 
@@ -261,10 +262,10 @@ The `job` table (PRD §37) is deferred, because M5 generation is synchronous.
    - Snapshot, file, `validation_run`, `room_revision`, Hettich row, approval and audit tables are insert-only;
      UPDATE and DELETE are revoked.
    - Status columns change only through the transition function.
-4. **Pinning.** A DesignVersion pins exact versions and releases (§2.3). New DesignVersions default to the effective
+4. **Pinning.** A DesignVersion pins exact immutable VERSION records (§2.3), never mutable containers. New DesignVersions default to the effective
    versions (the APPROVED or LOCKED version with the latest `effective_from ≤ now`). Existing versions are **never re-pointed**.
 5. **Automatic locking (D1).** When a DesignVersion becomes LOCKED, or an output is issued, the transition function
-   locks every pinned standard version and catalog release, and the item versions inside those releases.
+   locks every pinned standard version and catalog version, the exact item versions inside those catalog versions, and each product's exact recipe version.
 6. **Reproducibility.** Each snapshot records its full provenance and `engine_version` (§6). Re-deriving a snapshot means
    checking out that engine version and loading exactly those versions, SUPERSEDED ones included. A test harness
    re-derives stored snapshots and compares `content_hash`.
@@ -291,7 +292,7 @@ DRAFT ──SUBMIT──▶ IN_REVIEW ──APPROVE──▶ APPROVED ──LOCK
 |---|---|---|
 | SUBMIT | DRAFT → IN_REVIEW | The actor has the `*.submit` permission and the content is schema-complete. For a design version, a `validation_run` exists for the current `input_hash`. Records `submitted_by`, `submitted_at` and `content_hash` |
 | REQUEST_CHANGES | IN_REVIEW → DRAFT | `*.approve` permission and a non-empty reason. Writes an `approval_decision` with requestedBy, requestedAt, reason and **previous_status = IN_REVIEW**, plus an audit row. The content becomes editable again only after the status is DRAFT (D2) |
-| APPROVE | IN_REVIEW → APPROVED | `*.approve` permission. **Approver ≠ submitter, with no override (D8).** The request's `expected_content_hash` equals the stored hash. **Design version:** every pin is APPROVED or LOCKED, and the latest `validation_run` for this `input_hash` has `blocker_count = 0`. **Standard, catalog or release:** every production-required value is non-null and sourced. Sets approved_by, approved_at and effective_from, and supersedes the previous APPROVED or LOCKED version of the same entity in the same transaction |
+| APPROVE | IN_REVIEW → APPROVED | `*.approve` permission. **Approver ≠ submitter, with no override (D8).** The request's `expected_content_hash` equals the stored hash. **Design version:** every pin is APPROVED or LOCKED, and the latest `validation_run` for this `input_hash` has `blocker_count = 0`. **Standard, catalog item or catalog version:** every production-required value is non-null and sourced. Sets approved_by, approved_at and effective_from, and supersedes the previous APPROVED or LOCKED version of the same entity in the same transaction |
 | LOCK | APPROVED → LOCKED | Explicit lock, or automatic (D1): design version issued or released, or a reference version pinned by a LOCKED design |
 | ISSUE | quotation or drawing issued | The design version must be APPROVED or LOCKED and the engine's production guard must pass. Locks the design version and its pins |
 
@@ -357,11 +358,13 @@ checked equal to its pins by the transition and insert trigger:
 | ManufacturingStandard version (where applicable) | `manufacturing_standard_version_id` (nullable) |
 | PricingStandard version | `pricing_standard_version_id` (nullable for BOM and drawings) |
 | Finance / QuotationPolicy version | `quotation_policy_version_id` (nullable except for quotations) |
-| Material catalog release | `material_catalog_release_id` |
-| Finish catalog release | `finish_catalog_release_id` |
-| Hardware catalog release | `hardware_catalog_release_id` |
-| Hettich dataset release | `hettich_dataset_version_id` |
-| Product catalog release | `product_catalog_release_id` |
+| Material catalog version | `material_catalog_version_id` |
+| Finish catalog version | `finish_catalog_version_id` |
+| Hardware catalog version | `hardware_catalog_version_id` |
+| Hettich dataset version | `hettich_dataset_version_id` |
+| Product catalog version | `product_catalog_version_id` |
+| Appliance catalog version (where applicable) | `appliance_catalog_version_id` |
+| Design version lifecycle / content (approval provenance) | `design_version_status`, `design_version_content_hash` |
 | Engine version | `engine_version` (package version + git SHA) |
 
 In addition, every snapshot has input_hash, content_hash, engine_hash (`hash53`), blocker_count, complete or available,
@@ -428,7 +431,7 @@ packages/storage/                  FileStorageProvider interface + in-memory pro
 | outputs | `/design-versions/{id}/bom`, `/boq`, `/pricing`, `/quotations`, `/drawings`, `/manufacturing-documents`; `GET /files/{id}/url` → signed URL |
 | transitions | `POST /{collection}/{id}/transitions` with `{ action, reason, expectedContentHash }` |
 | standards | `/construction-standards`, `/planning-standards`, `/edge-band-standards`, `/manufacturing-standards`, `/pricing-standards`, `/quotation-policies`, each with `/{id}/versions/{v}` and content sub-resources |
-| catalogs | `/materials`, `/edge-bands`, `/finishes`, `/hardware`, `/hardware-rule-sets`, `/appliances`, `/products`, `/recipes`, plus `/…-catalog-releases` per domain |
+| catalogs | `/materials`, `/edge-bands`, `/finishes`, `/hardware`, `/hardware-rule-sets`, `/appliances`, `/products`, `/recipes`, plus `/…-catalog-versions` per domain |
 | hettich | `/hettich/datasets/{id}/versions/{v}/articles`, `…/calculation-rules` |
 | audit | `GET /audit?entityType=&entityId=` (read-only) |
 
@@ -555,7 +558,7 @@ This is added to the §13 gate checklist.
   1. schema and enums;
   2. tenancy and access;
   3. standards;
-  4. catalogs and releases;
+  4. catalogs and catalog versions;
   5. Hettich;
   6. rooms and designs;
   7. snapshots and `file_object`;
@@ -668,6 +671,14 @@ Current state (ops REGION-01):
 6. The ops migration recovery (`chore/recover-applied-migrations`) is merged.
 7. **The Supabase Pro production project is confirmed.**
 8. Before the CLIENT route is enabled: the ops `@lintelspace.com` restriction and the ops RLS helpers are verified to give CLIENT identities no ops access (§9.1).
+9. **Hosted Supabase compatibility of the `design_os` migrations** is verified on a non-production copy before the first hosted apply.
+   The migrations are implemented and tested on plain PostgreSQL 17 only; nothing is redesigned before this check. It covers:
+   - **ownership / role model:** `design_os_owner` owns every object and `design_os_api` is the API role. Checks: `CREATE ROLE`, `GRANT design_os_owner TO CURRENT_USER` and `SET ROLE` all work under Supabase's non-superuser `postgres` role;
+   - the **`auth.users` REFERENCES grant:** `GRANT SELECT, REFERENCES ON auth.users TO design_os_owner` needs a grantor with that privilege (the table is owned by `supabase_auth_admin`);
+   - **SECURITY DEFINER behaviour:** `transition()`, `record_validation_run()`, audit and integrity triggers run as `design_os_owner` with a fixed `search_path`;
+   - **RLS behaviour:** owner bypass inside definer functions; policies for `design_os_api` through the Supavisor transaction pooler with per-transaction `request.jwt.claims`;
+   - **extensions / functions:** no extension is required (`gen_random_uuid`, `sha256`, `jsonb_path_exists` are core PostgreSQL). Also confirm the schema is not in PostgREST's exposed schemas and nothing is granted to `anon` / `authenticated` / `service_role`;
+   - **migration permissions:** the migration role can run each file in a transaction, and the rollbacks and drift check behave as in CI.
 
 Only then is the canonical project chosen and the first `design_os` migration applied to it.
 
@@ -698,6 +709,20 @@ Only then is the canonical project chosen and the first `design_os` migration ap
 | 4 | `docs: ADR-0009 persistence, approval and storage` | Records the final state |
 
 No hosted Supabase work and no UI work is included.
+
+## 15a. Step 3 implementation (migrations 0001–0011, local/CI PostgreSQL 17)
+
+| Clarification | Implementation |
+|---|---|
+| Exact design pinning | `design_version` has 12 typed FKs to exact VERSION rows: construction, planning, edge band, manufacturing, pricing and quotation-policy standard versions; material, finish, hardware, appliance and product **catalog versions** (immutable records listing exact item versions; recipes are pinned by each product version); and the Hettich dataset version. Required pins are NOT NULL; manufacturing, pricing, quotation policy and appliance are NULL until applicable |
+| Supersession | `superseded_by` is a composite FK `(org_id, entity_id, superseded_by) → same table (org_id, entity_id, id)`: only a version of the same entity, same tenant, same domain; never itself |
+| Release immutability | Catalog-version membership is frozen once the catalog version leaves DRAFT; a newer catalog version is a new row; pins are editable only while the design version is DRAFT |
+| Automatic locking | `transition(LOCK)` locks the design version and, recursively and tenant-scoped, every exact pinned version, catalog member version and product recipe version. APPROVED → LOCKED; LOCKED and SUPERSEDED stay as they are |
+| Approval preconditions | Required pins set; every dependency APPROVED or LOCKED (SUPERSEDED never satisfies); the latest engine validation run for the current `input_hash` **and** `input_revision` has 0 BLOCKERs; domain-specific completeness (below) |
+| Reference-data completeness (no structurally empty approvals) | **Construction / Planning:** a sourced, non-NULL value for every registry code. **EdgeBandStandard:** at least one edge rule; every rule set defines at least one component type; every banded edge references an edge band with an APPROVED or LOCKED version. **Hettich dataset:** at least one article. Each article: article number (not `FIXTURE-`), category, official https hettich.com source URL, ISO source date, cleared licence (OFFICIAL_PUBLIC / AUTHORISED), verified by / at. Each calculation rule is source-verified. Every hinge family has a calculation rule. **ManufacturingStandard:** not approvable while its variable registry is empty (no codes are invented), so a design pinning one cannot be approved. **PricingStandard / QuotationPolicy:** at least one rate / tax rate / mapping, and no NULL rule or policy field. They stay unapprovable while production values are absent. **Catalog versions:** at least one exact item version |
+| Validation-run trust boundary | The TypeScript engine alone produces validation results and BLOCKERs; SQL never recalculates them. Runs are created only via `design_os.record_validation_run()` (no direct INSERT grant). It stamps `created_by` / `created_at` and the design version's `input_revision`, and requires `input_hash` to equal the design version's current one. Each run is immutable and carries `engine_version`, `engine_hash`, a SHA-256 `content_hash` and `blocker_count`. The database bumps `input_revision` on any object, override, pin or input-hash change, so an old run can never be reused for changed inputs |
+| Snapshot provenance | Six insert-only tables; a trigger requires the design version's exact lifecycle status, content hash, input hash and every pin; FOR_PRODUCTION requires APPROVED/LOCKED and 0 BLOCKERs; no `TEST_FIXTURE` value anywhere in a payload (CHECK) |
+| Enforcement tests | `tests/db/*` (CI `db` job, PostgreSQL 17 service): migrations up → down → up, schema drift snapshot `database/schema/design_os.schema.txt`, RLS / tenant isolation, transitions and exact lock cascade, completeness, validation-run boundary, provenance, lifecycle round trips, audit chain. The teardown proves no row persists. `tests/synthetic-data-isolation.test.ts` proves synthetic test values exist only under `tests/db` and are never seeded |
 
 ## 16. Technical backlog (required future work)
 

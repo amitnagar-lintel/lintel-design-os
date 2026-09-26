@@ -4,5 +4,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["packages/*/src/**/*.ts", "packages/*/test/**/*.ts", "tests/**/*.ts", "vitest.config.ts", "eslint.config.js"]
+  "include": ["packages/*/src/**/*.ts", "packages/*/test/**/*.ts", "tests/**/*.ts", "vitest.config.ts", "vitest.db.config.ts", "eslint.config.js"]
 }

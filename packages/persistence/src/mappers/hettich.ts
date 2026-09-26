@@ -7,7 +7,7 @@ import { omit, readEnvelope, versioned, versionRow } from "./common.js";
 
 /*
  * Hettich manufacturer data (catalog domain, behind the ManufacturerAdapter). The dataset
- * version is the release unit; its article and rule rows are insert-only. Only PRODUCTION
+ * version is the pinned unit; its article and rule rows are insert-only. Only PRODUCTION
  * intake datasets are ever persisted — the TEST_FIXTURE dataset stays in code.
  */
 
@@ -19,6 +19,8 @@ export interface HettichDatasetVersionRow extends VersionRow {
 export interface HettichArticleRow {
   readonly org_id: string;
   readonly version_id: string;
+  /** Order of the records as supplied (stored explicitly). */
+  readonly position: number;
   readonly record_code: string;
   readonly article_number: string | null;
   readonly product_family: string | null;
@@ -44,6 +46,7 @@ export interface HettichArticleRow {
 export interface HettichCalculationRuleRow {
   readonly org_id: string;
   readonly version_id: string;
+  readonly position: number;
   readonly rule_code: string;
   readonly family: string;
   readonly category: HardwareCategory;
@@ -64,8 +67,9 @@ export interface HettichDatasetRows {
 export function hettichDatasetToRows(d: HettichProductionDataset, meta: VersionMeta, ctx: MapContext, source: string): HettichDatasetRows {
   assertNoTestFixture(`Hettich dataset ${d.datasetId}`, d);
   const base = { org_id: ctx.orgId, version_id: meta.versionId };
-  const articles: HettichArticleRow[] = d.records.map((r) => ({
+  const articles: HettichArticleRow[] = d.records.map((r, position) => ({
     ...base,
+    position,
     record_code: r.recordId,
     article_number: r.articleNumber,
     product_family: r.productFamily,
@@ -87,8 +91,9 @@ export function hettichDatasetToRows(d: HettichProductionDataset, meta: VersionM
     verified_at: r.verification.verifiedAt,
     preference_rank: r.preferenceRank,
   }));
-  const calculationRules: HettichCalculationRuleRow[] = d.calculationRules.map((c) => ({
+  const calculationRules: HettichCalculationRuleRow[] = d.calculationRules.map((c, position) => ({
     ...base,
+    position,
     rule_code: c.ruleId,
     family: c.family,
     category: c.category,
@@ -109,7 +114,8 @@ function hettichDatasetValue(rows: HettichDatasetRows): HettichProductionDataset
   const check = (id: string, versionId: string): void => {
     if (versionId !== e.versionId) throw new MappingError(`Hettich row ${id} belongs to version ${versionId}, not ${e.versionId}`);
   };
-  const records: HettichProductionRecord[] = rows.articles.map((a) => {
+  const byPosition = <T extends { readonly position: number }>(xs: readonly T[]): T[] => [...xs].sort((a, b) => a.position - b.position);
+  const records: HettichProductionRecord[] = byPosition(rows.articles).map((a) => {
     check(a.record_code, a.version_id);
     return {
       recordId: a.record_code,
@@ -132,7 +138,7 @@ function hettichDatasetValue(rows: HettichDatasetRows): HettichProductionDataset
       preferenceRank: a.preference_rank,
     };
   });
-  const calculationRules: HettichCalculationRule[] = rows.calculationRules.map((c) => {
+  const calculationRules: HettichCalculationRule[] = byPosition(rows.calculationRules).map((c) => {
     check(c.rule_code, c.version_id);
     return { ruleId: c.rule_code, family: c.family, category: c.category, description: c.description, bands: c.bands, source: c.source_ref, verification: c.verification, sourceVersion: c.source_version };
   });

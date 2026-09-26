@@ -135,7 +135,7 @@ const cases: readonly Case[] = [
   makeCase("Material", materialToRow(material, draftMeta, CTX), onRow, materialFromRow, (_r, v, m) => materialToRow(v, m, CTX)),
   makeCase("EdgeBand", edgeBandToRow(edgeBand, draftMeta, CTX), onRow, edgeBandFromRow, (_r, v, m) => edgeBandToRow(v, m, CTX)),
   makeCase("Finish", finishToRow(finish, draftMeta, CTX), onRow, finishFromRow, (_r, v, m) => finishToRow(v, m, CTX)),
-  makeCase("Product", productToRow(product, draftMeta, CTX, "Lintel catalog"), onRow, productFromRow, (r, v, m) => productToRow(v, m, CTX, r.source)),
+  makeCase("Product", productToRow(product, draftMeta, { ...CTX, recipeVersionId: "rcv_1" }, "Lintel catalog"), onRow, productFromRow, (r, v, m) => productToRow(v, m, { ...CTX, recipeVersionId: r.recipe_version_id }, r.source)),
   makeCase("Recipe", recipeToRow(recipe, draftMeta, CTX, "Lintel catalog"), onRow, recipeFromRow, (r, v, m) => recipeToRow(v, m, CTX, r.source)),
   makeCase("HardwareRuleSet", hardwareRuleSetToRows(hardware, draftMeta, CTX, "Lintel catalog"), onVersion, hardwareRuleSetFromRows, (r, v, m) => hardwareRuleSetToRows(v, m, CTX, r.version.source)),
   makeCase("Hettich dataset", hettichDatasetToRows(HETTICH_PRODUCTION_DATASET, draftMeta, CTX, "Hettich intake"), onVersion, hettichDatasetFromRows, (r, v, m) => hettichDatasetToRows(v, m, CTX, r.version.source)),
@@ -176,12 +176,12 @@ describe("design versions keep their exact lifecycle", () => {
     manufacturingStandardVersionId: null,
     pricingStandardVersionId: null,
     quotationPolicyVersionId: null,
-    materialCatalogReleaseId: "mcr_1",
-    finishCatalogReleaseId: "fcr_1",
-    hardwareCatalogReleaseId: "hcr_1",
+    materialCatalogVersionId: "mcr_1",
+    finishCatalogVersionId: "fcr_1",
+    hardwareCatalogVersionId: "hcr_1",
     hettichDatasetVersionId: "hdv_1",
-    applianceCatalogReleaseId: null,
-    productCatalogReleaseId: "pcr_1",
+    applianceCatalogVersionId: null,
+    productCatalogVersionId: "pcr_1",
   };
   it.each(RECORD_LIFECYCLE_STATUSES.map((s) => [s]))("%s", (status) => {
     const cols = lifecycleColumns(status);
@@ -202,7 +202,7 @@ describe("design versions keep their exact lifecycle", () => {
       dataClassification: "PRODUCTION",
       contentHash: contentHash("design content"),
     };
-    const record = { envelope, projectId: "project_001", basedOnVersionId: null, roomRevisionId: "rr_1", pins, authoredEngineVersion: "0.1.0", inputHash: contentHash("inputs") };
+    const record = { envelope, projectId: "project_001", basedOnVersionId: null, roomRevisionId: "rr_1", pins, authoredEngineVersion: "0.1.0", inputHash: contentHash("inputs"), inputRevision: 1 };
     const row = designVersionToRow(record, CTX);
     expect(row.status).toBe(status);
     expect(designVersionFromRow(row)).toEqual(record);

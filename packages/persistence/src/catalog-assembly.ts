@@ -2,31 +2,34 @@ import type { CatalogSnapshot, ConstructionRecipe, EdgeBand, Finish, HardwareRul
 import { validateCatalog } from "@lintel/catalog-engine";
 import type { RecordLifecycleStatus } from "./envelope.js";
 
-/** One pinned per-domain catalog release (M5 §2.5). Domains never share a release. */
-export interface CatalogReleaseRef {
-  readonly releaseId: string;
+/**
+ * One pinned per-domain catalog VERSION (M5 §2.5): an exact, immutable version record whose frozen
+ * membership lists exact item versions. Publishing a newer catalog version never changes a pinned one.
+ */
+export interface CatalogVersionRef {
+  readonly catalogVersionId: string;
   readonly versionLabel: string;
   readonly status: RecordLifecycleStatus;
 }
 
 export interface PinnedCatalogReleases {
-  readonly material: CatalogReleaseRef & { readonly materials: readonly Material[]; readonly edgeBands: readonly EdgeBand[] };
-  readonly finish: CatalogReleaseRef & { readonly finishes: readonly Finish[] };
-  readonly hardware: CatalogReleaseRef & { readonly hardwareRuleSets: readonly HardwareRuleSet[] };
-  readonly product: CatalogReleaseRef & { readonly products: readonly ProductDefinition[]; readonly recipes: readonly ConstructionRecipe[] };
+  readonly material: CatalogVersionRef & { readonly materials: readonly Material[]; readonly edgeBands: readonly EdgeBand[] };
+  readonly finish: CatalogVersionRef & { readonly finishes: readonly Finish[] };
+  readonly hardware: CatalogVersionRef & { readonly hardwareRuleSets: readonly HardwareRuleSet[] };
+  readonly product: CatalogVersionRef & { readonly products: readonly ProductDefinition[]; readonly recipes: readonly ConstructionRecipe[] };
 }
 
 export interface AssembledCatalog {
   readonly catalog: CatalogSnapshot;
-  /** Why this catalog cannot drive production (unapproved releases, invalid references). Empty = none. */
+  /** Why this catalog cannot drive production (unapproved catalog versions, invalid references). Empty = none. */
   readonly problems: readonly string[];
 }
 
 const sortBy = <T>(items: readonly T[], id: (t: T) => string): T[] => [...items].sort((a, b) => (id(a) < id(b) ? -1 : id(a) > id(b) ? 1 : 0));
 
 /**
- * Build the engine's CatalogSnapshot from the releases a DesignVersion pins. Deterministic:
- * the same releases always give the same snapshot and `catalogVersion`. Item statuses are kept
+ * Build the engine's CatalogSnapshot from the catalog versions a DesignVersion pins. Deterministic:
+ * the same catalog versions always give the same snapshot and `catalogVersion`. Item statuses are kept
  * as mapped, so the engines still block anything unapproved.
  */
 export function assembleCatalogSnapshot(r: PinnedCatalogReleases): AssembledCatalog {
@@ -41,7 +44,7 @@ export function assembleCatalogSnapshot(r: PinnedCatalogReleases): AssembledCata
   };
   const problems: string[] = [];
   for (const [domain, rel] of [["material", r.material], ["finish", r.finish], ["hardware", r.hardware], ["product", r.product]] as const) {
-    if (rel.status !== "APPROVED" && rel.status !== "LOCKED") problems.push(`${domain} catalog release ${rel.releaseId} is ${rel.status}`);
+    if (rel.status !== "APPROVED" && rel.status !== "LOCKED") problems.push(`${domain} catalog version ${rel.catalogVersionId} is ${rel.status}`);
   }
   for (const m of validateCatalog(catalog)) problems.push(`${m.code}: ${m.message}`);
   return { catalog, problems };

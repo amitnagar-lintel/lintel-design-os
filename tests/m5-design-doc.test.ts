@@ -55,7 +55,7 @@ describe("M5-TECHNICAL-DESIGN.md", () => {
   });
   it("records complete snapshot provenance, including all six snapshot kinds", () => {
     for (const t of ["bom_snapshot", "boq_snapshot", "pricing_snapshot", "quotation_snapshot", "drawing_snapshot", "manufacturing_document_snapshot"]) expect(design).toContain(`\`${t}\``);
-    for (const c of ["construction_standard_version_id", "planning_standard_version_id", "edge_band_standard_version_id", "manufacturing_standard_version_id", "pricing_standard_version_id", "quotation_policy_version_id", "material_catalog_release_id", "hardware_catalog_release_id", "hettich_dataset_version_id", "engine_version"]) {
+    for (const c of ["construction_standard_version_id", "planning_standard_version_id", "edge_band_standard_version_id", "manufacturing_standard_version_id", "pricing_standard_version_id", "quotation_policy_version_id", "material_catalog_version_id", "hardware_catalog_version_id", "hettich_dataset_version_id", "engine_version"]) {
       expect(design).toContain(`\`${c}\``);
     }
   });
@@ -80,5 +80,20 @@ describe("PRODUCTION-DATA-ARCHITECTURE.md", () => {
   });
   it("records the full identity envelope", () => {
     for (const f of ENVELOPE) expect(dataArch).toContain(`\`${f}\``);
+  });
+});
+
+describe("M5 step 3 safeguards are documented", () => {
+  it("lists the hosted Supabase compatibility checks on the Mumbai gate", () => {
+    for (const item of ["ownership / role model", "`auth.users` REFERENCES grant", "SECURITY DEFINER behaviour", "RLS behaviour", "extensions / functions", "migration permissions"]) {
+      expect(design).toContain(item);
+    }
+  });
+  it("records the validation-run trust boundary and the no-empty-approval rules", () => {
+    expect(design).toContain("Validation-run trust boundary");
+    expect(design).toContain("SQL never recalculates them");
+    expect(design).toContain("EdgeBandStandard:** at least one edge rule");
+    expect(design).toContain("Hettich dataset:** at least one article");
+    expect(design).toContain("ManufacturingStandard:** not approvable while its variable registry is empty");
   });
 });

@@ -5,10 +5,12 @@ import {
   assembleCatalogSnapshot,
   buildSnapshotProvenance,
   buildSnapshotRecord,
+  buildValidationRun,
   contentHash,
   designInputHash,
   MappingError,
   provenanceMismatches,
+  recordValidationRunArgs,
   snapshotFromRow,
   snapshotToRow,
   TestFixturePersistenceError,
@@ -22,56 +24,61 @@ const PINS: DesignVersionPins = {
   manufacturingStandardVersionId: null,
   pricingStandardVersionId: "prv_1",
   quotationPolicyVersionId: "qpv_1",
-  materialCatalogReleaseId: "mcr_1",
-  finishCatalogReleaseId: "fcr_1",
-  hardwareCatalogReleaseId: "hcr_1",
+  materialCatalogVersionId: "mcr_1",
+  finishCatalogVersionId: "fcr_1",
+  hardwareCatalogVersionId: "hcr_1",
   hettichDatasetVersionId: "hdv_1",
-  applianceCatalogReleaseId: null,
-  productCatalogReleaseId: "pcr_1",
+  applianceCatalogVersionId: null,
+  productCatalogVersionId: "pcr_1",
 };
 const INPUT = contentHash("inputs");
+const DV = { versionId: "dv_1", status: "APPROVED" as const, contentHash: contentHash("design version content") };
 const T0 = "2026-09-26T10:00:00.000Z";
 
 describe("snapshot provenance (requirement B)", () => {
   it("records every standard, catalog release, Hettich dataset and the engine version", () => {
-    const p = buildSnapshotProvenance("QUOTATION", "dv_1", PINS, "0.1.0+abc123");
+    const p = buildSnapshotProvenance("QUOTATION", DV, PINS, "0.1.0+abc123");
     expect(p).toEqual({
       designVersionId: "dv_1",
+      designVersionStatus: "APPROVED",
+      designVersionContentHash: DV.contentHash,
       constructionStandardVersionId: "csv_1",
       planningStandardVersionId: "psv_1",
       edgeBandStandardVersionId: "ebv_1",
       manufacturingStandardVersionId: null,
       pricingStandardVersionId: "prv_1",
       quotationPolicyVersionId: "qpv_1",
-      materialCatalogReleaseId: "mcr_1",
-      finishCatalogReleaseId: "fcr_1",
-      hardwareCatalogReleaseId: "hcr_1",
+      materialCatalogVersionId: "mcr_1",
+      finishCatalogVersionId: "fcr_1",
+      hardwareCatalogVersionId: "hcr_1",
       hettichDatasetVersionId: "hdv_1",
-      productCatalogReleaseId: "pcr_1",
+      applianceCatalogVersionId: null,
+      productCatalogVersionId: "pcr_1",
       engineVersion: "0.1.0+abc123",
     });
   });
   it("pricing / finance / manufacturing references apply only where relevant", () => {
-    const bom = buildSnapshotProvenance("BOM", "dv_1", PINS, "e");
+    const bom = buildSnapshotProvenance("BOM", DV, PINS, "e");
     expect([bom.pricingStandardVersionId, bom.quotationPolicyVersionId, bom.manufacturingStandardVersionId]).toEqual([null, null, null]);
-    expect(buildSnapshotProvenance("PRICING", "dv_1", PINS, "e").quotationPolicyVersionId).toBeNull();
-    expect(() => buildSnapshotProvenance("PRICING", "dv_1", { ...PINS, pricingStandardVersionId: null }, "e")).toThrow(MappingError);
-    expect(() => buildSnapshotProvenance("QUOTATION", "dv_1", { ...PINS, quotationPolicyVersionId: null }, "e")).toThrow(MappingError);
-    expect(() => buildSnapshotProvenance("MANUFACTURING_DOCUMENT", "dv_1", PINS, "e")).toThrow(MappingError);
+    expect(buildSnapshotProvenance("PRICING", DV, PINS, "e").quotationPolicyVersionId).toBeNull();
+    expect(() => buildSnapshotProvenance("PRICING", DV, { ...PINS, pricingStandardVersionId: null }, "e")).toThrow(MappingError);
+    expect(() => buildSnapshotProvenance("QUOTATION", DV, { ...PINS, quotationPolicyVersionId: null }, "e")).toThrow(MappingError);
+    expect(() => buildSnapshotProvenance("MANUFACTURING_DOCUMENT", DV, PINS, "e")).toThrow(MappingError);
   });
   it("provenance must equal the design version's pins", () => {
     const kinds: SnapshotKind[] = ["BOM", "BOQ", "PRICING", "QUOTATION", "DRAWING"];
-    for (const k of kinds) expect(provenanceMismatches(buildSnapshotProvenance(k, "dv_1", PINS, "e"), "dv_1", PINS)).toEqual([]);
-    const p = buildSnapshotProvenance("BOM", "dv_1", PINS, "e");
-    expect(provenanceMismatches(p, "dv_1", { ...PINS, edgeBandStandardVersionId: "ebv_2" })).toEqual(["edgeBandStandardVersionId ebv_1 ≠ pinned ebv_2"]);
-    expect(provenanceMismatches(p, "dv_2", PINS)).toEqual(["designVersionId dv_1 ≠ dv_2"]);
+    for (const k of kinds) expect(provenanceMismatches(buildSnapshotProvenance(k, DV, PINS, "e"), DV, PINS)).toEqual([]);
+    const p = buildSnapshotProvenance("BOM", DV, PINS, "e");
+    expect(provenanceMismatches(p, DV, { ...PINS, edgeBandStandardVersionId: "ebv_2" })).toEqual(["edgeBandStandardVersionId ebv_1 ≠ pinned ebv_2"]);
+    expect(provenanceMismatches(p, { ...DV, versionId: "dv_2" }, PINS)).toEqual(["designVersionId dv_1 ≠ dv_2"]);
+    expect(provenanceMismatches(p, { ...DV, contentHash: contentHash("edited") }, PINS)[0]).toContain("designVersionContentHash");
   });
 });
 
 describe("snapshot records", () => {
   const productionPayload = { trace: { dataClassification: "PRODUCTION", testFixtureSources: [] }, items: [{ qty: 2 }], contentHash: "0d8691345c4075" };
   it("are sealed with SHA-256, keep the engine hash and round-trip through rows", () => {
-    const r = buildSnapshotRecord({ snapshotId: "snap_1", kind: "BOM", provenance: buildSnapshotProvenance("BOM", "dv_1", PINS, "e"), inputHash: INPUT, payload: productionPayload, blockerCount: 26, createdBy: "u", createdAt: T0 });
+    const r = buildSnapshotRecord({ snapshotId: "snap_1", kind: "BOM", provenance: buildSnapshotProvenance("BOM", DV, PINS, "e"), inputHash: INPUT, payload: productionPayload, blockerCount: 26, createdBy: "u", createdAt: T0 });
     expect(r.contentHash).toBe(contentHash(productionPayload));
     expect(r.engineHash).toBe("0d8691345c4075");
     expect(verifySnapshotRecord(r)).toBe(true);
@@ -80,7 +87,7 @@ describe("snapshot records", () => {
   });
   it("refuses TEST_FIXTURE outputs", () => {
     const fixture = { trace: { dataClassification: "TEST_FIXTURE", testFixtureSources: ["construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD"] } };
-    expect(() => buildSnapshotRecord({ snapshotId: "s", kind: "BOM", provenance: buildSnapshotProvenance("BOM", "dv_1", PINS, "e"), inputHash: INPUT, payload: fixture, blockerCount: 1, createdBy: "u", createdAt: T0 })).toThrow(
+    expect(() => buildSnapshotRecord({ snapshotId: "s", kind: "BOM", provenance: buildSnapshotProvenance("BOM", DV, PINS, "e"), inputHash: INPUT, payload: fixture, blockerCount: 1, createdBy: "u", createdAt: T0 })).toThrow(
       TestFixturePersistenceError,
     );
   });
@@ -95,6 +102,7 @@ describe("design input hash", () => {
     lineage_id: `lin_${code}`,
     object_type: "BASE_CABINET" as const,
     product_code: "KIT_BASE_STANDARD",
+    product_version_id: "prv_1",
     x_mm: 0,
     y_mm: 0,
     z_mm: 0,
@@ -116,12 +124,12 @@ describe("design input hash", () => {
   });
 });
 
-describe("catalog assembly from pinned per-domain releases", () => {
+describe("catalog assembly from pinned per-domain catalog versions", () => {
   const releases = (status: "APPROVED" | "DRAFT") => ({
-    material: { releaseId: "mcr_1", versionLabel: "2026.1", status, materials: [...LINTEL_CATALOG.materials].reverse(), edgeBands: LINTEL_CATALOG.edgeBands },
-    finish: { releaseId: "fcr_1", versionLabel: "2026.1", status: "APPROVED" as const, finishes: LINTEL_CATALOG.finishes },
-    hardware: { releaseId: "hcr_1", versionLabel: "2026.1", status: "APPROVED" as const, hardwareRuleSets: LINTEL_CATALOG.hardwareRuleSets },
-    product: { releaseId: "pcr_1", versionLabel: "2026.1", status: "APPROVED" as const, products: LINTEL_CATALOG.products, recipes: LINTEL_CATALOG.recipes },
+    material: { catalogVersionId: "mcr_1", versionLabel: "2026.1", status, materials: [...LINTEL_CATALOG.materials].reverse(), edgeBands: LINTEL_CATALOG.edgeBands },
+    finish: { catalogVersionId: "fcr_1", versionLabel: "2026.1", status: "APPROVED" as const, finishes: LINTEL_CATALOG.finishes },
+    hardware: { catalogVersionId: "hcr_1", versionLabel: "2026.1", status: "APPROVED" as const, hardwareRuleSets: LINTEL_CATALOG.hardwareRuleSets },
+    product: { catalogVersionId: "pcr_1", versionLabel: "2026.1", status: "APPROVED" as const, products: LINTEL_CATALOG.products, recipes: LINTEL_CATALOG.recipes },
   });
   it("is deterministic and contains exactly the pinned items", () => {
     const a = assembleCatalogSnapshot(releases("APPROVED"));
@@ -131,6 +139,27 @@ describe("catalog assembly from pinned per-domain releases", () => {
     expect(a.problems).toEqual([]);
   });
   it("reports unapproved releases", () => {
-    expect(assembleCatalogSnapshot(releases("DRAFT")).problems).toEqual(["material catalog release mcr_1 is DRAFT"]);
+    expect(assembleCatalogSnapshot(releases("DRAFT")).problems).toEqual(["material catalog version mcr_1 is DRAFT"]);
+  });
+});
+
+describe("validation runs (trust boundary)", () => {
+  const validation = (blockers: number, fixture = false) => ({
+    messages: [
+      ...Array.from({ length: blockers }, (_, i) => ({ code: `B${i}`, severity: "BLOCKER" as const, message: "blocked" })),
+      ...(fixture ? [{ code: "TEST_FIXTURE_DATA_IN_USE", severity: "BLOCKER" as const, message: "fixture" }] : []),
+    ],
+    counts: { INFO: 0, WARNING: 0, ERROR: 0, BLOCKER: blockers + (fixture ? 1 : 0) },
+    canApprove: blockers === 0 && !fixture,
+  });
+  it("carries the engine's own counts and a SHA-256 of the result, tied to the exact inputs", () => {
+    const r = buildValidationRun({ designVersionId: "dv_1", inputHash: INPUT, engineVersion: "0.1.0", engineHash: "0d8691345c4075", validation: validation(2) });
+    expect(r).toMatchObject({ designVersionId: "dv_1", inputHash: INPUT, engineVersion: "0.1.0", engineHash: "0d8691345c4075", blockerCount: 2, warningCount: 0 });
+    expect(r.contentHash).toBe(contentHash({ messages: validation(2).messages, counts: validation(2).counts }));
+    expect(recordValidationRunArgs(r)).toEqual(["dv_1", INPUT, "0.1.0", "0d8691345c4075", 2, 0, JSON.stringify(validation(2).messages), r.contentHash]);
+  });
+  it("requires engine metadata and refuses results produced from TEST_FIXTURE inputs", () => {
+    expect(() => buildValidationRun({ designVersionId: "dv_1", inputHash: INPUT, engineVersion: " ", engineHash: "x", validation: validation(0) })).toThrow(MappingError);
+    expect(() => buildValidationRun({ designVersionId: "dv_1", inputHash: INPUT, engineVersion: "0.1.0", engineHash: "x", validation: validation(0, true) })).toThrow(TestFixturePersistenceError);
   });
 });

@@ -179,12 +179,12 @@ describe("BL-2: design-version approval requires an approved Hettich dataset", (
     manufacturingStandardVersionId: null,
     pricingStandardVersionId: null,
     quotationPolicyVersionId: null,
-    materialCatalogReleaseId: "mcr_1",
-    finishCatalogReleaseId: "fcr_1",
-    hardwareCatalogReleaseId: "hcr_1",
+    materialCatalogVersionId: "mcr_1",
+    finishCatalogVersionId: "fcr_1",
+    hardwareCatalogVersionId: "hcr_1",
     hettichDatasetVersionId: "hdv_1",
-    applianceCatalogReleaseId: null,
-    productCatalogReleaseId: "pcr_1",
+    applianceCatalogVersionId: null,
+    productCatalogVersionId: "pcr_1",
   };
   const run = { inputHash: HASH, blockerCount: 0 };
   it("passes when every required pin, including the Hettich dataset, is APPROVED or LOCKED", () => {

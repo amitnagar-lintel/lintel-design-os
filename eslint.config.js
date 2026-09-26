@@ -44,6 +44,13 @@ export default tseslint.config(
     },
   },
   {
+    // Database integration tests (M5 step 3) are the only place a database client (pg) may be imported.
+    files: ["tests/db/**/*.ts"],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: [{ ...INFRASTRUCTURE, group: INFRASTRUCTURE.group.filter((g) => g !== "pg") }] }],
+    },
+  },
+  {
     // Tests may assert presence with `!` after explicit lookups.
     files: ["**/test/**/*.ts", "tests/**/*.ts"],
     rules: { "@typescript-eslint/no-non-null-assertion": "off" },

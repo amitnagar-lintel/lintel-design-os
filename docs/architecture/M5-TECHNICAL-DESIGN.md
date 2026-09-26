@@ -1,30 +1,60 @@
 # M5 Technical Design: Persistence, Versioning and Approval Workflow
 
-Status: **PROPOSED, awaiting approval** (2026-09-26). Nothing here is implemented.
-No migrations are written, no Supabase project is touched, and no canonical database is chosen.
+Status: **DESIGN APPROVED WITH DECISIONS, revision 2** (2026-09-26). Implementation is **not started** and waits for
+approval of this revision (the M5 design PR).
 
-Base: `main` at `cdc5914` (M4 merged). PRD §35 (version control), §36 (API), §38 (audit), §39 (security) and
-§40 (multi-tenant) apply. The companion document
-[PRODUCTION-DATA-ARCHITECTURE.md](PRODUCTION-DATA-ARCHITECTURE.md) defines the standards and catalog domains.
+- No migrations are written, no hosted Supabase project is touched, and no canonical project is chosen.
+- Base: `main` at `cdc5914` (M4 merged).
+- PRD sections that apply: §35 version control, §36 API, §37 jobs, §38 audit, §39 security, §40 multi-tenant.
+- The companion document [PRODUCTION-DATA-ARCHITECTURE.md](PRODUCTION-DATA-ARCHITECTURE.md) defines the standards and catalog domains.
 
 ---
 
-## 0. Governing rules
+## 0. Approved decisions (recorded)
 
-1. **The engines stay authoritative.** The database stores inputs, approved versions, snapshots and audit
-   history. It never calculates geometry, construction, BOM, BOQ, price, drawings or production eligibility.
-   No SQL function or trigger reproduces engine logic. The legacy `generate_module_boq` stays frozen (ADR-0002).
-2. **Engines never import a database client.** This is already enforced by ESLint `no-restricted-imports` (ADR-0003).
-   Persistence is a new adapter package, `@lintel/persistence`, that maps rows to engine types and back.
-3. **Snapshots are computed by the server, never accepted from a client.** A client can ask for a snapshot.
-   The API loads the pinned inputs, runs the engines, verifies the result and writes it.
-4. **TEST_FIXTURE data never enters the database.** Fixtures stay in code and tests. Every persisted data row is
-   `PRODUCTION`, enforced by a CHECK constraint, and production values stay `NULL` until approved.
-5. **There is no generic `Standard` table** and no generic `configuration` object. Each standard and each catalog
-   domain has its own tables, columns and approval route (see the companion document).
-6. **Locked means immutable.** Enforcement happens in the database (triggers and revoked privileges), not only in the API.
-7. **Production stays blocked.** M5 adds no data and relaxes no guard. Approval requires an engine validation run
-   with zero BLOCKERs, which cannot happen until real production data is approved.
+| # | Decision | Outcome |
+|---|---|---|
+| D1 | Standards and catalogs lifecycle | Same lifecycle as DesignVersions: DRAFT → IN_REVIEW → APPROVED → LOCKED → SUPERSEDED. A version referenced by a LOCKED DesignVersion or an issued production output becomes LOCKED. Approved historical versions are never mutated; any change creates a new version. DesignVersions pin exact versions, and historical designs never re-point |
+| D2 | CHANGES_REQUIRED | Not a persisted status. A `REQUEST_CHANGES` decision moves IN_REVIEW → DRAFT and records requestedBy, requestedAt, reason and previous status in approval and audit history. Content is editable again only once it is DRAFT |
+| D3 | API framework | **NestJS + FastifyAdapter + Zod (Standard Schema) validation.** Controller → request schema validation → application service → domain engine → persistence. Engines stay independent of NestJS |
+| D4 | Roles | Explicit Design OS roles, never inherited from ops: ADMIN, DESIGNER, DESIGN_HEAD, SALES, COSTING, PROCUREMENT, PRODUCTION, SITE_ENGINEER, CLIENT. Permissions are action-based and enforced at both the API and database (RLS) levels |
+| D5 | EdgeBandStandard | Edge rules move out of ConstructionStandard into a dedicated `EdgeBandStandard` **before** the schema is written, with no behaviour change. There is no generic Standard table |
+| D6 | Supabase capacity | **Supabase Pro** is the production baseline (not Team) with a `design_os` schema, RLS, automated backups, and object storage behind a `FileStorageProvider` abstraction. No production snapshots or PDFs are stored until the Mumbai cut-over is completed and the Pro production project is confirmed |
+| D7 | Links to lintel-os-ops | Text references only (`opsProjectRef`, `opsLeadRef`, `opsClientRef`). No cross-database foreign keys and no synchronisation; Design OS is independent |
+| D8 | Approver ≠ submitter | Mandatory for every production approval, with no override. `approverUserId === submittedByUserId` is rejected by the domain/service layer **and** by the database |
+
+The added requirements are covered as follows:
+
+| Requirement | Section |
+|---|---|
+| A. Immutable version identity | §2.1, §3 |
+| B. Snapshot provenance | §6 |
+| C. Database does not calculate | §0.1 |
+| D. Supabase architecture | §11 |
+| E. Production data safety | §0.1, §2.1 |
+| F. Audit chain | §5 |
+| G. Storage abstraction | §12 |
+
+### 0.1 Governing rules
+
+1. **The engines calculate and the database stores.** The database stores inputs, approved versions, snapshots and audit
+   history. There are **no PL/pgSQL business calculations**: no geometry, construction, BOM, BOQ, price, tax, drawing or
+   eligibility logic in SQL. Database functions and triggers do only integrity work, which is:
+   - status transitions and their preconditions;
+   - immutability;
+   - separation of duties;
+   - tenant checks;
+   - audit rows and the hash chain.
+
+   The legacy `generate_module_boq` stays frozen (ADR-0002).
+2. **Engines never import a database client, NestJS or a storage SDK.** ESLint `no-restricted-imports` already blocks
+   database clients in engine packages (ADR-0003). M5 extends it to `@nestjs/*`, `@supabase/*` and the S3 SDKs.
+3. **Snapshots are computed by the server and never accepted from a client.**
+4. **TEST_FIXTURE data is never persisted.** Every persisted versioned record has `data_classification = 'PRODUCTION'`
+   (a CHECK constraint), carries a source, and keeps unverified values as `NULL`. Fixtures stay in code and tests.
+5. **There is no generic `Standard` table and no generic configuration object.** Each standard and each catalog domain has its own tables.
+6. **Locked means immutable,** enforced in the database (triggers and revoked privileges) as well as in the service layer.
+7. **Production stays blocked.** M5 adds no production data and relaxes no guard.
 
 ---
 
@@ -34,6 +64,8 @@ Base: `main` at `cdc5914` (M4 merged). PRD §35 (version control), §36 (API), �
 erDiagram
   ORGANIZATION ||--o{ ORG_MEMBERSHIP : has
   APP_USER ||--o{ ORG_MEMBERSHIP : holds
+  ORG_MEMBERSHIP }o--|| ROLE : grants
+  ROLE ||--o{ ROLE_PERMISSION : "allows actions"
   ORGANIZATION ||--o{ CLIENT : owns
   CLIENT ||--o{ PROJECT : commissions
   PROJECT ||--o{ PROJECT_MEMBER : grants
@@ -41,477 +73,583 @@ erDiagram
   ROOM ||--o{ ROOM_REVISION : "surveyed as"
   ROOM ||--o{ DESIGN : "designed by"
   DESIGN ||--o{ DESIGN_VERSION : versions
-  DESIGN_VERSION }o--|| ROOM_REVISION : "pins"
+  DESIGN_VERSION }o--|| ROOM_REVISION : pins
   DESIGN_VERSION ||--o{ DESIGN_OBJECT : contains
   DESIGN_VERSION ||--o{ RELATIONSHIP_OVERRIDE : contains
   DESIGN_VERSION ||--o{ VALIDATION_RUN : "validated by"
-  DESIGN_VERSION }o--|| CATALOG_RELEASE : pins
+
   DESIGN_VERSION }o--|| CONSTRUCTION_STANDARD_VERSION : pins
   DESIGN_VERSION }o--|| PLANNING_STANDARD_VERSION : pins
   DESIGN_VERSION }o--|| EDGE_BAND_STANDARD_VERSION : pins
   DESIGN_VERSION }o--o| MANUFACTURING_STANDARD_VERSION : pins
   DESIGN_VERSION }o--o| PRICING_STANDARD_VERSION : pins
   DESIGN_VERSION }o--o| QUOTATION_POLICY_VERSION : pins
-  DESIGN_VERSION }o--o| HETTICH_DATASET_VERSION : pins
+  DESIGN_VERSION }o--|| MATERIAL_CATALOG_RELEASE : pins
+  DESIGN_VERSION }o--|| FINISH_CATALOG_RELEASE : pins
+  DESIGN_VERSION }o--|| HARDWARE_CATALOG_RELEASE : pins
+  DESIGN_VERSION }o--|| HETTICH_DATASET_VERSION : pins
+  DESIGN_VERSION }o--o| APPLIANCE_CATALOG_RELEASE : pins
+  DESIGN_VERSION }o--|| PRODUCT_CATALOG_RELEASE : pins
   DESIGN_OBJECT }o--|| PRODUCT_VERSION : "instance of"
+
+  MATERIAL_CATALOG_RELEASE ||--o{ MATERIAL_VERSION : includes
+  MATERIAL_CATALOG_RELEASE ||--o{ EDGE_BAND_VERSION : includes
+  FINISH_CATALOG_RELEASE ||--o{ FINISH_VERSION : includes
+  HARDWARE_CATALOG_RELEASE ||--o{ HARDWARE_ITEM_VERSION : includes
+  HARDWARE_CATALOG_RELEASE ||--o{ HARDWARE_RULE_SET_VERSION : includes
+  APPLIANCE_CATALOG_RELEASE ||--o{ APPLIANCE_VERSION : includes
+  PRODUCT_CATALOG_RELEASE ||--o{ PRODUCT_VERSION : includes
+  PRODUCT_CATALOG_RELEASE ||--o{ RECIPE_VERSION : includes
+  HETTICH_DATASET_VERSION ||--o{ HETTICH_ARTICLE : contains
+  HETTICH_DATASET_VERSION ||--o{ HETTICH_CALCULATION_RULE : contains
+
   DESIGN_VERSION ||--o{ BOM_SNAPSHOT : produces
   DESIGN_VERSION ||--o{ BOQ_SNAPSHOT : produces
   DESIGN_VERSION ||--o{ PRICING_SNAPSHOT : produces
   DESIGN_VERSION ||--o{ QUOTATION_SNAPSHOT : produces
   DESIGN_VERSION ||--o{ DRAWING_SNAPSHOT : produces
-  DRAWING_SNAPSHOT ||--o{ DRAWING_FILE : "rendered as"
-  CATALOG_RELEASE ||--o{ CATALOG_RELEASE_ITEM : lists
-  CATALOG_RELEASE_ITEM }o--o| MATERIAL_VERSION : ""
-  CATALOG_RELEASE_ITEM }o--o| FINISH_VERSION : ""
-  CATALOG_RELEASE_ITEM }o--o| EDGE_BAND_VERSION : ""
-  CATALOG_RELEASE_ITEM }o--o| HARDWARE_ITEM_VERSION : ""
-  CATALOG_RELEASE_ITEM }o--o| HARDWARE_RULE_SET_VERSION : ""
-  CATALOG_RELEASE_ITEM }o--o| APPLIANCE_VERSION : ""
-  CATALOG_RELEASE_ITEM }o--o| PRODUCT_VERSION : ""
-  CATALOG_RELEASE_ITEM }o--o| RECIPE_VERSION : ""
-  HETTICH_DATASET_VERSION ||--o{ HETTICH_ARTICLE : contains
-  HETTICH_DATASET_VERSION ||--o{ HETTICH_CALCULATION_RULE : contains
+  DESIGN_VERSION ||--o{ MANUFACTURING_DOCUMENT_SNAPSHOT : produces
+  DRAWING_SNAPSHOT ||--o{ FILE_OBJECT : "rendered as"
+  MANUFACTURING_DOCUMENT_SNAPSHOT ||--o{ FILE_OBJECT : "rendered as"
+
   APPROVAL_REQUEST ||--o{ APPROVAL_DECISION : "decided by"
   ORGANIZATION ||--o{ AUDIT_LOG : records
 ```
 
-Three families of tables:
+Each release includes a set of item versions, held in a per-domain join table such as `material_catalog_release_item`.
+The Hettich dataset version is itself the release unit for Hettich data.
 
 | Family | Tables | Mutability |
 |---|---|---|
-| Tenancy and people | organization, app_user, org_membership, client, project, project_member | Ordinary rows, audited |
-| Versioned reference data | the six standards, the catalog domains, Hettich datasets, catalog releases | A header row plus immutable version rows |
-| Design and outputs | room, room_revision, design, design_version, design_object, relationship_override, validation_run, the five snapshot tables, drawing_file | Versions are immutable once out of DRAFT; snapshots are insert-only |
-
-Cross-cutting tables are approval_request, approval_decision and audit_log.
-
----
-
-## 2. Table definitions
-
-Everything sits in a dedicated Postgres schema, **`design_os`**, so it never collides with the ops `public` tables
-and can be dropped as a unit (see §13). The conventions are:
-
-- The primary key is `id uuid` (v7, time-ordered). Human codes are unique per scope, for example `project_code` per org and `object_code` per design version.
-- Every tenant-owned table carries `org_id uuid not null`. Foreign keys are **composite with `org_id`**, for example
-  `foreign key (org_id, project_id) references project (org_id, id)`, so a row can never point into another tenant.
-- Lengths are `integer` millimetres where the engine uses whole millimetres; otherwise `numeric(10,2)`. Money is `bigint` paise.
-  Percentages are `numeric(5,2)`. Timestamps are `timestamptz`.
-- `created_at` and `created_by` are on every table. `row_version integer` is used for optimistic concurrency (exposed as an ETag).
-
-### 2.1 Version envelope (shared column set, not a shared table)
-
-Every **versioned production record**, whether a standard version, catalog item version, Hettich dataset version,
-catalog release or design version, carries the same columns. Each domain has its own table; the envelope is a
-column convention checked by a shared constraint template in the migration, not a parent table.
-
-| Column | Type | Rule |
-|---|---|---|
-| `version_no` | integer | Unique per header, assigned by the server, gap-free |
-| `version_label` | text | Optional human label, e.g. `2026.1` |
-| `status` | `record_status` | `DRAFT`, `IN_REVIEW`, `APPROVED`, `LOCKED` or `SUPERSEDED` (see §4) |
-| `classification` | text | `CHECK (classification = 'PRODUCTION')`; fixtures never persist |
-| `source` | text not null | Document, drawing, supplier sheet or official URL |
-| `source_ref` | jsonb | Structured source: url, document title and version, source date |
-| `change_reason` | text not null | Why this version exists |
-| `content_sha256` | text not null | SHA-256 of the canonical (`stableStringify`) content |
-| `submitted_by`, `submitted_at` | uuid, timestamptz | Set on DRAFT → IN_REVIEW |
-| `approved_by`, `approved_at` | uuid, timestamptz | `CHECK` non-null when status is APPROVED, LOCKED or SUPERSEDED |
-| `effective_from` | timestamptz | `CHECK` non-null when APPROVED or later |
-| `locked_by`, `locked_at` | uuid, timestamptz | Set on APPROVED → LOCKED |
-| `superseded_by` | uuid (self-FK) | `CHECK` non-null when SUPERSEDED |
-| `superseded_at` | timestamptz | |
-
-`effective_to` is not stored. It is the `effective_from` of the version named in `superseded_by`.
-
-### 2.2 Tenancy and people
-
-| Table | Key columns |
-|---|---|
-| `organization` | id, code (unique), name, status, `parent_org_id` (nullable, reserved for corporate → branch → franchise, PRD §40; unused in V1) |
-| `app_user` | id (= `auth.users.id`), email, display_name, status |
-| `org_membership` | org_id, user_id, role (`design_os_role`), status, granted_by, granted_at; unique (org_id, user_id, role) |
-| `client` | org_id, client_code, name, contact (jsonb, minimal PII), `ops_lead_ref` text (nullable, informational, no FK) |
-| `project` | org_id, client_id, project_code (unique per org), name, site_address (jsonb), status, currency `INR`, unit_system `MM`, `ops_project_ref` text (nullable, no FK) |
-| `project_member` | org_id, project_id, user_id, project_role (`LEAD`, `CONTRIBUTOR`, `VIEWER`) |
-
-### 2.3 Rooms and designs
-
-| Table | Key columns |
-|---|---|
-| `room` | org_id, project_id, name, room_type (`KITCHEN` in V1) |
-| `room_revision` | org_id, room_id, revision_no, length_mm, width_mm, height_mm, wall_thickness_mm, walls (jsonb: A–D definitions as `roomWalls` expects), surveyed_by, surveyed_at, source, content_sha256. **Insert-only.** A new survey means a new revision |
-| `design` | org_id, project_id, room_id, name, status (`ACTIVE`, `ARCHIVED`) |
-| `design_version` | envelope + org_id, design_id, based_on_version_id (nullable self-FK), room_revision_id, **pinned inputs** (below), engine_version (package version + git SHA that authored it), input_sha256 |
-| `design_object` | org_id, design_version_id, object_code (unique per version), lineage_id (stable across versions), object_type (`BASE_CABINET` in V1), product_version_id, x_mm, y_mm, z_mm, rotation_y `CHECK IN (0,90,180,270)` (M4 quarter-turn rule), width_mm, height_mm, depth_mm, parameters jsonb |
-| `relationship_override` | org_id, design_version_id, override_code, object_a_code, object_b_code, kind, reason not null, created_by. This is M4's audited, versioned override; only `INTENTIONAL_GAP` has an effect |
-| `validation_run` | org_id, design_version_id, engine_version, blocker_count, warning_count, messages jsonb, result_sha256, ran_by, ran_at. **Insert-only** |
-
-The **pinned inputs** on `design_version` are typed foreign keys, one per domain and never a polymorphic reference list:
-`catalog_release_id`, `construction_standard_version_id`, `planning_standard_version_id`,
-`edge_band_standard_version_id`, `manufacturing_standard_version_id` (nullable until the standard exists in code),
-`pricing_standard_version_id`, `quotation_policy_version_id` and `hettich_dataset_version_id`. Pins are editable only while DRAFT.
-A version can only be approved when every pin references an APPROVED or LOCKED version (checked by the transition function, §4).
-
-### 2.4 Engineering and business standards
-
-Each standard is **its own header table plus its own version table plus its own value table**. Values are
-normalised (one row per value) because each value needs its own provenance, as the production intake documents require.
-
-| Standard | Header / version | Values |
-|---|---|---|
-| ConstructionStandard | `construction_standard`, `construction_standard_version` | `construction_standard_value` (version_id, variable_code → `construction_variable`, value numeric **null allowed** = NULL / UNVERIFIED, unit, source, evidence_ref, note). `construction_variable` is the registry of the 12 codes, including SHUTTER_BACK_GAP |
-| PlanningStandard | `planning_standard`, `planning_standard_version` | `planning_standard_value` + `planning_variable` registry (the 6 approved codes) |
-| EdgeBandStandard | `edge_band_standard`, `edge_band_standard_version` | `edge_band_rule` (version_id, rule_set_code, component_type, edge_side, edge_band_id → edge band identity; an explicit "no banding" row is allowed) |
-| ManufacturingStandard | `manufacturing_standard`, `manufacturing_standard_version` | `manufacturing_standard_value` + `manufacturing_variable` registry (cut-size, machining, nesting, labelling per doc 06; all NULL) |
-| PricingStandard | `pricing_standard`, `pricing_standard_version` | `pricing_rule` (one row per rule field: manufacturingCost formula, wastage, overhead, margin basis and percent) and `rate_card_line` (version_id, measure `BOARD_M2`, `EDGE_M`, `FINISH_M2` or `HARDWARE_UNIT`, catalog item identity, rate_paise **null allowed**) |
-| Finance / QuotationPolicy | `quotation_policy`, `quotation_policy_version` | `tax_rate` (version_id, rate_code, percent null allowed), `tax_rate_mapping` (product_category → rate_code), plus typed columns tax_policy, tax_rounding, grand_total_rounding and discount_mode (`NONE` only) |
-
-Rates live in PricingStandard, not on catalog item versions, so that a price change does not force a new technical
-version of a board or hinge. "Pricing where applicable" for catalog items therefore means a `rate_card_line` keyed to
-the item's identity.
-
-### 2.5 Catalog domains
-
-Each domain is a header table (identity and code) plus a version table (envelope plus **typed technical columns**) plus,
-where needed, a compatibility table. None of them is a "MaterialStandard" or "HardwareStandard".
-
-| Domain | Tables | Typed technical attributes (from current engine types) |
-|---|---|---|
-| Material (board) | `material`, `material_version` | category, substrate, thickness_mm, sheet_w_mm, sheet_h_mm, grain, density_kg_m3 (all nullable = not defined) |
-| Edge band (material domain) | `edge_band`, `edge_band_version` | material (`ABS`, `PVC` or `VENEER`), thickness_mm, width_mm |
-| Finish | `finish`, `finish_version`, `finish_compatibility` (finish ↔ material) | type, thickness_mm |
-| Hardware (manufacturer-neutral) | `hardware_item`, `hardware_item_version`, `hardware_rule_set`, `hardware_rule_set_version`, `hardware_rule` | category, application, attributes jsonb (validated per category by the TS schema); rule mapping parameter → mounting, preferred manufacturer |
-| Hettich (manufacturer data) | `hettich_dataset`, `hettich_dataset_version`, `hettich_article`, `hettich_calculation_rule`, `hettich_drilling_pattern` | Mirrors `HettichProductionRecord`: article_number, family, series, category, application, mounting, opening_angle, door thickness range, compatible_articles, dimensions, source_url, source_date, document_title and version, licence_status. The dataset version is the approval unit; its rows are insert-only |
-| Appliance | `appliance`, `appliance_version` | make, model, category, dimensions, cut-out requirements, source. No engine consumes it yet |
-| Product and recipe | `product`, `product_version`, `construction_recipe`, `recipe_version` | Product parameters and BOQ recipe; recipe formulas, components and rules as jsonb (formulas are data, PRD §14). Validated by the TS schema |
-
-`catalog_release` (envelope) plus `catalog_release_item` form the approved, immutable set of item versions that
-becomes the engine's `CatalogSnapshot` (`catalogVersion` = release id + version). `catalog_release_item` has one
-**typed nullable FK per domain** with `CHECK (num_nonnulls(...) = 1)`, so it keeps real referential integrity
-without being a generic polymorphic list.
-
-### 2.6 Snapshots
-
-| Table | Key columns |
-|---|---|
-| `bom_snapshot` | org_id, design_version_id, engine_version, input_sha256, complete bool, blocker_count, payload jsonb (`RoomBOM`), content_sha256, engine_hash (`hash53`, kept for golden parity), created_by, created_at |
-| `boq_snapshot` | same shape, payload `RoomBOQ`, bom_snapshot_id |
-| `pricing_snapshot` | same shape, payload `PriceSnapshot`(s), pricing_standard_version_id, available bool |
-| `quotation_snapshot` | same shape, payload `QuotationSnapshot`, quotation_policy_version_id, revision_no, grand_total_paise, issued_at, issued_by (nullable) |
-| `drawing_snapshot` | same shape, payload `Drawing` / `RoomDrawing` model, drawing_type, purpose (`FOR_REVIEW` or `FOR_PRODUCTION`) |
-| `drawing_file` | drawing_snapshot_id, format (`SVG` or `PDF`), storage_path, byte_size, sha256 |
-
-### 2.7 Approval, audit and jobs
-
-These are described in §4 and §5. `job` (PRD §37) is **deferred**: M5 generation is synchronous because single-room
-payloads are small. The table shape is reserved for M6+.
+| Tenancy and access | organization, app_user, role, role_permission, org_membership, client, project, project_member | Ordinary rows, audited |
+| Versioned reference data | 6 standards, 6 catalog domains, per-domain catalog releases, Hettich datasets | Entity row plus immutable version rows |
+| Design and outputs | room, room_revision, design, design_version, design_object, relationship_override, validation_run, 6 snapshot tables, file_object | Versions are frozen once out of DRAFT; snapshots and files are insert-only |
+| Cross-cutting | approval_request, approval_decision, audit_log | Insert-only |
 
 ---
 
-## 3. Versioning strategy
+## 2. Schema plan
 
-1. **Header plus immutable versions.** The header row holds identity (code, name, org). All content lives in version
-   rows. Editing an APPROVED or LOCKED version is impossible; the only path is "create version N+1 from N", which copies the
-   content into a new DRAFT.
-2. **Copy-on-write for designs.** A new design version copies `design_object` and `relationship_override` rows from
-   `based_on_version_id`. `lineage_id` keeps object identity across versions, so diffs and staleness checks can match objects.
-3. **Immutability is enforced in the database.** A trigger on every version table and every child table
-   (values, rules, objects, overrides) rejects INSERT, UPDATE and DELETE unless the owning version is DRAFT. Snapshot,
-   `validation_run`, `room_revision` and Hettich row tables are insert-only (UPDATE and DELETE are revoked). The only
-   permitted update to a frozen version is the status transition, done by the transition function (§4).
-4. **Effective dating.** `effective_from` is set on approval. The effective version of a standard at time *t* is
-   the APPROVED or LOCKED version with the greatest `effective_from ≤ t`. New design versions default their pins to the
-   currently effective versions. Existing versions keep their pins; they are **never silently re-pinned**.
-5. **Reproducibility.** Every snapshot records `engine_version`, `input_sha256` and the pinned version ids. A snapshot can
-   be re-derived by checking out that engine version and loading those exact versions, including SUPERSEDED ones.
-6. **Staleness is computed, not stored.** The existing engine functions (`compareRoomTrace`, `checkQuotationStaleness`,
-   `checkRoomDrawingStaleness`) run at read time against the current inputs. The API returns a `stale` flag and the reasons.
-7. **Content hashes.** The database uses SHA-256 over `stableStringify` output, computed in `@lintel/persistence`
-   (the engines stay runtime-neutral). The existing `hash53` stays in payloads for golden parity but is **not** used
-   for integrity, because it is not collision-resistant.
-8. **Engine status mapping.** When rows are loaded into engine types: APPROVED and LOCKED → `DataStatus.APPROVED`;
-   DRAFT and IN_REVIEW → `DRAFT`; SUPERSEDED → `RETIRED`, which is usable only when reproducing an existing snapshot and
-   never for new design versions.
+All tables live in the Postgres schema **`design_os`**, which is isolated from `public` and the ops tables. The conventions are:
 
----
+- The primary key is `id uuid` (v7). Human codes are unique per scope.
+- Every tenant-owned table has `org_id uuid not null`, and foreign keys are **composite with `org_id`**,
+  for example `foreign key (org_id, project_id) references design_os.project (org_id, id)`.
+- Whole-millimetre lengths are `integer` mm. Money is `bigint` paise. Percentages are `numeric(5,2)`. Timestamps are `timestamptz`.
+- `row_version integer` supports optimistic concurrency and is exposed as an ETag.
 
-## 4. Approval model
+### 2.1 Version identity envelope (requirement A)
 
-### 4.1 Lifecycle (`record_status`)
+Every versioned record uses **two tables per domain**, never a shared parent table:
 
-```text
-DRAFT ──submit──▶ IN_REVIEW ──approve──▶ APPROVED ──lock──▶ LOCKED ──supersede──▶ SUPERSEDED
-  ▲                   │                      │
-  └──request changes──┘                      └──supersede──▶ SUPERSEDED
-```
+- an **entity** table (`<domain>`), which holds stable identity;
+- a **version** table (`<domain>_version`), with one row per immutable version.
 
-| Transition | Who | Preconditions |
+| Field (API) | Column | Rule |
 |---|---|---|
-| DRAFT → IN_REVIEW | author (the relevant edit permission) | Content is complete for its schema. For a design version: a fresh `validation_run` exists for the current `input_sha256` |
-| IN_REVIEW → DRAFT | approver | A `REQUEST_CHANGES` decision with a reason. This is PRD's `CHANGES_REQUIRED`, recorded as a decision outcome rather than a persisted status (see Decision M5-D2) |
-| IN_REVIEW → APPROVED | approver ≠ submitter (separation of duties) | **Design version:** every pin is APPROVED or LOCKED, and the latest `validation_run` for this `input_sha256` has `blocker_count = 0`. **Standard or catalog version:** every value that is required for production is non-null and has a source. Sets approved_by, approved_at and effective_from |
-| APPROVED → LOCKED | approver or release role | Design version: done when a quotation is issued to the client or the version is released to manufacturing. Reference data: done automatically when first pinned by a LOCKED design version or referenced by an issued snapshot, after which it can never be retired |
-| APPROVED/LOCKED → SUPERSEDED | the system, as part of approving the successor | Done in the same transaction that approves version N+1 of the same header; sets `superseded_by` |
+| `entityId` | `entity_id` → `<domain>.id` | Stable across versions |
+| `versionId` | `id` | Unique per version; this is what everything pins |
+| `versionNumber` | `version_number` | 1, 2, 3 … per entity, gap-free, server-assigned; `unique (entity_id, version_number)` |
+| `status` | `status record_status` | DRAFT, IN_REVIEW, APPROVED, LOCKED or SUPERSEDED |
+| `dataClassification` | `data_classification` | `CHECK (data_classification = 'PRODUCTION')` (requirement E) |
+| `source` | `source text not null` + `source_ref jsonb` | Document, drawing, supplier sheet or official URL, with structured reference |
+| `createdBy` / `createdAt` | `created_by`, `created_at` | |
+| `submittedBy` / `submittedAt` | `submitted_by`, `submitted_at` | Set on DRAFT → IN_REVIEW, cleared on REQUEST_CHANGES |
+| `approvedBy` / `approvedAt` | `approved_by`, `approved_at` | Non-null iff status ∈ {APPROVED, LOCKED, SUPERSEDED} |
+| `effectiveFrom` | `effective_from` | Non-null iff approved |
+| `lockedBy` / `lockedAt` | `locked_by`, `locked_at` | |
+| `supersededBy` | `superseded_by` → same table | Non-null iff SUPERSEDED |
+| `contentHash` | `content_hash` | `sha256:` + hex of `stableStringify(content)`; recomputed server-side, never client-supplied |
+| `changeReason` | `change_reason text not null` | |
 
-- Content is frozen from IN_REVIEW onwards, so a reviewer always approves exactly what they saw. `content_sha256` is recorded on the decision.
-- No transition leaves SUPERSEDED, and nothing is ever deleted.
-- The production guard is unchanged. `FOR_PRODUCTION` outputs require the design version to be APPROVED or LOCKED
-  **and** the engine's `assertProductionEligible` to pass. The database precondition is an extra check, not a replacement.
+Two constraints enforce D8 at the database level: `CHECK (approved_by IS NULL OR approved_by <> submitted_by)` on
+every version table, and the same check inside the transition function (§4).
 
-### 4.2 Tables
+### 2.2 Tenancy and access
 
 | Table | Columns |
 |---|---|
-| `approval_request` | org_id, subject_type (enum of versioned table names), subject_id, subject_sha256, requested_by, requested_at, status (`OPEN`, `APPROVED`, `CHANGES_REQUESTED` or `WITHDRAWN`), note |
-| `approval_decision` | org_id, approval_request_id, decision (`APPROVE` or `REQUEST_CHANGES`), decided_by, decided_at, reason not null, subject_sha256 (must equal the request's) |
+| `organization` | id, code, name, status, `parent_org_id` (reserved for corporate → branch → franchise; unused in V1) |
+| `app_user` | id (= `auth.users.id`), email, display_name, status |
+| `role` | code: ADMIN, DESIGNER, DESIGN_HEAD, SALES, COSTING, PROCUREMENT, PRODUCTION, SITE_ENGINEER, CLIENT |
+| `permission` | action code, e.g. `design_version.approve` (§9) |
+| `role_permission` | org_id, role, action. The per-org grant table is seeded with the defaults in §9, and changes are audited |
+| `org_membership` | org_id, user_id, role, status, granted_by, granted_at; unique (org_id, user_id, role) |
+| `client` | org_id, client_code, name, contact jsonb (minimal PII), **`ops_client_ref` text**, **`ops_lead_ref` text** |
+| `project` | org_id, client_id, project_code (unique per org), name, site_address jsonb, status, currency `INR`, unit_system `MM`, **`ops_project_ref` text** |
+| `project_member` | org_id, project_id, user_id, role. Scopes project-level access, and is **required** for CLIENT and SITE_ENGINEER |
 
-`subject_type` + `subject_id` is the one deliberate polymorphic reference, because approvals span every versioned table.
-A trigger checks that the subject exists and belongs to the same org. All transitions go through a single
-`SECURITY DEFINER` function, `design_os.transition(subject_type, subject_id, action, reason)`, which checks the role,
-the preconditions and the separation of duties, updates the status columns and writes the decision and audit rows in one
-transaction. Direct UPDATE of `status` is revoked from every application role.
+The `ops_*_ref` columns are informational text only. There is no foreign key and no synchronisation (D7).
+
+### 2.3 Rooms and designs
+
+| Table | Columns |
+|---|---|
+| `room` | org_id, project_id, name, room_type (`KITCHEN` in V1) |
+| `room_revision` | org_id, room_id, revision_number, length_mm, width_mm, height_mm, wall_thickness_mm, walls jsonb, source, surveyed_by, surveyed_at, content_hash. **Insert-only** |
+| `design` | entity table: org_id, project_id, room_id, name, status (`ACTIVE` or `ARCHIVED`) |
+| `design_version` | envelope + based_on_version_id, room_revision_id, **pins** (below), authored_engine_version, input_hash |
+| `design_object` | org_id, design_version_id, object_code (unique per version), lineage_id, object_type, product_version_id, x_mm, y_mm, z_mm, `rotation_y CHECK IN (0,90,180,270)`, width_mm, height_mm, depth_mm, parameters jsonb |
+| `relationship_override` | org_id, design_version_id, override_code, object_a_code, object_b_code, kind, reason not null, created_by |
+| `validation_run` | org_id, design_version_id, input_hash, engine_version, blocker_count, warning_count, messages jsonb, result_hash, ran_by, ran_at. **Insert-only** |
+
+**Design version pins** are typed foreign keys, one per domain:
+
+- `construction_standard_version_id`
+- `planning_standard_version_id`
+- `edge_band_standard_version_id`
+- `manufacturing_standard_version_id` (nullable until the standard exists in code)
+- `pricing_standard_version_id`
+- `quotation_policy_version_id`
+- `material_catalog_release_id`
+- `finish_catalog_release_id`
+- `hardware_catalog_release_id`
+- `hettich_dataset_version_id`
+- `appliance_catalog_release_id` (nullable; no engine consumes appliances yet)
+- `product_catalog_release_id`
+
+Pins are editable only while the version is DRAFT and are never re-pointed afterwards.
+
+### 2.4 Standards (each separate; no generic Standard table)
+
+| Standard | Entity / version tables | Content tables |
+|---|---|---|
+| ConstructionStandard | `construction_standard`, `construction_standard_version` | `construction_variable` (registry of 12 codes incl. SHUTTER_BACK_GAP) and `construction_standard_value` (version_id, variable_code, value numeric **nullable**, unit, source, evidence_ref, note) |
+| PlanningStandard | `planning_standard`, `planning_standard_version` | `planning_variable` (registry of 6 codes) and `planning_standard_value` |
+| EdgeBandStandard | `edge_band_standard`, `edge_band_standard_version` | `edge_band_rule` (version_id, rule_set_code, component_type, edge_side, edge_band_entity_id; an explicit "no banding" row is allowed) |
+| ManufacturingStandard | `manufacturing_standard`, `manufacturing_standard_version` | `manufacturing_variable` registry and `manufacturing_standard_value` |
+| PricingStandard | `pricing_standard`, `pricing_standard_version` | `pricing_rule_value` (manufacturing-cost formula, wastage, overhead, margin basis and %) and `rate_card_line` (measure, catalog entity id, rate_paise **nullable**) |
+| Finance / QuotationPolicy | `quotation_policy`, `quotation_policy_version` | `tax_rate` (rate_code, percent **nullable**), `tax_rate_mapping` (product_category → rate_code), and typed columns tax_policy, tax_rounding, grand_total_rounding, discount_mode (`NONE`) |
+
+Formulas such as `manufacturingCost` are stored as **text data** and evaluated only by the TypeScript formula engine.
+
+### 2.5 Catalog domains and releases
+
+| Domain | Entity / version tables | Release (pinned by design versions) |
+|---|---|---|
+| Material (boards + edge bands) | `material`/`material_version`, `edge_band`/`edge_band_version` | `material_catalog_release` + `material_catalog_release_item` |
+| Finish | `finish`/`finish_version` + `finish_material_compatibility` | `finish_catalog_release` + items |
+| Hardware (manufacturer-neutral) | `hardware_item`/`hardware_item_version`, `hardware_rule_set`/`hardware_rule_set_version` + `hardware_rule` | `hardware_catalog_release` + items |
+| Hettich | `hettich_dataset`/`hettich_dataset_version` + `hettich_article`, `hettich_calculation_rule`, `hettich_drilling_pattern` (insert-only rows mirroring `HettichProductionRecord`, with licence status and source) | The dataset version is the release |
+| Appliance | `appliance`/`appliance_version` | `appliance_catalog_release` + items |
+| Product and recipe | `product`/`product_version`, `construction_recipe`/`recipe_version` | `product_catalog_release` + items |
+
+- Each release is a versioned record with the full envelope.
+- Each release item table has a typed FK to that domain's version table only, so there is no polymorphic cross-domain list.
+- `@lintel/persistence` assembles the engine's `CatalogSnapshot` from the pinned releases.
+
+### 2.6 Snapshots, files, approval and audit
+
+These tables are specified in §6 (snapshots), §12 (`file_object`), §4 (approval) and §5 (audit).
+The `job` table (PRD §37) is deferred, because M5 generation is synchronous.
 
 ---
 
-## 5. Audit model
+## 3. Versioning architecture
 
-`audit_log` is append-only and one row per change (PRD §38: who, what, when, old value, new value, reason):
+1. **Entity plus immutable versions.** Changing anything means creating version N+1 from N. The new version is a
+   DRAFT copy of N's content, with a new `version_id` and `version_number = N+1`.
+2. **Copy-on-write designs.** A new DesignVersion copies its objects and overrides. `lineage_id` keeps object identity
+   across versions for diffs and staleness.
+3. **Database-enforced immutability.**
+   - Triggers reject INSERT, UPDATE and DELETE on a version row or its content rows unless the owning version is DRAFT.
+   - Snapshot, file, `validation_run`, `room_revision`, Hettich row, approval and audit tables are insert-only;
+     UPDATE and DELETE are revoked.
+   - Status columns change only through the transition function.
+4. **Pinning.** A DesignVersion pins exact versions and releases (§2.3). New DesignVersions default to the effective
+   versions (the APPROVED or LOCKED version with the latest `effective_from ≤ now`). Existing versions are **never re-pointed**.
+5. **Automatic locking (D1).** When a DesignVersion becomes LOCKED, or an output is issued, the transition function
+   locks every pinned standard version and catalog release, and the item versions inside those releases.
+6. **Reproducibility.** Each snapshot records its full provenance and `engine_version` (§6). Re-deriving a snapshot means
+   checking out that engine version and loading exactly those versions, SUPERSEDED ones included. A test harness
+   re-derives stored snapshots and compares `content_hash`.
+7. **Staleness is computed, not stored.** It uses the existing engine functions (`compareRoomTrace`,
+   `checkQuotationStaleness`, `checkRoomDrawingStaleness`) at read time.
+8. **Hashes.** `content_hash` uses SHA-256, computed in `@lintel/persistence`. The engine's `hash53` is kept inside payloads
+   for golden parity only and is not used for integrity.
+9. **Engine status mapping.** APPROVED and LOCKED → `DataStatus.APPROVED`. DRAFT and IN_REVIEW → `DRAFT`.
+   SUPERSEDED → `RETIRED`, usable only to reproduce an existing snapshot.
+
+---
+
+## 4. Approval architecture
+
+```text
+DRAFT ──SUBMIT──▶ IN_REVIEW ──APPROVE──▶ APPROVED ──LOCK / ISSUE──▶ LOCKED ──(successor approved)──▶ SUPERSEDED
+  ▲                   │                      │
+  └─REQUEST_CHANGES───┘                      └──(successor approved)──▶ SUPERSEDED
+```
+
+| Action | Transition | Preconditions (service layer and transition function) |
+|---|---|---|
+| SUBMIT | DRAFT → IN_REVIEW | The actor has the `*.submit` permission and the content is schema-complete. For a design version, a `validation_run` exists for the current `input_hash`. Records `submitted_by`, `submitted_at` and `content_hash` |
+| REQUEST_CHANGES | IN_REVIEW → DRAFT | `*.approve` permission and a non-empty reason. Writes an `approval_decision` with requestedBy, requestedAt, reason and **previous_status = IN_REVIEW**, plus an audit row. The content becomes editable again only after the status is DRAFT (D2) |
+| APPROVE | IN_REVIEW → APPROVED | `*.approve` permission. **Approver ≠ submitter, with no override (D8).** The request's `expected_content_hash` equals the stored hash. **Design version:** every pin is APPROVED or LOCKED, and the latest `validation_run` for this `input_hash` has `blocker_count = 0`. **Standard, catalog or release:** every production-required value is non-null and sourced. Sets approved_by, approved_at and effective_from, and supersedes the previous APPROVED or LOCKED version of the same entity in the same transaction |
+| LOCK | APPROVED → LOCKED | Explicit lock, or automatic (D1): design version issued or released, or a reference version pinned by a LOCKED design |
+| ISSUE | quotation or drawing issued | The design version must be APPROVED or LOCKED and the engine's production guard must pass. Locks the design version and its pins |
+
+- `approval_request`: org_id, subject_type, subject_id, subject_content_hash, requested_by, requested_at, status
+  (`OPEN`, `APPROVED`, `CHANGES_REQUESTED` or `WITHDRAWN`).
+- `approval_decision`: approval_request_id, decision (`APPROVE` or `REQUEST_CHANGES`), decided_by, decided_at, reason,
+  previous_status, new_status, subject_content_hash.
+  It has `CHECK (decided_by <> (select requested_by …))`, enforced by the transition function, because CHECK constraints cannot run subqueries.
+- **Single write path.** The application service calls `design_os.transition(subject_type, subject_id, action, reason, expected_hash)`,
+  a `SECURITY DEFINER` function that performs only **integrity checks and state changes**. It does no calculation;
+  eligibility is proven by the engine-produced `validation_run`.
+- The `FOR_PRODUCTION` drawing guard and `assertProductionEligible` are unchanged. The database checks are additional
+  layers, not replacements.
+
+---
+
+## 5. Audit architecture (requirement F)
+
+`audit_log` is append-only and has one row per change: who, what, when, old value, new value and reason (PRD §38).
 
 | Column | Notes |
 |---|---|
 | id | bigint identity |
 | org_id | |
 | occurred_at | `clock_timestamp()` |
-| actor_user_id, actor_role | from the verified JWT, never from the request body |
-| action | `INSERT`, `UPDATE`, `DELETE`, `TRANSITION`, `SNAPSHOT_CREATED`, `FILE_ISSUED`, `LOGIN_CONTEXT` |
-| entity_type, entity_id | |
-| old_value, new_value | jsonb (row images; only changed columns for UPDATE) |
-| reason | **required** for transitions, overrides, and standard, catalog, pricing and finance changes |
-| request_id | correlates API request → rows |
-| prev_hash, row_hash | SHA-256 hash chain per org, for tamper evidence |
+| actor_user_id, actor_roles | taken from the verified JWT claims set per transaction |
+| action | INSERT, UPDATE, TRANSITION, SNAPSHOT_CREATED, FILE_STORED, ISSUED, PERMISSION_CHANGED |
+| entity_type, entity_id, version_id | |
+| old_value, new_value | jsonb |
+| reason | required for transitions, overrides, permission changes and every standard, catalog, pricing or finance change |
+| request_id | correlates an API request with its rows |
+| prev_hash, row_hash | a **SHA-256 chain** per org: `row_hash = sha256(prev_hash ‖ canonical(row))` |
 
-- Row-level changes are written by one generic trigger attached to every audited table. Semantic events (transitions,
-  snapshot creation, issuing a quotation) are written by the transition function and the API.
-- UPDATE, DELETE and TRUNCATE on `audit_log` are revoked from every role, including the API role. Only the trigger or
-  `SECURITY DEFINER` path inserts.
-- A scheduled verifier recomputes the hash chain and reports any break.
-- Retention: indefinite in V1.
+- Rows are written by one generic row trigger on audited tables, and by the transition function for semantic events.
+  The hash is a SHA-256 over the canonical row. This is integrity hashing, not business calculation.
+- There is **no update or delete path.** UPDATE, DELETE and TRUNCATE are revoked from every role, including the API role
+  and the migration role after bootstrap. A trigger raises on any attempt, as belt-and-braces.
+- The chain is serialised per org by an advisory lock on insert.
+- A scheduled verifier in the API recomputes the chain and alerts on any break.
 
 ---
 
-## 6. Snapshot model
+## 6. Snapshot architecture and provenance (requirement B)
 
-1. The API receives, for example, `POST /design-versions/{id}/boq`.
-2. It loads the version, its objects and overrides, its `room_revision` and every pinned version, and maps them to engine
-   types. Missing or unapproved inputs stay `null` and flow into the engine exactly as today, producing BLOCKERs, not defaults.
-3. It runs the engines. For example, resolveRoom → generateRoomBom → generateRoomBoq.
-4. It verifies the output: `verifyQuotation`, `verifyRoomDrawing`, a hash re-check, and deep-frozen invariants.
-5. It inserts a snapshot row with the payload, `content_sha256`, `input_sha256`, `engine_version`, blocker counts and
-   pinned ids. **Idempotent:** if a snapshot with the same `(design_version_id, kind, input_sha256, engine_version)` exists,
-   the API returns it instead of inserting a duplicate.
-6. Drawings: the SVG and PDF bytes go to Supabase Storage at
-   `design-os/{org}/{project}/{design_version}/{drawing_snapshot}.{ext}` in a private bucket, and are served through short-lived signed URLs (PRD §39).
-   `drawing_file.sha256` is checked on read.
+There are six insert-only snapshot tables:
 
-Snapshots are never updated. A new calculation always produces a new snapshot.
-A quotation `revision_no` increments per design version. Issuing a quotation sets `issued_at` and `issued_by` through
-the transition function, which also LOCKS the design version.
+- `bom_snapshot`
+- `boq_snapshot`
+- `pricing_snapshot`
+- `quotation_snapshot`
+- `drawing_snapshot`
+- `manufacturing_document_snapshot` (reserved; no engine yet)
 
-TEST_FIXTURE outputs (the goldens) are never persisted. A snapshot whose engine result is classified as fixture is rejected
-by a CHECK constraint.
+Every snapshot row carries the **same provenance columns**, copied from the design version at generation time and
+checked equal to its pins by the transition and insert trigger:
+
+| Provenance | Column |
+|---|---|
+| DesignVersion | `design_version_id` |
+| ConstructionStandard version | `construction_standard_version_id` |
+| PlanningStandard version (where applicable) | `planning_standard_version_id` (nullable) |
+| EdgeBandStandard version | `edge_band_standard_version_id` |
+| ManufacturingStandard version (where applicable) | `manufacturing_standard_version_id` (nullable) |
+| PricingStandard version | `pricing_standard_version_id` (nullable for BOM and drawings) |
+| Finance / QuotationPolicy version | `quotation_policy_version_id` (nullable except for quotations) |
+| Material catalog release | `material_catalog_release_id` |
+| Finish catalog release | `finish_catalog_release_id` |
+| Hardware catalog release | `hardware_catalog_release_id` |
+| Hettich dataset release | `hettich_dataset_version_id` |
+| Product catalog release | `product_catalog_release_id` |
+| Engine version | `engine_version` (package version + git SHA) |
+
+In addition, every snapshot has input_hash, content_hash, engine_hash (`hash53`), blocker_count, complete or available,
+payload jsonb, created_by, created_at and `data_classification = 'PRODUCTION'`.
+
+**Generation flow:**
+
+1. The controller validates the request.
+2. The application service loads the version, its pins, the room revision and the content.
+3. `@lintel/persistence` maps the rows to engine types, keeping `null` as null and never defaulting.
+4. The engines run.
+5. The engine verifiers run (`verifyQuotation`, `verifyRoomDrawing`, and a hash re-check).
+6. The repository inserts the snapshot. This is idempotent on `(design_version_id, kind, input_hash, engine_version)`.
+7. Rendered files go through `FileStorageProvider` (§12).
+
+Before the Mumbai cut-over and Pro project confirmation (D6), snapshot persistence and file storage run **only** against
+local or CI databases and the in-memory or local storage provider.
 
 ---
 
 ## 7. Organization and multi-tenant model
 
-- **Organization is the top-level boundary** (PRD §40). Lintel is the single organization in V1, and every table is org-scoped
-  from day one so that branches and franchises need no re-keying.
-- Standards, catalogs and Hettich datasets are **org-scoped**. The same manufacturer data could later be shared from a
-  platform org as read-only, but that is out of scope.
-- The org is always derived from the authenticated user's membership. **Client-supplied `org_id` is ignored.**
-  When a user has more than one membership, the org comes from an `X-Org` header that is checked against their memberships.
-- Composite `(org_id, id)` foreign keys make cross-tenant references structurally impossible.
-- `parent_org_id` is reserved for corporate → branch → franchise and unused in V1.
+- Organization is the top-level boundary. Lintel is the only org in V1, and every table is org-scoped from day one.
+- The org is derived from the authenticated membership, **never** from a client-supplied id (PRD §39). A multi-org user
+  selects an org with the `X-Org` header, which is validated against their memberships.
+- Composite `(org_id, id)` foreign keys make cross-tenant references impossible.
+- Standards, catalogs and Hettich datasets are org-scoped. Shared platform data is out of scope.
 
 ---
 
-## 8. API resource design (`/api/v1`, PRD §36)
+## 8. API structure (NestJS + FastifyAdapter + Zod)
 
-**Host.** The API is a Node TypeScript service (`apps/api`) inside this monorepo, so it imports the engines directly. The
-recommended stack is **Fastify plus a schema validator**; the PRD allows "NestJS or equivalent" (Decision M5-D3).
-It is deployed separately from the ops static site. Railway is already used for lintel-crm, but that choice is deferred.
+```text
+apps/api/
+  src/main.ts                      NestFactory.create(AppModule, new FastifyAdapter())
+  src/common/                      ZodValidationPipe (Standard Schema), auth guard (Supabase JWT),
+                                   permission guard, org context, problem+json filter, request id
+  src/modules/<resource>/
+    <resource>.controller.ts       HTTP only: route, schema-validate, call service, map result
+    <resource>.schemas.ts          Zod schemas (request/response) derived from @lintel/types
+    <resource>.service.ts          application service: authorization, orchestration, transactions
+  src/infrastructure/
+    persistence/                   repositories (SQL only; no business logic)
+    storage/                       FileStorageProvider adapters
+packages/persistence/              pure row ↔ engine-type mappers, canonical hashing
+packages/storage/                  FileStorageProvider interface + in-memory provider (tests)
+```
 
-| Resource | Endpoints |
+**Layering rule:** controller → request schema validation → application service → domain engine → persistence.
+
+- Controllers never touch the database.
+- Repositories never contain domain logic.
+- Neither of them performs parametric or domain calculations.
+- ESLint `no-restricted-imports` enforces the boundaries: engines cannot import `@nestjs/*`, `@supabase/*` or `pg`,
+  and controllers cannot import repositories.
+
+| Module | Routes (`/api/v1`) |
 |---|---|
-| Organization / me | `GET /me`, `GET /orgs/{org}/members`, `POST /orgs/{org}/members` |
-| Clients | `GET/POST /clients`, `GET/PATCH /clients/{id}` |
-| Projects | `GET/POST /projects`, `GET/PATCH /projects/{id}`, `GET/POST /projects/{id}/members` |
-| Rooms | `GET/POST /projects/{id}/rooms`, `GET /rooms/{id}`, `POST /rooms/{id}/revisions`, `GET /rooms/{id}/revisions` |
-| Designs | `GET/POST /rooms/{id}/designs`, `GET /designs/{id}` |
-| Design versions | `GET/POST /designs/{id}/versions` (the POST body names `basedOn`), `GET/PATCH /design-versions/{id}` (pins, DRAFT only), `POST /design-versions/{id}/validate` |
-| Objects | `GET/POST /design-versions/{id}/objects`, `PATCH/DELETE /objects/{id}` (DRAFT only), `GET/POST /design-versions/{id}/overrides` |
-| Outputs | `POST+GET /design-versions/{id}/bom`, `/boq`, `/pricing`, `/quotations`, `/drawings`; `GET /drawings/{id}/files/{format}` → signed URL |
-| Transitions | `POST /{resource}/{id}/transitions` with body `{ action: SUBMIT, APPROVE, REQUEST_CHANGES, LOCK or ISSUE, reason, expectedSha256 }` |
-| Standards | `/construction-standards`, `/planning-standards`, `/edge-band-standards`, `/manufacturing-standards`, `/pricing-standards` and `/quotation-policies`. Each has `…/{id}/versions`, `…/versions/{v}/values` (or `rules`, `rate-lines` or `tax-rates`) and `…/versions/{v}/transitions` |
-| Catalogs | `/materials`, `/edge-bands`, `/finishes`, `/hardware`, `/hardware-rule-sets`, `/appliances`, `/products`, `/recipes`, `/catalog-releases`, each with versions and transitions |
-| Hettich | `/hettich/datasets`, `/hettich/datasets/{id}/versions`, `…/articles`, `…/calculation-rules` |
-| Audit | `GET /audit?entityType=&entityId=` (read-only) |
+| me / org | `GET /me`, `GET/POST /org/members`, `GET/PUT /org/role-permissions` |
+| clients, projects | `/clients`, `/projects`, `/projects/{id}/members` |
+| rooms | `/projects/{id}/rooms`, `/rooms/{id}`, `/rooms/{id}/revisions` |
+| designs | `/rooms/{id}/designs`, `/designs/{id}`, `/designs/{id}/versions` (POST body names `basedOn`) |
+| design-versions | `/design-versions/{id}` (PATCH pins, DRAFT only), `/objects`, `/overrides`, `POST /validate` |
+| outputs | `/design-versions/{id}/bom`, `/boq`, `/pricing`, `/quotations`, `/drawings`, `/manufacturing-documents`; `GET /files/{id}/url` → signed URL |
+| transitions | `POST /{collection}/{id}/transitions` with `{ action, reason, expectedContentHash }` |
+| standards | `/construction-standards`, `/planning-standards`, `/edge-band-standards`, `/manufacturing-standards`, `/pricing-standards`, `/quotation-policies`, each with `/{id}/versions/{v}` and content sub-resources |
+| catalogs | `/materials`, `/edge-bands`, `/finishes`, `/hardware`, `/hardware-rule-sets`, `/appliances`, `/products`, `/recipes`, plus `/…-catalog-releases` per domain |
+| hettich | `/hettich/datasets/{id}/versions/{v}/articles`, `…/calculation-rules` |
+| audit | `GET /audit?entityType=&entityId=` (read-only) |
 
 Conventions:
 
-- Request and response bodies are validated against schemas generated from `@lintel/types`.
-- Writes take an `If-Match: <row_version>` header, and a stale `row_version` returns 409.
-- A POST that creates a snapshot or a transition accepts an `Idempotency-Key`.
-- Transitions carry `expectedSha256`, so an approver can never approve content that changed under them.
-- Errors follow RFC 9457 problem details. Engine BLOCKERs are returned as data, not as HTTP errors.
+- Writes require `If-Match` with the row version.
+- Snapshot and transition POSTs require an `Idempotency-Key`.
+- Errors use RFC 9457 problem+json.
+- Engine BLOCKERs are returned as data.
 
 ---
 
-## 9. Object-level authorization model
+## 9. Object-level authorization and RLS plan
 
-**Authentication.** Supabase Auth JWT (the existing `@lintelspace.com` restriction). The API verifies the JWT itself.
+**Action-based permissions (D4).** Roles are granted actions through `role_permission`. The defaults below are seeded and
+changing them is itself an audited, reasoned action. Every check is `has_permission(action)` combined with scope and state
+(§9.2); code never checks a role name.
 
-**Roles** (`design_os_role`, per org membership; Design OS-specific and **not** inherited from ops roles, Decision M5-D4):
+| Action group | ADMIN | DESIGNER | DESIGN_HEAD | SALES | COSTING | PROCUREMENT | PRODUCTION | SITE_ENGINEER | CLIENT |
+|---|---|---|---|---|---|---|---|---|---|
+| members / role-permissions manage | ✓ | | | | | | | | |
+| client, project write | ✓ | | ✓ | ✓ | | | | | |
+| room revision (survey) write | | ✓ | ✓ | | | | | ✓ | |
+| design_version edit / submit | | ✓ | ✓ | | | | | | |
+| design_version approve / request changes | | | ✓ | | | | | | |
+| BOM / BOQ / drawing generate | | ✓ | ✓ | | ✓ | | | | |
+| pricing / quotation generate | | | | | ✓ | | | | |
+| quotation issue | | | | ✓ | | | | | |
+| release to manufacturing | | | | | | | ✓ | | |
+| Construction / Planning standard author | | | ✓ | | | | ✓ | | |
+| Construction / Planning standard approve | | | ✓ | | | | ✓ | | |
+| EdgeBand / Manufacturing standard author | | | | | | | ✓ | | |
+| EdgeBand / Manufacturing standard approve | | | ✓ | | | | ✓ | | |
+| Pricing standard author | | | | | ✓ | | | | |
+| Pricing standard, Quotation policy approve | ✓ | | | | | | | | |
+| Quotation policy author | | | | | ✓ | | | | |
+| Material / Finish / Appliance catalog author | | | ✓ | | | ✓ | | | |
+| Material / Finish / Appliance catalog approve | | | ✓ | | | | ✓ | | |
+| Hardware / Hettich author | | | | | | ✓ | ✓ | | |
+| Hardware / Hettich approve | | | ✓ | | | | ✓ | | |
+| read internal cost breakdown | ✓ | | ✓ | | ✓ | ✓ | | | |
+| read BOM / production drawings | ✓ | ✓ | ✓ | | ✓ | ✓ | ✓ | ✓ | |
+| read issued quotation / issued drawings | ✓ | ✓ | ✓ | ✓ | ✓ | | ✓ | ✓ | ✓ (own projects) |
+| audit read | ✓ | | ✓ | | | | | | |
 
-| Role | Can |
-|---|---|
-| `ORG_ADMIN` | Manage memberships and org settings. **Cannot** approve their own submissions |
-| `DESIGNER` | Create and edit DRAFT rooms, designs, objects and overrides on projects they are a member of; submit |
-| `DESIGN_APPROVER` | Approve or request changes on design versions; lock/issue |
-| `ESTIMATOR` | Generate BOM, BOQ, pricing and quotation snapshots; submit quotations for issue |
-| `STANDARDS_MANAGER` | Author Construction, Planning, EdgeBand and Manufacturing standard versions |
-| `CATALOG_MANAGER` | Author material, finish, edge band, hardware, Hettich, appliance, product and recipe versions and catalog releases |
-| `PRICING_MANAGER` | Author PricingStandard versions (rules, rate card) |
-| `FINANCE_APPROVER` | Approve QuotationPolicy and PricingStandard versions |
-| `TECHNICAL_APPROVER` | Approve standards and catalog versions |
-| `VIEWER` | Read only |
+These defaults can be changed in `role_permission` data without code changes. Where the same role can both author and
+approve (for example PRODUCTION on manufacturing standards), D8 still requires a **different person** to approve.
 
-**Object checks.** Every request resolves `(user, org, project)`:
+### 9.1 CLIENT role
 
-1. org membership is active;
-2. the role grants the action on that resource type;
-3. for project-scoped resources, the user is a `project_member` or holds an org-wide role;
-4. the state permits it (for example, no edits unless DRAFT);
-5. separation of duties: the approver is not the submitter or the last editor.
+- CLIENT is always project-scoped, through `project_member`.
+- It sees only issued quotations and issued drawings, and never cost breakdowns, drafts or audit history.
+- The current Supabase sign-in is limited to `@lintelspace.com` addresses. CLIENT accounts therefore need a separate,
+  approved sign-in route before the role is activated. The role and its permissions exist in V1 but are unused until then.
 
-These checks are implemented once in the API's policy layer and repeated as **RLS policies** in the database as
-defence in depth, through helpers `design_os.current_org()`, `design_os.has_role(role)` and `design_os.can_access_project(project_id)`.
-Every table has RLS enabled with default deny.
+### 9.2 Enforcement at two levels
+
+1. **API.** The NestJS permission guard applies the action permission. The application service then checks:
+   - scope: org membership, plus `project_member` for project-scoped roles and always for CLIENT and SITE_ENGINEER;
+   - state: DRAFT-only edits;
+   - D8: approver ≠ submitter.
+2. **Database (RLS).**
+   - RLS is enabled on every `design_os` table with **default deny**.
+   - Policies use `design_os.current_user_id()` and `design_os.current_org_id()`, which read the JWT claims set per
+     transaction by the API through `set_config('request.jwt.claims', …, true)`.
+   - They also use `design_os.has_permission(action)` and `design_os.can_access_project(project_id)`.
+   - Examples: SELECT on `project` requires `can_access_project(id)`, and UPDATE on `design_object` requires the owning
+     version to be DRAFT and `has_permission('design_version.edit')`.
+   - The API connects as a dedicated `design_os_api` role, **not** `service_role`, so RLS always applies.
+   - Status columns and `audit_log` cannot be updated through any policy.
 
 ---
 
 ## 10. Migration strategy
 
-- **Location:** `database/migrations/NNNN_description.sql` in this repo (the empty `database/` folder from M1), applied with the
-  Supabase CLI. **Forward-only**; each migration ships a tested `…_rollback.sql` (§13).
-- **No dashboard edits, ever.** CI runs `supabase db diff` (or a schema dump diff) against the migration head to catch drift.
-  This is the lesson from the ops `modular_catalog_*`, `kg_*` and `rate0x_*` drift.
-- **CI:** start an ephemeral Postgres (Supabase local stack or `postgres:17` service), apply all migrations, run rollback and
-  re-apply, then run persistence integration tests (immutability triggers, RLS, transitions, audit chain, tenant isolation).
-- **Planned order**:
-  1. schema, enums, tenancy;
-  2. versioned reference data (standards, then catalogs, then Hettich, then catalog releases);
-  3. rooms, designs and versions;
-  4. snapshots and storage metadata;
-  5. approval and transition function;
-  6. audit triggers and hash chain;
-  7. RLS policies.
-- **Data:**
-  - No production values are seeded.
-  - Variable registries (the 12 construction codes, the 6 planning codes) are seeded because they are schema, not values.
-  - The legacy ops SQL catalog is **not** migrated. A one-off importer can load legacy rows as DRAFT with
-    `source = LEGACY-REFERENCE` for human review, and never as APPROVED (ADR-0002).
-- Production data enters only through the intake → DRAFT → IN_REVIEW → APPROVED route.
+- **Order of work:**
+  1. **M5 commit 0** is the EdgeBandStandard refactor (D5): no behaviour change, goldens byte-identical, production still blocked.
+  2. Only after that are migrations written, in `database/migrations/NNNN_*.sql`, and applied with the Supabase CLI.
+     They are forward-only, and each ships a tested rollback script.
+- **Planned migration order:**
+  1. schema and enums;
+  2. tenancy and access;
+  3. standards;
+  4. catalogs and releases;
+  5. Hettich;
+  6. rooms and designs;
+  7. snapshots and `file_object`;
+  8. approval and the transition function;
+  9. audit and the hash chain;
+  10. RLS policies;
+  11. grants and revokes.
+- **No dashboard edits.** CI runs a schema-diff check against the migration head, to prevent a repeat of the ops migration drift.
+- **CI:** a Postgres service container applies all migrations, runs rollback, re-applies, then runs integration tests:
+  - immutability;
+  - RLS default deny and tenant isolation;
+  - D8 rejection;
+  - REQUEST_CHANGES history;
+  - automatic locking;
+  - no audit update or delete path;
+  - hash-chain verification;
+  - snapshot provenance equality;
+  - the TEST_FIXTURE CHECK.
+- **Seeds** contain schema-level registries only (variable codes, roles, permissions, default grants). They contain **no production values**.
+- **Legacy data:** the ops SQL catalog is not migrated. An optional importer loads rows as DRAFT with
+  `source = LEGACY-REFERENCE` for human review, never as APPROVED.
 
 ---
 
-## 11. Supabase integration plan
+## 11. Supabase integration plan (requirement D)
 
 | Concern | Plan |
 |---|---|
-| Schema | `design_os` schema in the canonical project, **not exposed through PostgREST** (not added to the exposed schemas). All access goes through the API |
-| Auth | Reuse the project's `auth.users` and the `@lintelspace.com` sign-in. `app_user` mirrors id and email; Design OS roles are separate from ops `profiles.role` |
-| DB connection | The API connects as a dedicated `design_os_api` role (no `service_role` in the API), sets `request.jwt.claims` per transaction so that RLS and audit see the real user. Connections go through the Supavisor pooler in transaction mode |
-| Storage | Private bucket `design-os`, signed URLs only, no public objects |
-| Ops coexistence | No FKs into ops `public` tables. `ops_project_ref` and `ops_lead_ref` are informational text until an integration decision is made. Ops tables, RLS and cron jobs are untouched |
-| Capacity | The project was at ~0.94 GB of the 1 GB free-tier limit. Snapshot payloads and PDFs will add to this. **A plan or tier decision is required before production use** (Decision M5-D6) |
-| Backups | The free tier has no point-in-time recovery. Take a `pg_dump --schema=design_os` before every migration and on a schedule (see §13) |
-| Local development | Supabase CLI local stack. No hosted project is needed until cut-over |
+| Project | **Supabase Pro** production project (D6), chosen only after the Mumbai gate (§13). Team is not needed |
+| Schema | `design_os`, isolated from `public` and ops. **Not** in PostgREST's exposed schemas, so there is no auto-generated REST. The NestJS API is the only application boundary |
+| Auth | Supabase Auth JWT verified by the API. `app_user` mirrors identity; Design OS roles are separate from ops roles |
+| Connection | `design_os_api` role through the Supavisor transaction pooler. Per-transaction JWT claims feed RLS and audit |
+| RLS | Enabled with default deny on every table, as defence in depth behind the API |
+| Backups | Pro automated daily backups, plus `pg_dump --schema=design_os` before every hosted migration. Point-in-time recovery is optional later |
+| Storage | Through `FileStorageProvider` only (§12). The Supabase Storage adapter uses a private bucket |
+| Ops | Untouched. Text references only (D7) |
+| Development | Supabase CLI local stack or plain Postgres in CI. No hosted project until the gate |
 
 ---
 
-## 12. Mumbai cut-over dependency
+## 12. Storage architecture (requirement G)
 
-Current state (from ops REGION-01):
+The domain model stores **storage keys and checksums, never provider URLs or SDK objects.**
+
+```ts
+// packages/storage (interface only; no SDK imports)
+export type StorageKey = string;      // e.g. "org/{org}/project/{project}/dv/{dv}/drawing/{snapshot}.pdf"
+export type Sha256 = `sha256:${string}`;
+
+export interface StoredObjectMetadata {
+  readonly key: StorageKey;
+  readonly contentType: string;
+  readonly byteSize: number;
+  readonly checksum: Sha256;
+  readonly createdAt: string;
+}
+
+export interface FileStorageProvider {
+  readonly providerId: string;        // "supabase" | "s3" | "memory" | "local"
+  upload(input: { key: StorageKey; bytes: Uint8Array; contentType: string; checksum: Sha256 }): Promise<StoredObjectMetadata>;
+  download(key: StorageKey): Promise<{ bytes: Uint8Array; metadata: StoredObjectMetadata }>;
+  delete(key: StorageKey): Promise<void>;
+  signedUrl(key: StorageKey, options: { expiresInSeconds: number; disposition: "inline" | "attachment" }): Promise<{ url: string; expiresAt: string }>;
+  metadata(key: StorageKey): Promise<StoredObjectMetadata | null>;
+  checksum(key: StorageKey): Promise<Sha256>;
+}
+```
+
+| Aspect | Design |
+|---|---|
+| `file_object` table | org_id, provider_id, storage_key, content_type, byte_size, checksum, created_by, created_at. Insert-only. Snapshots reference `file_object.id` |
+| Checksums | The service computes SHA-256 **before** upload. The provider verifies it, and `download` re-verifies it. A mismatch is an error, never a silent overwrite |
+| Delete | Exposed by the interface. The **application service refuses** to delete any object referenced by a snapshot or an issued output; deletion is only for orphans. Audited |
+| Signed URLs | Short-lived. The URL is never persisted; only `storage_key` is stored |
+| Adapters | `SupabaseStorageProvider` (V1), `S3StorageProvider` (any S3-compatible store), `MemoryStorageProvider` and `LocalFsStorageProvider` (tests and development). All live in `apps/api/src/infrastructure/storage` |
+| Future | The same interface serves CAD, render and document files, so changing provider requires no domain or schema change |
+
+---
+
+## 13. Mumbai cut-over dependency
+
+Current state (ops REGION-01):
 
 - Seoul `cxgxmqspvpuizvwfbnjq` is live.
 - Mumbai `hjinbezdjrrqfvceauof` has been rehearsed but not cut over.
-- The final re-sync **truncates and reloads** Mumbai's data.
+- The final re-sync truncates and reloads Mumbai's data.
 
-What can proceed before cut-over (all local or in CI, no hosted Supabase):
+**Allowed before the gate (local or CI only):**
 
-- `@lintel/persistence` mapping and hashing code;
-- migrations written and tested on local or CI Postgres;
-- the API, tested against local Postgres.
+- the EdgeBandStandard refactor;
+- `@lintel/persistence` and `@lintel/storage`;
+- migrations tested on CI Postgres;
+- the NestJS API against local Postgres and the memory or local storage provider.
 
-What stays blocked until cut-over is **verified**:
+**Blocked until the gate:**
 
-- choosing the canonical project (it is **not chosen** in this design);
-- applying any migration to a hosted project;
-- creating the storage bucket;
-- any hosted data.
+- choosing the canonical project;
+- confirming the Pro production project;
+- any hosted migration;
+- any bucket;
+- storing any production snapshot or PDF.
 
-Gate checklist before the canonical decision:
+**Gate checklist:**
 
 1. The REGION-01 console steps are done: OAuth redirect URIs, Google provider, edge-function secrets, Railway variables and the Meta webhook.
-2. The final re-sync is complete and the parity checks pass.
-3. All clients point at Mumbai and cron jobs run there.
-4. A soak period with no rollback to Seoul has passed.
+2. The final re-sync is done and the parity checks pass.
+3. All clients and cron jobs run on Mumbai.
+4. A soak period with no rollback has passed.
 5. The Seoul pause decision is recorded.
-6. The ops migration recovery (`chore/recover-applied-migrations`) is merged, so the canonical project's history is reproducible.
+6. The ops migration recovery (`chore/recover-applied-migrations`) is merged.
+7. **The Supabase Pro production project is confirmed.**
 
-Only then does the owner choose the canonical project, and the first `design_os` migration is applied there.
+Only then is the canonical project chosen and the first `design_os` migration applied to it.
 
 ---
 
-## 13. Rollback strategy
+## 14. Rollback strategy
 
 | Layer | Rollback |
 |---|---|
-| Schema, before real data | `DROP SCHEMA design_os CASCADE` removes everything and leaves the ops schema untouched. This is tested in CI |
-| Schema, after real data | Forward-fix by default. Each migration's rollback script is tested in CI (apply → rollback → re-apply). Before any hosted migration, run `pg_dump --schema=design_os` and store the result off-project |
-| Data | There is no destructive data rollback, because versions and snapshots are immutable. A bad version is "rolled back" by approving a corrected successor (SUPERSEDED keeps history). Audit rows are never removed |
-| API | Versioned deploys; redeploy the previous build. `/api/v1` stays backwards-compatible within v1 |
-| Engine | Snapshots carry `engine_version`, so an engine rollback never alters stored snapshots. New snapshots record the rolled-back version |
-| Feature | Design OS persistence sits behind a flag, so it can be switched off without affecting ops |
-| Region | If ops rolls back to Seoul before the canonical decision, nothing is affected, because Design OS has no hosted footprint until the gate in §12 |
+| Schema, before real data | `DROP SCHEMA design_os CASCADE`. Ops is unaffected. Tested in CI |
+| Schema, after real data | Forward-fix by default. Each rollback script is CI-tested. Take a `pg_dump --schema=design_os` before every hosted migration, alongside Pro daily backups |
+| Data | No destructive rollback. A bad version is corrected by approving a successor. Audit rows are never removed |
+| API | Redeploy the previous build. `/api/v1` stays backwards-compatible |
+| Engine | Snapshots record `engine_version`, so an engine rollback never alters stored snapshots |
+| Storage | Files are immutable, content-addressed by checksum, and switchable by provider without domain changes |
+| Region | Design OS has no hosted footprint before the gate, so an ops rollback to Seoul affects nothing |
 
 ---
 
-## 14. Proposed M5 implementation sequence (after approval)
+## 15. M5 implementation sequence (after this design PR is approved)
 
-| # | Commit | Content |
+| # | Commit | Scope |
 |---|---|---|
-| 0 | `refactor(standards): EdgeBandStandard separate from ConstructionStandard` | Move `edgeRuleSets` out of `ConstructionStandard` into a new `EdgeBandStandard` type. No behaviour change; goldens byte-identical; production still blocked |
-| 1 | `feat(persistence): row ↔ engine mapping, envelope, SHA-256` | `@lintel/persistence` with pure mappers and tests. No database client in the engines |
-| 2 | `feat(db): design_os schema migrations` | Tenancy, reference data, designs, snapshots, approval, audit and RLS. Tested on CI Postgres only |
-| 3 | `feat(api): /api/v1 resources, transitions, snapshot generation` | Tested against local Postgres |
-| 4 | `docs: ADR-0009 persistence and approval` | Records this design once it is approved |
+| 0 | `refactor(standards): EdgeBandStandard separate from ConstructionStandard` | Type and data split; goldens byte-identical; production still blocked |
+| 1 | `feat(persistence): envelope, mappers, SHA-256 content hash` + `feat(storage): FileStorageProvider` | Pure packages with unit tests |
+| 2 | `feat(db): design_os migrations + CI Postgres integration tests` | Local or CI only |
+| 3 | `feat(api): NestJS + Fastify + Zod; transitions; snapshot generation` | Local Postgres and memory storage |
+| 4 | `docs: ADR-0009 persistence, approval and storage` | Records the final state |
 
-There is no hosted Supabase work in any of these commits.
+No hosted Supabase work and no UI work is included.
 
----
+## 16. Open items for confirmation
 
-## 15. Decisions requested
-
-| # | Decision | Recommendation |
-|---|---|---|
-| M5-D1 | Lifecycle for reference data (standards and catalogs) | Use the same DRAFT → IN_REVIEW → APPROVED → LOCKED → SUPERSEDED lifecycle, with LOCKED set automatically when the version is first used by a LOCKED design or an issued snapshot |
-| M5-D2 | PRD `CHANGES_REQUIRED` | Record it as a `REQUEST_CHANGES` decision that returns the version to DRAFT, rather than persisting it as a status. Remove it from `DesignState` in commit 0 |
-| M5-D3 | API framework | Fastify plus a schema validator (lighter), versus NestJS (PRD-named) |
-| M5-D4 | Roles | Use Design OS-specific roles (§9) rather than inheriting ops roles. Ops users are granted Design OS roles explicitly |
-| M5-D5 | EdgeBandStandard split (commit 0) | Approve the no-behaviour-change refactor before the schema is written, so the database never encodes the merged form |
-| M5-D6 | Supabase capacity | Decide the plan or tier before any production snapshot or PDF is stored |
-| M5-D7 | Link to ops projects and leads | Keep informational text references in V1; revisit after cut-over |
-| M5-D8 | Separation of duties | Enforce approver ≠ submitter for every production approval, with no override |
+1. **Default permission grants (§9).** The ADMIN approval of PricingStandard and QuotationPolicy stands in for a finance
+   approver, because no finance role was listed.
+2. **CLIENT sign-in route (§9.1).** The role is defined but inactive until this is approved.

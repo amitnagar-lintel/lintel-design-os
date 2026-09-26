@@ -333,3 +333,20 @@ export function designInputHash(input: {
     pins: input.pins,
   });
 }
+
+/**
+ * Content hash of a DesignVersion: what an approver reviews (`expectedContentHash` in transition APPROVE). It covers
+ * every input (via the input hash: room survey, objects, overrides, pins) plus the version's own draft metadata, so
+ * any draft change — including after REQUEST_CHANGES — produces a new hash and an old review can never approve it.
+ */
+export function designVersionContentHash(input: {
+  readonly inputHash: Sha256;
+  readonly roomRevisionId: string;
+  readonly basedOnVersionId: string | null;
+  readonly versionLabel: string | null;
+  readonly changeReason: string;
+  readonly source: string;
+  readonly authoredEngineVersion: string;
+}): Sha256 {
+  return contentHash({ kind: "DESIGN_VERSION", ...input });
+}

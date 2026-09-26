@@ -47,7 +47,8 @@ export async function startApi(modules: readonly (Type | DynamicModule)[] = [], 
     auth: { issuer: ISSUER, audience: "authenticated", key: { kind: "key", key: (await keyPair()).publicKey } },
     cursorSecret: "test-cursor-secret-0123456789abcdef",
     corsOrigins: [],
-    logger: false,
+    // API_TEST_LOG=1 shows the server-side log (full errors) while debugging a failing test.
+    logger: process.env.API_TEST_LOG === "1",
   };
   const app = await createApp(config, modules);
   const fastify = app.getHttpAdapter().getInstance();

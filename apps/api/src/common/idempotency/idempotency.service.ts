@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import type { Sha256 } from "@lintel/persistence";
 import { contentHash } from "@lintel/persistence";
+import type { RequestScope } from "../auth/context.js";
 import type { Tx } from "../db/tx.js";
 import { ApiProblem } from "../errors/api-problem.js";
 import { IdempotencyKey } from "../http/schemas.js";
@@ -20,6 +21,11 @@ export const IDEMPOTENCY_SCOPES = [
   "manufacturing.release",
   "file.upload",
   "client_contact.invite",
+  "room.create",
+  "room_revision.create",
+  "design.create",
+  "design_version.create",
+  "relationship_override.create",
 ] as const;
 export type IdempotencyScope = (typeof IDEMPOTENCY_SCOPES)[number];
 
@@ -101,5 +107,18 @@ export class IdempotencyService {
     if (store === null && response.resource === undefined) throw new Error("large results need a durable resource reference");
     await tx.query("SELECT design_os.complete_idempotency($1, $2::smallint, $3::jsonb, $4, $5)", [c.record_id, response.status, store, response.resource?.type ?? null, response.resource?.id ?? null]);
     return { replayed: false, response };
+  }
+
+  /** `run` for an HTTP request: the request hash binds method, route, user, org, path and query parameters and body. */
+  forRequest(
+    tx: Tx,
+    scope: RequestScope,
+    idempotencyScope: IdempotencyScope,
+    req: { readonly key: string; readonly method: string; readonly operation: string; readonly params: Readonly<Record<string, string>>; readonly query: Readonly<Record<string, unknown>> },
+    body: unknown,
+    execute: () => Promise<StoredResponse>,
+  ): Promise<{ readonly response: StoredResponse; readonly replayed: boolean }> {
+    const hash = requestHash({ method: req.method, operation: req.operation, userId: scope.principal.userId, orgId: scope.org.orgId, params: req.params, query: req.query, body });
+    return this.run(tx, { scope: idempotencyScope, key: req.key, requestHash: hash }, execute);
   }
 }

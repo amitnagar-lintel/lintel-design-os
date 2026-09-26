@@ -8,6 +8,9 @@
     "start": "node --import tsx src/main.ts"
   },
   "dependencies": {
+    "@lintel/catalog-engine": "workspace:*",
+    "@lintel/design-engine": "workspace:*",
+    "@lintel/hettich-engine": "workspace:*",
     "@lintel/persistence": "workspace:*",
     "@lintel/types": "workspace:*",
     "@nestjs/common": "^12.1.0",

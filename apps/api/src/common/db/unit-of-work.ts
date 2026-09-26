@@ -9,8 +9,8 @@ export interface UnitOfWorkOptions {
   readonly reason?: string;
   readonly isolation?: "READ COMMITTED" | "REPEATABLE READ";
   readonly readOnly?: boolean;
-  /** Re-checked inside the transaction, so a permission revoked since the guard ran is honoured. */
-  readonly action?: PermissionAction;
+  /** Re-checked inside the transaction (any of them), so a permission revoked since the guard ran is honoured. */
+  readonly action?: PermissionAction | readonly PermissionAction[];
 }
 
 /**
@@ -32,9 +32,10 @@ export class UnitOfWork {
         ...(opts.readOnly === undefined ? {} : { readOnly: opts.readOnly }),
       },
       async (tx) => {
+        const actions = opts.action === undefined ? null : typeof opts.action === "string" ? [opts.action] : [...opts.action];
         const check = await tx.one<{ org: string | null; allowed: boolean | null }>(
-          "SELECT design_os.current_org_id()::text AS org, CASE WHEN $1::text IS NULL THEN NULL ELSE design_os.has_permission($1) END AS allowed",
-          [opts.action ?? null],
+          "SELECT design_os.current_org_id()::text AS org, (SELECT bool_or(design_os.has_permission(a)) FROM unnest($1::text[]) AS a) AS allowed",
+          [actions],
         );
         if (check.org !== scope.org.orgId) throw new ApiProblem("ORG_ACCESS_DENIED");
         if (opts.action !== undefined && check.allowed !== true) throw new ApiProblem("PERMISSION_DENIED");

@@ -16,6 +16,7 @@ import {
   constructionStandardFromRows,
   constructionStandardToRows,
   contentHash,
+  designVersionContentHash,
   designObjectFromRow,
   designObjectToRow,
   edgeBandFromRow,
@@ -203,5 +204,23 @@ describe("design data", () => {
     const rows = roomToRows(room, { revisionId: "rr_1", revisionNumber: 1, source: "site survey 2026-09-20", surveyedBy: "user_site", surveyedAt: T0 }, CTX);
     expect(rows.revision.content_hash).toBe(contentHash({ length: 4200, width: 3200, height: 3000, wallThickness: 150 }));
     expect(roomFromRows(rows.room, rows.revision)).toEqual(room);
+  });
+});
+
+describe("designVersionContentHash", () => {
+  const base = {
+    inputHash: contentHash("inputs"),
+    roomRevisionId: "rr_1",
+    basedOnVersionId: null,
+    versionLabel: "v1",
+    changeReason: "first",
+    source: "designer",
+    authoredEngineVersion: "0.1.0",
+  };
+  it("is deterministic and changes with any input or draft metadata", () => {
+    expect(designVersionContentHash(base)).toBe(designVersionContentHash({ ...base }));
+    for (const change of [{ inputHash: contentHash("other") }, { roomRevisionId: "rr_2" }, { basedOnVersionId: "dv_0" }, { versionLabel: null }, { changeReason: "second" }, { source: "x" }, { authoredEngineVersion: "0.2.0" }]) {
+      expect(designVersionContentHash({ ...base, ...change })).not.toBe(designVersionContentHash(base));
+    }
   });
 });

@@ -10,9 +10,11 @@ import type { PermissionAction } from "./permissions.js";
  * @Public(), @RequiresAction(action) or @AuthenticatedOnly(); an undeclared route is refused.
  */
 export const ACCESS = "lintel:access";
-export type AccessDeclaration = { readonly kind: "public" } | { readonly kind: "action"; readonly action: PermissionAction } | { readonly kind: "authenticated" };
+export type AccessDeclaration = { readonly kind: "public" } | { readonly kind: "action"; readonly actions: readonly PermissionAction[] } | { readonly kind: "authenticated" };
 export const Public = () => SetMetadata(ACCESS, { kind: "public" } satisfies AccessDeclaration);
-export const RequiresAction = (action: PermissionAction) => SetMetadata(ACCESS, { kind: "action", action } satisfies AccessDeclaration);
+/** The caller needs the action (or, with several, ANY of them — exactly as the database function or RLS policy behind the route). */
+export const RequiresAction = (action: PermissionAction, ...alternatives: PermissionAction[]) =>
+  SetMetadata(ACCESS, { kind: "action", actions: [action, ...alternatives] } satisfies AccessDeclaration);
 /** Any authenticated member of the selected org; no specific action (e.g. GET /me). */
 export const AuthenticatedOnly = () => SetMetadata(ACCESS, { kind: "authenticated" } satisfies AccessDeclaration);
 

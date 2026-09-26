@@ -106,7 +106,8 @@ describe("Supabase Storage provider", () => {
     const bytes = pdf("corrupt-me");
     const key = sk("corrupt");
     await p.upload({ key, bytes, contentType: "application/pdf", checksum: sha256Of(bytes) });
-    objects.get(key)!.bytes[0] ^= 0xff;
+    const stored = objects.get(key)!.bytes;
+    stored[0] = (stored[0] ?? 0) ^ 0xff;
     const service = new FileService(p, () => Promise.resolve(true));
     await expect(service.retrieve(key, sha256Of(bytes))).rejects.toThrow(ChecksumMismatchError);
     expect(await p.checksum(key)).not.toBe(sha256Of(bytes));
@@ -148,10 +149,10 @@ describe("Supabase Storage provider", () => {
     const bytes = pdf("x");
     const e = await bad.upload({ key: sk("x"), bytes, contentType: "application/pdf", checksum: sha256Of(bytes) }).catch((x: unknown) => x);
     expect(e).toBeInstanceOf(StorageError);
-    expect(String((e as Error).message)).not.toContain("sb_secret");
+    expect((e as Error).message).not.toContain("sb_secret");
     const down = new SupabaseStorageProvider({ url: "http://127.0.0.1:1", bucket: BUCKET, key: KEY });
     const u = await down.download(sk("x")).catch((x: unknown) => x);
-    expect([u instanceof StorageError, String((u as Error).message).includes(KEY)]).toEqual([true, false]);
+    expect([u instanceof StorageError, (u as Error).message.includes(KEY)]).toEqual([true, false]);
     expect(() => new SupabaseStorageProvider({ url, bucket: BUCKET, key: " " })).toThrow(/SUPABASE_STORAGE_KEY/);
   });
 });

@@ -3,10 +3,9 @@ import { BoqGenerationError } from "@lintel/boq-engine";
 import type { DependencyHashes, OutputPurpose, SnapshotProvenance, SnapshotRow, SnapshotSources } from "@lintel/persistence";
 import {
   MappingError, buildSnapshotProvenance, buildSnapshotRecord, buildValidationRun, engineeringDependencyHashes, outputPurposeProblems, provenanceIdentity,
-  recordValidationRunArgs, snapshotFromRow, snapshotToRow, verifySnapshotRecord,
+  recordValidationRunArgs, snapshotToRow,
 } from "@lintel/persistence";
-import { verifyRoomPricing } from "@lintel/pricing-engine";
-import type { RoomBOM, RoomBOQ, RoomPriceSnapshot, ValidationMessage } from "@lintel/types";
+import type { ValidationMessage } from "@lintel/types";
 import { stableStringify } from "@lintel/types";
 import type { PermissionAction } from "../../common/auth/permissions.js";
 import type { Tx } from "../../common/db/tx.js";
@@ -20,6 +19,8 @@ import { roomBoq } from "./engines/boq.js";
 import { roomPricing } from "./engines/pricing.js";
 import { roomQuotation } from "./engines/quotation.js";
 import type { OutputExecutionContext, OutputKind } from "./output-context.js";
+import type { PayloadOf } from "./payloads.js";
+import { StoredPayloadError, parseStoredPayload, storedPayloadProblem } from "./payloads.js";
 
 export const SNAPSHOT_TABLE: Readonly<Record<OutputKind, SnapshotTable>> = { BOM: "bom_snapshot", BOQ: "boq_snapshot", PRICING: "pricing_snapshot", QUOTATION: "quotation_snapshot" };
 /** Output permission matrix (Step 6 plan §14); the snapshot RLS policies enforce the same actions. */
@@ -35,13 +36,17 @@ export const SOURCE_COLUMN: Readonly<Record<keyof SnapshotSources, "bom_snapshot
 };
 const RANK: Readonly<Record<OutputPurpose, number>> = { PRELIMINARY: 0, FOR_REVIEW: 1, FOR_PRODUCTION: 2 };
 
-/** One output used or produced by a request: the stored row and its verified payload. */
-export interface Produced {
-  readonly kind: OutputKind;
+/**
+ * One output used or produced by a request: the stored row and its payload as a VALIDATED domain object
+ * (parseStoredPayload: Zod schema + content hash + engine seal) — the only form in which it reaches another engine.
+ */
+export type Produced = { readonly [K in OutputKind]: {
+  readonly kind: K;
   readonly row: SnapshotRow;
+  readonly payload: PayloadOf[K];
   /** Inserted by this request (false: an existing snapshot was reused or named). */
   readonly created: boolean;
-}
+} }[OutputKind];
 
 export type Outcome =
   | { readonly status: "AVAILABLE"; readonly snapshot: Produced; readonly upstream: readonly Produced[] }
@@ -110,7 +115,7 @@ export class OutputGeneration {
     const up = await this.upstream(kind);
     const lookup = this.provenance(kind, up.sources, PENDING_RUN);
     const existing = await outputsRepository.findByIdentity(this.tx, SNAPSHOT_TABLE[kind], provenanceIdentity({ kind, orgId: this.ctx.orgId, purpose: this.purpose, provenance: lookup }));
-    if (existing !== null) return this.remember(this.verified(kind, existing as unknown as SnapshotRow), false);
+    if (existing !== null) return this.remember(existing as unknown as SnapshotRow, false);
 
     await this.require(GENERATE_ACTION[kind], `creating the missing ${kind} snapshot`);
     const produced = await this.produce(kind, up);
@@ -133,8 +138,9 @@ export class OutputGeneration {
     return this.remember(row, true);
   }
 
+  /** Every stored or new snapshot is validated (schema, content hash, engine seal) before anything consumes it. */
   private remember(row: SnapshotRow, created: boolean): Produced {
-    const p: Produced = { kind: row.kind as OutputKind, row, created };
+    const p = producedFrom(row, created);
     this.done.set(p.kind, p);
     return p;
   }
@@ -198,14 +204,7 @@ export class OutputGeneration {
     if (RANK[row.purpose] < RANK[this.purpose]) {
       throw new ApiProblem("SOURCE_PURPOSE_INSUFFICIENT", `${key} is ${row.purpose}, weaker than ${this.purpose}`, { context: { source: key, sourcePurpose: row.purpose, purpose: this.purpose } });
     }
-    return this.remember(this.verified(kind, row), false);
-  }
-
-  /** A stored snapshot is consumed only after its payload verifies (never re-computed). */
-  private verified(kind: OutputKind, row: SnapshotRow): SnapshotRow {
-    const intact = verifySnapshotRecord(snapshotFromRow(row)) && (kind !== "PRICING" || verifyRoomPricing(row.payload as RoomPriceSnapshot));
-    if (!intact) throw new ApiProblem("PROVENANCE_MISMATCH", `${kind} snapshot ${row.id} does not match its content hash`);
-    return row;
+    return this.remember(row, false);
   }
 
   /* ------------------------------------------------------------ production */
@@ -239,10 +238,10 @@ export class OutputGeneration {
     const { resolved, catalog, createdAt } = this.ctx;
     const validation = resolved.validation.counts;
     const counted = (messages: readonly ValidationMessage[]) => ({ blockerCount: validation.BLOCKER + count(messages, "BLOCKER"), warningCount: validation.WARNING + count(messages, "WARNING") });
-    const payloadOf = (p: Produced | undefined): unknown => {
-      if (p === undefined) throw new ApiProblem("INTERNAL", `missing upstream for ${kind}`);
-      return p.row.payload;
-    };
+    const missing = () => new ApiProblem("INTERNAL", `missing upstream for ${kind}`);
+    const bomOf = () => { if (up.bom?.kind !== "BOM") throw missing(); return up.bom.payload; };
+    const boqOf = () => { if (up.boq?.kind !== "BOQ") throw missing(); return up.boq.payload; };
+    const pricingOf = () => { if (up.pricing?.kind !== "PRICING") throw missing(); return up.pricing.payload; };
     switch (kind) {
       case "BOM": {
         const bom = roomBom(resolved);
@@ -251,7 +250,7 @@ export class OutputGeneration {
       }
       case "BOQ": {
         try {
-          return { payload: roomBoq(resolved, catalog, payloadOf(up.bom) as RoomBOM), ...counted([]), outputComplete: true };
+          return { payload: roomBoq(resolved, catalog, bomOf()), ...counted([]), outputComplete: true };
         } catch (e) {
           if (e instanceof BoqGenerationError) throw new ApiProblem("SOURCE_SNAPSHOT_INCOMPATIBLE", e.message, { context: { source: "bomSnapshotId" } });
           throw e;
@@ -260,7 +259,7 @@ export class OutputGeneration {
       case "PRICING": {
         const pricingStandard = this.ctx.commercial.pricingStandard;
         if (pricingStandard === null) throw new ApiProblem("INTERNAL", "pricing requires a chosen PricingStandard version");
-        const r = roomPricing({ resolved, bom: payloadOf(up.bom) as RoomBOM, boq: payloadOf(up.boq) as RoomBOQ, pricingStandard, createdAt });
+        const r = roomPricing({ resolved, bom: bomOf(), boq: boqOf(), pricingStandard, createdAt });
         if (r.status === "UNAVAILABLE") throw this.unavailable(kind, r.blockers, "boqSnapshotId");
         return { payload: r.snapshot, ...counted(r.messages), outputComplete: true };
       }
@@ -269,7 +268,7 @@ export class OutputGeneration {
         if (quotationPolicy === null) throw new ApiProblem("INTERNAL", "a quotation requires a chosen QuotationPolicy version");
         const revisionNumber = await outputsRepository.nextQuotationRevision(this.tx, this.ctx.version.id);
         const r = roomQuotation({
-          resolved, catalog, boq: payloadOf(up.boq) as RoomBOQ, pricing: payloadOf(up.pricing) as RoomPriceSnapshot, quotationPolicy, revision: String(revisionNumber), createdAt,
+          resolved, catalog, boq: boqOf(), pricing: pricingOf(), quotationPolicy, revision: String(revisionNumber), createdAt,
         });
         if (r.status === "UNAVAILABLE") throw this.unavailable(kind, r.blockers, "pricingSnapshotId");
         return { payload: r.snapshot, ...counted(r.messages), outputComplete: true, revisionNumber };
@@ -309,6 +308,23 @@ export class OutputGeneration {
       this.permitted.set(action, ok);
     }
     if (!ok) throw new ApiProblem("PERMISSION_DENIED", `${what} requires ${action}`, { context: { requiredAction: action } });
+  }
+}
+
+/** A stored row as a Produced output; a payload failing its checks never reaches an engine. */
+export function producedFrom(row: SnapshotRow, created: boolean): Produced {
+  try {
+    switch (row.kind) {
+      case "BOM": return { kind: "BOM", row, created, payload: parseStoredPayload("BOM", row) };
+      case "BOQ": return { kind: "BOQ", row, created, payload: parseStoredPayload("BOQ", row) };
+      case "PRICING": return { kind: "PRICING", row, created, payload: parseStoredPayload("PRICING", row) };
+      case "QUOTATION": return { kind: "QUOTATION", row, created, payload: parseStoredPayload("QUOTATION", row) };
+      case "DRAWING":
+      case "MANUFACTURING_DOCUMENT":
+        throw new ApiProblem("INTERNAL", `${row.kind} snapshots are not generated here`);
+    }
+  } catch (e) {
+    throw e instanceof StoredPayloadError ? storedPayloadProblem(e) : e;
   }
 }
 

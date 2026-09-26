@@ -45,6 +45,7 @@ export const PROBLEM_CODES = {
   PRECONDITION_REQUIRED: { status: 428, title: "A precondition header is required" },
   INTERNAL_DATABASE_ERROR: { status: 500, title: "Internal error" },
   INTERNAL: { status: 500, title: "Internal error" },
+  STORED_OUTPUT_INVALID: { status: 500, title: "A stored output failed its schema or integrity checks" },
   DATABASE_UNAVAILABLE: { status: 503, title: "The service is temporarily unavailable" },
 } as const satisfies Record<string, { readonly status: number; readonly title: string }>;
 

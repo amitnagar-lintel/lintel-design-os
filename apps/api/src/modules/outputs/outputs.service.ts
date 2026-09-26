@@ -3,7 +3,6 @@ import type { EngineProvenance, OutputPurpose, SnapshotRow, SnapshotSources } fr
 import { qualifiesForIssue, qualifiesForRelease } from "@lintel/persistence";
 import { compareRoomTrace } from "@lintel/design-engine";
 import { checkQuotationStaleness } from "@lintel/pricing-engine";
-import type { QuotationSnapshot, RoomTrace } from "@lintel/types";
 import type { RequestScope } from "../../common/auth/context.js";
 import type { Tx } from "../../common/db/tx.js";
 import { UnitOfWork } from "../../common/db/unit-of-work.js";
@@ -24,7 +23,7 @@ import { pinsOf } from "../design-versions/design-content.js";
 import type { OutputEngine, OutputKind } from "./output-context.js";
 import { buildOutputExecutionContext, outputEngines } from "./output-context.js";
 import type { Produced } from "./output-generation.js";
-import { OutputGeneration, READ_ACTION, GENERATE_ACTION, SNAPSHOT_TABLE, SOURCE_COLUMN, SOURCE_KIND, assertPurposeAllowed } from "./output-generation.js";
+import { OutputGeneration, READ_ACTION, GENERATE_ACTION, SNAPSHOT_TABLE, SOURCE_COLUMN, SOURCE_KIND, assertPurposeAllowed, producedFrom } from "./output-generation.js";
 import type { GenerateRequest, Snapshot, SnapshotEnvelope } from "./outputs.schemas.js";
 import { StalenessCalculator } from "./staleness.js";
 
@@ -158,8 +157,8 @@ export class OutputsService {
       const ctx = await buildOutputExecutionContext(tx, {
         orgId: scope.org.orgId, actorId: scope.principal.userId, versionId: row.design_version_id, commercial: { pricingStandardVersionId: null, quotationPolicyVersionId: null }, engines: this.engines,
       });
-      const payload = row.payload as { readonly trace: RoomTrace; readonly roomFingerprint: string };
-      const change = kind === "QUOTATION" ? checkQuotationStaleness(row.payload as QuotationSnapshot, ctx.resolved) : compareRoomTrace(payload.trace, payload.roomFingerprint, ctx.resolved);
+      const stored = producedFrom(row, false);
+      const change = stored.kind === "QUOTATION" ? checkQuotationStaleness(stored.payload, ctx.resolved) : compareRoomTrace(stored.payload.trace, stored.payload.roomFingerprint, ctx.resolved);
       return { ...base, model: { stale: change.stale, reasons: [...change.reasons], changedObjectIds: [...change.changedObjectIds] } };
     });
   }
@@ -209,6 +208,7 @@ export class OutputsService {
       createdBy: row.created_by,
       createdAt: iso(row.created_at),
     };
-    return withPayload ? { ...envelope, payload: row.payload } : envelope;
+    // Responses carry the validated payload only (schema + content hash + engine seal).
+    return withPayload ? { ...envelope, payload: producedFrom(row, false).payload } : envelope;
   }
 }

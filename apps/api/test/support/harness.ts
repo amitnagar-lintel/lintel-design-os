@@ -42,7 +42,8 @@ export interface Api {
   close(): Promise<void>;
 }
 
-export async function startApi(modules: readonly (Type | DynamicModule)[] = [], opts: { readonly poolMax?: number } = {}): Promise<Api> {
+/** `buildRevision` / `engineManifestPath` simulate another deployment (build B, or a build-time manifest of other engine code). */
+export async function startApi(modules: readonly (Type | DynamicModule)[] = [], opts: { readonly poolMax?: number; readonly buildRevision?: string; readonly engineManifestPath?: string } = {}): Promise<Api> {
   const config: ApiConfig = {
     databaseUrl: inject("apiDbUrl"),
     dbPoolMax: opts.poolMax ?? 6,
@@ -52,7 +53,8 @@ export async function startApi(modules: readonly (Type | DynamicModule)[] = [], 
     corsOrigins: [],
     // API_TEST_LOG=1 shows the server-side log (full errors) while debugging a failing test.
     logger: process.env.API_TEST_LOG === "1",
-    buildRevision: TEST_BUILD,
+    buildRevision: opts.buildRevision ?? TEST_BUILD,
+    ...(opts.engineManifestPath === undefined ? {} : { engineManifestPath: opts.engineManifestPath }),
   };
   const app = await createApp(config, modules);
   const fastify = app.getHttpAdapter().getInstance();

@@ -1,13 +1,13 @@
-# M5 Step 4: API Foundation (architecture plan, for review)
+# M5 Step 4: API Foundation (architecture plan)
 
-Status: **REVIEW ONLY.** No API code, no migrations and no hosted Supabase work are part of this document.
+Status: **APPROVED with decisions OD-1 to OD-6 and the tenant-context correction (§2.1).** This revision records those decisions and the final implementation sequence (§13). It is still a plan: no API code, no migrations and no hosted Supabase work are part of this document.
 
 Inputs:
 
 - `M5-TECHNICAL-DESIGN.md`: §7 tenancy, §8 API structure, §9 authorization, §12 storage, §13 gate.
 - Migrations 0001–0011, merged in PR #6. The database contract below is the one those migrations enforce.
 
-Where this plan needs something the schema does not yet provide, it says so and lists it as an open decision in §12. It does not change the schema.
+Where this plan needs something the schema does not yet provide, §12 records the approved decision and §13 the migration that delivers it. Migrations 0001–0011 are never edited; every change is a new forward migration with a tested rollback.
 
 ---
 
@@ -35,12 +35,14 @@ apps/api/src/
     http/standard-schema.pipe.ts        Zod via Standard Schema → 400 problem on failure
     http/problem.filter.ts              every error → RFC 9457 problem+json (§5)
     http/etag.ts                        ETag / If-Match helpers (§4)
-    http/idempotency.interceptor.ts     Idempotency-Key handling (§4)
+    http/idempotency.ts                 Idempotency-Key handling inside the unit of work (§4.3)
+    http/pagination.ts                  keyset cursor encode/decode (§4.5)
     auth/jwt.guard.ts                   verifies the Supabase JWT → Principal { userId }
+    auth/org-context.ts                 membership verification → authorized org context (§2.1)
     auth/request-context.ts             per-request context: principal, org, identity kind, role, permissions, requestId
     auth/permission.guard.ts            @RequiresAction('design_version.author') metadata → 403 before any domain query
     db/unit-of-work.ts                  one transaction per request; sets claims, request id and reason (§2.2)
-    db/pg-error.translator.ts           SQLSTATE and database message → problem code (§5.3)
+    db/pg-error.translator.ts           SQLSTATE (+ constraint name for built-in errors) → problem code (§5.3); never message text
   modules/<module>/
     <module>.controller.ts              HTTP only: route, pipes, guards, call the service, map to the response DTO
     <module>.schemas.ts                 Zod request/response schemas (from @lintel/types shapes)
@@ -75,48 +77,61 @@ controller ──► service ──► engines (@lintel/*-engine, pure)
 
 ## 2. Authentication and authorization
 
-### 2.1 Establishing identity per request
+### 2.1 Establishing identity and the authorized org context
+
+**The authenticated identity is the authority. `X-Org` is only a selector, never proof of access.** The API never sets an org context it has not first verified against the identity's ACTIVE memberships.
 
 ```text
-1. JwtGuard            Authorization: Bearer <Supabase access token>
-                       verify signature (JWKS or HS256 secret), iss, aud = "authenticated", exp; sub = user id
+1. Authenticate        JwtGuard: Authorization: Bearer <Supabase access token>
+                       verify signature (JWKS or HS256 secret), iss, aud = "authenticated", exp → userId = sub
                        failure → 401 AUTH_REQUIRED (no database access at all)
-2. Org selection       X-Org: <uuid> header, optional when the user has exactly one ACTIVE membership
-3. Context load        one read inside the request transaction, after claims are set (2.2):
-                       SELECT design_os.current_org_id(), design_os.is_internal(),
-                              app_user.identity_kind, org_membership.role, array_agg(role_permission.action)
-                       current_org_id() returns NULL unless the membership is ACTIVE → 403 ORG_MEMBERSHIP_REQUIRED
-4. PermissionGuard     route action ∈ context.permissions, else 403 PERMISSION_DENIED
-                       This runs BEFORE any domain query (the context load is the only prior read)
-5. Service scope check project scope via can_access_project(project_id) → otherwise 404 NOT_FOUND
-                       (existence of other tenants' or unassigned projects is never revealed)
-6. Service state check lifecycle state, D8, If-Match, pins (§4, §8)
-7. Database            RLS re-checks org, permission and project scope on every statement (final boundary)
+2. Verify membership   inside the request transaction, claims = {"sub": userId} only (no org yet):
+                       SELECT * FROM design_os.current_memberships()     -- 0013, SECURITY DEFINER, own rows only
+                       → ACTIVE memberships of this identity (org_id, role, identity_kind), ACTIVE user only
+3. Select org          X-Org present   → it must be one of those org ids
+                       X-Org absent    → allowed only when exactly one membership exists
+                       no membership / X-Org not a membership → 403 ORG_ACCESS_DENIED
+                       several memberships and no X-Org        → 400 ORG_SELECTION_REQUIRED
+                       The response is identical whether or not the org or any resource exists.
+4. Establish context   claims = {"sub": userId, "org_id": <verified org>} (set_config, transaction-local)
+                       SELECT design_os.current_org_id() must equal the verified org (defence in depth;
+                       a mismatch — e.g. membership revoked mid-request — is 403 ORG_ACCESS_DENIED)
+                       load identity_kind, role and permissions for that org into the request context
+5. Authorize           PermissionGuard: route action ∈ context.permissions, else 403 PERMISSION_DENIED.
+                       Runs BEFORE any domain query (steps 2–4 read only the caller's own membership).
+6. Scope               service: can_access_project(project_id) → otherwise 404 NOT_FOUND
+                       (other tenants' and unassigned projects are indistinguishable from missing ones)
+7. State               service: lifecycle state, LOCKED, D8, If-Match, pins (§4, §8)
+8. Execute             repositories / SECURITY DEFINER functions under the verified org context
+9. RLS                 re-checks org, permission and project scope on every statement (final boundary)
 ```
 
+- `current_memberships()` is the one new helper this step needs, because `org_membership` RLS reads only the current org's rows, so the API cannot list an identity's memberships without first choosing an org. It returns only the caller's own ACTIVE memberships. It is delivered by migration 0013 (§13) and is tested against another user's memberships, suspended memberships and suspended users.
 - **The client never supplies an org, role, permission or user id in the body.** Any such field is rejected by the Zod schema (`.strict()`).
 - **Identity kind is fixed per route family.**
   - `/api/v1/portal/**` accepts only `identity_kind = CLIENT`.
   - Every other route requires `INTERNAL`.
   - A mismatch returns 403 `IDENTITY_KIND_MISMATCH`. This matches D10: a CLIENT holds only the CLIENT role, enforced by the `guard_membership_identity` trigger.
-- **No cross-request caching of the context.** Revoking a membership, client contact or project member takes effect on the next request (D10).
-- **Client first sign-in linking.** `client_contact.user_id` is set on the first successful OTP sign-in by `POST /portal/session/link`. That endpoint only links an ACTIVE, invited contact whose email equals the verified JWT email. Open decision OD-5 covers whether this needs a SECURITY DEFINER function.
+- **No cross-request caching of memberships or permissions.** Revoking a membership, client contact or project member takes effect on the next request (D10).
+- **Client first sign-in** uses the invitation model in §2.4 (OD-5, designed now, implemented with the client portal).
 
 ### 2.2 The request transaction (unit of work)
 
-Every request, including reads, runs in exactly one transaction on a pooled `design_os_api` connection (compatible with the Supavisor transaction pooler):
+Every request, including reads, runs in exactly one transaction on a pooled connection (compatible with the Supavisor transaction pooler):
 
 ```sql
 BEGIN;  -- READ COMMITTED; snapshot/generation endpoints use REPEATABLE READ (§6)
-SET LOCAL ROLE design_os_api;                              -- RLS-subject role; never the owner
-SELECT set_config('request.jwt.claims', $claims, true);   -- {"sub": userId, "org_id": X-Org}; transaction-local
-SELECT set_config('design_os.request_id', $requestId, true);  -- audit_log.request_id
-SELECT set_config('design_os.reason', $reason, true);      -- only when the request carries a reason
-... context load, guards, repositories, SECURITY DEFINER calls ...
-COMMIT;  -- or ROLLBACK on any error; idempotency records are written in the same transaction (§4.3)
+SET LOCAL ROLE design_os_api;                                   -- RLS-subject role; never the owner
+SELECT set_config('request.jwt.claims', '{"sub":…}', true);      -- step 2: identity only
+SELECT * FROM design_os.current_memberships();                  -- steps 2–3: verify membership
+SELECT set_config('request.jwt.claims', '{"sub":…,"org_id":…}', true);  -- step 4: verified org only
+SELECT set_config('design_os.request_id', $requestId, true);    -- audit_log.request_id
+SELECT set_config('design_os.reason', $reason, true);           -- only when the request carries a reason
+... idempotency claim (§4.3), guards, repositories, SECURITY DEFINER calls ...
+COMMIT;  -- or ROLLBACK on any error; the idempotency record commits or rolls back with the effect
 ```
 
-- `request.jwt.claims` is the only way RLS learns who is acting. It is built from the verified JWT and the validated `X-Org`, never from the request body.
+- `request.jwt.claims` is the only way RLS learns who is acting. It is built from the verified JWT and the **membership-verified** org, never from the raw header or the request body.
 - `true` (transaction-local) guarantees that nothing leaks to the next pooled user.
 - The request id comes from `X-Request-Id` when it is a valid UUID, otherwise it is generated. It is echoed in the response and in the problem body.
 
@@ -148,6 +163,21 @@ The API uses the **same 46 action strings** seeded in 0002. There is no second p
 
 **The API check is necessary but never sufficient.** A test in §10.3 disables the API guard in a test harness and shows that RLS alone still refuses the same operations.
 
+### 2.4 Client invitation model (OD-5: designed now, implemented with the client portal)
+
+The client portal is **not switched on in Step 4**. No invitation table, function or endpoint is built until the portal step, and gate item 8 still applies. The design is fixed now so the portal step does not reopen it.
+
+| Requirement | Design |
+|---|---|
+| One-time token | 32 bytes from a CSPRNG, base64url-encoded. It is delivered only inside the invitation link sent to the contact's email |
+| Store only a hash | `client_invitation.token_hash = sha256(token)`. SHA-256 is sufficient because the token is 256-bit random, not a password. The raw token is never stored, logged, audited or returned by any API |
+| Short expiry | `expires_at = created_at + 24 h` (configurable, capped at 72 h). A re-invite revokes the previous open invitation and issues a new one |
+| Binding | the row binds `org_id`, `client_id`, `client_contact_id` (status INVITED, no `user_id` yet), `project_id`, the invited email and `created_by`, the staff member holding `client.write` and `project_members.assign` (composite tenant FKs). Nothing grants access before consumption: `project_member.user_id` is NOT NULL, so no project membership can exist until the client identity exists |
+| Atomic consumption | a SECURITY DEFINER `consume_client_invitation(p_token_hash)` runs one `UPDATE … SET consumed_at = now(), consumed_by = current_user_id() WHERE token_hash = $1 AND consumed_at IS NULL AND revoked_at IS NULL AND expires_at > now() RETURNING …`. In the same transaction it checks that the verified JWT email equals the invited email and the identity is CLIENT. It then links `client_contact.user_id`, sets the contact ACTIVE, creates the CLIENT `org_membership` and inserts the bound `project_member`, with `granted_by` set to the inviting staff member. The existing identity and project-member triggers still run. Any failure rolls back the whole consumption |
+| Replay / expiry | a consumed, revoked, expired or unknown token all return the same `410 INVITATION_INVALID`, so the response is not an oracle for which case applied. Consumption is rate-limited per IP and per identity |
+| No raw tokens in logs | the token travels in the request body (`POST /portal/invitations/accept { token }`), never in a URL the API logs. The Fastify logger redacts `token`, `authorization` and cookie fields. Audit rows contain `token_hash` only |
+| Supabase Auth | sign-up stays disabled on the client route. How the auth user is provisioned for the first OTP sign-in (pre-created at invite through the server-side Admin API, or created on acceptance) is decided at the portal step against the hosted configuration (gate item 8) |
+
 ---
 
 ## 3. Modules (Design OS V1 only)
@@ -173,19 +203,36 @@ The API uses the **same 46 action strings** seeded in 0002. There is no second p
 
 ## 4. Versioning and concurrency
 
-### 4.1 ETag / If-Match
+### 4.1 ETag / If-Match (OD-3)
 
 | Resource class | ETag value | Source |
 |---|---|---|
 | Version rows (all 21 registry subjects incl. `design_version`) | `W/"<id>:<row_version>"` | `row_version` is bumped by `guard_version_row` on every UPDATE, including lifecycle changes and, for design versions, `input_revision` bumps caused by object/override edits |
-| Children of a design version (objects, overrides) | the **parent design version** ETag | any child change bumps the parent's `input_revision` → `row_version`. One token guards the whole draft |
-| Mutable non-versioned rows (`client`, `client_contact`, `project`, `project_member`, `org_membership`, `design`) | `W/"<sha256 of the canonical row>"` | computed by `@lintel/persistence` hashing on read; compared under `SELECT … FOR UPDATE` before the update. No schema change needed (OD-3 offers a `row_version` column instead) |
+| **DesignVersion and its children** (objects, overrides, pins) | the **design version** ETag | Any child change bumps the parent's `input_revision` and therefore its `row_version`. This whole-draft token stays the only concurrency authority for a design version. Child rows have no ETag of their own |
+| Mutable non-versioned rows: `client`, `client_contact`, `project`, `project_member`, `org_membership`, `design` | `"sha256:<hex>"` over the record's **canonical representation** | see below |
 | Insert-only rows (snapshots, room revisions, runs, issues, files, audit) | strong `"<content_hash>"` | never change, so no If-Match needed |
+
+**Canonical representation for hash-based ETags (V1):**
+
+- A per-table, explicit, ordered **allow-list of mutable columns** plus `id` and `org_id`. It never includes `SELECT *`, so adding a column never silently changes existing ETags.
+- Values are normalised before hashing:
+  - timestamps → UTC RFC 3339 with microseconds;
+  - uuids → lowercase;
+  - `bigint`/`numeric` → decimal strings;
+  - `NULL` → JSON `null`;
+  - text is not trimmed.
+- It is serialised with `stableStringify` from `@lintel/types` (lexicographically sorted keys, no whitespace) and hashed with `contentHash` from `@lintel/persistence`. Key order in the JavaScript object or the `pg` row is therefore irrelevant.
+- Golden tests pin the canonical string and hash for one fixed row per table, so any change to the representation is visible in review.
+
+**Rules:**
 
 - **Every write to an existing mutable resource requires `If-Match`.**
   - A missing header returns 428 `PRECONDITION_REQUIRED`.
-  - A mismatch returns 412 `STALE_VERSION`. The problem body includes the current ETag and `row_version`, so a client can re-read and retry deliberately.
-- **The service does not trust the read-then-write gap.** The update statement itself carries the guard: `UPDATE … WHERE id = $1 AND row_version = $2`. Zero rows updated → 412.
+  - A mismatch returns **412 `STALE_VERSION`**. The problem body includes the current ETag.
+- **The read-then-write gap is closed in the database.**
+  - Version rows: `UPDATE … WHERE id = $1 AND row_version = $2`; zero rows updated → 412.
+  - Hash-ETag rows: `SELECT … FOR UPDATE`, recompute the canonical hash, compare, then update in the same transaction.
+- **LOCKED (and any non-DRAFT) records reject mutation regardless of ETag.** The service checks lifecycle state **before** comparing the ETag, so a correct ETag on a LOCKED record still returns 409 `RECORD_LOCKED`, and a non-DRAFT one returns 409 `RECORD_NOT_EDITABLE`. The database triggers raise the same codes (§5.3) even if the service check were bypassed.
 - Creates return `201` with `Location` and `ETag`.
 
 ### 4.2 Content hashes
@@ -194,42 +241,72 @@ The API uses the **same 46 action strings** seeded in 0002. There is no second p
 - The database stores it; `transition(APPROVE)` requires `expectedContentHash` to equal it. The approver must send the hash of **what they reviewed**; a stale review → 409 `CONTENT_HASH_MISMATCH`.
 - For design versions, `input_hash` is recomputed with `designInputHash` after every object/override/pin change in the same transaction. The database independently bumps `input_revision`, so a run for an out-of-date hash or revision is never accepted (`validation-run.test.ts`).
 
-### 4.3 Idempotency keys
+### 4.3 Idempotency (OD-2)
 
-- **Required:** `Idempotency-Key` (UUID) on:
-  - `POST …/transitions`;
-  - `POST …/validation-runs`;
-  - every snapshot generation;
-  - issues;
-  - file upload;
-  - client-contact invite.
-- **Optional** on other creates. Missing where required → 428.
-- **Record key.** The key is scoped per `(org_id, actor, key)`. The stored record holds the request fingerprint (method + route template + SHA-256 of the canonical body) and the response (status + body + resource id).
-- **Behaviour:**
+**Table `design_os.idempotency_record`** (migration 0013):
 
-  | Situation | Response |
-  |---|---|
-  | Same key, same fingerprint, completed | Replays the stored response with `Idempotent-Replayed: true` |
-  | Same key, different fingerprint | 422 `IDEMPOTENCY_KEY_REUSED` |
-  | Same key still in flight | 409 `IDEMPOTENCY_IN_PROGRESS`; the unique insert blocks, and the loser gets this response |
+| Column | Type / rule |
+|---|---|
+| `id` | uuid PK |
+| `org_id` | uuid NOT NULL, FK organization |
+| `idempotency_key` | text NOT NULL, 16–128 visible ASCII characters (clients send a UUID) |
+| `scope` | text NOT NULL, the operation id from a fixed allow-list, e.g. `transition`, `validation_run.record`, `snapshot.generate.bom`, `snapshot.generate.boq`, `snapshot.generate.pricing`, `snapshot.generate.quotation`, `snapshot.generate.drawing`, `snapshot.generate.manufacturing_document`, `issue.quotation`, `issue.drawing`, `file.upload`, `client_contact.invite` |
+| `actor_user_id` | uuid NOT NULL, FK app_user |
+| `request_hash` | text NOT NULL, `sha256:` over the canonical request: actor, method, route template, path params, canonical body (`stableStringify`), and for uploads the declared file checksum |
+| `status` | text NOT NULL CHECK IN (`IN_PROGRESS`, `COMPLETED`) |
+| `response_status` | smallint NULL until completed |
+| `response_body` | jsonb NULL, the stored response for small responses (≤ 64 KiB; same no-TEST_FIXTURE CHECK as snapshots) |
+| `resource_type`, `resource_id` | text / uuid NULL, the **durable response reference**. Used for replay when the body is not stored, e.g. a large snapshot response is re-read from the immutable snapshot |
+| `created_at`, `completed_at`, `expires_at` | timestamptz; `expires_at = created_at + 24 h` |
+| Uniqueness | **`UNIQUE (org_id, scope, idempotency_key)`** |
+| Checks | `COMPLETED` ⇒ `response_status` set and (`response_body` or `resource_id`) present |
+| Access | RLS: `org_id = current_org_id() AND actor_user_id = current_user_id()` for SELECT/INSERT/UPDATE. Column UPDATE grant only on `status`, `response_*`, `resource_*`, `completed_at`. No DELETE grant. Excluded from the audit chain via `unaudited_tables()` because the effect itself is audited |
 
-- **The record is written in the same transaction as the effect**, so a rollback never leaves a "done" key without its effect.
-- **This needs a table** (`design_os.idempotency_record`). That is a migration, which is **not** created here; see OD-2.
-- **Natural idempotency still applies** even without the table:
-  - `transition` fails on a repeated action (the state has moved on);
-  - `check_issue` plus the `snapshot_id` primary key on the issue tables prevent double issues.
+**Behaviour.** The record is claimed in the same transaction as the effect, before the effect runs:
 
-  The table makes retries return the original success instead of a confusing 409.
+1. **First request executes once.** `INSERT … (status IN_PROGRESS)`, then the operation, then `UPDATE … SET status = COMPLETED, response_* …`, then COMMIT. Record and effect commit together or roll back together.
+2. **Retry with the same key and identical request.** The insert conflicts on the unique key. The API reads the committed record and **replays the original response** (status, body, `ETag`, `Location`) with `Idempotent-Replayed: true`. The operation does not run again.
+3. **Same key, different `request_hash`** → **`409 IDEMPOTENCY_CONFLICT`**. This includes a different actor, route or body.
+4. **Concurrent duplicate.** The second insert waits on the unique index until the first transaction ends:
+   - first committed → replay (rule 2);
+   - first rolled back → the second executes as the first;
+   - `lock_timeout` (5 s) exceeded → `409 IDEMPOTENCY_IN_PROGRESS` (retryable).
+
+   **The operation can never execute twice.**
+5. **Failures are not stored.** A 4xx/5xx rolls back the claim with the effect, so the same key may retry. This is safe because nothing executed.
+6. **Expired records.** An expired record (`expires_at < now()`) is replaced atomically by the new claim. There is no sweeper, because background jobs are deferred.
+
+**Where it is required** (missing header → 428 `PRECONDITION_REQUIRED`):
+
+- transitions;
+- validation runs;
+- every output generation;
+- quotation/drawing issue and manufacturing release (§8);
+- file upload;
+- client-contact invite.
+
+It is optional on other creates.
+
+**File uploads.** Storage bytes are written before the database commit, under a content-addressed key. A replay after commit returns the stored `file_object`. A retry after a rollback re-uploads identical bytes to the same key, which is a no-op.
 
 ### 4.4 LOCKED, SUPERSEDED and other non-DRAFT records
 
 | Attempt | Response |
 |---|---|
-| Edit content of an IN_REVIEW / APPROVED / LOCKED / SUPERSEDED version | 409 `RECORD_NOT_EDITABLE` (the service checks first; `guard_version_row` / `guard_draft_content` raise the same class in the database) |
-| Edit anything that a LOCKED version pins (catalog membership, recipe, dependency content) | 409 `RECORD_LOCKED` |
-| Change a design version's pins or objects after DRAFT | 409 `RECORD_NOT_EDITABLE` |
-| Delete a version, snapshot, run, issue, decision or audit row | no route exists; the database also forbids it |
+| Edit content of an IN_REVIEW / APPROVED / SUPERSEDED version | 409 `RECORD_NOT_EDITABLE`, whatever the ETag |
+| Edit content of a LOCKED version, or anything a LOCKED version freezes (catalog membership, recipe, dependency content) | 409 `RECORD_LOCKED`, whatever the ETag |
+| Change a design version's pins or objects after DRAFT | 409 `RECORD_NOT_EDITABLE` / `RECORD_LOCKED` |
+| Delete a version, snapshot, run, issue, decision or audit row | no route exists; the database also forbids it (`RECORD_IMMUTABLE`) |
 | Change a LOCKED design | create a new design version (`POST /designs/{id}/versions` with `basedOn`), which starts in DRAFT |
+
+### 4.5 Pagination (OD-6)
+
+- **Cursor-based only.** Primary collections never use offset pagination.
+- `limit`: default 50, **maximum 200**; a larger value → 400 `VALIDATION_FAILED`.
+- **Deterministic, unique order:** `ORDER BY created_at DESC, id DESC`, with keyset predicate `(created_at, id) < ($1, $2)`. Collections ordered by something else append `id` as the final tiebreaker. An index backs each ordering.
+- The cursor is opaque: base64url of `{ v: 1, createdAt, id, sort }`, HMAC-signed with a server key so it cannot be forged into another ordering. Invalid, tampered or foreign cursors → 400 `INVALID_CURSOR`.
+- A cursor carries no authorization. Every page is re-filtered by RLS under the current org context, so a cursor from another org or user reveals nothing.
+- Response: `{ items, nextCursor | null }`. There is no total count on primary collections.
 
 ---
 
@@ -257,45 +334,109 @@ The API uses the **same 46 action strings** seeded in 0002. There is no second p
 
 ### 5.2 Codes
 
-| Code | HTTP | Raised by |
-|---|---|---|
-| `VALIDATION_FAILED` | 400 | Zod schema (Standard Schema pipe); `errors[]` lists fields |
-| `AUTH_REQUIRED` | 401 | missing/invalid/expired JWT |
-| `ORG_MEMBERSHIP_REQUIRED` | 403 | `current_org_id()` NULL (no ACTIVE membership in `X-Org`) |
-| `IDENTITY_KIND_MISMATCH` | 403 | CLIENT on an internal route or INTERNAL on a portal route |
-| `PERMISSION_DENIED` | 403 | guard (action missing) or database `insufficient_privilege` / RLS WITH CHECK failure |
-| `SEPARATION_OF_DUTIES` | 403 | D8: approver or reviewer is the submitter |
-| `NOT_FOUND` | 404 | missing, **or in another tenant, or outside the caller's project scope** (tenant isolation is deliberately indistinguishable from absence) |
-| `TENANT_ISOLATION` | 404 on the wire, logged as a security event | a body references an id belonging to another org (composite-FK violation or definer "not found in this organization"). The client sees `NOT_FOUND`; the log line carries `TENANT_ISOLATION` |
-| `LIFECYCLE_TRANSITION_REJECTED` | 409 | action not allowed from the current status (e.g. APPROVE from DRAFT), unknown action, missing reason, SUPERSEDE requested directly, newer version already effective |
-| `STALE_VERSION` | 412 | If-Match mismatch / zero-row guarded update |
-| `PRECONDITION_REQUIRED` | 428 | missing `If-Match` or `Idempotency-Key` where required |
-| `CONTENT_HASH_MISMATCH` | 409 | `expectedContentHash` ≠ stored content hash on APPROVE |
-| `RECORD_NOT_EDITABLE` | 409 | content write on a non-DRAFT version |
-| `RECORD_LOCKED` | 409 | write touching a LOCKED record or its frozen dependencies; issue flows on non-LOCKED designs |
-| `DEPENDENCY_NOT_APPROVED` | 409 | `approval_problems` reports an unapproved/unlocked pinned or member dependency; `lock_cascade` cannot lock a dependency |
-| `APPROVAL_PRECONDITIONS_FAILED` | 409 | other `approval_problems` items (domain completeness: empty rule set, NULL rates, unverified Hettich data…); `context.problems[]` lists them |
-| `VALIDATION_RUN_REQUIRED` | 409 | SUBMIT with no run for the current `input_hash` + `input_revision` |
-| `VALIDATION_BLOCKERS` | 409 | approval or FOR_PRODUCTION generation with BLOCKERs > 0; `context.blockerCount` and the run id |
-| `VALIDATION_INPUT_MISMATCH` | 409 | recording a run whose `input_hash` differs from the design version's current inputs |
-| `PROVENANCE_MISMATCH` | 409 | `check_snapshot_provenance` rejects the snapshot (pins ≠ design version pins, status or content hash differ, TEST_FIXTURE present) |
-| `ISSUE_PRECONDITIONS_FAILED` | 409 | `check_issue`: design not LOCKED, BLOCKERs, snapshot not of locked content |
-| `CHECKSUM_MISMATCH` | 422 | uploaded bytes do not match the declared SHA-256 |
-| `FILE_REFERENCED` | 409 | delete of a file referenced by a snapshot or issue |
-| `IDEMPOTENCY_KEY_REUSED` | 422 | same key, different request fingerprint |
-| `IDEMPOTENCY_IN_PROGRESS` | 409 | same key still executing |
-| `INTERNAL` | 500 | anything unmapped (logged with full detail; never leaked) |
+The `SQLSTATE` column lists the database code (§5.3) where the database can raise the same condition. A dash means the API alone raises it.
 
-### 5.3 Mapping database errors
+| Code | HTTP | SQLSTATE | Raised by |
+|---|---|---|---|
+| `VALIDATION_FAILED` | 400 | LD020, 23514, 23502 | Zod schema (Standard Schema pipe), `errors[]` lists fields; missing reason; unknown action/subject; CHECK / NOT NULL constraints |
+| `INVALID_CURSOR` | 400 | — | malformed, tampered or foreign pagination cursor |
+| `ORG_SELECTION_REQUIRED` | 400 | — | several ACTIVE memberships and no `X-Org` |
+| `AUTH_REQUIRED` | 401 | — | missing/invalid/expired JWT |
+| `ORG_ACCESS_DENIED` | 403 | LD002 | the identity has no ACTIVE membership in the requested org, or the membership was revoked mid-request. The same response whether or not the org exists |
+| `IDENTITY_KIND_MISMATCH` | 403 | LD003 | CLIENT on an internal route or definer function; INTERNAL on a portal route |
+| `PERMISSION_DENIED` | 403 | LD001, 42501 | guard (action missing), definer permission check, RLS / grant refusal |
+| `SEPARATION_OF_DUTIES` | 403 | LD004 | D8: approver or reviewer is the submitter |
+| `NOT_FOUND` | 404 | LD005 | missing, **or in another tenant, or outside the caller's project scope**. Tenant isolation is deliberately indistinguishable from absence; when the service can tell (definer "not found in this organization"), the log line carries `TENANT_ISOLATION` as a security event, never the response |
+| `LIFECYCLE_TRANSITION_REJECTED` | 409 | LD006 | action not allowed from the current status, SUPERSEDE requested directly, newer version already effective, LOCK of a dependency in an unlockable state |
+| `CONTENT_HASH_MISMATCH` | 409 | LD007 | `expectedContentHash` ≠ stored content hash on APPROVE |
+| `DEPENDENCY_NOT_APPROVED` | 409 | LD008 | approval refused because a pinned / member / recipe dependency is not APPROVED or LOCKED; `context.problems[]` |
+| `APPROVAL_PRECONDITIONS_FAILED` | 409 | LD009 | domain completeness (empty rule set, NULL rates, unverified Hettich data, empty manufacturing registry…); `context.problems[]` |
+| `VALIDATION_RUN_REQUIRED` | 409 | LD010 | SUBMIT with no run for the current `input_hash` + `input_revision` |
+| `VALIDATION_BLOCKERS` | 409 | LD011 | approval, FOR_PRODUCTION generation, issue or release with BLOCKERs > 0; `context.blockerCount` |
+| `VALIDATION_INPUT_MISMATCH` | 409 | LD012 | recording a run whose `input_hash` differs from the current inputs, or a run for a version past review |
+| `RECORD_NOT_EDITABLE` | 409 | LD013 | content write on an IN_REVIEW / APPROVED / SUPERSEDED version, whatever the ETag |
+| `RECORD_LOCKED` | 409 | LD014 | write touching a LOCKED record or what it freezes, whatever the ETag |
+| `RECORD_IMMUTABLE` | 409 | LD015 | update/delete of an insert-only record or deletion of a version |
+| `PROVENANCE_MISMATCH` | 409 | LD016 | `check_snapshot_provenance` rejects the snapshot; `context.problems[]` |
+| `ISSUE_PRECONDITIONS_FAILED` | 409 | LD017 | `check_issue`: design not LOCKED, BLOCKERs, snapshot not of the locked content; release guards (§8) |
+| `MEMBERSHIP_RULE_VIOLATION` | 409 | LD018 | role ↔ identity-kind rules, contact ↔ CLIENT identity, project member ↔ client contact |
+| `INVALID_REFERENCE` | 422 | LD019, 23503 | referenced row missing or in another org (composite tenant FK), recipe/room-revision/product-catalog membership rules, rows moved between versions |
+| `DUPLICATE_RESOURCE` | 409 | 23505 | unique business key already used (e.g. entity code) |
+| `STALE_VERSION` | 412 | — | If-Match mismatch / zero-row guarded update |
+| `PRECONDITION_REQUIRED` | 428 | — | missing `If-Match` or `Idempotency-Key` where required |
+| `IDEMPOTENCY_CONFLICT` | 409 | — | same `(org, scope, key)` with a different request hash |
+| `IDEMPOTENCY_IN_PROGRESS` | 409 | 55P03 (while claiming) | the same key is still executing past `lock_timeout`; retryable |
+| `CONCURRENT_MODIFICATION` | 409 | 40001, 40P01, 55P03 | serialization failure / deadlock / lock timeout; retryable with the same Idempotency-Key |
+| `CHECKSUM_MISMATCH` | 422 | — | uploaded bytes do not match the declared SHA-256 |
+| `FILE_REFERENCED` | 409 | — | delete of a file referenced by a snapshot or issue |
+| `INVITATION_INVALID` | 410 | (portal step) | unknown, expired, revoked or consumed invitation (§2.4); not built in Step 4 |
+| `DATABASE_UNAVAILABLE` | 503 | 08xxx, 57P01–57P03 | connection loss or shutdown; retryable |
+| `INTERNAL_DATABASE_ERROR` | 500 | anything else, incl. LD9xx | unexpected database error. The response has **no** SQL, message, constraint, table or SQLSTATE; the full error is logged under `requestId` |
+| `INTERNAL` | 500 | — | any other unexpected error (never leaked) |
 
-The API pre-checks most conditions so it can emit precise codes, but concurrent requests mean the database may still be the one that refuses. The database raises generic SQLSTATEs with message text (`check_violation`, `insufficient_privilege`, `no_data_found`, `integrity_constraint_violation`, `foreign_key_violation`, `42501` for RLS).
+### 5.3 Database error codes (OD-1)
 
-**Two options:**
+**Production API behaviour never depends on database message text.** Messages stay human-readable for logs and existing tests, but the translator never reads them.
 
-- **A (no schema change).** `pg-error.translator.ts` maps each (SQLSTATE, message prefix) pair to a code. A test scans every `RAISE EXCEPTION` in `database/migrations/*.up.sql` and fails if one has no mapping, so a new database error cannot silently become `INTERNAL`.
-- **B (recommended; needs a migration, OD-1).** A forward migration replaces the functions so that every `RAISE` also carries `HINT = 'DOS:<CODE>'`. The translator then reads the hint first and falls back to A. Messages and behaviour stay unchanged; only a hint is added.
+**Migration 0012 (`error_codes`) delivers:**
 
-Either way, an unmapped database error is `500 INTERNAL`, never a guess.
+1. **A dedicated SQLSTATE class `LD`** ("Lintel Design"). PostgreSQL defines no `L*` class. Every `RAISE EXCEPTION` in a `design_os` function or trigger gets a specific `ERRCODE = 'LDnnn'` in place of today's generic SQLSTATEs (`check_violation`, `insufficient_privilege`, `integrity_constraint_violation`, `foreign_key_violation`, `no_data_found`, `invalid_parameter_value`).
+2. **A registry table `design_os.error_code`** with columns:
+   - `sqlstate` PK, CHECK `^LD[0-9]{3}$`;
+   - `code` UNIQUE;
+   - `http_status`;
+   - `api_facing` boolean;
+   - `description`.
+
+   It is seeded with the rows in §5.2, plus `LD9xx` internal-integrity codes, which are not API-facing and map to `INTERNAL_DATABASE_ERROR`:
+   - TRUNCATE refused;
+   - lifecycle change outside `transition()`;
+   - new version not starting as DRAFT;
+   - identity_kind changed.
+
+   The API's code, HTTP status and SQLSTATE come from this shared registry, so the TypeScript side cannot drift from it. `design_os_api` gets SELECT. The table is registry data, so it is unaudited like `permission`.
+3. **Structured, safe context in `DETAIL`.** Where a code needs context, `DETAIL` carries a JSON object, for example:
+   - LD008/LD009/LD016: `{"problems":[{"code":…,"message":…}]}`;
+   - LD011: `{"blockerCount":…}`;
+   - LD006: `{"status":…}`.
+
+   The API copies only allow-listed keys per code into `problem.context`.
+4. **Coded approval problems.** A new `design_os.approval_problem_items(subject_type, id, org) RETURNS TABLE (code text, message text)`. The existing `approval_problems()` keeps its signature as a wrapper, so existing callers and tests are unchanged. `transition(APPROVE)` raises:
+   - `LD008 DEPENDENCY_NOT_APPROVED` when any item is a dependency problem;
+   - otherwise `LD009 APPROVAL_PRECONDITIONS_FAILED`.
+5. **Split checks where one RAISE covered two meanings:**
+   - "authenticated internal member" → `LD002` (no membership) vs `LD003` (CLIENT identity);
+   - content immutability → `LD013` (non-DRAFT) vs `LD014` (LOCKED), decided by the row's status;
+   - `record_validation_run` "only for DRAFT or IN_REVIEW" → `LD012`.
+6. **Behaviour otherwise unchanged.** The migration uses `CREATE OR REPLACE FUNCTION` with identical logic, and message texts are unchanged. The rollback restores the 0001–0011 definitions verbatim. 0001–0011 are not edited.
+
+**Translator** (`pg-error.translator.ts`):
+
+| Source | Mapping |
+|---|---|
+| `LDnnn` SQLSTATE | registry row → code/status; `api_facing = false` → `INTERNAL_DATABASE_ERROR` |
+| `42501` | `PERMISSION_DENIED` |
+| `23503` with `err.schema = 'design_os'` | `INVALID_REFERENCE` |
+| `23505` with `err.schema = 'design_os'` | `DUPLICATE_RESOURCE`, except the idempotency unique key, which the idempotency layer consumes itself |
+| `23514` / `23502` with `err.schema = 'design_os'` | `VALIDATION_FAILED` |
+| `40001`, `40P01`, `55P03` | `CONCURRENT_MODIFICATION` (or `IDEMPOTENCY_IN_PROGRESS` during the claim) |
+| `08xxx`, `57P01`–`57P03` | `DATABASE_UNAVAILABLE` |
+| anything else | `INTERNAL_DATABASE_ERROR` |
+
+Built-in constraint errors are classified by SQLSTATE, and by the constraint's schema and name (structured `pg` error fields) where an override is needed. They are never classified by message.
+
+**Tests proving the mapping is complete:**
+
+- **Database (PG17).**
+  - Every function in `design_os` (`pg_proc.prosrc`) whose body contains `RAISE EXCEPTION` uses an `ERRCODE` present in `error_code`. A generic SQLSTATE fails the test.
+  - One test per API-facing `LD` code triggers it through a real path and asserts `err.code`.
+  - A coverage assertion fails if any API-facing registry row has no triggering test.
+- **Constraint coverage.** Every `design_os` constraint in `pg_constraint` (FK, UNIQUE, CHECK, NOT NULL) resolves to an API code through the rules above or an explicit override. Every override names an existing constraint.
+- **Registry parity.** The TypeScript code table equals the database `error_code` table (code, SQLSTATE, HTTP status).
+- **Translator unit tests.**
+  - Each rule maps as expected.
+  - An unknown SQLSTATE, an `LD9xx` code, and an error whose message *looks like* a known one but has a generic SQLSTATE all become `INTERNAL_DATABASE_ERROR`.
+  - The serialised problem contains no message, SQL, constraint or table name.
 
 ---
 
@@ -369,6 +510,25 @@ If-Match: W/"<versionId>:<row_version>"
   2. INSERT `quotation_issue` / `drawing_issue`; `check_issue` verifies LOCKED, 0 BLOCKERs and a snapshot of the locked content.
 - **Read-only approval views:** `GET /approval-requests?status=OPEN` and `GET /{collection}/{id}/decisions`.
 
+### 8.1 Manufacturing release (OD-4)
+
+**In V1 there is no manufacturing-release record.** A design version counts as *released to manufacturing* exactly when all of the following hold:
+
+1. the DesignVersion is **LOCKED**;
+2. a **FOR_PRODUCTION** `manufacturing_document_snapshot` of that version exists whose `design_version_content_hash` and `input_hash` equal the locked version's;
+3. that snapshot has **zero BLOCKERs**, and the latest validation run for the current inputs has zero BLOCKERs;
+4. **all production guards are satisfied.** The provenance trigger requires a non-null manufacturing standard pin equal to the design version's pin, and approval requires every pin, including the manufacturing standard version, to be APPROVED or LOCKED.
+
+`POST /design-versions/{id}/manufacturing-release` (`manufacturing.release`, Idempotency-Key, reason) runs in one transaction:
+
+- `transition('design', id, 'LOCK', reason)` if the version is APPROVED; the existing `manufacturing.release` permission is one of the LOCK permissions;
+- then it verifies conditions 2–4;
+- it writes nothing except the LOCK decision and the audit entries.
+
+`GET /design-versions/{id}/manufacturing-release` returns the derived status and the qualifying snapshot id. Failures return `ISSUE_PRECONDITIONS_FAILED` or `VALIDATION_BLOCKERS`.
+
+**Consequence in V1:** the manufacturing variable registry is empty, so no ManufacturingStandard version can be approved (`completeness.test.ts`). No design version can therefore pin an approved manufacturing standard, and **no manufacturing release is possible until ManufacturingStandard is production-ready.** This is intended. A test asserts the release endpoint refuses, and a formal release entity arrives with the production workflow.
+
 ---
 
 ## 9. Security
@@ -376,15 +536,17 @@ If-Match: W/"<versionId>:<row_version>"
 | Topic | Plan |
 |---|---|
 | RLS is final | Every statement runs as `design_os_api` under RLS with default deny. The API never connects as `design_os_owner`, `postgres` or `service_role` |
-| API first | Guard (action) → service (scope, state, D8, If-Match) → only then domain SQL. The single earlier read is the context load of §2.1 |
-| SECURITY DEFINER | Only the existing functions: `transition`, `record_validation_run`, integrity/audit triggers and RLS helpers, all with fixed `search_path` and their own membership/permission checks. The API adds none. Any new definer function (OD-5) needs review and a test that it re-checks `current_org_id()` and `has_permission()` |
+| Tenant context | Identity → verified ACTIVE membership → authorized org context (§2.1). `X-Org` is a selector only; a non-member gets `ORG_ACCESS_DENIED` with no hint about whether the org or any resource exists |
+| API first | Guard (action) → service (scope, state, LOCKED, D8, If-Match) → only then domain SQL. The only earlier reads are the caller's own memberships and permissions (§2.1) |
+| SECURITY DEFINER | The existing functions (`transition`, `record_validation_run`, integrity/audit triggers, RLS helpers), plus `current_memberships()` (0013, returns only the caller's own rows) and, at the portal step, `consume_client_invitation()` (§2.4). All have a fixed `search_path` and their own identity/membership/permission checks, and each new one gets a test proving it cannot read or act outside the caller's identity and org |
 | Roles | `design_os_owner` owns objects (migrations only). `design_os_api` (NOLOGIN) is assumed by the API's login role via `SET LOCAL ROLE`; local/CI tests create that login role in the harness, and on hosted Supabase it is part of gate item 9. Credentials come from environment configuration, never from the repository |
 | Audit | Every audited table writes the hash-chained `audit_log` with actor, `request_id` and `reason`. The API guarantees `design_os.request_id` on every write and `design_os.reason` for transitions, revocations, role-grant changes and deletes. `GET /audit/verify` (ADMIN, `audit.read`) runs `verify_audit_chain(org)` |
 | Client isolation | CLIENT identities see only `/portal/**`: issued quotations and drawings of projects where they are an ACTIVE `project_member` whose contact belongs to the project's client. Draft, cost, BOM, production drawings, approvals and audit are never reachable; RLS enforces the same. Unknown or foreign project ids → 404 |
 | Internal vs client | Separate route families, `identity_kind` check, CLIENT role limited to `output.read.issued` by the database CHECK |
 | Input safety | Zod `.strict()` everywhere; UUID/enum/size limits; parameterised SQL only; request body size limits in Fastify; no user-controlled SQL identifiers (the `{collection}` → subject map is a fixed allow-list) |
 | Transport and headers | HTTPS only in deployment; CORS allow-list of the web, admin and portal origins; `Cache-Control: no-store` on authenticated responses; no tokens in query strings |
-| Rate limits | `@fastify/rate-limit` per user for auth-sensitive portal routes (OTP linking) |
+| Rate limits | `@fastify/rate-limit` per user and IP on auth-sensitive routes (invitation acceptance, at the portal step) |
+| Logging | Structured logs with `requestId`; redaction of `authorization`, cookies, `token`, invitation tokens and signed URLs; database errors logged in full server-side only |
 | Secrets | Supabase JWT secret/JWKS URL, DB URL and storage keys are all read from the environment; none is exposed in `/openapi.json` or errors |
 
 ---
@@ -397,18 +559,26 @@ All database-backed tests run against **local/CI PostgreSQL 17** (the existing `
 |---|---|---|
 | Unit | services with fake repositories/engines, ETag helpers, idempotency fingerprinting, problem mapping, translator | Vitest, no DB |
 | Schema validation | every request schema: valid samples pass; unknown keys, `status` writes, org/user ids in bodies, TEST_FIXTURE and bad UUIDs fail | Vitest table tests |
-| Error contract | a static test: every code in §5.2 is producible and every `RAISE EXCEPTION` in the migrations is mapped (§5.3) | Vitest + file scan |
+| Error contract (OD-1) | every `RAISE EXCEPTION` in live `design_os` functions uses a registered `LD` SQLSTATE; one test per API-facing LD code; constraint coverage; TS ↔ DB registry parity; translator never reads messages and hides raw details (§5.3) | PG17 + Vitest |
+| Tenant context | no membership / suspended membership / suspended user / foreign `X-Org` → `ORG_ACCESS_DENIED` with an identical body for existing and non-existing orgs; several orgs without `X-Org` → `ORG_SELECTION_REQUIRED`; membership revoked between requests → denied on the next request; `current_memberships()` never returns another user's rows | inject + PG17 |
 | Authorization | per route, every role: allowed vs 403, derived from the seeded `default_role_permission` so the matrix and tests cannot drift | Fastify `inject` + PG17 |
 | RLS without API | the same forbidden operations with the API guard bypassed still fail at the database | direct `design_os_api` connection |
 | Tenant isolation | two orgs; every id-taking route with the other org's id → 404 `NOT_FOUND`; the log carries `TENANT_ISOLATION` | inject + PG17 |
 | Client isolation | CLIENT: only issued outputs of assigned projects; revoked contact/member → next request 403/404; no internal route reachable | inject + PG17 |
 | Lifecycle | every allowed and forbidden transition through the endpoint; D8; FINANCE-only approvals; COSTING cannot approve; LOCK cascade visible; SUPERSEDE only via APPROVE | inject + PG17 |
-| Concurrency | two writers with the same If-Match → one 200, one 412; generation racing an edit → consistent snapshot or 412 | parallel connections |
-| Idempotency | replay returns the identical response; fingerprint change → 422; in-flight → 409; rollback leaves no key | inject + PG17 (after OD-2) |
+| Concurrency (OD-3) | two writers with the same If-Match → one 200, one 412 `STALE_VERSION`; hash ETags identical across key orderings and pinned by golden tests; a LOCKED / non-DRAFT record refuses mutation even with a correct ETag; a design-object write with a stale design-version ETag → 412; generation racing an edit → a consistent snapshot or 412 | parallel connections |
+| Idempotency (OD-2) | first request executes once; replay returns the identical status/body/ETag with `Idempotent-Replayed`; different request hash → 409 `IDEMPOTENCY_CONFLICT`; concurrent duplicates → the effect row count stays 1; a rolled-back failure leaves no record; expired record is replaced; RLS hides other actors' records | inject + PG17 |
+| Pagination (OD-6) | stable order across pages with equal `created_at`; limit > 200 rejected; tampered/foreign cursor → `INVALID_CURSOR`; cursor from another org yields nothing | inject + PG17 |
+| Manufacturing release (OD-4) | refused in V1 because no ManufacturingStandard can be approved; guard order verified with a DB-level provenance test | inject + PG17 |
 | Provenance | generated snapshots carry exact pins; tampered pins → `PROVENANCE_MISMATCH`; FOR_PRODUCTION on DRAFT → refused; issue before LOCK → refused | inject + PG17 |
 | Validation runs | stale input hash/revision → 409; newer blocked run overrides; runs only via the endpoint | inject + PG17 |
 | Storage | checksum mismatch, referenced-file delete refusal, signed URL expiry, adapter contract suite | memory/local providers |
 | Integration (vertical slice) | synthetic test-only world: project → room → design → run → submit → approve → BOM/BOQ/pricing/quotation/drawing → lock → issue → client reads issued quotation | inject + PG17 |
+
+**Transaction isolation for API tests.**
+
+- **Most suites** run each request through a test-only connection provider. It wraps the unit of work in a SAVEPOINT inside one outer transaction per test, which is rolled back.
+- **Suites that need real commits** (concurrency, idempotency races, pooled-claim leakage) run in a throw-away database per file that is dropped afterwards. The shared test database's no-rows teardown check therefore still holds.
 
 Synthetic values stay in the existing marked test-only support module under `tests/db`, are rolled back, and remain covered by `synthetic-data-isolation.test.ts` (API integration tests that need them live under `tests/db` too).
 
@@ -417,6 +587,8 @@ Synthetic values stay in the existing marked test-only support module under `tes
 ## 11. Proposed endpoints and schemas (`/api/v1`)
 
 ### 11.1 Endpoints
+
+Every collection `GET` is cursor-paginated (§4.5). Every route resolves the org through §2.1. Writes to existing mutable resources need `If-Match` (§4.1).
 
 **Identity and organization**
 
@@ -456,7 +628,8 @@ Synthetic values stay in the existing marked test-only support module under `tes
 | `POST /design-versions/{id}/bom` · `/boq` · `/drawings` · `/manufacturing-documents` `{ purpose }` | `output.generate.engineering` |
 | `POST /design-versions/{id}/pricing` · `/quotations` `{ purpose }` | `output.generate.commercial` |
 | `GET /design-versions/{id}/snapshots?kind=` · `GET /snapshots/{kind}/{id}` | `output.read.production` / `output.read.cost` |
-| `POST /quotation-snapshots/{id}/issue` · `POST /drawing-snapshots/{id}/issue` | `quotation.issue` / `drawing.issue` |
+| `POST /quotation-snapshots/{id}/issue` · `POST /drawing-snapshots/{id}/issue` (Idempotency-Key, reason) | `quotation.issue` / `drawing.issue` |
+| `POST /design-versions/{id}/manufacturing-release` (Idempotency-Key, reason) · `GET /design-versions/{id}/manufacturing-release` | `manufacturing.release` / `output.read.production` (§8.1) |
 
 **Reference data** (one generic controller per family, driven by the fixed subject allow-list)
 
@@ -484,13 +657,13 @@ Mapping: each maps 1:1 to a registry `subject_type`; `design-versions` maps to `
 | `GET /approval-requests` · `GET /{collection}/{versionId}/decisions` | `reference.read` or scope |
 | `POST /files` · `GET /files/{id}` · `GET /files/{id}/url` · `DELETE /files/{id}` (orphans; reason) | generating action / RLS visibility |
 | `GET /audit?table=&rowId=` · `GET /audit/verify` | `audit.read` |
-| `POST /portal/session/link` · `GET /portal/projects` · `GET /portal/projects/{id}/quotations` · `GET /portal/projects/{id}/drawings` · `GET /portal/files/{id}/url` | CLIENT; `output.read.issued` |
+| `POST /portal/invitations/accept` · `GET /portal/projects` · `GET /portal/projects/{id}/quotations` · `GET /portal/projects/{id}/drawings` · `GET /portal/files/{id}/url` | CLIENT; `output.read.issued`. **Deferred to the client-portal step; not built in Step 4** |
 
 ### 11.2 Schemas (Zod, `apps/api/src/modules/*/…schemas.ts`)
 
 | Group | Schemas |
 |---|---|
-| Common | `Uuid`, `Sha256Hash` (`sha256:` + 64 hex), `LifecycleStatus` (5 values, response only), `TransitionAction`, `Reason` (trimmed, 1–2000), `Purpose`, `Pagination` (`limit` ≤ 200, opaque `cursor`), `Problem`, `ETag` |
+| Common | `Uuid`, `Sha256Hash` (`sha256:` + 64 hex), `LifecycleStatus` (5 values, response only), `TransitionAction`, `Reason` (trimmed, 1–2000), `Purpose`, `PageQuery` (`limit` 1–200, default 50; opaque signed `cursor`), `Page<T>` (`items`, `nextCursor`), `Problem`, `ETag` |
 | Envelope | `VersionEnvelope` response: `entityId`, `versionId`, `versionNumber`, `status`, `source`, `createdBy`, `createdAt`, `submittedBy`, `approvedBy`, `approvedAt`, `effectiveFrom`, `supersededBy`, `contentHash`, `rowVersion` |
 | Tenancy | `MeResponse`, `MembershipCreate/Update/Response`, `RolePermissionsPut` (`actions[]`, `reason`) |
 | Clients/projects | `ClientCreate/Update/Response` (with `opsClientRef` text only), `ContactInvite/Response`, `ProjectCreate/Update/Response` (`opsProjectRef`, `opsLeadRef` text only), `ProjectMemberAssign/Response` |
@@ -505,35 +678,45 @@ Monetary values are integer paise, matching the schema, and are serialised as st
 
 ---
 
-## 12. Open decisions for review
+## 12. Decisions (approved)
 
-| # | Decision | Recommendation |
+| # | Decision | Where |
 |---|---|---|
-| OD-1 | Machine-readable database error codes | **B:** a forward migration adding `HINT = 'DOS:<CODE>'` to every `RAISE`, with no behaviour change, plus translator fallback A |
-| OD-2 | Idempotency storage | A forward migration adding `design_os.idempotency_record` (org, actor, key, fingerprint, status, response, created_at, expires_at). RLS: own actor within the org. It is excluded from the audit chain, like other operational tables, via `unaudited_tables()` |
-| OD-3 | ETag for non-versioned mutable tables | Row-hash ETags now (no migration). Alternatively, add a `row_version` column in the OD-1/OD-2 migration |
-| OD-4 | Manufacturing release | The database has `manufacturing.release` (it can LOCK) but no `manufacturing_release` record. Proposal: in V1, release = LOCK + FOR_PRODUCTION `manufacturing_document_snapshot`, and a dedicated release/issue table is deferred together with manufacturing production standards |
-| OD-5 | Client first sign-in linking | A SECURITY DEFINER `link_client_contact()` that matches the verified JWT email to an ACTIVE invited contact, versus pre-creating the auth user at invite time. This is needed before the portal is enabled (gate item 8) |
-| OD-6 | Pagination | Keyset cursors over `(created_at, id)`, `limit` ≤ 200 |
+| OD-1 | **Approved.** Stable machine-readable database error codes: SQLSTATE class `LD`, a registry table, coded approval problems and safe structured `DETAIL`. The API never depends on message text. Expected errors map to stable codes; unexpected ones map to `INTERNAL_DATABASE_ERROR` with no raw details. Tests prove every API-facing database error is mapped | §5.2, §5.3; migration 0012 |
+| OD-2 | **Approved.** `design_os.idempotency_record` with `UNIQUE (org_id, scope, idempotency_key)`. Execute-once / replay / `409 IDEMPOTENCY_CONFLICT`, and the operation never executes twice. Used for transitions, validation runs, output generation, issue/release and file upload | §4.3; migration 0013 |
+| OD-3 | **Approved.** Hash-based ETags over a deterministic canonical representation (explicit column allow-list, normalised values, `stableStringify`) for clients, contacts, projects, project members, memberships and designs. The DesignVersion whole-draft token stays the authority. `412 STALE_VERSION`. LOCKED records refuse mutation regardless of ETag | §4.1, §4.4 |
+| OD-4 | **Approved.** Manufacturing release = LOCKED DesignVersion + FOR_PRODUCTION manufacturing document + zero BLOCKERs + all production guards. No release record yet; the `manufacturing.release` permission is kept | §8.1 |
+| OD-5 | **Approved, deferred.** Invitation model designed (one-time 256-bit token, hash only, short expiry, bound to client/contact/project, atomic consumption, replay/expiry rejection, no raw tokens in logs). Implemented with the client portal; the portal stays off | §2.4 |
+| OD-6 | **Approved.** Cursor pagination, max 200, stable unique order `(created_at, id)`, no offset pagination on primary collections | §4.5 |
+| Tenant context | **Correction applied.** The authenticated identity is the authority; `X-Org` only selects among verified ACTIVE memberships; non-members get `ORG_ACCESS_DENIED` without revealing existence; RLS remains final | §2.1, §2.2 |
 
-Explicitly **deferred**:
+**One addition needed by the correction:** `design_os.current_memberships()`, a SECURITY DEFINER function returning only the caller's own ACTIVE memberships. Without it the API cannot verify membership before choosing an org, because `org_membership` RLS is scoped to the current org. It ships in migration 0013 next to the idempotency table.
 
-- UI (web, admin, portal, mobile);
+**Explicitly deferred:**
+
+- UI (web, admin, portal, mobile), and client-portal enablement (including the invitation implementation);
 - hosted Supabase (any project, bucket, migration or JWT configuration);
 - the production Hettich import;
 - production pricing and rates;
-- manufacturing production standards (the registry stays empty);
+- manufacturing production standards and values (the registry stays empty);
 - Redis and BullMQ;
-- background jobs (including the orphan sweeper and the scheduled audit verifier);
+- background jobs (including an orphan-file sweeper, expired-idempotency cleanup and a scheduled audit verifier);
 - ops database synchronisation (ops references stay text only, D7).
 
-## 13. Proposed Step 4 commit sequence (after approval)
+## 13. Final Step 4 implementation sequence
 
-1. `feat(api): skeleton`. NestJS + FastifyAdapter, `/api/v1`, Standard Schema pipe, problem filter, request id, unit of work, JWT guard with a test issuer, `GET /me`, ESLint boundaries.
-2. `feat(db): error hints + idempotency_record` (only if OD-1 and OD-2 are approved). A forward migration with rollback, drift snapshot and database tests.
-3. `feat(api): tenancy, clients, projects, rooms`. Includes authorization, tenant and client-isolation suites.
-4. `feat(api): reference data + transitions`. Includes lifecycle, D8, FINANCE and LOCK suites.
-5. `feat(api): designs, validation runs, snapshots, issues, files`. Includes provenance, concurrency, idempotency and storage suites, plus the vertical-slice integration test.
-6. `docs: ADR-0009 persistence, approval and storage`.
+Each item is one reviewable commit or a small group of them. Everything is local/CI only (PostgreSQL 17 + memory/local storage), and work stops for review at the points marked **⏸**. Every step runs typecheck, lint, unit tests and database tests.
 
-Each commit is local/CI only (PG17 + memory/local storage) and stops for review per the milestone rules.
+| # | Scope | Contents | Tests |
+|---|---|---|---|
+| 1 | **OD-1: database error-code migration** `0012_error_codes` (+ down) | SQLSTATE class `LD`; `design_os.error_code` registry (seeded, SELECT for `design_os_api`, unaudited); `CREATE OR REPLACE` of every raising function/trigger with `LDnnn` codes and JSON `DETAIL`, logic and messages unchanged; `approval_problem_items()` + wrapper; split codes (LD002/LD003, LD013/LD014); schema snapshot updated | all existing DB tests still pass unchanged; new `error-codes.test.ts`: every RAISE registered, one trigger per API-facing code, coverage assertion, up/down/up |
+| 2 | **OD-2: idempotency migration** `0013_idempotency_context` (+ down) | `design_os.idempotency_record` (columns, checks, `UNIQUE (org_id, scope, idempotency_key)`, RLS own-actor, column grants, no DELETE, no-TEST_FIXTURE CHECK); `unaudited_tables()` extended; `current_memberships()` SECURITY DEFINER | uniqueness, RLS isolation between actors/orgs, grants, completed-row CHECK, `current_memberships()` isolation, up/down/up, drift. **⏸ review migrations 0012–0013** |
+| 3 | **API authentication / context layer** | `apps/api` skeleton (NestJS + FastifyAdapter, `/api/v1`, config, request id, logger with redaction); `pg` pool + unit of work (`SET LOCAL ROLE`, claims, request id, reason); JWT guard (`jose`, local test issuer); org-context resolution through `current_memberships()` (§2.1); `GET /me`; ESLint boundary rules for `apps/api` | JWT failures, tenant-context matrix, claims never leak across pooled transactions |
+| 4 | **Authorization / permission layer** | `@RequiresAction` + permission guard, identity-kind route families, service scope helpers (`can_access_project`), subject allow-list derived from `versioned_table` | per-role matrix generated from `default_role_permission`; RLS-without-API suite |
+| 5 | **Error / problem-details layer** | RFC 9457 filter, the §5.2 code table, TS registry with parity against `design_os.error_code`, `pg-error.translator.ts`, Standard Schema pipe → `VALIDATION_FAILED` | translator rules, no-leak assertions, message-lookalike → `INTERNAL_DATABASE_ERROR` |
+| 6 | **Concurrency / ETag layer** | version ETags, canonical hash ETags (column allow-lists, normalisation, goldens), If-Match enforcement with guarded updates, lifecycle-before-ETag rule; idempotency service (claim / complete / replay / conflict, `lock_timeout`); cursor pagination | OD-2, OD-3 and OD-6 suites. **⏸ review the API foundation (3–6)** |
+| 7 | **Initial API modules** | organizations/me, memberships + role grants, clients + contacts (invite stores contact only; no portal), projects + members, rooms + revisions, designs + versions + pins + objects + overrides (input hash via `designInputHash`), reference-data read/author for standards, catalogs, catalog versions and Hettich (authoring of structure only; no production values are added) | authorization, tenant isolation, schema validation, DRAFT-only edits |
+| 8 | **Transition endpoint** | `POST /{collection}/{id}/transitions` → `design_os.transition()` only; approval views; If-Match + Idempotency-Key | full lifecycle, D8, FINANCE-only, COSTING cannot approve, LOCK cascade, SUPERSEDE only via APPROVE, no status write anywhere. **⏸ review modules + transitions** |
+| 9 | **Validation / output orchestration** | engine fingerprint; validation runs → `record_validation_run()`; BOM, BOQ, pricing, quotation, drawing and manufacturing-document generation (one REPEATABLE READ transaction, provenance via `@lintel/persistence`); issues; manufacturing release (§8.1) | provenance, FOR_PRODUCTION guards, validation-run trust boundary, issue before LOCK refused, release refused in V1 |
+| 10 | **Storage / file endpoints** | FileService wiring, upload with checksum verification, content-addressed keys, `file_object`, snapshot file links, signed URLs, orphan-only delete; `SupabaseStorageProvider` / `S3StorageProvider` implemented and contract-tested but **not configured** | checksum mismatch, referenced-file delete refusal, RLS file visibility, adapter contract suite |
+| 11 | **Integration / security tests** | vertical slice (project → room → design → run → submit → approve → outputs → lock → issue); client-isolation checks at the database/API level with the portal still off; concurrency and idempotency races in throw-away databases; audit chain verified after the slice; `docs: ADR-0009 persistence, approval and storage` | full suite green in CI. **⏸ final Step 4 review** |

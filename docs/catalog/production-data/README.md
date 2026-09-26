@@ -34,3 +34,5 @@ be copied into production data.
 | 06 | [manufacturing-standards](06-manufacturing-standards.md) | Cut-size, machining, nesting, labelling |
 | 07 | [pricing-standards](07-pricing-standards.md) | Production rate card, pricing rules, quotation / tax policy |
 | 08 | [planning-standards](08-planning-standards.md) | Room planning values (clearances, gaps, fillers, run length) and relationship overrides |
+
+How these data sets are separated (standards vs catalog domains) and the record envelope every production record keeps: [PRODUCTION-DATA-ARCHITECTURE](../../architecture/PRODUCTION-DATA-ARCHITECTURE.md).

@@ -23,6 +23,7 @@ export const CANONICAL_COLUMNS = {
   project_member: ["org_id", "project_id", "user_id", "role", "client_contact_id", "granted_by", "granted_at"],
   org_membership: ["org_id", "user_id", "role", "status", "granted_by", "granted_at"],
   design: ["id", "org_id", "project_id", "room_id", "name", "status", "created_at"],
+  room: ["id", "org_id", "project_id", "name", "room_type", "created_at"],
 } as const;
 export type CanonicalTable = keyof typeof CANONICAL_COLUMNS;
 
@@ -47,16 +48,17 @@ export function canonicalValue(v: unknown): unknown {
   return v;
 }
 
-export function canonicalRecord(table: CanonicalTable, row: Readonly<Record<string, unknown>>): Record<string, unknown> {
+export function canonicalRecord(table: CanonicalTable, row: object): Record<string, unknown> {
   const out: Record<string, unknown> = {};
+  const r = row as Readonly<Record<string, unknown>>;
   for (const c of CANONICAL_COLUMNS[table]) {
-    if (!(c in row)) throw new Error(`canonical ${table} row is missing column ${c}`);
-    out[c] = canonicalValue(row[c]);
+    if (!(c in r)) throw new Error(`canonical ${table} row is missing column ${c}`);
+    out[c] = canonicalValue(r[c]);
   }
   return out;
 }
 
-export function recordEtag(table: CanonicalTable, row: Readonly<Record<string, unknown>>): string {
+export function recordEtag(table: CanonicalTable, row: object): string {
   return `"${contentHash(canonicalRecord(table, row))}"`;
 }
 

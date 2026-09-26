@@ -11,7 +11,7 @@ import { UnitOfWork } from "../../src/common/db/unit-of-work.js";
 import { ApiProblem } from "../../src/common/errors/api-problem.js";
 import { assertWritable, recordEtag, versionEtag } from "../../src/common/http/etag.js";
 import type { LifecycleState } from "../../src/common/http/etag.js";
-import { CursorCodec, keysetClause, toPage } from "../../src/common/http/pagination.js";
+import { CursorCodec, keysetClause, SORTS, toPage } from "../../src/common/http/pagination.js";
 import { respond } from "../../src/common/http/respond.js";
 import { SchemaPipe } from "../../src/common/http/schema.pipe.js";
 import { PageQuery, Uuid } from "../../src/common/http/schemas.js";
@@ -91,12 +91,12 @@ class ProbeService {
 
   clients(scope: RequestScope, q: PageQuery) {
     return this.uow.run(scope, { action: "client.read", readOnly: true }, async (tx) => {
-      const after = q.cursor === undefined ? undefined : this.cursors.decode(q.cursor, "clients", scope.org.orgId);
-      const k = keysetClause(1, after !== undefined);
-      const params = after === undefined ? [q.limit + 1] : [after.createdAt, after.id, q.limit + 1];
+      const after = q.cursor === undefined ? undefined : this.cursors.decode(q.cursor, "clients", scope.org.orgId, SORTS.newestFirst);
+      const k = keysetClause(SORTS.newestFirst, 1, after !== undefined);
+      const params = after === undefined ? [q.limit + 1] : [after.key, after.id, q.limit + 1];
       const rows = await tx.query<{ id: string; created_at: string; name: string }>(
         `SELECT id::text, created_at, name FROM design_os.client WHERE ${k.where} ${k.orderLimit}`, params);
-      return toPage(rows, q.limit, (r) => this.cursors.encode("clients", scope.org.orgId, { createdAt: r.created_at, id: r.id }), (r) => ({ id: r.id, name: r.name }));
+      return toPage(rows, q.limit, (r) => this.cursors.encode("clients", scope.org.orgId, SORTS.newestFirst, { key: r.created_at, id: r.id }), (r) => ({ id: r.id, name: r.name }));
     });
   }
 

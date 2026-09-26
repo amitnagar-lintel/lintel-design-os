@@ -28,4 +28,4 @@ export { buildSnapshotProvenance, buildSnapshotRecord, provenanceMismatches, sna
 export type { OutputPurpose, OutputPurposeProblem, OutputPurposeProblemCode, OutputPurposeRule } from "./output-purpose.js";
 export { OUTPUT_PURPOSE_RULES, OUTPUT_PURPOSES, outputPurposeProblems, outputPurposeRule, purposeChangeDecision, qualifiesForIssue, qualifiesForRelease } from "./output-purpose.js";
 export type { ValidationRunRecord } from "./validation-run.js";
-export { buildValidationRun, recordValidationRunArgs } from "./validation-run.js";
+export { ENGINE_BUILD, buildValidationRun, recordValidationRunArgs } from "./validation-run.js";

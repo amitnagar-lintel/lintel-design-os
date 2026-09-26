@@ -19,7 +19,8 @@ Browser / client portal / apps → /api/v1 → controllers → application servi
 | `src/common/http` | Standard Schema validation pipe, shared schemas, ETags / If-Match, cursor pagination, idempotent response helper |
 | `src/common/idempotency` | Idempotency-Key handling over `design_os.claim_idempotency()` / `complete_idempotency()` |
 | `src/infrastructure/persistence` | Repositories: SQL only |
-| `src/modules/*` | Feature modules. The foundation has `health` and `me`; business modules come in the next steps |
+| `src/modules/*` | Feature modules: `health`, `me` (foundation); `clients`, `projects`, `rooms`, `designs`, `design-versions` (core design domain, M5 Step 5 — see `docs/architecture/M5-STEP5-CORE-DESIGN-API.md`). Output modules come later |
+| `src/modules/design-versions/engine.ts` | Rebuilds the engine inputs from the exact pinned rows (via `@lintel/persistence`) and runs `@lintel/design-engine` for validation |
 
 Boundaries are enforced by ESLint. Controllers never import repositories, the database, engines, persistence or
 storage. Repositories never import engines or `@lintel/persistence`. `pg` is used only in `common/db`,
@@ -33,6 +34,7 @@ storage. Repositories never import engines or `@lintel/persistence`. `pg` is use
 | `AUTH_ISSUER`, `AUTH_AUDIENCE` | Expected token issuer / audience (`authenticated`) |
 | `AUTH_JWKS_URL` **or** `AUTH_JWT_SECRET` | Supabase Auth verification key (asymmetric JWKS or the HS256 shared secret) |
 | `CURSOR_SECRET` | HMAC key for pagination cursors (≥ 32 characters) |
+| `BUILD_REVISION` | Immutable build identity (Git commit SHA / build revision), recorded with every validation run and part of the engine fingerprint. Falls back to `GITHUB_SHA`, then the Git checkout; the API refuses to start without one |
 | `API_PORT`, `DB_POOL_MAX`, `CORS_ORIGINS`, `API_LOG` | Optional |
 
 No hosted Supabase configuration exists yet. The API runs against local / CI PostgreSQL 17 until the Mumbai gate (M5 §13).
@@ -41,4 +43,5 @@ No hosted Supabase configuration exists yet. The API runs against local / CI Pos
 
 - **Unit** (`pnpm test`): `test/unit` — translator, ETags, cursors, request hashing, JWT, and HTTP behaviour with no database.
 - **Against PostgreSQL 17** (`pnpm test:db`): `test/db` — auth and org context, database/RLS context propagation, error mapping and registry parity, ETags, idempotency, pagination.
-  - These use test-only probe routes (`test/support/probe.module.ts`) that are never part of the application.
+  - The foundation tests use test-only probe routes (`test/support/probe.module.ts`) that are never part of the application.
+  - The core design domain tests (`projects`, `rooms-designs`, `design-versions`) drive the real endpoints end to end.

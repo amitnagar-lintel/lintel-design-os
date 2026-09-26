@@ -13,12 +13,15 @@ import pg from "pg";
 import { inject } from "vitest";
 import { createApp } from "../../src/app.js";
 import type { ApiConfig } from "../../src/config.js";
+import { resolveBuildRevision } from "../../src/config.js";
 import type {} from "../../../../tests/db/support/global-setup.js";
 import type { Tx } from "../../../../tests/db/support/db.js";
 import type { World } from "../../../../tests/db/support/world.js";
 import { createWorld } from "../../../../tests/db/support/world.js";
 
 export const ISSUER = "https://auth.test.local/auth/v1";
+/** The build identity the test API runs as, resolved exactly as in production (BUILD_REVISION / GITHUB_SHA / Git checkout). */
+export const TEST_BUILD = resolveBuildRevision(process.env);
 let keys: Promise<{ privateKey: webcrypto.CryptoKey; publicKey: webcrypto.CryptoKey }> | undefined;
 const keyPair = () => (keys ??= generateKeyPair("ES256"));
 
@@ -47,7 +50,9 @@ export async function startApi(modules: readonly (Type | DynamicModule)[] = [], 
     auth: { issuer: ISSUER, audience: "authenticated", key: { kind: "key", key: (await keyPair()).publicKey } },
     cursorSecret: "test-cursor-secret-0123456789abcdef",
     corsOrigins: [],
-    logger: false,
+    // API_TEST_LOG=1 shows the server-side log (full errors) while debugging a failing test.
+    logger: process.env.API_TEST_LOG === "1",
+    buildRevision: TEST_BUILD,
   };
   const app = await createApp(config, modules);
   const fastify = app.getHttpAdapter().getInstance();

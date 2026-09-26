@@ -32,6 +32,7 @@ const PINS: DesignVersionPins = {
   productCatalogVersionId: "pcr_1",
 };
 const INPUT = contentHash("inputs");
+const BUILD = "3f2a9c1e7b4d5a6f8e9d0c1b2a3f4e5d6c7b8a90";
 const DV = { versionId: "dv_1", status: "APPROVED" as const, contentHash: contentHash("design version content") };
 const T0 = "2026-09-26T10:00:00.000Z";
 
@@ -153,13 +154,16 @@ describe("validation runs (trust boundary)", () => {
     canApprove: blockers === 0 && !fixture,
   });
   it("carries the engine's own counts and a SHA-256 of the result, tied to the exact inputs", () => {
-    const r = buildValidationRun({ designVersionId: "dv_1", inputHash: INPUT, engineVersion: "0.1.0", engineHash: "0d8691345c4075", validation: validation(2) });
-    expect(r).toMatchObject({ designVersionId: "dv_1", inputHash: INPUT, engineVersion: "0.1.0", engineHash: "0d8691345c4075", blockerCount: 2, warningCount: 0 });
+    const r = buildValidationRun({ designVersionId: "dv_1", inputHash: INPUT, engineVersion: "0.1.0", engineBuild: BUILD, engineHash: "0d8691345c4075", validation: validation(2) });
+    expect(r).toMatchObject({ designVersionId: "dv_1", inputHash: INPUT, engineVersion: "0.1.0", engineBuild: BUILD, engineHash: "0d8691345c4075", blockerCount: 2, warningCount: 0 });
     expect(r.contentHash).toBe(contentHash({ messages: validation(2).messages, counts: validation(2).counts }));
-    expect(recordValidationRunArgs(r)).toEqual(["dv_1", INPUT, "0.1.0", "0d8691345c4075", 2, 0, JSON.stringify(validation(2).messages), r.contentHash]);
+    expect(recordValidationRunArgs(r)).toEqual(["dv_1", INPUT, "0.1.0", BUILD, "0d8691345c4075", 2, 0, JSON.stringify(validation(2).messages), r.contentHash]);
   });
   it("requires engine metadata and refuses results produced from TEST_FIXTURE inputs", () => {
-    expect(() => buildValidationRun({ designVersionId: "dv_1", inputHash: INPUT, engineVersion: " ", engineHash: "x", validation: validation(0) })).toThrow(MappingError);
-    expect(() => buildValidationRun({ designVersionId: "dv_1", inputHash: INPUT, engineVersion: "0.1.0", engineHash: "x", validation: validation(0, true) })).toThrow(TestFixturePersistenceError);
+    expect(() => buildValidationRun({ designVersionId: "dv_1", inputHash: INPUT, engineVersion: " ", engineBuild: BUILD, engineHash: "x", validation: validation(0) })).toThrow(MappingError);
+    for (const engineBuild of ["", " ", "abc", "-leading-dash", "has space in it"]) {
+      expect(() => buildValidationRun({ designVersionId: "dv_1", inputHash: INPUT, engineVersion: "0.1.0", engineBuild, engineHash: "x", validation: validation(0) })).toThrow(MappingError);
+    }
+    expect(() => buildValidationRun({ designVersionId: "dv_1", inputHash: INPUT, engineVersion: "0.1.0", engineBuild: BUILD, engineHash: "x", validation: validation(0, true) })).toThrow(TestFixturePersistenceError);
   });
 });

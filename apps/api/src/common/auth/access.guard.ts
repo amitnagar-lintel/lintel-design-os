@@ -41,7 +41,7 @@ export class AccessGuard implements CanActivate {
 
     const identity = this.reflector.getAllAndOverride<IdentityRequirement | undefined>(IDENTITY, targets) ?? "INTERNAL";
     if (identity !== "ANY" && identity !== org.identityKind) throw new ApiProblem("IDENTITY_KIND_MISMATCH");
-    if (access.kind === "action" && !org.permissions.has(access.action)) throw new ApiProblem("PERMISSION_DENIED");
+    if (access.kind === "action" && !access.actions.some((a) => org.permissions.has(a))) throw new ApiProblem("PERMISSION_DENIED");
     return true;
   }
 }

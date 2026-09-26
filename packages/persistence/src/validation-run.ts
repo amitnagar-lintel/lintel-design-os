@@ -3,6 +3,9 @@ import { MappingError, TestFixturePersistenceError } from "./errors.js";
 import type { Sha256 } from "./hash.js";
 import { contentHash, isSha256 } from "./hash.js";
 
+/** A build identity as design_os.validation_run accepts it (validation_run_engine_build_required, 0016). */
+export const ENGINE_BUILD = /^[0-9A-Za-z][0-9A-Za-z._+-]{6,127}$/;
+
 /**
  * An engine validation run as stored (M5 §4, trust boundary). The TypeScript engine is the authority for
  * validation and BLOCKERs; this record only carries its result, tied to the exact inputs it was produced
@@ -11,8 +14,11 @@ import { contentHash, isSha256 } from "./hash.js";
 export interface ValidationRunRecord {
   readonly designVersionId: string;
   readonly inputHash: Sha256;
+  /** The semantic engine version (e.g. ROOM_ENGINE_VERSION). */
   readonly engineVersion: string;
-  /** The engine's own fingerprint of the validated model (e.g. the room fingerprint). */
+  /** The immutable build identity of the engine that ran (Git commit SHA / build revision). */
+  readonly engineBuild: string;
+  /** The engine fingerprint: identifies the exact engine (semantic version AND build) that produced the result. */
   readonly engineHash: string;
   readonly blockerCount: number;
   readonly warningCount: number;
@@ -29,11 +35,13 @@ export function buildValidationRun(input: {
   readonly designVersionId: string;
   readonly inputHash: Sha256;
   readonly engineVersion: string;
+  readonly engineBuild: string;
   readonly engineHash: string;
   readonly validation: ValidationResult;
 }): ValidationRunRecord {
   if (!isSha256(input.inputHash)) throw new MappingError("inputHash must be sha256:<64 hex>");
   if (input.engineVersion.trim() === "" || input.engineHash.trim() === "") throw new MappingError("engine version and engine hash are required");
+  if (!ENGINE_BUILD.test(input.engineBuild)) throw new MappingError("engine build identity (commit SHA / build revision) is required");
   if (input.validation.messages.some((m) => m.code === "TEST_FIXTURE_DATA_IN_USE")) {
     throw new TestFixturePersistenceError(`validation run for design version ${input.designVersionId} was produced from TEST_FIXTURE inputs`);
   }
@@ -41,6 +49,7 @@ export function buildValidationRun(input: {
     designVersionId: input.designVersionId,
     inputHash: input.inputHash,
     engineVersion: input.engineVersion,
+    engineBuild: input.engineBuild,
     engineHash: input.engineHash,
     blockerCount: input.validation.counts.BLOCKER,
     warningCount: input.validation.counts.WARNING,
@@ -50,6 +59,6 @@ export function buildValidationRun(input: {
 }
 
 /** Positional arguments of design_os.record_validation_run(). */
-export function recordValidationRunArgs(r: ValidationRunRecord): readonly [string, string, string, string, number, number, string, string] {
-  return [r.designVersionId, r.inputHash, r.engineVersion, r.engineHash, r.blockerCount, r.warningCount, JSON.stringify(r.messages), r.contentHash];
+export function recordValidationRunArgs(r: ValidationRunRecord): readonly [string, string, string, string, string, number, number, string, string] {
+  return [r.designVersionId, r.inputHash, r.engineVersion, r.engineBuild, r.engineHash, r.blockerCount, r.warningCount, JSON.stringify(r.messages), r.contentHash];
 }

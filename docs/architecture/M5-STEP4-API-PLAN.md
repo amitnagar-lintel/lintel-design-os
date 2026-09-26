@@ -17,7 +17,7 @@ Where this plan needs something the schema does not yet provide, §12 records th
 
 | Concern | Choice |
 |---|---|
-| Framework | NestJS 11 with `@nestjs/platform-fastify` (`FastifyAdapter`) |
+| Framework | NestJS 12 (ESM) with `@nestjs/platform-fastify` (`FastifyAdapter`, Fastify 5). Every injection is explicit (`@Inject(TOKEN)`), so nothing depends on emitted decorator metadata |
 | Validation | Zod 4 schemas, consumed through the Standard Schema interface (`~standard.validate`) by a single `StandardSchemaPipe`. Controllers never validate by hand |
 | DB driver | `pg` (node-postgres) Pool. `design_os_api` is NOLOGIN (0001): the pool logs in as a deployment login role whose only privilege is membership in `design_os_api`, and every transaction starts with `SET LOCAL ROLE design_os_api`. No ORM, no Supabase JS client for data, no PostgREST |
 | Auth tokens | `jose` (JWKS / HS256 verification of Supabase Auth JWTs). Tests use a local key pair |
@@ -120,25 +120,40 @@ controller ──► service ──► engines (@lintel/*-engine, pure)
 - **No cross-request caching of memberships or permissions.** Revoking a membership, client contact or project member takes effect on the next request (D10).
 - **Client first sign-in** uses the invitation model in §2.4 (OD-5, designed now, implemented with the client portal).
 
-### 2.2 The request transaction (unit of work)
+### 2.2 Transactions: context resolution and the unit of work (as implemented)
 
-Every request, including reads, runs in exactly one transaction on a pooled connection (compatible with the Supavisor transaction pooler):
+Every database access is a transaction on a pooled connection (compatible with the Supavisor transaction pooler), opened only by `Database.transaction()`:
 
 ```sql
-BEGIN;  -- READ COMMITTED; snapshot/generation endpoints use REPEATABLE READ (§6)
-SET LOCAL ROLE design_os_api;                                   -- RLS-subject role; never the owner
-SELECT set_config('request.jwt.claims', '{"sub":…}', true);      -- step 2: identity only
-SELECT * FROM design_os.current_memberships();                  -- steps 2–3: verify membership
-SELECT set_config('request.jwt.claims', '{"sub":…,"org_id":…}', true);  -- step 4: verified org only
-SELECT set_config('design_os.request_id', $requestId, true);    -- audit_log.request_id
-SELECT set_config('design_os.reason', $reason, true);           -- only when the request carries a reason
-... idempotency claim (§4.3), guards, repositories, SECURITY DEFINER calls ...
+BEGIN [ISOLATION LEVEL …] [READ ONLY];
+SET LOCAL ROLE design_os_api;                                          -- RLS-subject role; never the owner
+SELECT set_config('request.jwt.claims', $claims, true),                -- verified identity (+ verified org only)
+       set_config('design_os.request_id', $requestId, true),           -- audit_log.request_id
+       set_config('design_os.reason', $reason, true);                  -- when the operation carries a reason
+…
 COMMIT;  -- or ROLLBACK on any error; the idempotency record commits or rolls back with the effect
 ```
 
+The guard stage and the operation stage use separate transactions:
+
+1. **Access guard: two short READ ONLY transactions.**
+   - First, with claims `{sub}` only: `current_memberships()`, then the X-Org selection.
+   - Second, with claims `{sub, org_id: verified org}`: `current_org_id()`, `is_internal()`, own roles, and `has_permission()` for each of the 46 actions.
+   - No domain data is read in either.
+2. **Unit of work: one transaction per operation.**
+   - The operation runs under the verified org context (READ COMMITTED; generation uses REPEATABLE READ).
+   - Its first statement re-verifies `current_org_id() = verified org` and, when declared, `has_permission(action)`.
+   - A membership or permission revoked since the guard ran is therefore honoured before the operation runs (`ORG_ACCESS_DENIED` / `PERMISSION_DENIED`).
+   - The idempotency claim, the effect and the stored result share this transaction.
+
+**Rules for claims and request ids**
 - `request.jwt.claims` is the only way RLS learns who is acting. It is built from the verified JWT and the **membership-verified** org, never from the raw header or the request body.
-- `true` (transaction-local) guarantees that nothing leaks to the next pooled user.
+- `true` (transaction-local) guarantees that nothing leaks to the next pooled user. A test with a pool of one connection proves it.
 - The request id comes from `X-Request-Id` when it is a valid UUID, otherwise it is generated. It is echoed in the response and in the problem body.
+
+**How the API connects**
+- The pool logs in as a deployment role that is a **NOINHERIT** member of `design_os_api`, so the login role itself can read nothing.
+- The pool reads timestamps, bigints and numerics as text, in the UTC time zone, so hashes and cursors are exact.
 
 ### 2.3 Mapping API actions to database permissions and RLS
 
@@ -225,7 +240,7 @@ Any failure rolls back steps 4–7 together. A replayed, expired, revoked or for
 
 | Resource class | ETag value | Source |
 |---|---|---|
-| Version rows (all 21 registry subjects incl. `design_version`) | `W/"<id>:<row_version>"` | `row_version` is bumped by `guard_version_row` on every UPDATE, including lifecycle changes and, for design versions, `input_revision` bumps caused by object/override edits |
+| Version rows (all 21 registry subjects incl. `design_version`) | `"<id>:<row_version>"` (strong: RFC 9110 If-Match uses strong comparison, so a weak tag could never match) | `row_version` is bumped by `guard_version_row` on every UPDATE, including lifecycle changes and, for design versions, `input_revision` bumps caused by object/override edits |
 | **DesignVersion and its children** (objects, overrides, pins) | the **design version** ETag | Any child change bumps the parent's `input_revision` and therefore its `row_version`. This whole-draft token stays the only concurrency authority for a design version. Child rows have no ETag of their own |
 | Mutable non-versioned rows: `client`, `client_contact`, `project`, `project_member`, `org_membership`, `design` | `"sha256:<hex>"` over the record's **canonical representation** | see below |
 | Insert-only rows (snapshots, room revisions, runs, issues, files, audit) | strong `"<content_hash>"` | never change, so no If-Match needed |
@@ -340,7 +355,7 @@ It is optional on other creates.
 
 ```json
 {
-  "type": "https://lintel.design/problems/stale-version",
+  "type": "urn:lintel-design-os:problem:stale-version",
   "title": "The resource changed since you read it",
   "status": 412,
   "detail": "design_version 7f… is at row_version 5; If-Match named 4",
@@ -348,7 +363,7 @@ It is optional on other creates.
   "code": "STALE_VERSION",
   "requestId": "3c…",
   "errors": [],
-  "context": { "currentEtag": "W/\"7f…:5\"" }
+  "context": { "currentEtag": "\"7f…:5\"" }
 }
 ```
 
@@ -517,7 +532,7 @@ Rules:
 ```http
 POST /api/v1/{collection}/{versionId}/transitions
 Idempotency-Key: <uuid>
-If-Match: W/"<versionId>:<row_version>"
+If-Match: "<versionId>:<row_version>"
 { "action": "SUBMIT" | "REQUEST_CHANGES" | "APPROVE" | "LOCK",
   "reason": "…",                        // required, non-blank
   "expectedContentHash": "sha256:…" }   // required for APPROVE

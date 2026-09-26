@@ -1,4 +1,5 @@
 packages:
   - "packages/*"
+  - "apps/api"
   - "!packages/ui"
   - "!packages/manufacturing-engine"

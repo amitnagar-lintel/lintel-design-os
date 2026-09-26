@@ -16,6 +16,9 @@ import type {
 } from "@lintel/types";
 
 /** Reporting precision for aggregated measures (m², m). Not a business rule. */
+/** Semantic version of the BOM engine (M5 Step 7); recorded with every BOM snapshot beside the engine fingerprint. */
+export const BOM_ENGINE_VERSION = "0.1.0";
+
 export const AREA_DECIMALS = 6;
 export const LENGTH_DECIMALS = 4;
 

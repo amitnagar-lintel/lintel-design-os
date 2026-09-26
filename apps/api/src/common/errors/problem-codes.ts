@@ -28,6 +28,7 @@ export const PROBLEM_CODES = {
   PRODUCTION_GUARD_FAILED: { status: 409, title: "Production output requires an approved or locked design version" },
   OUTPUT_PURPOSE_NOT_ALLOWED: { status: 409, title: "The output purpose is not allowed here" },
   SOURCE_SNAPSHOT_INCOMPATIBLE: { status: 409, title: "An upstream output is for other inputs or versions" },
+  COMMERCIAL_VERSION_NOT_FOUND: { status: 422, title: "The chosen PricingStandard / QuotationPolicy version does not exist in this organization" },
   SOURCE_PURPOSE_INSUFFICIENT: { status: 409, title: "An upstream output has a weaker purpose" },
   MEMBERSHIP_RULE_VIOLATION: { status: 409, title: "Membership rules violated" },
   DUPLICATE_RESOURCE: { status: 409, title: "The resource already exists" },
@@ -44,6 +45,7 @@ export const PROBLEM_CODES = {
   PRECONDITION_REQUIRED: { status: 428, title: "A precondition header is required" },
   INTERNAL_DATABASE_ERROR: { status: 500, title: "Internal error" },
   INTERNAL: { status: 500, title: "Internal error" },
+  STORED_OUTPUT_INVALID: { status: 500, title: "A stored output failed its schema or integrity checks" },
   DATABASE_UNAVAILABLE: { status: 503, title: "The service is temporarily unavailable" },
 } as const satisfies Record<string, { readonly status: number; readonly title: string }>;
 

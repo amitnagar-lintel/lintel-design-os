@@ -457,6 +457,34 @@ export function snapshotFromRow(row: SnapshotRow): SnapshotRecord {
 /* ------------------------------------------------------------ natural identity (plan §9) */
 
 /**
+ * The natural identity of the output that would be generated from this provenance (before any engine runs), exactly
+ * the columns snapshotIdentity() returns for the stored row: used to find an existing compatible snapshot first.
+ */
+export function provenanceIdentity(input: {
+  readonly kind: SnapshotKind;
+  readonly orgId: string;
+  readonly purpose: OutputPurpose;
+  readonly provenance: SnapshotProvenance;
+  readonly drawing?: Omit<DrawingIdentity, "fileManifestHash">;
+}): Readonly<Record<string, unknown>> {
+  const p = input.provenance;
+  const row: Record<string, unknown> = {
+    kind: input.kind, org_id: input.orgId, design_version_id: p.designVersionId, purpose: input.purpose, input_hash: p.inputHash, input_revision: p.inputRevision,
+    dependency_set_hash: p.dependencySetHash, engine_fingerprint: p.engine.fingerprint, commercial_input_hash: p.commercialInputHash,
+    manufacturing_standard_version_id: p.chosen.manufacturingStandardVersionId,
+  };
+  for (const key of SOURCES_OF_KIND[input.kind]) row[SOURCE_COLUMN[key]] = p.sources[key];
+  const d = input.drawing;
+  if (d !== undefined) {
+    Object.assign(row, {
+      drawing_type: d.drawingType, drawing_scope: ROOM_DRAWING_TYPES.includes(d.drawingType) ? "ROOM" : "OBJECT", wall_id: d.wallId,
+      object_lineage_id: d.objectLineageId, cut_x_mm: d.cutXMm, drawing_number: d.drawingNumber, drawing_revision: d.drawingRevision,
+    });
+  }
+  return snapshotIdentity(row as unknown as SnapshotRow);
+}
+
+/**
  * The columns of a snapshot's natural identity, exactly as the unique index of its table: the same inputs, dependency
  * content, engine, purpose, sources (and drawing parameters) are the same output. Used for the exact lookup that
  * replaces any notion of "latest".

@@ -71,6 +71,12 @@ importers:
 
   apps/api:
     dependencies:
+      '@lintel/bom-engine':
+        specifier: workspace:*
+        version: link:../../packages/bom-engine
+      '@lintel/boq-engine':
+        specifier: workspace:*
+        version: link:../../packages/boq-engine
       '@lintel/catalog-engine':
         specifier: workspace:*
         version: link:../../packages/catalog-engine
@@ -83,6 +89,9 @@ importers:
       '@lintel/persistence':
         specifier: workspace:*
         version: link:../../packages/persistence
+      '@lintel/pricing-engine':
+        specifier: workspace:*
+        version: link:../../packages/pricing-engine
       '@lintel/types':
         specifier: workspace:*
         version: link:../../packages/types

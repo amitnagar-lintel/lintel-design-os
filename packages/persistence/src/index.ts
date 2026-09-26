@@ -29,7 +29,7 @@ export type {
 } from "./provenance.js";
 export {
   COMMERCIAL_PINS, ENGINE_OF_KIND, NO_CHOSEN_VERSIONS, ROOM_DRAWING_TYPES, SOURCES_OF_KIND, assertEngineProvenance, buildSnapshotProvenance, buildSnapshotRecord,
-  commercialInputHash, dependencySetHash, engineeringDependencyHashes, fileManifestHash, snapshotFromRow, snapshotIdentity, snapshotToRow, verifySnapshotRecord,
+  commercialInputHash, dependencySetHash, engineeringDependencyHashes, fileManifestHash, provenanceIdentity, snapshotFromRow, snapshotIdentity, snapshotToRow, verifySnapshotRecord,
 } from "./provenance.js";
 export type { OutputPurpose, OutputPurposeProblem, OutputPurposeProblemCode, OutputPurposeRule } from "./output-purpose.js";
 export { OUTPUT_PURPOSE_RULES, OUTPUT_PURPOSES, outputPurposeProblems, outputPurposeRule, purposeChangeDecision, qualifiesForIssue, qualifiesForRelease } from "./output-purpose.js";

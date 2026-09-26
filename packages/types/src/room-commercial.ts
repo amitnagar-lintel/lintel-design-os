@@ -1,7 +1,7 @@
 import type { Currency, DataClassification, DataStatus, VersionRef } from "./common.js";
 import type { BOM } from "./bom.js";
 import type { BOQ, BOQItem } from "./boq.js";
-import type { Paise, PriceSnapshot } from "./pricing.js";
+import type { Paise, PriceSnapshot, PriceTotals } from "./pricing.js";
 import type { RoomTrace } from "./room.js";
 
 /* ---------------------------------------------------------------- room BOM / BOQ */
@@ -38,6 +38,28 @@ export interface RoomBOQ {
   readonly objectBoqs: readonly BOQ[];
   /** All BOQ items, one per object line, in room order. */
   readonly items: readonly BOQItem[];
+}
+
+/* ---------------------------------------------------------------- room pricing */
+
+/**
+ * Room pricing (M5 Step 7): one immutable per-object PriceSnapshot for every object, in room order, with the room
+ * totals as the sum of the per-object totals. Hash-sealed; a quotation consumes it without re-pricing.
+ */
+export interface RoomPriceSnapshot {
+  readonly roomPricingId: string;
+  readonly classification: DataClassification;
+  readonly currency: Currency;
+  readonly createdAt: string;
+  readonly trace: RoomTrace;
+  readonly roomFingerprint: string;
+  readonly roomBomId: string;
+  readonly roomBoqId: string;
+  readonly rateCardRef: VersionRef;
+  readonly pricingRulesRef: VersionRef;
+  readonly priceSnapshots: readonly PriceSnapshot[];
+  readonly totals: PriceTotals;
+  readonly contentHash: string;
 }
 
 /* ---------------------------------------------------------------- quotation */

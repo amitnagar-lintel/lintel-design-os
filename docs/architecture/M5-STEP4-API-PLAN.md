@@ -408,9 +408,9 @@ All database-backed tests run against **local/CI PostgreSQL 17** (the existing `
 | Provenance | generated snapshots carry exact pins; tampered pins → `PROVENANCE_MISMATCH`; FOR_PRODUCTION on DRAFT → refused; issue before LOCK → refused | inject + PG17 |
 | Validation runs | stale input hash/revision → 409; newer blocked run overrides; runs only via the endpoint | inject + PG17 |
 | Storage | checksum mismatch, referenced-file delete refusal, signed URL expiry, adapter contract suite | memory/local providers |
-| Integration (vertical slice) | synthetic DB-TEST-ONLY world: project → room → design → run → submit → approve → BOM/BOQ/pricing/quotation/drawing → lock → issue → client reads issued quotation | inject + PG17 |
+| Integration (vertical slice) | synthetic test-only world: project → room → design → run → submit → approve → BOM/BOQ/pricing/quotation/drawing → lock → issue → client reads issued quotation | inject + PG17 |
 
-Synthetic data stays in `tests/db/support/synthetic.ts`-style modules marked DB TEST ONLY, rolled back, and covered by `synthetic-data-isolation.test.ts`.
+Synthetic values stay in the existing marked test-only support module under `tests/db`, are rolled back, and remain covered by `synthetic-data-isolation.test.ts` (API integration tests that need them live under `tests/db` too).
 
 ---
 

@@ -1,5 +1,4 @@
 packages:
   - "packages/*"
   - "!packages/ui"
-  - "!packages/drawing-engine"
   - "!packages/manufacturing-engine"

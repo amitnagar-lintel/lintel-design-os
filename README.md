@@ -8,7 +8,7 @@ manufacturing data are all derived from the same parametric model.
 - Engineering rules for Claude Code: [`CLAUDE.md`](CLAUDE.md)
 - Architecture decisions: [`docs/architecture/`](docs/architecture/)
 
-## Status — M1 (parametric cabinet engine) + M2 (pricing engine)
+## Status — M1 (parametric cabinet engine) + M2 (pricing) + M3 (execution drawings)
 
 `KIT_BASE_STANDARD` runs end-to-end as pure TypeScript (no UI, no database):
 
@@ -16,6 +16,7 @@ manufacturing data are all derived from the same parametric model.
 DesignObject ─► parameter resolver ─► formula engine ─► construction rules
      ─► component generator ─► geometry metadata ─► Hettich adapter (hardware)
      ─► validation ─► BOM ─► BOQ ─► pricing ─► immutable PriceSnapshot
+     ─► drawing model ─► Front Elevation + Panel Schedule ─► SVG / PDF
                                         (all stamped with DesignVersion trace)
 ```
 
@@ -29,19 +30,21 @@ DesignObject ─► parameter resolver ─► formula engine ─► construction
 | `@lintel/design-engine` | Pipeline orchestration: `resolveCabinet`, production guard, model fingerprint |
 | `@lintel/bom-engine` | Physical bill of materials (quantities only) |
 | `@lintel/boq-engine` | Commercial bill of quantities, linked to the BOM |
+| `@lintel/drawing-engine` | Execution drawings from the resolved model: Front Elevation, Panel Schedule; §34 title block; SVG + PDF; staleness; watermark; production guard |
 | `@lintel/pricing-engine` | Exact (paise) pricing from versioned rate cards and rules → immutable, hash-sealed `PriceSnapshot` |
 
-Other PRD §8 folders (`apps/*`, `services/*`, `database/*`, `packages/{ui,drawing-engine,manufacturing-engine}`)
+Other PRD §8 folders (`apps/*`, `services/*`, `database/*`, `packages/{ui,manufacturing-engine}`)
 exist as documented placeholders.
 
 **Nothing is invented:** Lintel's construction standard, the PRODUCTION Hettich dataset and the production
 rate card / pricing rules are all empty (`NULL / UNVERIFIED`). The production configuration reports exactly
 which values are missing, blocks approval and returns production pricing as `UNAVAILABLE`. A clearly
 labelled TEST_FIXTURE configuration exercises the full pipeline in tests and can never reach production
-(ADR-0004, ADR-0005, ADR-0006).
+(ADR-0004 to ADR-0007).
 
 - What Lintel must supply: [`docs/catalog/KIT_BASE_STANDARD_DATA_REQUIRED.md`](docs/catalog/KIT_BASE_STANDARD_DATA_REQUIRED.md)
 - Intake templates: [`docs/catalog/production-data/`](docs/catalog/production-data/)
+- Industry benchmark (comparison only, not a production source): [`docs/catalog/KIT_BASE_STANDARD_BENCHMARK_V1.md`](docs/catalog/KIT_BASE_STANDARD_BENCHMARK_V1.md)
 
 ## Development
 

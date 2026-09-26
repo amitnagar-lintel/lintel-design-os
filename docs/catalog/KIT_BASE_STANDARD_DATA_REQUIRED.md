@@ -12,10 +12,45 @@ provided, verified and approved in a new standard version with status `APPROVED`
 - Drawing types are the PRD §33 V1 set: Front Elevation, Internal Elevation, Side Section, Panel Schedule.
 - Manufacturing outputs are the PRD Phase 7 set: cut list, edge-banding list, drilling / CNC program,
   board optimisation (nesting), panel labels, hardware pick list.
+- Industry benchmark (comparison only, not a production source): [`KIT_BASE_STANDARD_BENCHMARK_V1.md`](KIT_BASE_STANDARD_BENCHMARK_V1.md).
 - Named approvers are not yet assigned: **NULL / UNVERIFIED**. Roles are given below.
 
 Symbols used in expressions: `W` width, `H` height, `D` depth, `T` carcass thickness, `TB` back thickness,
 `N_SHUTTER` shutter count, `N_SHELF` shelf count, `T_FRONT` shutter board thickness, `i` instance index.
+
+## Reconciliation: 11 construction values vs "10 undefined" reported for the reference cabinet
+
+The M2 report stated "10 undefined construction values" for the production run. Both numbers are correct
+and refer to different things:
+
+- **11** = every construction variable declared by recipe `KITCHEN_BASE_STANDARD_V1`. All 11 are `NULL` in
+  `LINTEL_CONSTRUCTION_STANDARD` and all 11 must be approved before the product family is production-ready.
+- **10** = the variables the engine actually needed for the **reference cabinet** (PRD §42: overlay fronts).
+  The engine reports only values that an *active* formula needs. `INSET_GAP` is used only by the
+  `SHUTTER_INSET` template (`when: FRONT_INSET`), so it is not reported for an overlay cabinet. Switching the
+  same cabinet to `frontType = INSET` makes `INSET_GAP` required and makes the three overlay-only values
+  (`OVERLAY_EDGE_GAP`, `OVERLAY_TOP_GAP`, `OVERLAY_BOTTOM_GAP`) not required for that cabinet.
+
+Classification of each field:
+
+| # | Field | Classified as | Why | Required for overlay reference | Required for inset |
+|---|---|---|---|---|---|
+| 1 | BACK_GROOVE_DEPTH | Construction value — carcass joinery dimension | Sets back panel size/position and the groove machined into sides and bottom | Yes | Yes |
+| 2 | BACK_REAR_OFFSET | Construction value — carcass joinery dimension | Positions the back, rear rail and shelves in depth | Yes | Yes |
+| 3 | TOP_RAIL_WIDTH | Construction value — component dimension | Sizes both top support rails | Yes | Yes |
+| 4 | SHELF_FRONT_SETBACK | Construction value — component dimension | Sizes the shelf depth; clearance rule for inset fronts | Yes | Yes |
+| 5 | SHELF_SIDE_CLEARANCE | Construction value — fit tolerance | Sizes loose shelf width | Yes | Yes |
+| 6 | OVERLAY_EDGE_GAP | Construction value — front reveal | Sizes/positions overlay fronts | Yes | No |
+| 7 | OVERLAY_TOP_GAP | Construction value — front reveal | Sizes overlay front height | Yes | No |
+| 8 | OVERLAY_BOTTOM_GAP | Construction value — front reveal | Sizes/positions overlay front height | Yes | No |
+| 9 | FRONT_BETWEEN_GAP | Construction value — front reveal | Gap between adjacent fronts (overlay and inset) | Yes | Yes |
+| 10 | INSET_GAP | Construction value — front reveal | Sizes/positions inset fronts only | **No** (inactive) | Yes |
+| 11 | FRONT_FINISHED_FACES | Construction **specification** (count), not a dimension | Declared in the construction standard because it is a construction decision (balance/finish of both faces); it drives finish quantity, not geometry | Yes | Yes |
+
+So the complete production list is **11 fields**; the reference overlay cabinet currently blocks on **10**
+of them; an inset cabinet blocks on **8** (`BACK_GROOVE_DEPTH`, `BACK_REAR_OFFSET`, `TOP_RAIL_WIDTH`,
+`SHELF_FRONT_SETBACK`, `SHELF_SIDE_CLEARANCE`, `FRONT_BETWEEN_GAP`, `INSET_GAP`, `FRONT_FINISHED_FACES`).
+A test (`tests/docs-sync.test.ts`) asserts these counts against the engine.
 
 ---
 

@@ -50,3 +50,44 @@ describe("production-data intake documents", () => {
     for (const k of keys) expect(doc).toContain(`| ${k} |`);
   });
 });
+
+describe("reconciliation of the 11-field list with engine behaviour", () => {
+  const undefinedFor = async (frontType: string): Promise<string[]> => {
+    const { productionSlice, referenceObject } = await import("./support/scenario.js");
+    return productionSlice(referenceObject({ parameters: { frontType } }))
+      .resolved.validation.messages.filter((m) => m.code === "CONSTRUCTION_VARIABLE_UNDEFINED")
+      .map((m) => (m.path ?? "").replace("standard.variables.", ""));
+  };
+  it("overlay reference cabinet blocks on 10 of the 11 (INSET_GAP inactive)", async () => {
+    const missing = await undefinedFor("OVERLAY");
+    expect(missing).toHaveLength(10);
+    expect(variables.filter((v) => !missing.includes(v))).toEqual(["INSET_GAP"]);
+  });
+  it("inset cabinet blocks on 8 of the 11 (overlay reveals inactive)", async () => {
+    const missing = await undefinedFor("INSET");
+    expect(missing).toEqual(["BACK_GROOVE_DEPTH", "BACK_REAR_OFFSET", "FRONT_BETWEEN_GAP", "FRONT_FINISHED_FACES", "INSET_GAP", "SHELF_FRONT_SETBACK", "SHELF_SIDE_CLEARANCE", "TOP_RAIL_WIDTH"]);
+  });
+});
+
+describe("KIT_BASE_STANDARD_BENCHMARK_V1.md", () => {
+  const doc = read("KIT_BASE_STANDARD_BENCHMARK_V1.md");
+  it("is labelled as an industry benchmark, not the Lintel production standard", () => {
+    expect(doc).toContain("INDUSTRY BENCHMARK - NOT LINTEL PRODUCTION STANDARD");
+  });
+  it("covers all 11 fields, each with the required rows", () => {
+    const sections = [...doc.matchAll(/^### (\d+)\. `([A-Z_]+)`$/gm)].map((m) => m[2]);
+    expect(sections).toEqual(variables);
+    const bodies = doc.split(/^### \d+\. /m).slice(1);
+    const rows = ["Benchmark value", "Source", "Source URL", "Source type", "Confidence", "Appears configurable", "Notes on applicability"];
+    for (const body of bodies) for (const r of rows) expect(body).toContain(`| ${r} |`);
+  });
+  it("any recorded benchmark value carries a source URL; otherwise it states no verified benchmark", () => {
+    for (const body of doc.split(/^### \d+\. /m).slice(1)) {
+      const value = /\| Benchmark value \| (.+) \|/.exec(body)?.[1] ?? "";
+      if (value !== "NO VERIFIED PUBLIC BENCHMARK FOUND") expect(body).toMatch(/\| Source URL \| https:\/\//);
+    }
+  });
+  it("does not change the production standard", () => {
+    for (const v of variables) expect(LINTEL_CONSTRUCTION_STANDARD_DRAFT.variables[v]).toBeNull();
+  });
+});

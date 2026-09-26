@@ -21,6 +21,7 @@
     "@lintel/boq-engine": "workspace:*",
     "@lintel/catalog-engine": "workspace:*",
     "@lintel/design-engine": "workspace:*",
+    "@lintel/drawing-engine": "workspace:*",
     "@lintel/geometry-engine": "workspace:*",
     "@lintel/hettich-engine": "workspace:*",
     "@lintel/pricing-engine": "workspace:*",

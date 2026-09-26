@@ -29,7 +29,15 @@ export interface ApiConfig {
    * Output file storage (M5 §12): the memory or local-filesystem provider only (no hosted bucket). Signed URLs are
    * HMAC-signed, short-lived and served by GET /api/v1/file-content/…; `publicBaseUrl` is the API's public origin.
    */
-  readonly files: { readonly provider: "memory" | "local"; readonly root?: string; readonly signingSecret: string; readonly publicBaseUrl: string };
+  readonly files: {
+    readonly provider: "memory" | "local" | "supabase";
+    readonly root?: string;
+    /** memory / local only: the HMAC key and public origin of the API's own signed /file-content URLs. */
+    readonly signingSecret: string;
+    readonly publicBaseUrl: string;
+    /** supabase only (M6 G5): the project URL, the private bucket and the server-side Storage credential. */
+    readonly supabase?: { readonly url: string; readonly bucket: string; readonly key: string };
+  };
   /** Error tracking (OD-M6-6). Absent = no error tracking (development / tests): nothing is loaded or sent. */
   readonly sentry?: { readonly dsn: string; readonly environment: string; readonly release: string };
   /** Request rate limits (M6 CP3). Every number comes from the environment; see RATE_LIMIT_* below. */
@@ -62,7 +70,10 @@ const Env = z.object({
   BUILD_REVISION: z.string().optional(),
   GITHUB_SHA: z.string().optional(),
   ENGINE_MANIFEST_PATH: z.string().min(1).optional(),
-  FILE_STORAGE: z.enum(["memory", "local"]),
+  FILE_STORAGE: z.enum(["memory", "local", "supabase"]),
+  SUPABASE_URL: z.url().optional(),
+  SUPABASE_STORAGE_BUCKET: z.string().min(1).optional(),
+  SUPABASE_STORAGE_KEY: z.string().min(20).optional(),
   FILE_STORAGE_ROOT: z.string().min(1).optional(),
   FILE_URL_SECRET: z.string().min(32),
   FILE_URL_BASE: z.url(),
@@ -106,6 +117,10 @@ export function loadConfig(env: Readonly<Record<string, string | undefined>>, gi
   const e = Env.parse(env);
   if ((e.AUTH_JWKS_URL === undefined) === (e.AUTH_JWT_SECRET === undefined)) throw new Error("set exactly one of AUTH_JWKS_URL or AUTH_JWT_SECRET");
   if ((e.FILE_STORAGE === "local") !== (e.FILE_STORAGE_ROOT !== undefined)) throw new Error("FILE_STORAGE_ROOT is required for (and only for) FILE_STORAGE=local");
+  const supabase = [e.SUPABASE_URL, e.SUPABASE_STORAGE_BUCKET, e.SUPABASE_STORAGE_KEY];
+  if ((e.FILE_STORAGE === "supabase") !== supabase.every((x) => x !== undefined) || (e.FILE_STORAGE !== "supabase" && supabase.some((x) => x !== undefined))) {
+    throw new Error("SUPABASE_URL, SUPABASE_STORAGE_BUCKET and SUPABASE_STORAGE_KEY are required for (and only for) FILE_STORAGE=supabase");
+  }
   if (e.SENTRY_DSN !== undefined && e.SENTRY_ENVIRONMENT === undefined) throw new Error("SENTRY_ENVIRONMENT is required with SENTRY_DSN (e.g. staging, production)");
   const buildRevision = resolveBuildRevision(env, git);
   const key: JwtKeySource = e.AUTH_JWKS_URL !== undefined
@@ -121,7 +136,8 @@ export function loadConfig(env: Readonly<Record<string, string | undefined>>, gi
     logger: e.API_LOG === "true",
     buildRevision,
     ...(e.ENGINE_MANIFEST_PATH === undefined ? {} : { engineManifestPath: e.ENGINE_MANIFEST_PATH }),
-    files: { provider: e.FILE_STORAGE, ...(e.FILE_STORAGE_ROOT === undefined ? {} : { root: e.FILE_STORAGE_ROOT }), signingSecret: e.FILE_URL_SECRET, publicBaseUrl: e.FILE_URL_BASE.replace(/\/+$/, "") },
+    files: { provider: e.FILE_STORAGE, ...(e.FILE_STORAGE_ROOT === undefined ? {} : { root: e.FILE_STORAGE_ROOT }), signingSecret: e.FILE_URL_SECRET, publicBaseUrl: e.FILE_URL_BASE.replace(/\/+$/, ""),
+      ...(e.FILE_STORAGE === "supabase" ? { supabase: { url: e.SUPABASE_URL ?? "", bucket: e.SUPABASE_STORAGE_BUCKET ?? "", key: e.SUPABASE_STORAGE_KEY ?? "" } } : {}) },
     ...(e.SENTRY_DSN === undefined ? {} : { sentry: { dsn: e.SENTRY_DSN, environment: e.SENTRY_ENVIRONMENT ?? "", release: e.SENTRY_RELEASE ?? buildRevision } }),
     rateLimit: {
       enabled: e.RATE_LIMIT_ENABLED === "true", windowMs: e.RATE_LIMIT_WINDOW_SECONDS * 1000,

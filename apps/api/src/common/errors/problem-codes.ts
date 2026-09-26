@@ -28,6 +28,7 @@ export const PROBLEM_CODES = {
   PRODUCTION_GUARD_FAILED: { status: 409, title: "Production output requires an approved or locked design version" },
   OUTPUT_PURPOSE_NOT_ALLOWED: { status: 409, title: "The output purpose is not allowed here" },
   SOURCE_SNAPSHOT_INCOMPATIBLE: { status: 409, title: "An upstream output is for other inputs or versions" },
+  COMMERCIAL_VERSION_NOT_FOUND: { status: 422, title: "The chosen PricingStandard / QuotationPolicy version does not exist in this organization" },
   SOURCE_PURPOSE_INSUFFICIENT: { status: 409, title: "An upstream output has a weaker purpose" },
   MEMBERSHIP_RULE_VIOLATION: { status: 409, title: "Membership rules violated" },
   DUPLICATE_RESOURCE: { status: 409, title: "The resource already exists" },

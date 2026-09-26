@@ -38,6 +38,9 @@ export interface StoredResponse {
   readonly resource?: { readonly type: string; readonly id: string };
 }
 
+/** Rebuild a replayed body from the durable resource of the original result (with its original status). */
+export type Rehydrate = (resource: { readonly type: string; readonly id: string }, status: number) => Promise<unknown>;
+
 /** Everything that makes two requests "the same request" (the request hash). */
 export interface CanonicalRequest {
   readonly method: string;
@@ -88,7 +91,7 @@ export class IdempotencyService {
     tx: Tx,
     claim: { readonly scope: IdempotencyScope; readonly key: string; readonly requestHash: Sha256 },
     execute: () => Promise<StoredResponse>,
-    rehydrate?: (resource: { readonly type: string; readonly id: string }) => Promise<unknown>,
+    rehydrate?: Rehydrate,
   ): Promise<{ readonly response: StoredResponse; readonly replayed: boolean }> {
     const c = await tx.one<ClaimRow>("SELECT * FROM design_os.claim_idempotency($1, $2, $3)", [claim.scope, claim.key, claim.requestHash]);
     if (c.outcome === "REPLAY") {
@@ -97,7 +100,8 @@ export class IdempotencyService {
         return { replayed: true, response: { status: c.response_status ?? 200, body: c.response_body.body, ...(c.response_body.headers === undefined ? {} : { headers: c.response_body.headers }), ...(resource === undefined ? {} : { resource }) } };
       }
       if (resource === undefined || rehydrate === undefined) throw new ApiProblem("INTERNAL", "stored idempotent result cannot be replayed");
-      return { replayed: true, response: { status: c.response_status ?? 200, body: await rehydrate(resource), resource } };
+      const status = c.response_status ?? 200;
+      return { replayed: true, response: { status, body: await rehydrate(resource, status), resource } };
     }
     const response = await execute();
     if (response.status < 200 || response.status > 299) throw new Error("only successful results are stored");
@@ -117,8 +121,9 @@ export class IdempotencyService {
     req: { readonly key: string; readonly method: string; readonly operation: string; readonly params: Readonly<Record<string, string>>; readonly query: Readonly<Record<string, unknown>> },
     body: unknown,
     execute: () => Promise<StoredResponse>,
+    rehydrate?: Rehydrate,
   ): Promise<{ readonly response: StoredResponse; readonly replayed: boolean }> {
     const hash = requestHash({ method: req.method, operation: req.operation, userId: scope.principal.userId, orgId: scope.org.orgId, params: req.params, query: req.query, body });
-    return this.run(tx, { scope: idempotencyScope, key: req.key, requestHash: hash }, execute);
+    return this.run(tx, { scope: idempotencyScope, key: req.key, requestHash: hash }, execute, rehydrate);
   }
 }

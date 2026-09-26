@@ -44,7 +44,30 @@ export interface Pins {
   readonly hettich_dataset_version_id: string;
 }
 
+/** An explicitly chosen commercial version as rows (null when it is not a version of the caller's organization). */
+export interface CommercialRows {
+  readonly pricingStandard: { readonly version: VersionRowWithCode; readonly rateLines: Row[] } | null;
+  readonly quotationPolicy: { readonly version: VersionRowWithCode; readonly taxRates: Row[]; readonly taxRateMappings: Row[] } | null;
+}
+
 export const designInputsRepository = {
+  /** The exact PricingStandard / QuotationPolicy versions chosen for an output (M5 Step 7): never a design pin, never "latest". */
+  async commercial(tx: Tx, pricingStandardVersionId: string | null, quotationPolicyVersionId: string | null): Promise<CommercialRows> {
+    const pricing = await versionWithCode(tx, "pricing_standard_version", "pricing_standard", pricingStandardVersionId);
+    const policy = await versionWithCode(tx, "quotation_policy_version", "quotation_policy", quotationPolicyVersionId);
+    return {
+      pricingStandard: pricing === null ? null : {
+        version: pricing,
+        rateLines: await jsonRows<Row>(tx, `SELECT * FROM design_os.rate_card_line WHERE version_id = $1 ORDER BY measure COLLATE "C", item_key COLLATE "C"`, [pricing.id]),
+      },
+      quotationPolicy: policy === null ? null : {
+        version: policy,
+        taxRates: await jsonRows<Row>(tx, `SELECT * FROM design_os.tax_rate WHERE version_id = $1 ORDER BY rate_code COLLATE "C"`, [policy.id]),
+        taxRateMappings: await jsonRows<Row>(tx, `SELECT * FROM design_os.tax_rate_mapping WHERE version_id = $1 ORDER BY product_category COLLATE "C"`, [policy.id]),
+      },
+    };
+  },
+
   async pinned(tx: Tx, p: Pins): Promise<PinnedInputRows> {
     const values = (table: string, id: string) => jsonRows<Row>(tx, `SELECT * FROM design_os.${table} WHERE version_id = $1 ORDER BY variable_code COLLATE "C"`, [id]);
     const hardwareRuleSets = await members(tx, "hardware_catalog_version_hardware_rule_set", "hardware_rule_set_version_id", "hardware_rule_set_version", "hardware_rule_set", p.hardware_catalog_version_id);

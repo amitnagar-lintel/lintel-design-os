@@ -101,3 +101,37 @@ describe("build identity resolution", () => {
     expect(() => loadConfig({ ...env, BUILD_REVISION: undefined }, noGit)).toThrow(/build identity is required/);
   });
 });
+
+describe("one fingerprint per output engine (M5 Step 7 checkpoint 2)", () => {
+  const all = (o: Parameters<typeof computeEngineManifest>[0] = {}) => computeEngineManifest(o).engines;
+  const outputs = ["validation", "bom", "boq", "pricing", "quotation"] as const;
+  it("validation, bom, boq, pricing and quotation each have their own entry, semantic version and fingerprint", () => {
+    const m = all();
+    expect(Object.keys(m).sort()).toEqual([...outputs].sort());
+    for (const name of outputs) expect([name, m[name]?.version]).toEqual([name, ENGINE_ENTRIES[name]?.version]);
+    expect(new Set(outputs.map((n) => m[n]?.fingerprint)).size).toBe(outputs.length);
+  });
+  it("every output engine's closure includes the room resolution it consumes (the execution context's model), and only its own output engine", () => {
+    const m = all();
+    const pkgs = (n: (typeof outputs)[number]) => Object.keys(m[n]?.closure.packages ?? {});
+    for (const n of outputs) expect(pkgs(n)).toEqual(expect.arrayContaining(["@lintel/design-engine", "@lintel/hettich-engine", "@lintel/persistence"]));
+    expect(pkgs("bom")).toContain("@lintel/bom-engine");
+    expect(pkgs("boq")).toContain("@lintel/boq-engine");
+    for (const n of ["pricing", "quotation"] as const) expect(pkgs(n)).toContain("@lintel/pricing-engine");
+    for (const n of ["validation", "bom", "boq"] as const) expect(pkgs(n)).not.toContain("@lintel/pricing-engine");
+    for (const n of outputs) expect(pkgs(n)).not.toContain("@lintel/drawing-engine");
+  });
+  it("a pricing-engine change moves the pricing and quotation fingerprints only; a design-engine change moves all of them", () => {
+    const base = all({ readFile: real });
+    const priced = all({ readFile: patched("packages/pricing-engine/src/price.ts", (t) => `${t}\n// pricing change\n`) });
+    expect(outputs.map((n) => [n, priced[n]?.fingerprint === base[n]?.fingerprint])).toEqual([["validation", true], ["bom", true], ["boq", true], ["pricing", false], ["quotation", false]]);
+    const designed = all({ readFile: patched("packages/design-engine/src/room.ts", (t) => `${t}\n// design change\n`) });
+    for (const n of outputs) expect([n, designed[n]?.fingerprint === base[n]?.fingerprint]).toEqual([n, false]);
+  });
+  it("the room is resolved in exactly one place of the outputs module: buildOutputExecutionContext", () => {
+    const dir = abs("apps/api/src/modules/outputs");
+    const files = ["output-context.ts", "output-generation.ts", "outputs.service.ts", "staleness.ts", "outputs.controller.ts", "engines/bom.ts", "engines/boq.ts", "engines/pricing.ts", "engines/quotation.ts"];
+    const calls = files.flatMap((f) => [...real(join(dir, f)).matchAll(/\b(resolveEngineeringModel|resolveRoom|runDesignEngine)\(/g)].map(() => f));
+    expect(calls).toEqual(["output-context.ts"]);
+  });
+});

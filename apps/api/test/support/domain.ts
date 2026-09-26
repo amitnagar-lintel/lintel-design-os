@@ -27,14 +27,18 @@ export interface DomainWorld {
 
 export const SURVEY = { lengthMm: 4200, widthMm: 3200, heightMm: 3000, wallThicknessMm: 150, source: "site survey" };
 
-export async function domainWorld(api: Api, opts: { readonly withDeps?: boolean } = {}): Promise<DomainWorld> {
+/**
+ * `commercial: "approved"` also seeds APPROVED synthetic PricingStandard / QuotationPolicy versions (tests/db builders:
+ * test-only values in the race database; never production pricing).
+ */
+export async function domainWorld(api: Api, opts: { readonly withDeps?: boolean; readonly commercial?: "none" | "draft" | "approved" } = {}): Promise<DomainWorld> {
   const w = await world();
   let deps = { pins: {}, items: {} } as unknown as Dependencies;
   if (opts.withDeps !== false) {
     const c = await admin();
     try {
       await c.query("BEGIN");
-      deps = await dependencies(c as unknown as Tx, w);
+      deps = await dependencies(c as unknown as Tx, w, { commercial: opts.commercial ?? "none" });
       await c.query("COMMIT");
     } finally {
       await c.end();

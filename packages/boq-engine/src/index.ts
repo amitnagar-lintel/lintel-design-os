@@ -5,6 +5,9 @@
 import type { BOM, BOQ, BOQItem, ProductDefinition, ResolvedCabinet } from "@lintel/types";
 import { evaluateNumber, interpolate } from "@lintel/rules-engine";
 
+/** Semantic version of the BOQ engine (M5 Step 7); recorded with every BOQ snapshot beside the engine fingerprint. */
+export const BOQ_ENGINE_VERSION = "0.1.0";
+
 export class BoqGenerationError extends Error {
   constructor(message: string) {
     super(message);

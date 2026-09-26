@@ -12,9 +12,10 @@ import { ProblemFilter } from "./errors/problem.filter.js";
 import { CursorCodec } from "./http/pagination.js";
 import { IdempotencyService } from "./idempotency/idempotency.service.js";
 import { loadEngineManifest } from "../infrastructure/engines/engine-manifest.js";
-import { API_CONFIG, ENGINE_MANIFEST, PG_POOL } from "./tokens.js";
+import { createFileStorage } from "../infrastructure/storage/file-storage.js";
+import { API_CONFIG, ENGINE_MANIFEST, FILE_STORAGE, PG_POOL } from "./tokens.js";
 
-/** Cross-cutting API foundation: config, database, auth, errors, concurrency, idempotency and pagination. */
+/** Cross-cutting API foundation: config, database, auth, errors, concurrency, idempotency, pagination and file storage. */
 @Global()
 @Module({})
 export class CommonModule {
@@ -24,6 +25,7 @@ export class CommonModule {
       providers: [
         { provide: API_CONFIG, useValue: config },
         { provide: ENGINE_MANIFEST, useFactory: () => loadEngineManifest(config.engineManifestPath) },
+        { provide: FILE_STORAGE, useFactory: () => createFileStorage(config.files) },
         { provide: PG_POOL, useFactory: () => createPool(config.databaseUrl, config.dbPoolMax) },
         { provide: CursorCodec, useFactory: () => new CursorCodec(config.cursorSecret) },
         PoolLifecycle,
@@ -36,7 +38,7 @@ export class CommonModule {
         { provide: APP_GUARD, useClass: AccessGuard },
         { provide: APP_FILTER, useClass: ProblemFilter },
       ],
-      exports: [API_CONFIG, ENGINE_MANIFEST, PG_POOL, CursorCodec, Database, UnitOfWork, OrgContextResolver, IdempotencyService],
+      exports: [API_CONFIG, ENGINE_MANIFEST, FILE_STORAGE, PG_POOL, CursorCodec, Database, UnitOfWork, OrgContextResolver, IdempotencyService],
     };
   }
 }

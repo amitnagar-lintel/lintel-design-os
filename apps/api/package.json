@@ -6,16 +6,19 @@
   "description": "Lintel Design OS API (NestJS + Fastify, /api/v1). The only application boundary to the design_os database.",
   "scripts": {
     "start": "node --import tsx src/main.ts",
-    "engines:manifest": "node --import tsx src/infrastructure/engines/write-engine-manifest.ts"
+    "engines:manifest": "node --import tsx src/infrastructure/engines/write-engine-manifest.ts",
+    "openapi": "node --import tsx src/openapi/write-openapi.ts"
   },
   "dependencies": {
     "@lintel/bom-engine": "workspace:*",
     "@lintel/boq-engine": "workspace:*",
     "@lintel/catalog-engine": "workspace:*",
     "@lintel/design-engine": "workspace:*",
+    "@lintel/drawing-engine": "workspace:*",
     "@lintel/hettich-engine": "workspace:*",
     "@lintel/persistence": "workspace:*",
     "@lintel/pricing-engine": "workspace:*",
+    "@lintel/storage": "workspace:*",
     "@lintel/types": "workspace:*",
     "@nestjs/common": "^12.1.0",
     "@nestjs/core": "^12.1.0",

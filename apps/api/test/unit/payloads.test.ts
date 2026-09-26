@@ -18,6 +18,8 @@ import { producedFrom } from "../../src/modules/outputs/output-generation.js";
 import { StoredPayloadError, parseStoredPayload } from "../../src/modules/outputs/payloads.js";
 import { fixtureRoom } from "../../../../tests/support/room.js";
 import { QUOTED_AT, roomCommercials } from "../../../../tests/support/quotation.js";
+import { created as drawn, elevation } from "../../../../tests/support/drawing.js";
+import { createdRoom, wallElevation } from "../../../../tests/support/room-drawing.js";
 
 const room = fixtureRoom();
 const { roomBom, roomBoq } = roomCommercials(room);
@@ -28,7 +30,10 @@ const quoted = quoteRoom({ mode: "TEST_FIXTURE", room, roomBoq, pricing, policy:
 if (quoted.status !== "PRICED") throw new Error("fixture must quote");
 const quotation: QuotationSnapshot = quoted.snapshot;
 
-const PAYLOADS: Readonly<Record<OutputKind, unknown>> = { BOM: roomBom, BOQ: roomBoq, PRICING: pricing, QUOTATION: quotation };
+const cabinetDrawing = drawn(elevation(room.cabinets[0]!));
+const roomDrawing = createdRoom(wallElevation(room, "A"));
+
+const PAYLOADS: Readonly<Record<OutputKind, unknown>> = { BOM: roomBom, BOQ: roomBoq, PRICING: pricing, QUOTATION: quotation, DRAWING: cabinetDrawing };
 /** A stored row exactly as the database returns it (JSON round trip), sealed with the payload's content hash. */
 const stored = (payload: unknown, hash = contentHash(payload)) => ({ id: "00000000-0000-4000-8000-000000000001", payload: JSON.parse(JSON.stringify(payload)) as unknown, content_hash: hash });
 type Path = readonly (string | number)[];
@@ -57,11 +62,13 @@ const failure = (kind: OutputKind, row: ReturnType<typeof stored>) => {
 
 describe("stored payload → Zod schema → validated domain object", () => {
   it("a valid stored snapshot of every kind parses to exactly the engine output, deep-frozen", () => {
-    for (const kind of ["BOM", "BOQ", "PRICING", "QUOTATION"] as const) {
+    for (const kind of ["BOM", "BOQ", "PRICING", "QUOTATION", "DRAWING"] as const) {
       const value = parseStoredPayload(kind, stored(PAYLOADS[kind]));
       expect([kind, value]).toEqual([kind, PAYLOADS[kind]]);
       expect(Object.isFrozen(value)).toBe(true);
     }
+    // Both drawing scopes: a cabinet drawing and a room drawing.
+    expect(parseStoredPayload("DRAWING", stored(roomDrawing))).toEqual(roomDrawing);
   });
   it("a missing required field is refused", () => {
     expect(failure("BOM", mutated("BOM", ["roomFingerprint"], del))).toBe("SCHEMA");
@@ -98,6 +105,12 @@ describe("stored payload → Zod schema → validated domain object", () => {
   it("a schema-valid payload re-sealed with a matching content hash but a broken engine seal is refused", () => {
     expect(failure("PRICING", mutated("PRICING", ["totals", "margin"], { add: 1 }))).toBe("ENGINE_SEAL");
     expect(failure("QUOTATION", mutated("QUOTATION", ["totals", "grandTotal"], { add: 100 }))).toBe("ENGINE_SEAL");
+    expect(failure("DRAWING", mutated("DRAWING", ["titleBlock", "checker"], { set: "someone else" }))).toBe("ENGINE_SEAL");
+  });
+  it("a malformed drawing (bad primitive, unknown layer, wrong sheet) is refused", () => {
+    expect(failure("DRAWING", mutated("DRAWING", ["sheets", 0, "primitives", 0, "layer"], { set: "GLOW" }))).toBe("SCHEMA");
+    expect(failure("DRAWING", mutated("DRAWING", ["sheets", 0, "primitives", 0], { set: { kind: "arc" } }))).toBe("SCHEMA");
+    expect(failure("DRAWING", mutated("DRAWING", ["sheets", 0, "paper", "name"], { set: "A4" }))).toBe("SCHEMA");
   });
   it("in the API a failing stored payload is a 500 STORED_OUTPUT_INVALID problem, never an engine input", () => {
     const row = { ...mutated("BOM", ["incomplete"], { set: "no" }), kind: "BOM" } as unknown as SnapshotRow;

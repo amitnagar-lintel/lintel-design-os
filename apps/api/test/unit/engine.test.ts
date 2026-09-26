@@ -96,16 +96,19 @@ describe("build identity resolution", () => {
     for (const bad of ["", "abc", "has space", "-leading"]) expect(() => resolveBuildRevision({ BUILD_REVISION: bad }, noGit)).toThrow(/build identity is required/);
   });
   it("is part of the loaded API config", () => {
-    const env = { DATABASE_URL: "postgresql://x", AUTH_ISSUER: "https://auth.test.local/auth/v1", AUTH_JWT_SECRET: "s".repeat(40), CURSOR_SECRET: "c".repeat(40), BUILD_REVISION: A };
+    const env = { DATABASE_URL: "postgresql://x", AUTH_ISSUER: "https://auth.test.local/auth/v1", AUTH_JWT_SECRET: "s".repeat(40), CURSOR_SECRET: "c".repeat(40), BUILD_REVISION: A, FILE_STORAGE: "memory", FILE_URL_SECRET: "f".repeat(40), FILE_URL_BASE: "http://localhost:3000/" };
     expect(loadConfig(env, noGit).buildRevision).toBe(A);
+    expect(loadConfig(env, noGit).files).toEqual({ provider: "memory", signingSecret: "f".repeat(40), publicBaseUrl: "http://localhost:3000" });
+    expect(() => loadConfig({ ...env, FILE_STORAGE: "local" }, noGit)).toThrow(/FILE_STORAGE_ROOT/);
+    expect(() => loadConfig({ ...env, FILE_STORAGE: "s3" }, noGit)).toThrow();
     expect(() => loadConfig({ ...env, BUILD_REVISION: undefined }, noGit)).toThrow(/build identity is required/);
   });
 });
 
 describe("one fingerprint per output engine (M5 Step 7 checkpoint 2)", () => {
   const all = (o: Parameters<typeof computeEngineManifest>[0] = {}) => computeEngineManifest(o).engines;
-  const outputs = ["validation", "bom", "boq", "pricing", "quotation"] as const;
-  it("validation, bom, boq, pricing and quotation each have their own entry, semantic version and fingerprint", () => {
+  const outputs = ["validation", "bom", "boq", "pricing", "quotation", "drawing"] as const;
+  it("validation, bom, boq, pricing, quotation and drawing each have their own entry, semantic version and fingerprint", () => {
     const m = all();
     expect(Object.keys(m).sort()).toEqual([...outputs].sort());
     for (const name of outputs) expect([name, m[name]?.version]).toEqual([name, ENGINE_ENTRIES[name]?.version]);
@@ -119,18 +122,22 @@ describe("one fingerprint per output engine (M5 Step 7 checkpoint 2)", () => {
     expect(pkgs("boq")).toContain("@lintel/boq-engine");
     for (const n of ["pricing", "quotation"] as const) expect(pkgs(n)).toContain("@lintel/pricing-engine");
     for (const n of ["validation", "bom", "boq"] as const) expect(pkgs(n)).not.toContain("@lintel/pricing-engine");
-    for (const n of outputs) expect(pkgs(n)).not.toContain("@lintel/drawing-engine");
+    for (const n of outputs.filter((x) => x !== "drawing")) expect(pkgs(n)).not.toContain("@lintel/drawing-engine");
+    expect(pkgs("drawing")).toContain("@lintel/drawing-engine");
   });
-  it("a pricing-engine change moves the pricing and quotation fingerprints only; a design-engine change moves all of them", () => {
+  it("a pricing-engine change moves the pricing and quotation fingerprints only; a drawing-engine change only the drawing one; a design-engine change all of them", () => {
     const base = all({ readFile: real });
     const priced = all({ readFile: patched("packages/pricing-engine/src/price.ts", (t) => `${t}\n// pricing change\n`) });
-    expect(outputs.map((n) => [n, priced[n]?.fingerprint === base[n]?.fingerprint])).toEqual([["validation", true], ["bom", true], ["boq", true], ["pricing", false], ["quotation", false]]);
+    expect(outputs.map((n) => [n, priced[n]?.fingerprint === base[n]?.fingerprint])).toEqual([["validation", true], ["bom", true], ["boq", true], ["pricing", false], ["quotation", false], ["drawing", true]]);
+    const drawn = all({ readFile: patched("packages/drawing-engine/src/svg.ts", (t) => `${t}\n// drawing change\n`) });
+    expect(outputs.filter((n) => drawn[n]?.fingerprint !== base[n]?.fingerprint)).toEqual(["drawing"]);
     const designed = all({ readFile: patched("packages/design-engine/src/room.ts", (t) => `${t}\n// design change\n`) });
     for (const n of outputs) expect([n, designed[n]?.fingerprint === base[n]?.fingerprint]).toEqual([n, false]);
   });
   it("the room is resolved in exactly one place of the outputs module: buildOutputExecutionContext", () => {
     const dir = abs("apps/api/src/modules/outputs");
-    const files = ["output-context.ts", "output-generation.ts", "outputs.service.ts", "staleness.ts", "outputs.controller.ts", "engines/bom.ts", "engines/boq.ts", "engines/pricing.ts", "engines/quotation.ts"];
+    const files = ["output-context.ts", "output-generation.ts", "outputs.service.ts", "files.service.ts", "staleness.ts", "payloads.ts", "outputs.controller.ts", "files.controller.ts",
+      "engines/bom.ts", "engines/boq.ts", "engines/pricing.ts", "engines/quotation.ts", "engines/drawing.ts"];
     const calls = files.flatMap((f) => [...real(join(dir, f)).matchAll(/\b(resolveEngineeringModel|resolveRoom|runDesignEngine)\(/g)].map(() => f));
     expect(calls).toEqual(["output-context.ts"]);
   });

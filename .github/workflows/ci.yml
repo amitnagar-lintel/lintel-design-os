@@ -19,6 +19,9 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
+      # OpenAPI drift: the committed document must be exactly what the route table and Zod schemas generate.
+      - name: OpenAPI drift check
+        run: pnpm api:openapi && git diff --exit-code -- apps/api/openapi/openapi.json
 
   # M5 step 3: database migrations and integration tests on plain PostgreSQL 17 (never a hosted project).
   db:

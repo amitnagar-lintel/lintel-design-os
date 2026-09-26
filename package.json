@@ -16,7 +16,8 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test",
     "test:db": "vitest run --config vitest.db.config.ts",
     "db:schema:update": "UPDATE_SCHEMA_SNAPSHOT=1 vitest run --config vitest.db.config.ts tests/db/migrations.test.ts",
-    "engines:manifest": "pnpm --filter @lintel/api run engines:manifest"
+    "engines:manifest": "pnpm --filter @lintel/api run engines:manifest",
+    "api:openapi": "pnpm --filter @lintel/api run openapi"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

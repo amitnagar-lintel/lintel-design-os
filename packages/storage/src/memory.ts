@@ -9,9 +9,9 @@ export class MemoryStorageProvider implements FileStorageProvider {
   private readonly signer: UrlSigner;
   private readonly now: () => Date;
 
-  constructor(options: { readonly now?: () => Date; readonly signingSecret?: string } = {}) {
+  constructor(options: { readonly now?: () => Date; readonly signingSecret?: string; readonly baseUrl?: string } = {}) {
     this.now = options.now ?? (() => new Date());
-    this.signer = new UrlSigner("memory://objects", options.signingSecret ?? "memory-provider-signing-secret", this.now);
+    this.signer = new UrlSigner(options.baseUrl ?? "memory://objects", options.signingSecret ?? "memory-provider-signing-secret", this.now);
   }
 
   upload(input: UploadInput): Promise<StoredObjectMetadata> {

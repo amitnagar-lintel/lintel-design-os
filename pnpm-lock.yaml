@@ -83,6 +83,9 @@ importers:
       '@lintel/design-engine':
         specifier: workspace:*
         version: link:../../packages/design-engine
+      '@lintel/drawing-engine':
+        specifier: workspace:*
+        version: link:../../packages/drawing-engine
       '@lintel/hettich-engine':
         specifier: workspace:*
         version: link:../../packages/hettich-engine
@@ -92,6 +95,9 @@ importers:
       '@lintel/pricing-engine':
         specifier: workspace:*
         version: link:../../packages/pricing-engine
+      '@lintel/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
       '@lintel/types':
         specifier: workspace:*
         version: link:../../packages/types

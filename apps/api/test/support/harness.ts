@@ -54,6 +54,7 @@ export async function startApi(modules: readonly (Type | DynamicModule)[] = [], 
     // API_TEST_LOG=1 shows the server-side log (full errors) while debugging a failing test.
     logger: process.env.API_TEST_LOG === "1",
     buildRevision: opts.buildRevision ?? TEST_BUILD,
+    files: { provider: "memory", signingSecret: "test-file-url-secret-0123456789abcdef", publicBaseUrl: "http://api.test.local" },
     ...(opts.engineManifestPath === undefined ? {} : { engineManifestPath: opts.engineManifestPath }),
   };
   const app = await createApp(config, modules);

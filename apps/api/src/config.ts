@@ -25,6 +25,11 @@ export interface ApiConfig {
   readonly buildRevision: string;
   /** Build-time engine manifest (`pnpm engines:manifest`). When absent the manifest is computed from the working tree. */
   readonly engineManifestPath?: string;
+  /**
+   * Output file storage (M5 §12): the memory or local-filesystem provider only (no hosted bucket). Signed URLs are
+   * HMAC-signed, short-lived and served by GET /api/v1/file-content/…; `publicBaseUrl` is the API's public origin.
+   */
+  readonly files: { readonly provider: "memory" | "local"; readonly root?: string; readonly signingSecret: string; readonly publicBaseUrl: string };
 }
 
 const Env = z.object({
@@ -41,6 +46,10 @@ const Env = z.object({
   BUILD_REVISION: z.string().optional(),
   GITHUB_SHA: z.string().optional(),
   ENGINE_MANIFEST_PATH: z.string().min(1).optional(),
+  FILE_STORAGE: z.enum(["memory", "local"]),
+  FILE_STORAGE_ROOT: z.string().min(1).optional(),
+  FILE_URL_SECRET: z.string().min(32),
+  FILE_URL_BASE: z.url(),
 });
 
 /** The checked-out commit, marked `+dirty` when tracked files differ from it (local development only). */
@@ -70,6 +79,7 @@ export function resolveBuildRevision(env: Readonly<Record<string, string | undef
 export function loadConfig(env: Readonly<Record<string, string | undefined>>, git: () => string | null = gitRevision): ApiConfig {
   const e = Env.parse(env);
   if ((e.AUTH_JWKS_URL === undefined) === (e.AUTH_JWT_SECRET === undefined)) throw new Error("set exactly one of AUTH_JWKS_URL or AUTH_JWT_SECRET");
+  if ((e.FILE_STORAGE === "local") !== (e.FILE_STORAGE_ROOT !== undefined)) throw new Error("FILE_STORAGE_ROOT is required for (and only for) FILE_STORAGE=local");
   const key: JwtKeySource = e.AUTH_JWKS_URL !== undefined
     ? { kind: "jwks", url: new URL(e.AUTH_JWKS_URL) }
     : { kind: "secret", secret: new TextEncoder().encode(e.AUTH_JWT_SECRET ?? "") };
@@ -83,5 +93,6 @@ export function loadConfig(env: Readonly<Record<string, string | undefined>>, gi
     logger: e.API_LOG === "true",
     buildRevision: resolveBuildRevision(env, git),
     ...(e.ENGINE_MANIFEST_PATH === undefined ? {} : { engineManifestPath: e.ENGINE_MANIFEST_PATH }),
+    files: { provider: e.FILE_STORAGE, ...(e.FILE_STORAGE_ROOT === undefined ? {} : { root: e.FILE_STORAGE_ROOT }), signingSecret: e.FILE_URL_SECRET, publicBaseUrl: e.FILE_URL_BASE.replace(/\/+$/, "") },
   };
 }

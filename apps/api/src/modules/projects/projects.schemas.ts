@@ -29,3 +29,5 @@ export const MemberRevoke = z.strictObject({ userId: Uuid, role: Role, reason: R
 export type MemberRevoke = z.infer<typeof MemberRevoke>;
 export const MemberResponse = z.strictObject({ projectId: Uuid, userId: Uuid, role: Role, clientContactId: Uuid.nullable(), grantedBy: Uuid, grantedAt: z.string() });
 export type MemberResponse = z.infer<typeof MemberResponse>;
+export const MemberList = z.strictObject({ items: z.array(MemberResponse) });
+export const MemberRevoked = z.strictObject({ revoked: MemberResponse });

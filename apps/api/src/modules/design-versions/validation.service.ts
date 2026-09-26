@@ -11,14 +11,13 @@ import { iso } from "../../common/http/format.js";
 import { keysetList } from "../../common/http/list.js";
 import { CursorCodec, SORTS } from "../../common/http/pagination.js";
 import type { IdempotentRequest } from "../../common/http/request.js";
-import type { PageQuery } from "../../common/http/schemas.js";
 import { IdempotencyService } from "../../common/idempotency/idempotency.service.js";
 import { designInputsRepository } from "../../infrastructure/persistence/design-inputs.repository.js";
 import type { DesignVersionRow, ValidationRunRow } from "../../infrastructure/persistence/design-versions.repository.js";
 import { designVersionsRepository as repo } from "../../infrastructure/persistence/design-versions.repository.js";
 import { roomsRepository } from "../../infrastructure/persistence/rooms.repository.js";
 import { computeInputHash, etagOf, isCurrent } from "./design-content.js";
-import type { ValidationRunResponse } from "./design-versions.schemas.js";
+import type { ValidationRunQuery, ValidationRunResponse } from "./design-versions.schemas.js";
 import type { EngineManifest } from "../../infrastructure/engines/engine-manifest.js";
 import { engineProvenance } from "../../infrastructure/engines/engine-manifest.js";
 import { runDesignEngine } from "../outputs/engines/validation.js";
@@ -85,13 +84,13 @@ export class ValidationService {
       }));
   }
 
-  list(scope: RequestScope, versionId: string, q: PageQuery) {
+  list(scope: RequestScope, versionId: string, q: ValidationRunQuery) {
     return this.uow.run(scope, { readOnly: true }, async (tx) => {
       const v = await repo.get(tx, versionId);
       if (v === null) throw new ApiProblem("NOT_FOUND");
       return keysetList(tx, {
-        codec: this.cursors, collection: `design-versions/${versionId}/validation-runs`, orgId: scope.org.orgId, sort: SORTS.sequenceDesc, query: q, firstParam: 2,
-        fetch: (t, page, params) => repo.runs(t, versionId, page, params), key: (r) => r.seq, id: (r) => r.id, map: (r) => toRun(r, v),
+        codec: this.cursors, collection: `design-versions/${versionId}/validation-runs?purpose=${q.purpose ?? "*"}`, orgId: scope.org.orgId, sort: SORTS.sequenceDesc, query: q, firstParam: 3,
+        fetch: (t, page, params) => repo.runs(t, versionId, q.purpose ?? null, page, params), key: (r) => r.seq, id: (r) => r.id, map: (r) => toRun(r, v),
       });
     });
   }

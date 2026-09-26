@@ -31,7 +31,8 @@ export async function validate<O>(schema: StandardSchemaV1<unknown, O>, value: u
 
 /** `@Body(new SchemaPipe(Schema, "body"))`: controllers never validate by hand. */
 export class SchemaPipe<O> implements PipeTransform<unknown, Promise<O>> {
-  constructor(private readonly schema: StandardSchemaV1<unknown, O>, private readonly location: Location) {}
+  /** The schema and location are public: the OpenAPI document is generated from them (one source of truth). */
+  constructor(readonly schema: StandardSchemaV1<unknown, O>, readonly location: Location) {}
   transform(value: unknown): Promise<O> {
     return validate(this.schema, value, this.location);
   }

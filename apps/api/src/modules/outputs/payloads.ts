@@ -2,7 +2,8 @@ import { z } from "zod";
 import type { SnapshotRow } from "@lintel/persistence";
 import { contentHash } from "@lintel/persistence";
 import { verifyQuotation, verifyRoomPricing } from "@lintel/pricing-engine";
-import type { QuotationSnapshot, RoomBOM, RoomBOQ, RoomPriceSnapshot } from "@lintel/types";
+import { verifyDrawing, verifyRoomDrawing } from "@lintel/drawing-engine";
+import type { Drawing, QuotationSnapshot, RoomBOM, RoomBOQ, RoomDrawing, RoomPriceSnapshot } from "@lintel/types";
 import { deepFreeze } from "@lintel/types";
 import { ApiProblem } from "../../common/errors/api-problem.js";
 import type { OutputKind } from "./output-context.js";
@@ -125,6 +126,29 @@ export const QuotationPayload = z.strictObject({
   contentHash: str,
 });
 
+/* ------------------------------------------------------------ drawings (cabinet and room) */
+
+const Layer = z.enum(["BORDER", "TITLE_BLOCK", "VISIBLE", "HIDDEN", "DIMENSION", "ANNOTATION", "TABLE", "WATERMARK"]);
+const Primitive = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("line"), layer: Layer, x1: num, y1: num, x2: num, y2: num, dashed: z.boolean(), weight: z.enum(["THIN", "MEDIUM", "THICK"]) }),
+  z.strictObject({ kind: z.literal("text"), layer: Layer, x: num, y: num, text: str, size: num, anchor: z.enum(["start", "middle", "end"]), bold: z.boolean(), rotate: num }),
+]);
+const Sheet = z.strictObject({ sheetNumber: int, paper: z.strictObject({ name: z.literal("A3"), width: num, height: num }), primitives: z.array(Primitive) });
+const DrawingStatus = z.enum(["PRELIMINARY", "FOR_REVIEW", "FOR_PRODUCTION"]);
+const TitleBlock = z.strictObject({
+  projectId: str, projectCode: str, room: str, drawingNumber: str, drawingTitle: str, revision: str, date: str, designer: str, checker: str, scale: str,
+  approvalStatus: DrawingStatus, sourceDesignVersionId: str, sourceDesignVersionStatus: DesignState, modelFingerprint: str, dataClassification: DataClassification,
+});
+const CabinetDrawing = z.strictObject({
+  drawingId: str, type: z.enum(["FRONT_ELEVATION", "PANEL_SCHEDULE", "SIDE_SECTION", "CABINET_INTERNAL_ELEVATION"]), titleBlock: TitleBlock, status: DrawingStatus,
+  watermark: str.nullable(), trace: TraceInfo, modelFingerprint: str, componentIds: strings, notes: strings, sheets: z.array(Sheet), contentHash: str,
+});
+const RoomDrawingPayload = z.strictObject({
+  drawingId: str, type: z.enum(["WALL_INTERNAL_ELEVATION", "ROOM_PANEL_SCHEDULE"]), wallId: z.enum(["A", "B", "C", "D"]).nullable(), titleBlock: TitleBlock, status: DrawingStatus,
+  watermark: str.nullable(), trace: RoomTrace, modelFingerprint: str, objectIds: strings, notes: strings, sheets: z.array(Sheet), contentHash: str,
+});
+export const DrawingPayload = z.union([CabinetDrawing, RoomDrawingPayload]);
+
 /* ------------------------------------------------------------ drift guard (compile time) */
 
 type DeepMutable<T> = T extends readonly (infer U)[] ? DeepMutable<U>[] : T extends object ? { -readonly [K in keyof T]: DeepMutable<T[K]> } : T;
@@ -135,7 +159,9 @@ export type PayloadSchemasMatchEngineTypes = [
   Same<z.infer<typeof RoomBoqPayload>, DeepMutable<RoomBOQ>>,
   Same<z.infer<typeof RoomPricingPayload>, DeepMutable<RoomPriceSnapshot>>,
   Same<z.infer<typeof QuotationPayload>, DeepMutable<QuotationSnapshot>>,
-] extends [true, true, true, true] ? true : never;
+  Same<z.infer<typeof CabinetDrawing>, DeepMutable<Drawing>>,
+  Same<z.infer<typeof RoomDrawingPayload>, DeepMutable<RoomDrawing>>,
+] extends [true, true, true, true, true, true] ? true : never;
 export const PAYLOAD_SCHEMAS_MATCH_ENGINE_TYPES: PayloadSchemasMatchEngineTypes = true;
 
 /* ------------------------------------------------------------ the only way from a stored row to an engine input */
@@ -145,10 +171,15 @@ export interface PayloadOf {
   readonly BOQ: RoomBOQ;
   readonly PRICING: RoomPriceSnapshot;
   readonly QUOTATION: QuotationSnapshot;
+  readonly DRAWING: Drawing | RoomDrawing;
 }
-const SCHEMA: { readonly [K in OutputKind]: z.ZodType<DeepMutable<PayloadOf[K]>> } = { BOM: RoomBomPayload, BOQ: RoomBoqPayload, PRICING: RoomPricingPayload, QUOTATION: QuotationPayload };
+const SCHEMA: { readonly [K in OutputKind]: z.ZodType<DeepMutable<PayloadOf[K]>> } = {
+  BOM: RoomBomPayload, BOQ: RoomBoqPayload, PRICING: RoomPricingPayload, QUOTATION: QuotationPayload, DRAWING: DrawingPayload,
+};
 /** The engine's own seal over its payload, where it has one (checked in addition to the content hash). */
-const SEAL: { readonly [K in OutputKind]?: (p: PayloadOf[K]) => boolean } = { PRICING: verifyRoomPricing, QUOTATION: verifyQuotation };
+const SEAL: { readonly [K in OutputKind]?: (p: PayloadOf[K]) => boolean } = {
+  PRICING: verifyRoomPricing, QUOTATION: verifyQuotation, DRAWING: (d) => ("wallId" in d ? verifyRoomDrawing(d) : verifyDrawing(d)),
+};
 
 export class StoredPayloadError extends Error {
   constructor(readonly kind: OutputKind, readonly snapshotId: string, readonly reason: "SCHEMA" | "CONTENT_HASH" | "ENGINE_SEAL", readonly issues: readonly string[] = []) {

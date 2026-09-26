@@ -1613,6 +1613,68 @@
         "x-lintel-identity": "INTERNAL"
       }
     },
+    "/api/v1/design-versions/{versionId}/model": {
+      "get": {
+        "operationId": "ModelPreview_get",
+        "summary": "The resolved model of exactly this design version (objects, geometry, runs, validation); nothing is persisted",
+        "tags": [
+          "ModelPreview"
+        ],
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "X-Org",
+            "in": "header",
+            "required": false,
+            "description": "The organization to act in (required when the caller belongs to several)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelPreview_get_200"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "RFC 9457 problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-lintel-access": {
+          "kind": "authenticated"
+        },
+        "x-lintel-identity": "INTERNAL"
+      }
+    },
     "/api/v1/design-versions/{versionId}/objects": {
       "get": {
         "operationId": "DesignVersions_objects",
@@ -7665,6 +7727,870 @@
         },
         "required": [
           "revoked"
+        ],
+        "additionalProperties": false
+      },
+      "ModelPreview_get_200": {
+        "type": "object",
+        "properties": {
+          "designVersion": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Uuid"
+              },
+              "designId": {
+                "$ref": "#/components/schemas/Uuid"
+              },
+              "projectId": {
+                "$ref": "#/components/schemas/Uuid"
+              },
+              "versionNumber": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "status": {
+                "$ref": "#/components/schemas/LifecycleStatus"
+              },
+              "inputHash": {
+                "$ref": "#/components/schemas/Sha256Hash"
+              },
+              "inputRevision": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "contentHash": {
+                "$ref": "#/components/schemas/Sha256Hash"
+              }
+            },
+            "required": [
+              "id",
+              "designId",
+              "projectId",
+              "versionNumber",
+              "status",
+              "inputHash",
+              "inputRevision",
+              "contentHash"
+            ],
+            "additionalProperties": false
+          },
+          "pins": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "dataClassification": {
+            "type": "string",
+            "enum": [
+              "PRODUCTION",
+              "TEST_FIXTURE"
+            ]
+          },
+          "testFixtureSources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "engine": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "const": "validation"
+              },
+              "version": {
+                "type": "string"
+              },
+              "fingerprint": {
+                "$ref": "#/components/schemas/Sha256Hash"
+              },
+              "build": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "version",
+              "fingerprint",
+              "build"
+            ],
+            "additionalProperties": false
+          },
+          "modelFingerprint": {
+            "type": "string"
+          },
+          "room": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Uuid"
+              },
+              "name": {
+                "type": "string"
+              },
+              "length": {
+                "type": "number"
+              },
+              "width": {
+                "type": "number"
+              },
+              "height": {
+                "type": "number"
+              },
+              "wallThickness": {
+                "type": "number"
+              },
+              "walls": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "wallId": {
+                      "type": "string",
+                      "enum": [
+                        "A",
+                        "B",
+                        "C",
+                        "D"
+                      ]
+                    },
+                    "start": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number"
+                        },
+                        "z": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "z"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "end": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number"
+                        },
+                        "z": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "z"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "length": {
+                      "type": "number"
+                    },
+                    "height": {
+                      "type": "number"
+                    },
+                    "thickness": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "wallId",
+                    "start",
+                    "end",
+                    "length",
+                    "height",
+                    "thickness"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "length",
+              "width",
+              "height",
+              "wallThickness",
+              "walls"
+            ],
+            "additionalProperties": false
+          },
+          "objects": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "objectId": {
+                  "$ref": "#/components/schemas/Uuid"
+                },
+                "lineageId": {
+                  "$ref": "#/components/schemas/Uuid"
+                },
+                "objectCode": {
+                  "type": "string"
+                },
+                "objectType": {
+                  "type": "string"
+                },
+                "productCode": {
+                  "type": "string"
+                },
+                "productVersionId": {
+                  "$ref": "#/components/schemas/Uuid"
+                },
+                "parameters": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  }
+                },
+                "parameterSources": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "string",
+                    "enum": [
+                      "DEFAULT",
+                      "OBJECT"
+                    ]
+                  }
+                },
+                "dimensions": {
+                  "type": "object",
+                  "properties": {
+                    "width": {
+                      "type": "number"
+                    },
+                    "height": {
+                      "type": "number"
+                    },
+                    "depth": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "width",
+                    "height",
+                    "depth"
+                  ],
+                  "additionalProperties": false
+                },
+                "transform": {
+                  "type": "object",
+                  "properties": {
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "z": {
+                      "type": "number"
+                    },
+                    "rotationY": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "x",
+                    "y",
+                    "z",
+                    "rotationY"
+                  ],
+                  "additionalProperties": false
+                },
+                "placement": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "wallId": {
+                          "type": "string",
+                          "enum": [
+                            "A",
+                            "B",
+                            "C",
+                            "D"
+                          ]
+                        },
+                        "rotationY": {
+                          "type": "number"
+                        },
+                        "envelope": {
+                          "type": "object",
+                          "properties": {
+                            "min": {
+                              "type": "object",
+                              "properties": {
+                                "x": {
+                                  "type": "number"
+                                },
+                                "y": {
+                                  "type": "number"
+                                },
+                                "z": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "x",
+                                "y",
+                                "z"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "size": {
+                              "type": "object",
+                              "properties": {
+                                "x": {
+                                  "type": "number"
+                                },
+                                "y": {
+                                  "type": "number"
+                                },
+                                "z": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "x",
+                                "y",
+                                "z"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "min",
+                            "size"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "alongWall": {
+                          "type": "object",
+                          "properties": {
+                            "start": {
+                              "type": "number"
+                            },
+                            "end": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "start",
+                            "end"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "distanceToWall": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "wallId",
+                        "rotationY",
+                        "envelope",
+                        "alongWall",
+                        "distanceToWall"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "components": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "componentId": {
+                        "type": "string"
+                      },
+                      "componentType": {
+                        "type": "string"
+                      },
+                      "dimensions": {
+                        "type": "object",
+                        "properties": {
+                          "width": {
+                            "type": "number"
+                          },
+                          "height": {
+                            "type": "number"
+                          },
+                          "thickness": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "width",
+                          "height",
+                          "thickness"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "box": {
+                        "type": "object",
+                        "properties": {
+                          "min": {
+                            "type": "object",
+                            "properties": {
+                              "x": {
+                                "type": "number"
+                              },
+                              "y": {
+                                "type": "number"
+                              },
+                              "z": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "x",
+                              "y",
+                              "z"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "size": {
+                            "type": "object",
+                            "properties": {
+                              "x": {
+                                "type": "number"
+                              },
+                              "y": {
+                                "type": "number"
+                              },
+                              "z": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "x",
+                              "y",
+                              "z"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "min",
+                          "size"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "materialId": {
+                        "type": "string"
+                      },
+                      "finishId": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "finishedFaces": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "grainDirection": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "componentId",
+                      "componentType",
+                      "dimensions",
+                      "box",
+                      "materialId",
+                      "finishId",
+                      "finishedFaces",
+                      "grainDirection"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "validation": {
+                  "type": "object",
+                  "properties": {
+                    "counts": {
+                      "type": "object",
+                      "properties": {
+                        "INFO": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "WARNING": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "ERROR": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "BLOCKER": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "INFO",
+                        "WARNING",
+                        "ERROR",
+                        "BLOCKER"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "canApprove": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "counts",
+                    "canApprove"
+                  ],
+                  "additionalProperties": false
+                },
+                "messages": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "code": {
+                        "type": "string"
+                      },
+                      "severity": {
+                        "type": "string",
+                        "enum": [
+                          "INFO",
+                          "WARNING",
+                          "ERROR",
+                          "BLOCKER"
+                        ]
+                      },
+                      "message": {
+                        "type": "string"
+                      },
+                      "lineageId": {
+                        "anyOf": [
+                          {
+                            "$ref": "#/components/schemas/Uuid"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "componentId": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "ruleId": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "path": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "code",
+                      "severity",
+                      "message",
+                      "lineageId",
+                      "componentId",
+                      "ruleId",
+                      "path"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "objectId",
+                "lineageId",
+                "objectCode",
+                "objectType",
+                "productCode",
+                "productVersionId",
+                "parameters",
+                "parameterSources",
+                "dimensions",
+                "transform",
+                "placement",
+                "components",
+                "validation",
+                "messages"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "runs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "runId": {
+                  "type": "string"
+                },
+                "wallId": {
+                  "type": "string",
+                  "enum": [
+                    "A",
+                    "B",
+                    "C",
+                    "D"
+                  ]
+                },
+                "lineageIds": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Uuid"
+                  }
+                },
+                "start": {
+                  "type": "number"
+                },
+                "end": {
+                  "type": "number"
+                },
+                "length": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "runId",
+                "wallId",
+                "lineageIds",
+                "start",
+                "end",
+                "length"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "relationships": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "relationshipId": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "DERIVED",
+                    "OVERRIDE"
+                  ]
+                },
+                "lineageIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "wallIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "gap": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "touching": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "overrideIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "relationshipId",
+                "type",
+                "source",
+                "lineageIds",
+                "wallIds",
+                "gap",
+                "touching",
+                "overrideIds"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "validation": {
+            "type": "object",
+            "properties": {
+              "counts": {
+                "type": "object",
+                "properties": {
+                  "INFO": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "WARNING": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "ERROR": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "BLOCKER": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "INFO",
+                  "WARNING",
+                  "ERROR",
+                  "BLOCKER"
+                ],
+                "additionalProperties": false
+              },
+              "canApprove": {
+                "type": "boolean"
+              },
+              "messages": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "severity": {
+                      "type": "string",
+                      "enum": [
+                        "INFO",
+                        "WARNING",
+                        "ERROR",
+                        "BLOCKER"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "lineageId": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/components/schemas/Uuid"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "componentId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "ruleId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "path": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "severity",
+                    "message",
+                    "lineageId",
+                    "componentId",
+                    "ruleId",
+                    "path"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "counts",
+              "canApprove",
+              "messages"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "designVersion",
+          "pins",
+          "dataClassification",
+          "testFixtureSources",
+          "engine",
+          "modelFingerprint",
+          "room",
+          "objects",
+          "runs",
+          "relationships",
+          "validation"
         ],
         "additionalProperties": false
       },

@@ -1,12 +1,12 @@
 import type { CatalogSnapshot, ConstructionRecipe, EdgeBand, Finish, HardwareRuleSet, Material, ProductDefinition } from "@lintel/types";
 import { validateCatalog } from "@lintel/catalog-engine";
-import type { RecordStatus } from "./envelope.js";
+import type { RecordLifecycleStatus } from "./envelope.js";
 
 /** One pinned per-domain catalog release (M5 §2.5). Domains never share a release. */
 export interface CatalogReleaseRef {
   readonly releaseId: string;
   readonly versionLabel: string;
-  readonly status: RecordStatus;
+  readonly status: RecordLifecycleStatus;
 }
 
 export interface PinnedCatalogReleases {

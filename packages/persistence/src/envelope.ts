@@ -2,10 +2,13 @@ import type { DataStatus } from "@lintel/types";
 import type { Sha256 } from "./hash.js";
 import { isSha256 } from "./hash.js";
 
-/** Persisted lifecycle (M5 §4). CHANGES_REQUIRED is a decision, never a status (D2). */
-export type RecordStatus = "DRAFT" | "IN_REVIEW" | "APPROVED" | "LOCKED" | "SUPERSEDED";
+/**
+ * Exact persisted lifecycle of a versioned record (M5 §4). Stored, read and written back
+ * unchanged — never collapsed. CHANGES_REQUIRED is a decision, never a status (D2).
+ */
+export type RecordLifecycleStatus = "DRAFT" | "IN_REVIEW" | "APPROVED" | "LOCKED" | "SUPERSEDED";
 
-export const RECORD_STATUSES: readonly RecordStatus[] = ["DRAFT", "IN_REVIEW", "APPROVED", "LOCKED", "SUPERSEDED"];
+export const RECORD_LIFECYCLE_STATUSES: readonly RecordLifecycleStatus[] = ["DRAFT", "IN_REVIEW", "APPROVED", "LOCKED", "SUPERSEDED"];
 
 /** Structured source reference (document, drawing, supplier sheet or official URL). */
 export interface SourceRef {
@@ -25,7 +28,7 @@ export interface VersionEnvelope {
   readonly versionNumber: number;
   /** Optional human label, e.g. "0.2.0"; the engine version string when present. */
   readonly versionLabel: string | null;
-  readonly status: RecordStatus;
+  readonly status: RecordLifecycleStatus;
   readonly dataClassification: "PRODUCTION";
   readonly source: string;
   readonly sourceRef: SourceRef | null;
@@ -50,7 +53,7 @@ export interface EnvelopeRow {
   readonly id: string;
   readonly version_number: number;
   readonly version_label: string | null;
-  readonly status: RecordStatus;
+  readonly status: RecordLifecycleStatus;
   readonly data_classification: "PRODUCTION";
   readonly source: string;
   readonly source_ref: SourceRef | null;
@@ -121,7 +124,7 @@ export function envelopeFromRow(r: EnvelopeRow): VersionEnvelope {
   };
 }
 
-const APPROVED_OR_LATER = new Set<RecordStatus>(["APPROVED", "LOCKED", "SUPERSEDED"]);
+const APPROVED_OR_LATER = new Set<RecordLifecycleStatus>(["APPROVED", "LOCKED", "SUPERSEDED"]);
 
 /**
  * Invariants of a stored envelope — the same rules the database enforces with CHECK constraints.
@@ -146,8 +149,18 @@ export function envelopeProblems(e: VersionEnvelope): string[] {
   return out;
 }
 
-/** Engine view of a persisted status (M5 §3.9). SUPERSEDED is usable only to reproduce an existing snapshot. */
-export function engineStatus(s: RecordStatus): Exclude<DataStatus, "TEST_FIXTURE"> {
+/**
+ * Simplified status the calculation engines use (`DataStatus` minus TEST_FIXTURE). A separate concept
+ * from the lifecycle: derived from it for calculation only, never stored and never mapped back.
+ */
+export type EngineCalculationStatus = Exclude<DataStatus, "TEST_FIXTURE">;
+
+/**
+ * Calculation view of a lifecycle status (M5 §3.9): APPROVED/LOCKED calculate as APPROVED,
+ * DRAFT/IN_REVIEW as DRAFT, SUPERSEDED as RETIRED (only to reproduce an existing snapshot).
+ * One-way: the exact lifecycle stays in the VersionEnvelope that travels with the value.
+ */
+export function engineCalculationStatus(s: RecordLifecycleStatus): EngineCalculationStatus {
   switch (s) {
     case "APPROVED":
     case "LOCKED":

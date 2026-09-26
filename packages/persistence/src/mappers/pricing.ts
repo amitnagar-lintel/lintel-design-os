@@ -1,9 +1,9 @@
 import type { MarginBasis, PricingRuleSet, QuotationPolicy, RateCard, RoundingMode, RoundingRule, TaxPolicy } from "@lintel/types";
-import { engineStatus } from "../envelope.js";
+import { engineCalculationStatus } from "../envelope.js";
 import { MappingError } from "../errors.js";
 import { assertNotTestFixture } from "../fixture-guard.js";
-import type { MapContext, VersionMeta, VersionRow } from "./common.js";
-import { byKey, checkEngineStatus, omit, readEnvelope, requireLabel, versionRow } from "./common.js";
+import type { MapContext, Versioned, VersionMeta, VersionRow } from "./common.js";
+import { byKey, checkEngineStatus, omit, readEnvelope, requireLabel, versioned, versionRow } from "./common.js";
 
 /* ------------------------------------------------------------ PricingStandard (rules + rate card) */
 
@@ -98,10 +98,12 @@ export function pricingStandardToRows(entityCode: string, data: PricingStandardD
   };
 }
 
-export function pricingStandardFromRows(rows: PricingStandardRows): PricingStandardData {
+export const pricingStandardFromRows = (rows: PricingStandardRows): Versioned<PricingStandardData> => versioned(rows.version, pricingStandardValue(rows));
+
+function pricingStandardValue(rows: PricingStandardRows): PricingStandardData {
   const v = rows.version;
   const e = readEnvelope(v);
-  const status = engineStatus(e.status);
+  const status = engineCalculationStatus(e.status);
   const version = requireLabel(v);
   const rates: Record<(typeof MEASURES)[number][1], Record<string, number | null>> = { boardPerM2: {}, edgeBandPerM: {}, finishPerM2: {}, hardwarePerUnit: {} };
   for (const l of rows.rateLines) {
@@ -191,7 +193,9 @@ export function quotationPolicyToRows(p: QuotationPolicy, meta: VersionMeta, ctx
   };
 }
 
-export function quotationPolicyFromRows(rows: QuotationPolicyRows): QuotationPolicy {
+export const quotationPolicyFromRows = (rows: QuotationPolicyRows): Versioned<QuotationPolicy> => versioned(rows.version, quotationPolicyValue(rows));
+
+function quotationPolicyValue(rows: QuotationPolicyRows): QuotationPolicy {
   const v = rows.version;
   const e = readEnvelope(v);
   const taxRates: Record<string, number | null> = {};
@@ -201,7 +205,7 @@ export function quotationPolicyFromRows(rows: QuotationPolicyRows): QuotationPol
   return {
     policyId: v.entity_code,
     version: requireLabel(v),
-    status: engineStatus(e.status),
+    status: engineCalculationStatus(e.status),
     classification: "PRODUCTION",
     source: e.source,
     taxRates,

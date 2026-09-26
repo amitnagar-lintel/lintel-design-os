@@ -10,10 +10,10 @@ import type {
   Material,
   ProductDefinition,
 } from "@lintel/types";
-import { engineStatus } from "../envelope.js";
+import { engineCalculationStatus } from "../envelope.js";
 import { MappingError } from "../errors.js";
-import type { MapContext, VersionMeta, VersionRow } from "./common.js";
-import { checkEngineStatus, omit, readEnvelope, requireLabel, versionRow } from "./common.js";
+import type { MapContext, Versioned, VersionMeta, VersionRow } from "./common.js";
+import { checkEngineStatus, omit, readEnvelope, requireLabel, versioned, versionRow } from "./common.js";
 
 /*
  * Catalog domains (Material incl. edge bands, Finish, Hardware, Product/Recipe) are item
@@ -50,7 +50,9 @@ export function materialToRow(m: Material, meta: VersionMeta, ctx: MapContext): 
   };
 }
 
-export function materialFromRow(r: MaterialVersionRow): Material {
+export const materialFromRow = (r: MaterialVersionRow): Versioned<Material> => versioned(r, materialValue(r));
+
+function materialValue(r: MaterialVersionRow): Material {
   const e = readEnvelope(r);
   if ((r.sheet_width_mm === null) !== (r.sheet_height_mm === null)) throw new MappingError(`material ${r.entity_code}: sheet width and height must both be set or both null`);
   return {
@@ -62,7 +64,7 @@ export function materialFromRow(r: MaterialVersionRow): Material {
     sheetSize: r.sheet_width_mm === null || r.sheet_height_mm === null ? null : { width: r.sheet_width_mm, height: r.sheet_height_mm },
     grain: r.grain,
     densityKgPerM3: r.density_kg_m3,
-    status: engineStatus(e.status),
+    status: engineCalculationStatus(e.status),
     source: e.source,
   };
 }
@@ -82,9 +84,11 @@ export function edgeBandToRow(b: EdgeBand, meta: VersionMeta, ctx: MapContext): 
   return { ...versionRow(ctx, b.edgeBandId, meta, b.source, String(meta.versionNumber), content), name: b.name, material: b.material, thickness_mm: b.thickness, width_mm: b.width };
 }
 
-export function edgeBandFromRow(r: EdgeBandVersionRow): EdgeBand {
+export const edgeBandFromRow = (r: EdgeBandVersionRow): Versioned<EdgeBand> => versioned(r, edgeBandValue(r));
+
+function edgeBandValue(r: EdgeBandVersionRow): EdgeBand {
   const e = readEnvelope(r);
-  return { edgeBandId: r.entity_code, name: r.name, material: r.material, thickness: r.thickness_mm, width: r.width_mm, status: engineStatus(e.status), source: e.source };
+  return { edgeBandId: r.entity_code, name: r.name, material: r.material, thickness: r.thickness_mm, width: r.width_mm, status: engineCalculationStatus(e.status), source: e.source };
 }
 
 /* ------------------------------------------------------------ finish */
@@ -101,9 +105,11 @@ export function finishToRow(f: Finish, meta: VersionMeta, ctx: MapContext): Fini
   return { ...versionRow(ctx, f.finishId, meta, f.source, String(meta.versionNumber), content), finish_type: f.type, name: f.name, thickness_mm: f.thickness };
 }
 
-export function finishFromRow(r: FinishVersionRow): Finish {
+export const finishFromRow = (r: FinishVersionRow): Versioned<Finish> => versioned(r, finishValue(r));
+
+function finishValue(r: FinishVersionRow): Finish {
   const e = readEnvelope(r);
-  return { finishId: r.entity_code, type: r.finish_type, name: r.name, thickness: r.thickness_mm, status: engineStatus(e.status), source: e.source };
+  return { finishId: r.entity_code, type: r.finish_type, name: r.name, thickness: r.thickness_mm, status: engineCalculationStatus(e.status), source: e.source };
 }
 
 /* ------------------------------------------------------------ product and recipe (definitions are data, PRD §14) */
@@ -122,10 +128,12 @@ export function productToRow(p: ProductDefinition, meta: VersionMeta, ctx: MapCo
   return { ...versionRow(ctx, p.productId, meta, source, p.version, definition), category: p.category, object_type: p.objectType, recipe_code: p.recipeId, definition };
 }
 
-export function productFromRow(r: ProductVersionRow): ProductDefinition {
+export const productFromRow = (r: ProductVersionRow): Versioned<ProductDefinition> => versioned(r, productValue(r));
+
+function productValue(r: ProductVersionRow): ProductDefinition {
   const e = readEnvelope(r);
   if (r.definition.productId !== r.entity_code || r.definition.version !== requireLabel(r)) throw new MappingError(`product ${r.entity_code}: definition does not match its version row`);
-  return { ...r.definition, status: engineStatus(e.status) };
+  return { ...r.definition, status: engineCalculationStatus(e.status) };
 }
 
 export interface RecipeVersionRow extends VersionRow {
@@ -139,10 +147,12 @@ export function recipeToRow(recipe: ConstructionRecipe, meta: VersionMeta, ctx: 
   return { ...versionRow(ctx, recipe.recipeId, meta, source, recipe.version, definition), product_type: recipe.productType, definition };
 }
 
-export function recipeFromRow(r: RecipeVersionRow): ConstructionRecipe {
+export const recipeFromRow = (r: RecipeVersionRow): Versioned<ConstructionRecipe> => versioned(r, recipeValue(r));
+
+function recipeValue(r: RecipeVersionRow): ConstructionRecipe {
   const e = readEnvelope(r);
   if (r.definition.recipeId !== r.entity_code || r.definition.version !== requireLabel(r)) throw new MappingError(`recipe ${r.entity_code}: definition does not match its version row`);
-  return { ...r.definition, status: engineStatus(e.status) };
+  return { ...r.definition, status: engineCalculationStatus(e.status) };
 }
 
 /* ------------------------------------------------------------ hardware rule sets (hardware domain) */
@@ -184,7 +194,9 @@ export function hardwareRuleSetToRows(s: HardwareRuleSet, meta: VersionMeta, ctx
 }
 
 /** Rule order is significant data; rows are expected in their stored order. */
-export function hardwareRuleSetFromRows(rows: HardwareRuleSetRows): HardwareRuleSet {
+export const hardwareRuleSetFromRows = (rows: HardwareRuleSetRows): Versioned<HardwareRuleSet> => versioned(rows.version, hardwareRuleSetValue(rows));
+
+function hardwareRuleSetValue(rows: HardwareRuleSetRows): HardwareRuleSet {
   const e = readEnvelope(rows.version);
   const seen = new Set<string>();
   const rules: HardwareRule[] = rows.rules.map((r) => {
@@ -199,6 +211,6 @@ export function hardwareRuleSetFromRows(rows: HardwareRuleSetRows): HardwareRule
       preferredManufacturer: r.preferred_manufacturer,
     };
   });
-  return { ruleSetId: rows.version.entity_code, version: requireLabel(rows.version), status: engineStatus(e.status), rules };
+  return { ruleSetId: rows.version.entity_code, version: requireLabel(rows.version), status: engineCalculationStatus(e.status), rules };
 }
 

@@ -272,8 +272,10 @@ The `job` table (PRD §37) is deferred, because M5 generation is synchronous.
    `checkQuotationStaleness`, `checkRoomDrawingStaleness`) at read time.
 8. **Hashes.** `content_hash` uses SHA-256, computed in `@lintel/persistence`. The engine's `hash53` is kept inside payloads
    for golden parity only and is not used for integrity.
-9. **Engine status mapping.** APPROVED and LOCKED → `DataStatus.APPROVED`. DRAFT and IN_REVIEW → `DRAFT`.
-   SUPERSEDED → `RETIRED`, usable only to reproduce an existing snapshot.
+9. **Lifecycle status vs. engine calculation status (two separate concepts).**
+   - `RecordLifecycleStatus` (DRAFT, IN_REVIEW, APPROVED, LOCKED, SUPERSEDED) is what the database stores. Persistence reads and writes it back **exactly**; it is never collapsed or downgraded.
+   - `EngineCalculationStatus` is the simplified view an engine calculates with (APPROVED and LOCKED → APPROVED, DRAFT and IN_REVIEW → DRAFT, SUPERSEDED → RETIRED, which is usable only to reproduce an existing snapshot). It is derived one-way and never stored or mapped back.
+   - Readers return `Versioned<T>` = `{ envelope, value }`: the exact lifecycle travels in the envelope next to the engine value, and writers take it back from the envelope. Round trips are tested for every lifecycle state and every domain.
 
 ---
 
@@ -702,7 +704,7 @@ No hosted Supabase work and no UI work is included.
 | # | Item | Why it is required | When |
 |---|---|---|---|
 | BL-1 | **Hardware rule-set version in the engine trace.** Add a separate `hardwareRuleSet` VersionRef to `TraceInfo`, like the EdgeBandStandard in step 1 | Hardware rules affect BOM, drilling, drawings and production eligibility. Today the version is covered only through `catalogVersion`, so a rule-set change is not visible as its own provenance entry | A dedicated provenance/versioning change after M5 step 2. Not part of step 1 or step 2 (decision on PR #4) |
-| BL-2 | **Hettich dataset approval status visible to the engine.** `HardwareDatasetRef` has no record status, so a pinned DRAFT dataset version is treated like any PRODUCTION dataset in draft outputs | Design-version approval already requires the pinned dataset version to be APPROVED or LOCKED (§4). The engine should also raise its own BLOCKER, as it does for standards | Same provenance change as BL-1 |
+| BL-2 | **Hettich dataset approval status visible to the engine.** `HardwareDatasetRef` has no record status, so a pinned DRAFT dataset version is treated like any PRODUCTION dataset in draft outputs | Draft/test outputs may exist internally, but production approval and FOR_PRODUCTION output must always require an approved Hettich dataset. Today this is enforced by design-version approval: the Hettich pin is required and must be APPROVED or LOCKED (`REQUIRED_DESIGN_VERSION_PINS`, tested), and FOR_PRODUCTION output requires an APPROVED or LOCKED design version. The engine should also raise its own BLOCKER, as it does for standards | Same provenance change as BL-1 |
 | BL-3 | **Remove `CHANGES_REQUIRED` from the engine `DesignState` type.** `@lintel/persistence` already refuses to persist it (D2) | Keeps the engine type aligned with the persisted lifecycle | With BL-1 |
 
 ## 17. Open items

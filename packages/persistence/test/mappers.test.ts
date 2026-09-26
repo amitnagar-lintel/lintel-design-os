@@ -42,7 +42,7 @@ import {
   quotationPolicyToRows,
   recipeFromRow,
   recipeToRow,
-  recordStatusFromDesignState,
+  lifecycleStatusFromDesignState,
   roomFromRows,
   roomToRows,
   TestFixturePersistenceError,
@@ -77,26 +77,26 @@ describe("standards map to rows and back without loss (production drafts)", () =
     expect(rows.values).toHaveLength(12);
     expect(rows.values.every((v) => v.value === null)).toBe(true);
     expect(rows.version).toMatchObject({ entity_code: "LINTEL_CONSTRUCTION_STANDARD", version_label: "0.2.0", status: "DRAFT", data_classification: "PRODUCTION", org_id: "org_lintel" });
-    expect(constructionStandardFromRows(rows)).toEqual(LINTEL_CONSTRUCTION_STANDARD_DRAFT);
+    expect(constructionStandardFromRows(rows).value).toEqual(LINTEL_CONSTRUCTION_STANDARD_DRAFT);
   });
   it("PlanningStandard", () => {
-    expect(planningStandardFromRows(planningStandardToRows(LINTEL_PLANNING_STANDARD_DRAFT, meta(), CTX))).toEqual(LINTEL_PLANNING_STANDARD_DRAFT);
+    expect(planningStandardFromRows(planningStandardToRows(LINTEL_PLANNING_STANDARD_DRAFT, meta(), CTX)).value).toEqual(LINTEL_PLANNING_STANDARD_DRAFT);
   });
   it("EdgeBandStandard keeps an existing but empty rule set (rules not yet defined)", () => {
     const rows = edgeBandStandardToRows(LINTEL_EDGE_BAND_STANDARD_DRAFT, meta(), CTX);
     expect(rows.ruleSets.map((s) => s.rule_set_code)).toEqual(["CARCASS_STANDARD"]);
     expect(rows.rules).toEqual([]);
-    expect(edgeBandStandardFromRows(rows)).toEqual(LINTEL_EDGE_BAND_STANDARD_DRAFT);
+    expect(edgeBandStandardFromRows(rows).value).toEqual(LINTEL_EDGE_BAND_STANDARD_DRAFT);
   });
   it("mapper mechanics with numbers and explicit 'no banding' rules (synthetic sample, DRAFT, never stored)", () => {
     const sample: EdgeBandStandard = { ...LINTEL_EDGE_BAND_STANDARD_DRAFT, ruleSets: { CARCASS_STANDARD: { BACK: {}, SHELF: { FRONT: "EDGE_X" } } } };
     const rows = edgeBandStandardToRows(sample, meta(), CTX);
     expect(rows.rules.map((r) => [r.component_type, r.edge_side, r.edge_band_id])).toEqual([["BACK", null, null], ["SHELF", "FRONT", "EDGE_X"]]);
-    expect(edgeBandStandardFromRows(rows)).toEqual(sample);
+    expect(edgeBandStandardFromRows(rows).value).toEqual(sample);
     const numeric: ConstructionStandard = { ...LINTEL_CONSTRUCTION_STANDARD_DRAFT, variables: { ...LINTEL_CONSTRUCTION_STANDARD_DRAFT.variables, TOP_RAIL_WIDTH: 123.5 } };
     const nrows = constructionStandardToRows(numeric, meta(), CTX, { TOP_RAIL_WIDTH: { unit: "MM", source: "drawing D-1", evidenceRef: "doc-7", note: null } });
     expect(nrows.values.find((v) => v.variable_code === "TOP_RAIL_WIDTH")).toMatchObject({ value: 123.5, unit: "MM", source: "drawing D-1", evidence_ref: "doc-7" });
-    expect(constructionStandardFromRows(nrows)).toEqual(numeric);
+    expect(constructionStandardFromRows(nrows).value).toEqual(numeric);
   });
   it("per-value provenance is part of the content hash", () => {
     const a = constructionStandardToRows(LINTEL_CONSTRUCTION_STANDARD_DRAFT, meta(), CTX);
@@ -111,7 +111,7 @@ describe("pricing and finance map without loss", () => {
     const { LINTEL_PRODUCTION_RATE_CARD: rateCard, LINTEL_PRODUCTION_PRICING_RULES: rules } = await import("@lintel/pricing-engine");
     const rows = pricingStandardToRows("LINTEL_PRICING_STANDARD", { rateCard, rules }, meta(), CTX);
     expect(rows.rateLines.every((l) => l.rate_paise === null)).toBe(true);
-    expect(pricingStandardFromRows(rows)).toEqual({ rateCard, rules });
+    expect(pricingStandardFromRows(rows).value).toEqual({ rateCard, rules });
   });
   it("rates are stored as exact integer paise", () => {
     expect(inrToPaise(1234.56, "x")).toBe(123456);
@@ -119,23 +119,23 @@ describe("pricing and finance map without loss", () => {
   });
   it("QuotationPolicy", async () => {
     const { LINTEL_PRODUCTION_QUOTATION_POLICY: p } = await import("@lintel/pricing-engine");
-    expect(quotationPolicyFromRows(quotationPolicyToRows(p, meta(), CTX))).toEqual(p);
+    expect(quotationPolicyFromRows(quotationPolicyToRows(p, meta(), CTX)).value).toEqual(p);
   });
 });
 
 describe("catalog domains map without loss", () => {
   it("materials, edge bands, finishes", () => {
-    for (const m of LINTEL_CATALOG.materials) expect(materialFromRow(materialToRow(m, meta(), CTX))).toEqual(m);
-    for (const b of LINTEL_CATALOG.edgeBands) expect(edgeBandFromRow(edgeBandToRow(b, meta(), CTX))).toEqual(b);
-    for (const f of LINTEL_CATALOG.finishes) expect(finishFromRow(finishToRow(f, meta(), CTX))).toEqual(f);
+    for (const m of LINTEL_CATALOG.materials) expect(materialFromRow(materialToRow(m, meta(), CTX)).value).toEqual(m);
+    for (const b of LINTEL_CATALOG.edgeBands) expect(edgeBandFromRow(edgeBandToRow(b, meta(), CTX)).value).toEqual(b);
+    for (const f of LINTEL_CATALOG.finishes) expect(finishFromRow(finishToRow(f, meta(), CTX)).value).toEqual(f);
   });
   it("products, recipes (formulas stay data) and hardware rule sets", () => {
-    for (const p of LINTEL_CATALOG.products) expect(productFromRow(productToRow(p, meta(), CTX, "Lintel catalog"))).toEqual(p);
-    for (const r of LINTEL_CATALOG.recipes) expect(recipeFromRow(recipeToRow(r, meta(), CTX, "Lintel catalog"))).toEqual(r);
-    for (const h of LINTEL_CATALOG.hardwareRuleSets) expect(hardwareRuleSetFromRows(hardwareRuleSetToRows(h, meta(), CTX, "Lintel catalog"))).toEqual(h);
+    for (const p of LINTEL_CATALOG.products) expect(productFromRow(productToRow(p, meta(), CTX, "Lintel catalog")).value).toEqual(p);
+    for (const r of LINTEL_CATALOG.recipes) expect(recipeFromRow(recipeToRow(r, meta(), CTX, "Lintel catalog")).value).toEqual(r);
+    for (const h of LINTEL_CATALOG.hardwareRuleSets) expect(hardwareRuleSetFromRows(hardwareRuleSetToRows(h, meta(), CTX, "Lintel catalog")).value).toEqual(h);
   });
   it("Hettich production dataset (empty until source-verified records exist)", () => {
-    expect(hettichDatasetFromRows(hettichDatasetToRows(HETTICH_PRODUCTION_DATASET, meta(), CTX, "Hettich intake"))).toEqual(HETTICH_PRODUCTION_DATASET);
+    expect(hettichDatasetFromRows(hettichDatasetToRows(HETTICH_PRODUCTION_DATASET, meta(), CTX, "Hettich intake")).value).toEqual(HETTICH_PRODUCTION_DATASET);
   });
 });
 
@@ -146,14 +146,14 @@ describe("status is authoritative and never laundered", () => {
   });
   it("persisted statuses map to engine statuses (APPROVED/LOCKED → APPROVED, SUPERSEDED → RETIRED)", () => {
     const rows = constructionStandardToRows(LINTEL_CONSTRUCTION_STANDARD_DRAFT, meta(), CTX);
-    const as = (status: "LOCKED" | "SUPERSEDED" | "IN_REVIEW") => constructionStandardFromRows({ ...rows, version: { ...rows.version, status } }).status;
+    const as = (status: "LOCKED" | "SUPERSEDED" | "IN_REVIEW") => constructionStandardFromRows({ ...rows, version: { ...rows.version, status } }).value.status;
     expect(as("LOCKED")).toBe("APPROVED");
     expect(as("SUPERSEDED")).toBe("RETIRED");
     expect(as("IN_REVIEW")).toBe("DRAFT");
   });
   it("CHANGES_REQUIRED is never persisted as a status (D2)", () => {
-    expect(() => recordStatusFromDesignState("CHANGES_REQUIRED")).toThrow(MappingError);
-    expect(recordStatusFromDesignState("IN_REVIEW")).toBe("IN_REVIEW");
+    expect(() => lifecycleStatusFromDesignState("CHANGES_REQUIRED")).toThrow(MappingError);
+    expect(lifecycleStatusFromDesignState("IN_REVIEW")).toBe("IN_REVIEW");
   });
 });
 

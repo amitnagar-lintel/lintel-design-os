@@ -1,8 +1,8 @@
 import type { ComponentType, ConstructionStandard, EdgeBandStandard, EdgeSide, PlanningStandard } from "@lintel/types";
-import { engineStatus } from "../envelope.js";
+import { engineCalculationStatus } from "../envelope.js";
 import { MappingError } from "../errors.js";
-import type { MapContext, VersionMeta, VersionRow } from "./common.js";
-import { byKey, checkEngineStatus, omit, readEnvelope, requireLabel, versionRow } from "./common.js";
+import type { MapContext, Versioned, VersionMeta, VersionRow } from "./common.js";
+import { byKey, checkEngineStatus, omit, readEnvelope, requireLabel, versioned, versionRow } from "./common.js";
 
 /* ------------------------------------------------------------ numeric-value standards */
 
@@ -57,7 +57,7 @@ function numericToRows(kind: string, s: NumericStandard, meta: VersionMeta, ctx:
   return { version: { ...versionRow(ctx, s.standardId, meta, s.source, s.version, content), description: s.description }, values };
 }
 
-function numericFromRows(rows: NumericStandardRows): { standardId: string; version: string; status: ReturnType<typeof engineStatus>; description: string; source: string; variables: Record<string, number | null> } {
+function numericFromRows(rows: NumericStandardRows): { standardId: string; version: string; status: ReturnType<typeof engineCalculationStatus>; description: string; source: string; variables: Record<string, number | null> } {
   const e = readEnvelope(rows.version);
   const variables: Record<string, number | null> = {};
   for (const v of rows.values) {
@@ -65,16 +65,16 @@ function numericFromRows(rows: NumericStandardRows): { standardId: string; versi
     if (v.variable_code in variables) throw new MappingError(`duplicate value ${v.variable_code}`);
     variables[v.variable_code] = v.value;
   }
-  return { standardId: rows.version.entity_code, version: requireLabel(rows.version), status: engineStatus(e.status), description: rows.version.description, source: e.source, variables };
+  return { standardId: rows.version.entity_code, version: requireLabel(rows.version), status: engineCalculationStatus(e.status), description: rows.version.description, source: e.source, variables };
 }
 
 export const constructionStandardToRows = (s: ConstructionStandard, meta: VersionMeta, ctx: MapContext, provenance: Readonly<Record<string, ValueProvenance>> = {}): NumericStandardRows =>
   numericToRows("construction standard", s, meta, ctx, provenance);
-export const constructionStandardFromRows = (rows: NumericStandardRows): ConstructionStandard => numericFromRows(rows);
+export const constructionStandardFromRows = (rows: NumericStandardRows): Versioned<ConstructionStandard> => versioned(rows.version, numericFromRows(rows));
 
 export const planningStandardToRows = (s: PlanningStandard, meta: VersionMeta, ctx: MapContext, provenance: Readonly<Record<string, ValueProvenance>> = {}): NumericStandardRows =>
   numericToRows("planning standard", s, meta, ctx, provenance);
-export const planningStandardFromRows = (rows: NumericStandardRows): PlanningStandard => numericFromRows(rows);
+export const planningStandardFromRows = (rows: NumericStandardRows): Versioned<PlanningStandard> => versioned(rows.version, numericFromRows(rows));
 
 /* ------------------------------------------------------------ edge band standard */
 
@@ -122,7 +122,9 @@ export function edgeBandStandardToRows(s: EdgeBandStandard, meta: VersionMeta, c
   return { version: { ...versionRow(ctx, s.standardId, meta, s.source, s.version, content), description: s.description }, ruleSets, rules };
 }
 
-export function edgeBandStandardFromRows(rows: EdgeBandStandardRows): EdgeBandStandard {
+export const edgeBandStandardFromRows = (rows: EdgeBandStandardRows): Versioned<EdgeBandStandard> => versioned(rows.version, edgeBandStandardValue(rows));
+
+function edgeBandStandardValue(rows: EdgeBandStandardRows): EdgeBandStandard {
   const e = readEnvelope(rows.version);
   const sets: Record<string, Partial<Record<ComponentType, Partial<Record<EdgeSide, string>>>>> = {};
   for (const s of rows.ruleSets) sets[s.rule_set_code] = {};
@@ -139,7 +141,7 @@ export function edgeBandStandardFromRows(rows: EdgeBandStandardRows): EdgeBandSt
   return {
     standardId: rows.version.entity_code,
     version: requireLabel(rows.version),
-    status: engineStatus(e.status),
+    status: engineCalculationStatus(e.status),
     description: rows.version.description,
     source: e.source,
     ruleSets: sets,

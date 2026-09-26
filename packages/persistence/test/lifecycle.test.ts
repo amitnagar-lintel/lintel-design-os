@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { VersionEnvelope } from "../src/index.js";
-import { approveSuccessor, assertEditable, contentHash, designVersionApprovalProblems, envelopeFromRow, envelopeProblems, envelopeToRow, isSha256, nextDraft, NotEditableError, transition } from "../src/index.js";
+import { approveSuccessor, assertEditable, contentHash, designVersionApprovalProblems, designVersionPinStates, envelopeFromRow, envelopeProblems, envelopeToRow, isSha256, nextDraft, NotEditableError, transition } from "../src/index.js";
 
 const T0 = "2026-09-26T10:00:00.000Z";
 const T1 = "2026-09-26T11:00:00.000Z";
@@ -168,5 +168,35 @@ describe("design version approval preconditions", () => {
     expect(designVersionApprovalProblems({ pins: pins(null), currentInputHash: HASH, latestValidationRun: null })).toEqual(["pin edgeBandStandard is not set", "no engine validation run exists"]);
     expect(designVersionApprovalProblems({ pins: pins("APPROVED"), currentInputHash: HASH, latestValidationRun: { inputHash: contentHash("old"), blockerCount: 0 } })[0]).toContain("different inputs");
     expect(designVersionApprovalProblems({ pins: pins("APPROVED"), currentInputHash: HASH, latestValidationRun: { inputHash: HASH, blockerCount: 26 } })).toEqual(["validation has 26 BLOCKER(s)"]);
+  });
+});
+
+describe("BL-2: design-version approval requires an approved Hettich dataset", () => {
+  const pins = {
+    constructionStandardVersionId: "csv_1",
+    planningStandardVersionId: "psv_1",
+    edgeBandStandardVersionId: "ebv_1",
+    manufacturingStandardVersionId: null,
+    pricingStandardVersionId: null,
+    quotationPolicyVersionId: null,
+    materialCatalogReleaseId: "mcr_1",
+    finishCatalogReleaseId: "fcr_1",
+    hardwareCatalogReleaseId: "hcr_1",
+    hettichDatasetVersionId: "hdv_1",
+    applianceCatalogReleaseId: null,
+    productCatalogReleaseId: "pcr_1",
+  };
+  const run = { inputHash: HASH, blockerCount: 0 };
+  it("passes when every required pin, including the Hettich dataset, is APPROVED or LOCKED", () => {
+    const states = designVersionPinStates(pins, (id) => (id === "hdv_1" ? "LOCKED" : "APPROVED"));
+    expect(designVersionApprovalProblems({ pins: states, currentInputHash: HASH, latestValidationRun: run })).toEqual([]);
+  });
+  it.each(["DRAFT", "IN_REVIEW", "SUPERSEDED"] as const)("is refused while the pinned Hettich dataset is %s", (hettich) => {
+    const states = designVersionPinStates(pins, (id) => (id === "hdv_1" ? hettich : "APPROVED"));
+    expect(designVersionApprovalProblems({ pins: states, currentInputHash: HASH, latestValidationRun: run })).toEqual([`pin hettichDatasetVersionId is ${hettich}; it must be APPROVED or LOCKED`]);
+  });
+  it("is refused when the Hettich dataset version is unknown", () => {
+    const states = designVersionPinStates(pins, (id) => (id === "hdv_1" ? null : "APPROVED"));
+    expect(designVersionApprovalProblems({ pins: states, currentInputHash: HASH, latestValidationRun: run })).toEqual(["pin hettichDatasetVersionId is not set"]);
   });
 });

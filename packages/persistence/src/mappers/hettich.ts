@@ -2,8 +2,8 @@ import type { HardwareCategory } from "@lintel/types";
 import type { HettichCalculationRule, HettichProductionDataset, HettichProductionRecord } from "@lintel/hettich-engine";
 import { MappingError } from "../errors.js";
 import { assertNoTestFixture } from "../fixture-guard.js";
-import type { MapContext, VersionMeta, VersionRow } from "./common.js";
-import { omit, readEnvelope, versionRow } from "./common.js";
+import type { MapContext, Versioned, VersionMeta, VersionRow } from "./common.js";
+import { omit, readEnvelope, versioned, versionRow } from "./common.js";
 
 /*
  * Hettich manufacturer data (catalog domain, behind the ManufacturerAdapter). The dataset
@@ -102,7 +102,9 @@ export function hettichDatasetToRows(d: HettichProductionDataset, meta: VersionM
   return { version: { ...versionRow(ctx, d.datasetId, meta, source, d.sourceVersion, content), notes: d.notes }, articles, calculationRules };
 }
 
-export function hettichDatasetFromRows(rows: HettichDatasetRows): HettichProductionDataset {
+export const hettichDatasetFromRows = (rows: HettichDatasetRows): Versioned<HettichProductionDataset> => versioned(rows.version, hettichDatasetValue(rows));
+
+function hettichDatasetValue(rows: HettichDatasetRows): HettichProductionDataset {
   const e = readEnvelope(rows.version);
   const check = (id: string, versionId: string): void => {
     if (versionId !== e.versionId) throw new MappingError(`Hettich row ${id} belongs to version ${versionId}, not ${e.versionId}`);

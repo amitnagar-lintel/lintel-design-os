@@ -1,4 +1,4 @@
-import type { RecordStatus, VersionEnvelope } from "./envelope.js";
+import type { RecordLifecycleStatus, VersionEnvelope } from "./envelope.js";
 import type { Sha256 } from "./hash.js";
 
 /**
@@ -43,8 +43,8 @@ export interface TransitionDecision {
   readonly decidedBy: string;
   readonly decidedAt: string;
   readonly reason: string;
-  readonly previousStatus: RecordStatus;
-  readonly newStatus: RecordStatus;
+  readonly previousStatus: RecordLifecycleStatus;
+  readonly newStatus: RecordLifecycleStatus;
   readonly subjectVersionId: string;
   readonly subjectContentHash: Sha256;
 }
@@ -53,7 +53,7 @@ export type TransitionResult =
   | { readonly ok: true; readonly next: VersionEnvelope; readonly decision: TransitionDecision }
   | { readonly ok: false; readonly code: TransitionErrorCode; readonly message: string };
 
-const ALLOWED: Readonly<Record<TransitionAction, { readonly from: readonly RecordStatus[]; readonly to: RecordStatus }>> = {
+const ALLOWED: Readonly<Record<TransitionAction, { readonly from: readonly RecordLifecycleStatus[]; readonly to: RecordLifecycleStatus }>> = {
   SUBMIT: { from: ["DRAFT"], to: "IN_REVIEW" },
   REQUEST_CHANGES: { from: ["IN_REVIEW"], to: "DRAFT" },
   APPROVE: { from: ["IN_REVIEW"], to: "APPROVED" },
@@ -183,7 +183,7 @@ export interface PinState {
   readonly name: string;
   readonly required: boolean;
   /** Status of the pinned version, or null when the pin is not set. */
-  readonly status: RecordStatus | null;
+  readonly status: RecordLifecycleStatus | null;
 }
 
 /**

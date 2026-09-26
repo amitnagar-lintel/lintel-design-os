@@ -1,5 +1,6 @@
 import type { DesignObject, DesignState, DesignVersion, ParameterValue, RelationshipOverride, RelationshipOverrideType, Room } from "@lintel/types";
-import type { RecordStatus, VersionEnvelope } from "../envelope.js";
+import type { RecordLifecycleStatus, VersionEnvelope } from "../envelope.js";
+import type { PinState } from "../lifecycle.js";
 import { envelopeFromRow, envelopeToRow } from "../envelope.js";
 import type { EnvelopeRow } from "../envelope.js";
 import { MappingError } from "../errors.js";
@@ -176,19 +177,43 @@ export function designVersionFromRow(r: DesignVersionRow): DesignVersionRecord {
   };
 }
 
+/**
+ * Pins that must be set, and APPROVED or LOCKED, before a DesignVersion can be approved (M5 §4).
+ * The Hettich dataset is required: production approval and FOR_PRODUCTION output always need an
+ * approved Hettich dataset (BL-2 tracks making this visible inside the engine as well).
+ */
+export const REQUIRED_DESIGN_VERSION_PINS: readonly (keyof DesignVersionPins)[] = [
+  "constructionStandardVersionId",
+  "planningStandardVersionId",
+  "edgeBandStandardVersionId",
+  "materialCatalogReleaseId",
+  "finishCatalogReleaseId",
+  "hardwareCatalogReleaseId",
+  "hettichDatasetVersionId",
+  "productCatalogReleaseId",
+];
+
+/** Pin states for `designVersionApprovalProblems`, given the exact lifecycle of each pinned version. */
+export function designVersionPinStates(pins: DesignVersionPins, lifecycleOf: (versionId: string) => RecordLifecycleStatus | null): PinState[] {
+  return (Object.keys(pins) as (keyof DesignVersionPins)[]).sort().map((name) => {
+    const id = pins[name];
+    return { name, required: REQUIRED_DESIGN_VERSION_PINS.includes(name), status: id === null ? null : lifecycleOf(id) };
+  });
+}
+
 /** Persisted lifecycle → engine DesignState. CHANGES_REQUIRED is never produced (D2). */
-export function designStateFromRecord(s: RecordStatus): DesignState {
+export function designStateFromLifecycle(s: RecordLifecycleStatus): DesignState {
   return s;
 }
 
 /** Engine DesignState → persisted lifecycle. CHANGES_REQUIRED is a decision, not a status, and is refused (D2). */
-export function recordStatusFromDesignState(s: DesignState): RecordStatus {
+export function lifecycleStatusFromDesignState(s: DesignState): RecordLifecycleStatus {
   if (s === "CHANGES_REQUIRED") throw new MappingError("CHANGES_REQUIRED is recorded as a REQUEST_CHANGES decision, never persisted as a status (D2)");
   return s;
 }
 
 export function engineDesignVersion(d: DesignVersionRecord): DesignVersion {
-  return { designVersionId: d.envelope.versionId, designId: d.envelope.entityId, projectId: d.projectId, versionNumber: d.envelope.versionNumber, status: designStateFromRecord(d.envelope.status) };
+  return { designVersionId: d.envelope.versionId, designId: d.envelope.entityId, projectId: d.projectId, versionNumber: d.envelope.versionNumber, status: designStateFromLifecycle(d.envelope.status) };
 }
 
 /* ------------------------------------------------------------ design objects */

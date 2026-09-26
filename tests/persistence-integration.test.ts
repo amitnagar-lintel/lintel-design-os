@@ -62,10 +62,10 @@ describe("rows → engine gives exactly the engine result of the original data",
       room: roomFromRows(r.room, r.revision),
       objects,
       catalog: LINTEL_CATALOG,
-      standard: constructionStandardFromRows(constructionStandardToRows(LINTEL_CONSTRUCTION_STANDARD_DRAFT, meta("csv_1"), CTX)),
-      edgeBandStandard: edgeBandStandardFromRows(edgeBandStandardToRows(LINTEL_EDGE_BAND_STANDARD_DRAFT, meta("ebv_1"), CTX)),
-      planning: planningStandardFromRows(planningStandardToRows(LINTEL_PLANNING_STANDARD_DRAFT, meta("psv_1"), CTX)),
-      adapters: [createHettichAdapter(hettichDatasetFromRows(hettichDatasetToRows(HETTICH_PRODUCTION_DATASET, meta("hdv_1"), CTX, "Hettich intake")))],
+      standard: constructionStandardFromRows(constructionStandardToRows(LINTEL_CONSTRUCTION_STANDARD_DRAFT, meta("csv_1"), CTX)).value,
+      edgeBandStandard: edgeBandStandardFromRows(edgeBandStandardToRows(LINTEL_EDGE_BAND_STANDARD_DRAFT, meta("ebv_1"), CTX)).value,
+      planning: planningStandardFromRows(planningStandardToRows(LINTEL_PLANNING_STANDARD_DRAFT, meta("psv_1"), CTX)).value,
+      adapters: [createHettichAdapter(hettichDatasetFromRows(hettichDatasetToRows(HETTICH_PRODUCTION_DATASET, meta("hdv_1"), CTX, "Hettich intake")).value)],
     });
     expect(viaRows).toEqual(direct);
     expect(viaRows.validation.counts.BLOCKER).toBe(108);

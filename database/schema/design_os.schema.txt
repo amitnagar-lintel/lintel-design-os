@@ -2849,6 +2849,7 @@ function: approval_problem_items(p_subject_type text, p_id uuid, p_org uuid) -> 
 function: approval_problems(p_subject_type text, p_id uuid, p_org uuid) -> text[] owner=design_os_owner src=1ddfa6a4b4d546eb7f6ade2e0480112f
 function: audit_canonical(p_org uuid, p_at timestamp with time zone, p_actor uuid, p_action text, p_table text, p_row text, p_old jsonb, p_new jsonb, p_reason text, p_request text) -> text owner=design_os_owner src=110dffb1a7d3b029b9d582058e9a4ed6
 function: audit_chain_hash(p_prev text, p_canonical text) -> text owner=design_os_owner src=1dc12ca77292286f3273c509a7629339
+function: audit_chain_status() -> TABLE(ok boolean, checked bigint, first_bad_id bigint) SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=87d7e31337d64040b22ba23ce729993b
 function: audit_row() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=902eaf060ff0e3b2d8ab4599822d2e8d
 function: bump_input_revision() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=6dd7dc4b9ec9b7379ece0b4e5ed1940e
 function: can_access_project(p_project uuid) -> boolean SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=d5ccb73fb532950fa57f3c23c0d265ac
@@ -2907,6 +2908,7 @@ function: output_dependency_hashes(p_design_version uuid, p_pricing_standard uui
 function: products_outside_catalog(p_org uuid, p_design_version uuid, p_catalog_version uuid) -> uuid[] SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=b39a84a40d4d7f8d1df79a469812bc14
 function: record_decision(p_org uuid, p_subject_type text, p_id uuid, p_action text, p_actor uuid, p_reason text, p_prev design_os.record_lifecycle_status, p_new design_os.record_lifecycle_status, p_hash text, p_request uuid) -> void owner=design_os_owner src=e5a66bb9c859daa3e0911043b62c3505
 function: record_validation_run(p_purpose text, p_design_version_id uuid, p_input_hash text, p_engine_name text, p_engine_version text, p_engine_build text, p_engine_fingerprint text, p_engine_closure jsonb, p_blocker_count integer, p_warning_count integer, p_messages jsonb, p_content_hash text) -> uuid SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=394329782668bac595eeb64c7e2717e1
+function: reference_approval_problems(p_subject_type text, p_id uuid) -> TABLE(problem_code text, problem_message text) SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=8f34305c035a74d3bbf50ff57d894bca
 function: roles_distinct(p_roles design_os.design_os_role[]) -> boolean owner=design_os_owner src=06e92dbe2e051f4dc9dd21a6b09f2d8a
 function: room_project(p_room uuid) -> uuid SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=2fc701b3a69dc86e4e0ac5f50fee93d2
 function: seed_org_permissions() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=f6c845acde51f7abe9a6c090d6ae546b
@@ -4112,6 +4114,7 @@ column_grant: design_os_api tax_rate_mapping.org_id UPDATE
 column_grant: design_os_api tax_rate_mapping.product_category UPDATE
 column_grant: design_os_api tax_rate_mapping.rate_code UPDATE
 column_grant: design_os_api tax_rate_mapping.version_id UPDATE
+routine_grant: design_os_api audit_chain_status EXECUTE
 routine_grant: design_os_api can_access_project EXECUTE
 routine_grant: design_os_api claim_idempotency EXECUTE
 routine_grant: design_os_api claims EXECUTE
@@ -4130,6 +4133,7 @@ routine_grant: design_os_api is_issued EXECUTE
 routine_grant: design_os_api lifecycle_columns EXECUTE
 routine_grant: design_os_api output_dependency_hashes EXECUTE
 routine_grant: design_os_api record_validation_run EXECUTE
+routine_grant: design_os_api reference_approval_problems EXECUTE
 routine_grant: design_os_api roles_distinct EXECUTE
 routine_grant: design_os_api room_project EXECUTE
 routine_grant: design_os_api transition EXECUTE

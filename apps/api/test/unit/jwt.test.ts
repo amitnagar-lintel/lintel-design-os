@@ -13,7 +13,7 @@ let other: { privateKey: webcrypto.CryptoKey };
 let verifier: JwtVerifier;
 
 function config(key: ApiConfig["auth"]["key"]): ApiConfig {
-  return { databaseUrl: "postgresql://unused", dbPoolMax: 1, port: 0, auth: { issuer: ISSUER, audience: "authenticated", key }, cursorSecret: "x".repeat(32), corsOrigins: [], logger: false, buildRevision: "0000000", files: { provider: "memory", signingSecret: "test-file-url-secret-0123456789abcdef", publicBaseUrl: "http://api.test.local" } };
+  return { databaseUrl: "postgresql://unused", dbPoolMax: 1, port: 0, auth: { issuer: ISSUER, audience: "authenticated", key }, cursorSecret: "x".repeat(32), corsOrigins: [], logger: false, buildRevision: "0000000", files: { provider: "memory", signingSecret: "test-file-url-secret-0123456789abcdef", publicBaseUrl: "http://api.test.local" }, rateLimit: { enabled: false, windowMs: 60_000, ip: 1, read: 1, write: 1, sensitive: 1 }, trustProxyHops: 0 };
 }
 
 async function token(claims: Record<string, unknown> = {}, opts: { key?: webcrypto.CryptoKey | Uint8Array; alg?: string; exp?: string | number; iss?: string; aud?: string } = {}): Promise<string> {

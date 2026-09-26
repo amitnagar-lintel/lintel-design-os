@@ -4,6 +4,7 @@ import type { z } from "zod";
 import type { RequestScope } from "../../common/auth/context.js";
 import { AuthenticatedOnly, RequiresAction, Scope } from "../../common/auth/decorators.js";
 import { ApiDoc } from "../../common/http/openapi.js";
+import { SensitiveRate } from "../../common/http/rate-limit.js";
 import { idempotentRequest } from "../../common/http/request.js";
 import { respond } from "../../common/http/respond.js";
 import { SchemaPipe } from "../../common/http/schema.pipe.js";
@@ -17,7 +18,7 @@ type S = z.infer<typeof SnapshotIdParam>;
 export class IssuesController {
   constructor(@Inject(IssuesService) private readonly issues: IssuesService) {}
 
-  @Post("quotation-snapshots/:snapshotId/issue") @RequiresAction("quotation.issue")
+  @SensitiveRate() @Post("quotation-snapshots/:snapshotId/issue") @RequiresAction("quotation.issue")
   @ApiDoc({ summary: "Issue a FOR_PRODUCTION quotation of a LOCKED design (locks its exact commercial versions)", responses: { 201: QuotationIssueResponse }, idempotent: true })
   async issueQuotation(@Scope() s: RequestScope, @Req() req: FastifyRequest, @Param(new SchemaPipe(SnapshotIdParam, "params")) p: S,
     @Body(new SchemaPipe(QuotationIssueRequest, "body")) b: QuotationIssueRequest, @Res({ passthrough: true }) reply: FastifyReply) {
@@ -30,7 +31,7 @@ export class IssuesController {
     return this.issues.quotationIssue(s, p.snapshotId);
   }
 
-  @Post("drawing-snapshots/:snapshotId/issue") @RequiresAction("drawing.issue")
+  @SensitiveRate() @Post("drawing-snapshots/:snapshotId/issue") @RequiresAction("drawing.issue")
   @ApiDoc({ summary: "Issue a FOR_PRODUCTION drawing of a LOCKED design (its exact sealed file manifest)", responses: { 201: DrawingIssueResponse }, idempotent: true })
   async issueDrawing(@Scope() s: RequestScope, @Req() req: FastifyRequest, @Param(new SchemaPipe(SnapshotIdParam, "params")) p: S,
     @Body(new SchemaPipe(DrawingIssueRequest, "body")) b: DrawingIssueRequest, @Res({ passthrough: true }) reply: FastifyReply) {

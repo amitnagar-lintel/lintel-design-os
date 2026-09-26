@@ -5,6 +5,7 @@ import type { RequestScope } from "../../common/auth/context.js";
 import { AnyIdentity, AuthenticatedOnly, NoOrgContext, RequiresAction, Scope } from "../../common/auth/decorators.js";
 import { ApiProblem } from "../../common/errors/api-problem.js";
 import { ApiDoc } from "../../common/http/openapi.js";
+import { SensitiveRate } from "../../common/http/rate-limit.js";
 import { send } from "../../common/http/request.js";
 import { SchemaPipe } from "../../common/http/schema.pipe.js";
 import { Page } from "../../common/http/schemas.js";
@@ -22,7 +23,7 @@ export class OrganizationController {
   constructor(@Inject(OrganizationService) private readonly org: OrganizationService) {}
 
   @ApiDoc({ summary: "Invite a named person with internal roles", responses: { 201: InvitationResponse } })
-  @Post("invitations") @RequiresAction("org.members.manage")
+  @SensitiveRate() @Post("invitations") @RequiresAction("org.members.manage")
   async invite(@Scope() s: RequestScope, @Body(new SchemaPipe(InvitationCreate, "body")) b: InvitationCreate, @Res({ passthrough: true }) reply: FastifyReply) {
     return send(reply, await this.org.invite(s, b));
   }
@@ -40,7 +41,7 @@ export class OrganizationController {
   }
 
   @ApiDoc({ summary: "Revoke a pending invitation", responses: { 200: InvitationResponse } })
-  @Post("invitations/:invitationId/revoke") @RequiresAction("org.members.manage")
+  @SensitiveRate() @Post("invitations/:invitationId/revoke") @RequiresAction("org.members.manage")
   async revokeInvitation(@Scope() s: RequestScope, @Param(new SchemaPipe(InvitationId, "params")) p: InvitationParams,
     @Body(new SchemaPipe(InvitationRevoke, "body")) b: InvitationRevoke, @Res({ passthrough: true }) reply: FastifyReply) {
     return send(reply, await this.org.revokeInvitation(s, p.invitationId, b));
@@ -60,14 +61,14 @@ export class OrganizationController {
   }
 
   @ApiDoc({ summary: "Grant an existing member another role", responses: { 200: MemberResponse } })
-  @Post("members/:userId/roles") @RequiresAction("org.members.manage")
+  @SensitiveRate() @Post("members/:userId/roles") @RequiresAction("org.members.manage")
   async grantRole(@Scope() s: RequestScope, @Param(new SchemaPipe(MemberUserId, "params")) p: MemberParams,
     @Body(new SchemaPipe(RoleGrant, "body")) b: RoleGrant, @Res({ passthrough: true }) reply: FastifyReply) {
     return send(reply, await this.org.grantRole(s, p.userId, b));
   }
 
   @ApiDoc({ summary: "Revoke a member's role", responses: { 200: MemberResponse } })
-  @Post("members/:userId/roles/revoke") @RequiresAction("org.members.manage")
+  @SensitiveRate() @Post("members/:userId/roles/revoke") @RequiresAction("org.members.manage")
   async revokeRole(@Scope() s: RequestScope, @Param(new SchemaPipe(MemberUserId, "params")) p: MemberParams,
     @Body(new SchemaPipe(RoleRevoke, "body")) b: RoleRevoke, @Res({ passthrough: true }) reply: FastifyReply) {
     return send(reply, await this.org.revokeRole(s, p.userId, b));
@@ -84,14 +85,14 @@ export class MyInvitationsController {
   constructor(@Inject(OrganizationService) private readonly org: OrganizationService) {}
 
   @ApiDoc({ summary: "Pending invitations addressed to the caller's verified email", responses: { 200: MyInvitationList } })
-  @Get() @AuthenticatedOnly() @NoOrgContext()
+  @SensitiveRate() @Get() @AuthenticatedOnly() @NoOrgContext()
   mine(@Req() req: FastifyRequest) {
     if (req.lintelPrincipal === undefined) throw new ApiProblem("INTERNAL");
     return this.org.myInvitations(req.lintelPrincipal, req.id);
   }
 
   @ApiDoc({ summary: "Accept an invitation: provisions the caller's identity and the invited roles", responses: { 200: InvitationAccepted } })
-  @Post(":invitationId/accept") @HttpCode(200) @AuthenticatedOnly() @NoOrgContext()
+  @SensitiveRate() @Post(":invitationId/accept") @HttpCode(200) @AuthenticatedOnly() @NoOrgContext()
   accept(@Req() req: FastifyRequest, @Param(new SchemaPipe(InvitationId, "params")) p: InvitationParams) {
     if (req.lintelPrincipal === undefined) throw new ApiProblem("INTERNAL");
     return this.org.accept(req.lintelPrincipal, req.id, p.invitationId);

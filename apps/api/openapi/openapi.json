@@ -12,6 +12,184 @@
     }
   ],
   "paths": {
+    "/api/v1/audit": {
+      "get": {
+        "operationId": "Readiness_audit",
+        "summary": "The organization's audit trail, newest first (filter by table, row, actor, time)",
+        "tags": [
+          "Readiness"
+        ],
+        "parameters": [
+          {
+            "name": "actorUserId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "rowId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "table",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z_]{1,63}$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "X-Org",
+            "in": "header",
+            "required": false,
+            "description": "The organization to act in (required when the caller belongs to several)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Readiness_audit_200"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "RFC 9457 problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-lintel-access": {
+          "actions": [
+            "audit.read"
+          ]
+        },
+        "x-lintel-identity": "INTERNAL"
+      }
+    },
+    "/api/v1/audit/verify": {
+      "get": {
+        "operationId": "Readiness_verify",
+        "summary": "Verify the organization's audit hash chain",
+        "tags": [
+          "Readiness"
+        ],
+        "parameters": [
+          {
+            "name": "X-Org",
+            "in": "header",
+            "required": false,
+            "description": "The organization to act in (required when the caller belongs to several)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Readiness_verify_200"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "RFC 9457 problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-lintel-access": {
+          "actions": [
+            "audit.read"
+          ]
+        },
+        "x-lintel-identity": "INTERNAL"
+      }
+    },
     "/api/v1/bom-snapshots/{snapshotId}": {
       "get": {
         "operationId": "Outputs_getBom",
@@ -5191,6 +5369,96 @@
         "x-lintel-identity": "INTERNAL"
       }
     },
+    "/api/v1/readiness": {
+      "get": {
+        "operationId": "Readiness_report",
+        "summary": "Readiness report: migrations, audit chain, required production data and its dependencies (BLOCKING / WARNING / INFO)",
+        "tags": [
+          "Readiness"
+        ],
+        "parameters": [
+          {
+            "name": "X-Org",
+            "in": "header",
+            "required": false,
+            "description": "The organization to act in (required when the caller belongs to several)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Readiness_report_200"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "RFC 9457 problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-lintel-access": {
+          "actions": [
+            "audit.read"
+          ]
+        },
+        "x-lintel-identity": "INTERNAL"
+      }
+    },
+    "/api/v1/ready": {
+      "get": {
+        "operationId": "Ready_get",
+        "summary": "Readiness: database, migrations and engine manifest (200 ready / 503 not ready)",
+        "tags": [
+          "Ready"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ready_get_200"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "RFC 9457 problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "x-lintel-access": {
+          "kind": "public"
+        },
+        "x-lintel-identity": "INTERNAL"
+      }
+    },
     "/api/v1/reference-data": {
       "get": {
         "operationId": "ReferenceData_types",
@@ -8882,6 +9150,7 @@
               "PRECONDITION_REQUIRED",
               "PRODUCTION_GUARD_FAILED",
               "PROVENANCE_MISMATCH",
+              "RATE_LIMITED",
               "RECORD_IMMUTABLE",
               "RECORD_LOCKED",
               "RECORD_NOT_EDITABLE",
@@ -9236,6 +9505,295 @@
           "revisionNumber",
           "pricingStandardVersionId",
           "quotationPolicyVersionId"
+        ],
+        "additionalProperties": false
+      },
+      "Readiness_audit_200": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "occurredAt": {
+                  "type": "string"
+                },
+                "actorUserId": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/Uuid"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "action": {
+                  "type": "string",
+                  "enum": [
+                    "INSERT",
+                    "UPDATE",
+                    "DELETE"
+                  ]
+                },
+                "table": {
+                  "type": "string"
+                },
+                "rowId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "oldValue": {},
+                "newValue": {},
+                "reason": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "requestId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "prevHash": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "rowHash": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "occurredAt",
+                "actorUserId",
+                "action",
+                "table",
+                "rowId",
+                "oldValue",
+                "newValue",
+                "reason",
+                "requestId",
+                "prevHash",
+                "rowHash"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "Readiness_report_200": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "READY",
+              "NOT_READY"
+            ]
+          },
+          "build": {
+            "type": "object",
+            "properties": {
+              "revision": {
+                "type": "string"
+              },
+              "engines": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "revision",
+              "engines"
+            ],
+            "additionalProperties": false
+          },
+          "summary": {
+            "type": "object",
+            "properties": {
+              "blockingFailures": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "warnings": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "checks": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "blockingFailures",
+              "warnings",
+              "checks"
+            ],
+            "additionalProperties": false
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "level": {
+                  "type": "string",
+                  "enum": [
+                    "BLOCKING",
+                    "WARNING",
+                    "INFO"
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "PASS",
+                    "FAIL",
+                    "SKIPPED"
+                  ]
+                },
+                "message": {
+                  "type": "string"
+                },
+                "details": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "required": [
+                "id",
+                "level",
+                "status",
+                "message",
+                "details"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "status",
+          "build",
+          "summary",
+          "checks"
+        ],
+        "additionalProperties": false
+      },
+      "Readiness_verify_200": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "checked": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "firstBadId": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "ok",
+          "checked",
+          "firstBadId"
+        ],
+        "additionalProperties": false
+      },
+      "Ready_get_200": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "not_ready"
+            ]
+          },
+          "checks": {
+            "type": "object",
+            "properties": {
+              "database": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "fail"
+                ]
+              },
+              "migrations": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "fail"
+                ]
+              },
+              "engineManifest": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "fail"
+                ]
+              }
+            },
+            "required": [
+              "database",
+              "migrations",
+              "engineManifest"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "status",
+          "checks"
         ],
         "additionalProperties": false
       },

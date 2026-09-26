@@ -14,6 +14,7 @@ import {
 import { DesignVersionsService } from "./design-versions.service.js";
 import { ValidationService } from "./validation.service.js";
 import { ApiDoc } from "../../common/http/openapi.js";
+import { SensitiveRate } from "../../common/http/rate-limit.js";
 import { ObjectDeleted, ObjectMutation, ObjectResponse, OverrideDeleted, OverrideList, OverrideMutation, ValidationRunResponse, VersionResponse } from "./design-versions.schemas.js";
 import { Page } from "../../common/http/schemas.js";
 
@@ -58,7 +59,7 @@ export class DesignVersionsController {
 
   /** The single lifecycle path (design_os.transition). The required action depends on the transition. */
   @ApiDoc({ summary: "Lifecycle transition (SUBMIT, REQUEST_CHANGES, APPROVE, LOCK)", responses: { 200: VersionResponse }, idempotent: true, ifMatch: "required" })
-  @Post("design-versions/:versionId/transitions") @AuthenticatedOnly()
+  @SensitiveRate() @Post("design-versions/:versionId/transitions") @AuthenticatedOnly()
   async transition(@Scope() s: RequestScope, @Req() req: FastifyRequest, @Param(new SchemaPipe(VersionId, "params")) p: V,
     @Body(new SchemaPipe(TransitionRequest, "body")) b: TransitionRequest, @Res({ passthrough: true }) reply: FastifyReply) {
     return respond(reply, await this.versions.transition(s, p.versionId, ifMatch(req), idempotentRequest(req), b));

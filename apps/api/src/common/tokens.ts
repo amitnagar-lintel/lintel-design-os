@@ -5,3 +5,5 @@ export const PG_POOL = Symbol("PG_POOL");
 export const ENGINE_MANIFEST = Symbol("ENGINE_MANIFEST");
 /** The output file storage provider (memory / local) with its signed-URL verification. */
 export const FILE_STORAGE = Symbol("FILE_STORAGE");
+/** Where server errors are reported (Sentry when configured, otherwise a no-op). */
+export const ERROR_REPORTER = Symbol("ERROR_REPORTER");

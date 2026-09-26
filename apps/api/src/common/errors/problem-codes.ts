@@ -48,6 +48,7 @@ export const PROBLEM_CODES = {
   DRAWING_REFUSED: { status: 422, title: "The drawing engine refused the drawing" },
   CHECKSUM_MISMATCH: { status: 422, title: "The content does not match its checksum" },
   PRECONDITION_REQUIRED: { status: 428, title: "A precondition header is required" },
+  RATE_LIMITED: { status: 429, title: "Too many requests; retry after the indicated time" },
   INTERNAL_DATABASE_ERROR: { status: 500, title: "Internal error" },
   INTERNAL: { status: 500, title: "Internal error" },
   STORED_OUTPUT_INVALID: { status: 500, title: "A stored output failed its schema or integrity checks" },

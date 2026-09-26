@@ -12,7 +12,8 @@ import { generateKeyPair, SignJWT } from "jose";
 import pg from "pg";
 import { inject } from "vitest";
 import { createApp } from "../../src/app.js";
-import type { ApiConfig } from "../../src/config.js";
+import type { ApiConfig, RateLimitConfig } from "../../src/config.js";
+import type { ErrorReporter } from "../../src/common/observability/error-reporter.js";
 import { resolveBuildRevision } from "../../src/config.js";
 import type {} from "../../../../tests/db/support/global-setup.js";
 import type { Tx } from "../../../../tests/db/support/db.js";
@@ -43,7 +44,7 @@ export interface Api {
 }
 
 /** `buildRevision` / `engineManifestPath` simulate another deployment (build B, or a build-time manifest of other engine code). */
-export async function startApi(modules: readonly (Type | DynamicModule)[] = [], opts: { readonly poolMax?: number; readonly buildRevision?: string; readonly engineManifestPath?: string } = {}): Promise<Api> {
+export async function startApi(modules: readonly (Type | DynamicModule)[] = [], opts: { readonly poolMax?: number; readonly buildRevision?: string; readonly engineManifestPath?: string; readonly rateLimit?: RateLimitConfig; readonly errorReporter?: ErrorReporter } = {}): Promise<Api> {
   const config: ApiConfig = {
     databaseUrl: inject("apiDbUrl"),
     dbPoolMax: opts.poolMax ?? 6,
@@ -55,9 +56,12 @@ export async function startApi(modules: readonly (Type | DynamicModule)[] = [], 
     logger: process.env.API_TEST_LOG === "1",
     buildRevision: opts.buildRevision ?? TEST_BUILD,
     files: { provider: "memory", signingSecret: "test-file-url-secret-0123456789abcdef", publicBaseUrl: "http://api.test.local" },
+    // Off unless a test turns it on: suites send many requests from one address and one user.
+    rateLimit: opts.rateLimit ?? { enabled: false, windowMs: 60_000, ip: 1, read: 1, write: 1, sensitive: 1 },
+    trustProxyHops: 0,
     ...(opts.engineManifestPath === undefined ? {} : { engineManifestPath: opts.engineManifestPath }),
   };
-  const app = await createApp(config, modules);
+  const app = await createApp(config, modules, opts.errorReporter === undefined ? {} : { errorReporter: opts.errorReporter });
   const fastify = app.getHttpAdapter().getInstance();
   return {
     app,

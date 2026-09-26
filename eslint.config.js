@@ -8,6 +8,13 @@ const INFRASTRUCTURE = {
   message: "Domain engines and the persistence/storage packages stay independent of UI, rendering, database clients, HTTP frameworks and cloud SDKs (CLAUDE.md, M5 §0.1). Adapters live in the API app.",
 };
 
+/** What the API app may never import: UI / rendering, and (until the storage adapters step) cloud SDKs. */
+const API_FORBIDDEN = {
+  group: ["react", "react-dom", "three", "three/*", "@supabase/*", "@aws-sdk/*", "aws-sdk"],
+  message: "The API never imports UI or rendering code; cloud SDKs only in reviewed infrastructure adapters.",
+};
+const API_PG = { group: ["pg", "pg-*", "postgres"], message: "Only the API database layer (common/db, infrastructure) uses the PostgreSQL client." };
+
 const ENGINE_PACKAGES = ["types", "rules-engine", "geometry-engine", "catalog-engine", "hettich-engine", "design-engine", "bom-engine", "boq-engine", "pricing-engine", "drawing-engine"];
 
 export default tseslint.config(
@@ -48,6 +55,41 @@ export default tseslint.config(
     files: ["tests/db/**/*.ts"],
     rules: {
       "no-restricted-imports": ["error", { patterns: [{ ...INFRASTRUCTURE, group: INFRASTRUCTURE.group.filter((g) => g !== "pg") }] }],
+    },
+  },
+  // ---------------------------------------------------------------- API (apps/api): API → application services → persistence / engines / storage → PostgreSQL
+  {
+    // The API may use NestJS / Fastify; never UI or rendering libraries; cloud SDKs only in later storage adapters; `pg` only in the database layer.
+    files: ["apps/api/**/*.ts"],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: [API_FORBIDDEN, API_PG] }],
+      // NestJS modules are decorated, intentionally empty classes.
+      "@typescript-eslint/no-extraneous-class": ["error", { allowWithDecorator: true }],
+    },
+  },
+  {
+    // The database layer, repositories and API tests may use the PostgreSQL client.
+    files: ["apps/api/src/common/db/**/*.ts", "apps/api/src/infrastructure/**/*.ts", "apps/api/test/**/*.ts"],
+    rules: { "no-restricted-imports": ["error", { patterns: [API_FORBIDDEN] }] },
+  },
+  {
+    // Controllers: HTTP only. They call application services; never repositories, the database, engines, persistence or storage.
+    files: ["apps/api/src/modules/**/*.controller.ts"],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: [API_FORBIDDEN, API_PG, {
+        group: ["**/infrastructure/**", "**/common/db/**", "@lintel/persistence", "@lintel/persistence/*", "@lintel/storage", "@lintel/storage/*", "@lintel/*-engine", "@lintel/*-engine/*"],
+        message: "Controllers are HTTP only: route, validate, call an application service, map the result. No business calculation, no SQL (M5 Step 4 §1.3).",
+      }] }],
+    },
+  },
+  {
+    // Repositories run SQL only: no engines, no hashing/provenance, no storage.
+    files: ["apps/api/src/infrastructure/persistence/**/*.ts"],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: [API_FORBIDDEN, {
+        group: ["@lintel/persistence", "@lintel/persistence/*", "@lintel/storage", "@lintel/storage/*", "@lintel/*-engine", "@lintel/*-engine/*"],
+        message: "Repositories contain SQL only; calculations and hashing belong to application services via engines / @lintel/persistence (M5 Step 4 §1.3).",
+      }] }],
     },
   },
   {

@@ -22,6 +22,8 @@ declare module "vitest" {
   export interface ProvidedContext {
     dbUrl: string;
     raceDbUrl: string;
+    /** The race database, logged in as the API's test login role (member of design_os_api, NOINHERIT). */
+    apiDbUrl: string;
     migrationReport: MigrationReport;
   }
 }
@@ -29,6 +31,7 @@ declare module "vitest" {
 const TEST_DB = "design_os_test";
 /** A copy of the migrated test database for the few tests that must COMMIT across connections (races); dropped at teardown. */
 const RACE_DB = "design_os_race";
+const API_LOGIN = "lintel_api_test";
 
 /** Registries and seeded grants: the only tables allowed to hold rows when the suite ends. */
 const SCHEMA_TABLES = new Set(["versioned_table", "role", "permission", "default_role_permission", "construction_variable", "planning_variable", "manufacturing_variable", "error_code", "output_purpose_rule"]);
@@ -78,6 +81,20 @@ export default async function setup(project: TestProject): Promise<() => Promise
   await templater.query(`CREATE DATABASE ${RACE_DB} TEMPLATE ${TEST_DB}`);
   await templater.end();
   project.provide("raceDbUrl", raceUrl.toString());
+
+  // The API logs in with its own role whose ONLY privilege is membership in design_os_api (NOINHERIT: it must
+  // `SET ROLE design_os_api`, so the login role itself can read nothing). Cluster-level; LOCAL / CI only.
+  const roles = new pg.Client({ connectionString: admin });
+  await roles.connect();
+  await roles.query(`DO $$ BEGIN
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '${API_LOGIN}') THEN CREATE ROLE ${API_LOGIN} LOGIN NOINHERIT PASSWORD '${API_LOGIN}'; END IF;
+  END $$`);
+  await roles.query(`GRANT design_os_api TO ${API_LOGIN}`);
+  await roles.end();
+  const apiUrl = new URL(raceUrl.toString());
+  apiUrl.username = API_LOGIN;
+  apiUrl.password = API_LOGIN;
+  project.provide("apiDbUrl", apiUrl.toString());
 
   // Teardown: every test ran in a rolled-back transaction, so no data (synthetic or otherwise) may persist.
   return async () => {

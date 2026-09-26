@@ -61,7 +61,8 @@ describe("database errors become RFC 9457 problems by SQLSTATE", () => {
 
 describe("registry parity with the database", () => {
   it("every design_os.error_code row maps to the same API code and HTTP status", async () => {
-    const rows = await sql<{ sqlstate: string; code: string; http_status: number; api_facing: boolean }>("SELECT sqlstate, code, http_status, api_facing FROM design_os.error_code ORDER BY sqlstate");
+    const rows = await sql<{ sqlstate: string; code: string; http_status: number; api_facing: boolean }>("SELECT sqlstate, code, http_status, api_facing FROM design_os.error_code");
+    rows.sort((x, y) => (x.sqlstate < y.sqlstate ? -1 : 1)); // code-point order: independent of the server collation
     for (const r of rows) {
       if (r.api_facing) {
         expect([r.sqlstate, DATABASE_ERROR_CODES[r.sqlstate]]).toEqual([r.sqlstate, r.code]);
@@ -74,7 +75,7 @@ describe("registry parity with the database", () => {
     expect([...INTERNAL_DATABASE_SQLSTATES].sort()).toEqual(rows.filter((r) => !r.api_facing).map((r) => r.sqlstate));
   });
   it("the API action vocabulary equals design_os.permission (46 actions)", async () => {
-    const actions = (await sql<{ action: string }>("SELECT action FROM design_os.permission ORDER BY action")).map((r) => r.action);
+    const actions = (await sql<{ action: string }>("SELECT action FROM design_os.permission")).map((r) => r.action).sort();
     expect([...PERMISSION_ACTIONS].sort()).toEqual(actions);
     expect(actions).toHaveLength(46);
   });

@@ -12,7 +12,8 @@ export class MeService {
       userId: scope.principal.userId,
       orgId: scope.org.orgId,
       identityKind: scope.org.identityKind,
-      roles: [...scope.org.roles],
+      // Code-point order in the API, so responses never depend on the database collation.
+      roles: [...scope.org.roles].sort(),
       permissions: [...scope.org.permissions].sort(),
     };
   }

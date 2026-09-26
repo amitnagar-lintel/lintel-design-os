@@ -35,7 +35,7 @@ describe("authentication", () => {
     expect(r.statusCode).toBe(200);
     const me = r.json<{ userId: string; orgId: string; identityKind: string; roles: string[]; permissions: string[] }>();
     expect(me).toMatchObject({ userId: a.users.DESIGNER, orgId: a.org, identityKind: "INTERNAL", roles: ["DESIGNER"] });
-    const granted = (await sql<{ action: string }>("SELECT action FROM design_os.role_permission WHERE org_id = $1 AND role = 'DESIGNER' ORDER BY action", [a.org])).map((x) => x.action);
+    const granted = (await sql<{ action: string }>("SELECT action FROM design_os.role_permission WHERE org_id = $1 AND role = 'DESIGNER' ", [a.org])).map((x) => x.action).sort(); // code-point order: independent of the server collation
     expect(me.permissions).toEqual(granted);
     expect(me.permissions).toContain("design_version.author");
     expect(me.permissions).not.toContain("design_version.approve");

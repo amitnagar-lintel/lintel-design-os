@@ -78,7 +78,7 @@ describe("snapshot provenance (requirement B)", () => {
 describe("snapshot records", () => {
   const productionPayload = { trace: { dataClassification: "PRODUCTION", testFixtureSources: [] }, items: [{ qty: 2 }], contentHash: "0d8691345c4075" };
   it("are sealed with SHA-256, keep the engine hash and round-trip through rows", () => {
-    const r = buildSnapshotRecord({ snapshotId: "snap_1", kind: "BOM", provenance: buildSnapshotProvenance("BOM", DV, PINS, "e"), inputHash: INPUT, payload: productionPayload, blockerCount: 26, createdBy: "u", createdAt: T0 });
+    const r = buildSnapshotRecord({ snapshotId: "snap_1", kind: "BOM", purpose: "PRELIMINARY", provenance: buildSnapshotProvenance("BOM", DV, PINS, "e"), inputHash: INPUT, payload: productionPayload, blockerCount: 26, createdBy: "u", createdAt: T0 });
     expect(r.contentHash).toBe(contentHash(productionPayload));
     expect(r.engineHash).toBe("0d8691345c4075");
     expect(verifySnapshotRecord(r)).toBe(true);
@@ -87,7 +87,7 @@ describe("snapshot records", () => {
   });
   it("refuses TEST_FIXTURE outputs", () => {
     const fixture = { trace: { dataClassification: "TEST_FIXTURE", testFixtureSources: ["construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD"] } };
-    expect(() => buildSnapshotRecord({ snapshotId: "s", kind: "BOM", provenance: buildSnapshotProvenance("BOM", DV, PINS, "e"), inputHash: INPUT, payload: fixture, blockerCount: 1, createdBy: "u", createdAt: T0 })).toThrow(
+    expect(() => buildSnapshotRecord({ snapshotId: "s", kind: "BOM", purpose: "PRELIMINARY", provenance: buildSnapshotProvenance("BOM", DV, PINS, "e"), inputHash: INPUT, payload: fixture, blockerCount: 1, createdBy: "u", createdAt: T0 })).toThrow(
       TestFixturePersistenceError,
     );
   });

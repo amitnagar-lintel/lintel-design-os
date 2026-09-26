@@ -68,9 +68,22 @@ export const outputsRepository = {
     return jsonRows<SnapshotRowData>(tx, `SELECT * FROM design_os.${table} WHERE design_version_id = $1 AND ${page.where} ${page.orderLimit}`, [designVersionId, ...params]);
   },
 
+  /** Every snapshot of a design version in one table (the outputs graph; no pagination — one version's outputs). */
+  all(tx: Tx, table: SnapshotTable, designVersionId: string): Promise<SnapshotRowData[]> {
+    return jsonRows<SnapshotRowData>(tx, `SELECT * FROM design_os.${table} WHERE design_version_id = $1 ORDER BY created_at, id`, [designVersionId]);
+  },
+
   /** The transaction timestamp (UTC ISO), used as every engine's `createdAt` in one execution context. */
   now(tx: Tx): Promise<string> {
     return tx.one<{ t: string }>(`SELECT to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS t`).then((r) => r.t);
+  },
+
+  /** Title-block facts of a design version from records: project code, designer (author), checker (approver, if any). */
+  titleBlockRecords(tx: Tx, designVersionId: string): Promise<{ project_code: string; designer: string; checker: string | null }> {
+    return tx.one<{ project_code: string; designer: string; checker: string | null }>(`SELECT p.project_code,
+        coalesce((SELECT u.display_name FROM design_os.app_user u WHERE u.id = v.created_by), v.created_by::text) AS designer,
+        CASE WHEN v.approved_by IS NULL THEN NULL ELSE coalesce((SELECT u.display_name FROM design_os.app_user u WHERE u.id = v.approved_by), v.approved_by::text) END AS checker
+      FROM design_os.design_version v JOIN design_os.project p ON p.id = v.project_id WHERE v.id = $1`, [designVersionId]);
   },
 
   hasPermission(tx: Tx, action: string): Promise<boolean> {

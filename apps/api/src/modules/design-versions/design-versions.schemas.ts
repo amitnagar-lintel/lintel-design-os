@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { Millimetres, PositiveMillimetres } from "../../common/http/measures.js";
-import { LifecycleStatus, Reason, Sha256Hash, TransitionAction, Uuid } from "../../common/http/schemas.js";
+import { LifecycleStatus, PageQuery, Reason, Sha256Hash, TransitionAction, Uuid } from "../../common/http/schemas.js";
 
 /**
  * The 9 exact engineering pins (M5 §2.3; Step 6 plan revision 4 §3). Required pins are never null; the appliance
@@ -123,12 +123,22 @@ export type OverrideCreate = z.infer<typeof OverrideCreate>;
 export const OverrideParams = z.strictObject({ versionId: Uuid, overrideCode: z.string().min(1).max(64) });
 export const OverrideResponse = z.strictObject({ overrideCode: z.string(), version: z.number().int(), kind: OverrideKind, objectIds: z.array(z.string()), reason: z.string(), createdBy: Uuid, createdAt: z.string() });
 export type OverrideResponse = z.infer<typeof OverrideResponse>;
+export const OverrideList = z.strictObject({ items: z.array(OverrideResponse) });
+
+/** Draft content writes return the change and the version's new state (hashes, revision, ETag). */
+export const ObjectMutation = z.strictObject({ object: ObjectResponse, designVersion: VersionState });
+export const ObjectDeleted = z.strictObject({ deleted: z.strictObject({ id: Uuid, lineageId: z.string() }), designVersion: VersionState });
+export const OverrideMutation = z.strictObject({ override: OverrideResponse, designVersion: VersionState });
+export const OverrideDeleted = z.strictObject({ deleted: z.strictObject({ overrideCode: z.string(), versions: z.number().int() }), designVersion: VersionState });
 
 /* ------------------------------------------------------------ validation */
 
 /** Runs the engine on the version's current exact inputs. The body is empty: counts always come from the engine. */
 export const ValidationRequest = z.strictObject({});
 export const RunId = z.strictObject({ runId: Uuid });
+/** Validation-run lists: optionally only APPROVAL (SUBMIT / APPROVE evidence) or OUTPUT_GENERATION (output evidence) runs. */
+export const ValidationRunQuery = PageQuery.extend({ purpose: z.enum(["APPROVAL", "OUTPUT_GENERATION"]).optional() });
+export type ValidationRunQuery = z.infer<typeof ValidationRunQuery>;
 export const ValidationMessage = z.strictObject({ code: z.string(), severity: z.string(), message: z.string() }).catchall(z.unknown());
 export const ValidationRunResponse = z.strictObject({
   id: Uuid, designVersionId: Uuid, purpose: z.enum(["APPROVAL", "OUTPUT_GENERATION"]), inputHash: Sha256Hash, inputRevision: z.number().int(), dependencySetHash: Sha256Hash.nullable(),

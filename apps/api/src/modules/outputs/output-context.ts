@@ -3,7 +3,7 @@ import type {
   Sha256, SnapshotKind,
 } from "@lintel/persistence";
 import { COMMERCIAL_PINS, dependencySetHash, engineeringDependencyHashes, pinsFromColumns } from "@lintel/persistence";
-import type { CatalogSnapshot, ResolvedRoom } from "@lintel/types";
+import type { CatalogSnapshot, DesignVersion, ResolvedRoom } from "@lintel/types";
 import { deepFreeze } from "@lintel/types";
 import type { Tx } from "../../common/db/tx.js";
 import { ApiProblem } from "../../common/errors/api-problem.js";
@@ -19,9 +19,9 @@ import type { EngineeringRows } from "./engines/validation.js";
 import { engineeringModel, resolveEngineeringModel } from "./engines/validation.js";
 
 /** The output kinds generated at Step 7 checkpoint 2 (drawings follow at checkpoint 3; manufacturing is deferred). */
-export type OutputKind = Extract<SnapshotKind, "BOM" | "BOQ" | "PRICING" | "QUOTATION">;
-export type OutputEngine = Extract<EngineName, "validation" | "bom" | "boq" | "pricing" | "quotation">;
-const OUTPUT_ENGINES: readonly OutputEngine[] = ["validation", "bom", "boq", "pricing", "quotation"];
+export type OutputKind = Extract<SnapshotKind, "BOM" | "BOQ" | "PRICING" | "QUOTATION" | "DRAWING">;
+export type OutputEngine = Extract<EngineName, "validation" | "bom" | "boq" | "pricing" | "quotation" | "drawing">;
+const OUTPUT_ENGINES: readonly OutputEngine[] = ["validation", "bom", "boq", "pricing", "quotation", "drawing"];
 
 /** The exact commercial versions a request names (never a design pin, never "latest"). */
 export interface CommercialChoice {
@@ -57,6 +57,10 @@ export interface OutputExecutionContext {
     readonly quotationPolicy: QuotationPolicyRows | null;
   };
   readonly catalog: CatalogSnapshot;
+  /** The design version as the engines see it (mapped once from the same row; drawings apply their guard to it). */
+  readonly designVersion: DesignVersion;
+  /** Drawing title-block facts from records (never from the request): project code, room, designer, checker. */
+  readonly records: { readonly projectCode: string; readonly roomName: string; readonly designer: string; readonly checker: string };
   /** `resolveRoom` of exactly these inputs, computed once; its `validation` is the OUTPUT_GENERATION evidence. */
   readonly resolved: ResolvedRoom;
   readonly engines: Readonly<Record<OutputEngine, EngineProvenance>>;
@@ -115,6 +119,7 @@ export async function buildOutputExecutionContext(tx: Tx, input: {
   const model = engineeringModel(rows);
   const resolved = resolveEngineeringModel(model);
   const createdAt = await outputsRepository.now(tx);
+  const people = await outputsRepository.titleBlockRecords(tx, v.id);
 
   return deepFreeze({
     orgId: input.orgId,
@@ -131,6 +136,8 @@ export async function buildOutputExecutionContext(tx: Tx, input: {
       quotationPolicy: commercialRows.quotationPolicy as unknown as QuotationPolicyRows | null,
     },
     catalog: model.catalog,
+    designVersion: model.input.designVersion,
+    records: { projectCode: people.project_code, roomName: room.name, designer: people.designer, checker: people.checker ?? "-" },
     resolved,
     engines: input.engines,
   });

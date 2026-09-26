@@ -211,8 +211,14 @@ export const designVersionsRepository = {
   },
 
   /* validation runs (read-only; written only by design_os.record_validation_run) */
-  runs(tx: Tx, versionId: string, page: Keyset, params: readonly unknown[]): Promise<ValidationRunRow[]> {
-    return jsonRows<ValidationRunRow>(tx, `SELECT ${RUN_COLS} FROM design_os.validation_run WHERE design_version_id = $1 AND ${page.where} ${page.orderLimit}`, [versionId, ...params]);
+  /** One keyset page of a version's runs, optionally of one purpose ($2; NULL = every purpose). */
+  runs(tx: Tx, versionId: string, purpose: "APPROVAL" | "OUTPUT_GENERATION" | null, page: Keyset, params: readonly unknown[]): Promise<ValidationRunRow[]> {
+    return jsonRows<ValidationRunRow>(tx, `SELECT ${RUN_COLS} FROM design_os.validation_run WHERE design_version_id = $1 AND ($2::text IS NULL OR purpose = $2) AND ${page.where} ${page.orderLimit}`,
+      [versionId, purpose, ...params]);
+  },
+  /** Every OUTPUT_GENERATION run of a version (the evidence of its outputs), oldest first. */
+  outputRuns(tx: Tx, versionId: string): Promise<ValidationRunRow[]> {
+    return jsonRows<ValidationRunRow>(tx, `SELECT ${RUN_COLS} FROM design_os.validation_run WHERE design_version_id = $1 AND purpose = 'OUTPUT_GENERATION' ORDER BY seq`, [versionId]);
   },
   run(tx: Tx, id: string): Promise<ValidationRunRow | null> {
     return jsonRow<ValidationRunRow>(tx, `SELECT ${RUN_COLS} FROM design_os.validation_run WHERE id = $1`, [id]);

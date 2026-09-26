@@ -1,10 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { BoqGenerationError } from "@lintel/boq-engine";
-import type { DependencyHashes, OutputPurpose, SnapshotProvenance, SnapshotRow, SnapshotSources } from "@lintel/persistence";
+import type { DependencyHashes, DrawingIdentity, OutputPurpose, SnapshotFile, SnapshotProvenance, SnapshotRow, SnapshotSources } from "@lintel/persistence";
 import {
-  MappingError, buildSnapshotProvenance, buildSnapshotRecord, buildValidationRun, engineeringDependencyHashes, outputPurposeProblems, provenanceIdentity,
+  MappingError, buildSnapshotProvenance, buildSnapshotRecord, buildValidationRun, engineeringDependencyHashes, fileManifestHash, outputPurposeProblems, provenanceIdentity,
   recordValidationRunArgs, snapshotToRow,
 } from "@lintel/persistence";
+import type { FileService } from "@lintel/storage";
+import { buildStorageKey, sha256Of } from "@lintel/storage";
 import type { ValidationMessage } from "@lintel/types";
 import { stableStringify } from "@lintel/types";
 import type { PermissionAction } from "../../common/auth/permissions.js";
@@ -12,24 +14,45 @@ import type { Tx } from "../../common/db/tx.js";
 import { ApiProblem } from "../../common/errors/api-problem.js";
 import type { ProblemCode } from "../../common/errors/problem-codes.js";
 import { designVersionsRepository } from "../../infrastructure/persistence/design-versions.repository.js";
+import type { OutputFileFormatRow } from "../../infrastructure/persistence/files.repository.js";
+import { filesRepository } from "../../infrastructure/persistence/files.repository.js";
 import type { SnapshotTable } from "../../infrastructure/persistence/outputs.repository.js";
 import { outputsRepository } from "../../infrastructure/persistence/outputs.repository.js";
 import { roomBom } from "./engines/bom.js";
 import { roomBoq } from "./engines/boq.js";
 import { roomPricing } from "./engines/pricing.js";
 import { roomQuotation } from "./engines/quotation.js";
+import type { DrawingRequest } from "./engines/drawing.js";
+import { drawOutput, renderDrawingFiles } from "./engines/drawing.js";
 import type { OutputExecutionContext, OutputKind } from "./output-context.js";
 import type { PayloadOf } from "./payloads.js";
 import { StoredPayloadError, parseStoredPayload, storedPayloadProblem } from "./payloads.js";
 
-export const SNAPSHOT_TABLE: Readonly<Record<OutputKind, SnapshotTable>> = { BOM: "bom_snapshot", BOQ: "boq_snapshot", PRICING: "pricing_snapshot", QUOTATION: "quotation_snapshot" };
+export const SNAPSHOT_TABLE: Readonly<Record<OutputKind, SnapshotTable>> = {
+  BOM: "bom_snapshot", BOQ: "boq_snapshot", PRICING: "pricing_snapshot", QUOTATION: "quotation_snapshot", DRAWING: "drawing_snapshot",
+};
 /** Output permission matrix (Step 6 plan §14); the snapshot RLS policies enforce the same actions. */
 export const GENERATE_ACTION: Readonly<Record<OutputKind, PermissionAction>> = {
-  BOM: "output.generate.engineering", BOQ: "output.generate.engineering", PRICING: "output.generate.commercial", QUOTATION: "output.generate.commercial",
+  BOM: "output.generate.engineering", BOQ: "output.generate.engineering", PRICING: "output.generate.commercial", QUOTATION: "output.generate.commercial", DRAWING: "output.generate.engineering",
 };
 export const READ_ACTION: Readonly<Record<OutputKind, PermissionAction>> = {
-  BOM: "output.read.production", BOQ: "output.read.production", PRICING: "output.read.cost", QUOTATION: "output.read.cost",
+  BOM: "output.read.production", BOQ: "output.read.production", PRICING: "output.read.cost", QUOTATION: "output.read.cost", DRAWING: "output.read.production",
 };
+
+/** A drawing request: the engine parameters plus the drawing number and revision (part of the natural identity). */
+export type DrawingOrder = DrawingRequest & { readonly drawingNumber: string; readonly drawingRevision: string };
+
+/** Where rendered drawing files go: the configured storage (checksum verified on upload) and the format registry. */
+export interface FileSink {
+  readonly service: FileService;
+  readonly formats: readonly OutputFileFormatRow[];
+}
+
+/** A rendered file, sealed into the drawing's manifest before anything is stored. */
+interface PreparedFile extends SnapshotFile {
+  readonly bytes: Uint8Array;
+  readonly extension: string;
+}
 export const SOURCE_KIND: Readonly<Record<keyof SnapshotSources, OutputKind>> = { bomSnapshotId: "BOM", boqSnapshotId: "BOQ", pricingSnapshotId: "PRICING" };
 export const SOURCE_COLUMN: Readonly<Record<keyof SnapshotSources, "bom_snapshot_id" | "boq_snapshot_id" | "pricing_snapshot_id">> = {
   bomSnapshotId: "bom_snapshot_id", boqSnapshotId: "boq_snapshot_id", pricingSnapshotId: "pricing_snapshot_id",
@@ -90,6 +113,8 @@ export class OutputGeneration {
     private readonly purpose: OutputPurpose,
     /** Exact upstream snapshots named for reproduction (plan §7.3); everything else is resolved by the server. */
     private readonly named: SnapshotSources = {},
+    /** DRAWING requests only: the drawing to generate and where its files go. */
+    private readonly drawing?: { readonly order: DrawingOrder; readonly sink: FileSink },
   ) {}
 
   async generate(kind: OutputKind): Promise<Outcome> {
@@ -114,7 +139,10 @@ export class OutputGeneration {
     await this.require(READ_ACTION[kind], `using ${kind} snapshots`);
     const up = await this.upstream(kind);
     const lookup = this.provenance(kind, up.sources, PENDING_RUN);
-    const existing = await outputsRepository.findByIdentity(this.tx, SNAPSHOT_TABLE[kind], provenanceIdentity({ kind, orgId: this.ctx.orgId, purpose: this.purpose, provenance: lookup }));
+    const drawingKey = kind === "DRAWING" ? this.drawingKey() : undefined;
+    const existing = await outputsRepository.findByIdentity(this.tx, SNAPSHOT_TABLE[kind], provenanceIdentity({
+      kind, orgId: this.ctx.orgId, purpose: this.purpose, provenance: lookup, ...(drawingKey === undefined ? {} : { drawing: drawingKey }),
+    }));
     if (existing !== null) return this.remember(existing as unknown as SnapshotRow, false);
 
     await this.require(GENERATE_ACTION[kind], `creating the missing ${kind} snapshot`);
@@ -127,6 +155,7 @@ export class OutputGeneration {
         blockerCount: produced.blockerCount, warningCount: produced.warningCount, outputComplete: produced.outputComplete,
         validationBlockerCount: this.ctx.resolved.validation.counts.BLOCKER, createdBy: this.ctx.actorId, createdAt: this.ctx.createdAt,
         ...(produced.revisionNumber === undefined ? {} : { revisionNumber: produced.revisionNumber }),
+        ...(produced.drawing === undefined ? {} : { drawing: produced.drawing }),
       });
     } catch (e) {
       throw e instanceof MappingError ? refusal(e) : e;
@@ -135,7 +164,60 @@ export class OutputGeneration {
     if ((await outputsRepository.insert(this.tx, SNAPSHOT_TABLE[kind], row as unknown as Readonly<Record<string, unknown>>)) === "identity_conflict") {
       throw new ApiProblem("CONCURRENT_MODIFICATION", `a concurrent request generated the same ${kind} output; retry to reuse it`);
     }
+    if (produced.files !== undefined) await this.storeFiles(row.id, produced.files);
     return this.remember(row, true);
+  }
+
+  /* ------------------------------------------------------------ drawings */
+
+  /** The drawing parameters of the natural identity (the file manifest is sealed later, from the rendered files). */
+  private drawingKey(): Omit<DrawingIdentity, "fileManifestHash"> {
+    if (this.drawing === undefined) throw new ApiProblem("INTERNAL", "a drawing request needs its drawing parameters");
+    const o = this.drawing.order;
+    return {
+      drawingType: o.drawingType,
+      wallId: o.drawingType === "WALL_INTERNAL_ELEVATION" ? o.wallId : null,
+      objectLineageId: "objectLineageId" in o ? o.objectLineageId : null,
+      cutXMm: o.drawingType === "SIDE_SECTION" ? o.cutXMm : null,
+      drawingNumber: o.drawingNumber,
+      drawingRevision: o.drawingRevision,
+    };
+  }
+
+  /** Every rendered file, in manifest order: by the registry's format order, then sheet (plan §13). */
+  private prepareFiles(rendered: ReturnType<typeof renderDrawingFiles>): PreparedFile[] {
+    const formats = this.drawing?.sink.formats ?? [];
+    const withFormat = rendered.map((f) => {
+      const format = formats.find((r) => r.code === f.format && r.kinds.includes("DRAWING"));
+      if (format === undefined || format.sheet_scoped !== (f.sheetIndex !== null)) throw new ApiProblem("INTERNAL", `file format ${f.format} is not registered for drawings`);
+      return { f, format };
+    }).sort((a, b) => a.format.sort_order - b.format.sort_order || (a.f.sheetIndex ?? -1) - (b.f.sheetIndex ?? -1));
+    return withFormat.map(({ f, format }, i) => ({
+      sequence: i + 1, format: format.code, sheetIndex: f.sheetIndex, checksum: sha256Of(f.bytes), byteSize: f.bytes.byteLength, contentType: format.content_type,
+      bytes: f.bytes, extension: format.extension,
+    }));
+  }
+
+  /**
+   * Store each file content-addressed (org / project / design version / checksum), record it as an insert-only
+   * file_object (reused when the identical content is already recorded) and link it in manifest order. The database
+   * checks at commit that the links are exactly the sealed manifest (check_drawing_manifest).
+   */
+  private async storeFiles(snapshotId: string, files: readonly PreparedFile[]): Promise<void> {
+    const sink = this.drawing?.sink;
+    if (sink === undefined) throw new ApiProblem("INTERNAL", "no file storage for drawing files");
+    for (const f of files) {
+      const key = buildStorageKey({
+        orgId: this.ctx.orgId, projectId: this.ctx.version.project_id, designVersionId: this.ctx.version.id, kind: "drawing", fileId: f.checksum.slice("sha256:".length), extension: f.extension,
+      });
+      const stored = await sink.service.store(key, f.bytes, f.contentType);
+      const existing = await filesRepository.byKey(this.tx, sink.service.providerId, key);
+      if (existing !== null && (existing.checksum !== f.checksum || existing.content_type !== f.contentType)) throw new ApiProblem("INTERNAL", `stored file ${key} differs from its record`);
+      const object = existing ?? await filesRepository.insert(this.tx, {
+        org_id: this.ctx.orgId, provider_id: sink.service.providerId, storage_key: key, content_type: stored.contentType, byte_size: stored.byteSize, checksum: stored.checksum, created_by: this.ctx.actorId,
+      });
+      await filesRepository.link(this.tx, { org_id: this.ctx.orgId, snapshot_id: snapshotId, sequence: f.sequence, format: f.format, sheet_index: f.sheetIndex, file_object_id: object.id });
+    }
   }
 
   /** Every stored or new snapshot is validated (schema, content hash, engine seal) before anything consumes it. */
@@ -149,6 +231,7 @@ export class OutputGeneration {
   private async upstream(kind: OutputKind): Promise<{ readonly sources: SnapshotSources; readonly bom?: Produced; readonly boq?: Produced; readonly pricing?: Produced }> {
     switch (kind) {
       case "BOM":
+      case "DRAWING":
         return { sources: {} };
       case "BOQ": {
         const bom = await this.source("bomSnapshotId");
@@ -234,6 +317,7 @@ export class OutputGeneration {
   /** Run the kind's output engine on the context's resolved room and the exact upstream payloads. */
   private async produce(kind: OutputKind, up: { readonly bom?: Produced; readonly boq?: Produced; readonly pricing?: Produced }): Promise<{
     readonly payload: unknown; readonly blockerCount: number; readonly warningCount: number; readonly outputComplete: boolean; readonly revisionNumber?: number;
+    readonly drawing?: DrawingIdentity; readonly files?: readonly PreparedFile[];
   }> {
     const { resolved, catalog, createdAt } = this.ctx;
     const validation = resolved.validation.counts;
@@ -272,6 +356,22 @@ export class OutputGeneration {
         });
         if (r.status === "UNAVAILABLE") throw this.unavailable(kind, r.blockers, "pricingSnapshotId");
         return { payload: r.snapshot, ...counted(r.messages), outputComplete: true, revisionNumber };
+      }
+      case "DRAWING": {
+        const order = this.drawing?.order;
+        if (order === undefined) throw new ApiProblem("INTERNAL", "a drawing request needs its drawing parameters");
+        const { records } = this.ctx;
+        const r = drawOutput({
+          resolved, designVersion: this.ctx.designVersion, request: order, status: this.purpose,
+          metadata: { projectCode: records.projectCode, room: records.roomName, drawingNumber: order.drawingNumber, revision: order.drawingRevision, date: createdAt.slice(0, 10), designer: records.designer, checker: records.checker },
+        });
+        if (r.status === "OBJECT_NOT_FOUND") {
+          throw new ApiProblem("INVALID_REFERENCE", "objectLineageId is not an object of this design version", { errors: [{ path: "body.objectLineageId", code: "not_found", message: "no such object" }] });
+        }
+        // Engine refusal (e.g. its production guard): 422 with the engine's blockers; nothing is persisted.
+        if (r.status === "REFUSED") throw new ApiProblem("DRAWING_REFUSED", r.blockers.map((b) => b.message).join("; "), { context: { blockers: r.blockers } });
+        const files = this.prepareFiles(renderDrawingFiles(r.drawing));
+        return { payload: r.drawing, ...counted([]), outputComplete: true, drawing: { ...this.drawingKey(), fileManifestHash: fileManifestHash(files) }, files };
       }
     }
   }
@@ -319,7 +419,7 @@ export function producedFrom(row: SnapshotRow, created: boolean): Produced {
       case "BOQ": return { kind: "BOQ", row, created, payload: parseStoredPayload("BOQ", row) };
       case "PRICING": return { kind: "PRICING", row, created, payload: parseStoredPayload("PRICING", row) };
       case "QUOTATION": return { kind: "QUOTATION", row, created, payload: parseStoredPayload("QUOTATION", row) };
-      case "DRAWING":
+      case "DRAWING": return { kind: "DRAWING", row, created, payload: parseStoredPayload("DRAWING", row) };
       case "MANUFACTURING_DOCUMENT":
         throw new ApiProblem("INTERNAL", `${row.kind} snapshots are not generated here`);
     }
@@ -328,7 +428,7 @@ export function producedFrom(row: SnapshotRow, created: boolean): Produced {
   }
 }
 
-const ENGINE = { BOM: "bom", BOQ: "boq", PRICING: "pricing", QUOTATION: "quotation" } as const satisfies Record<OutputKind, string>;
+const ENGINE = { BOM: "bom", BOQ: "boq", PRICING: "pricing", QUOTATION: "quotation", DRAWING: "drawing" } as const satisfies Record<OutputKind, string>;
 
 /** A record refused by @lintel/persistence (a guard the pre-checks did not catch) as its API code. */
 function refusal(e: MappingError): ApiProblem {

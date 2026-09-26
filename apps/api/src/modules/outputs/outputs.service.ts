@@ -1,8 +1,10 @@
 import { Inject, Injectable } from "@nestjs/common";
-import type { EngineProvenance, OutputPurpose, SnapshotRow, SnapshotSources } from "@lintel/persistence";
-import { qualifiesForIssue, qualifiesForRelease } from "@lintel/persistence";
+import type { EngineProvenance, OutputPurpose, Sha256, SnapshotRow, SnapshotSources } from "@lintel/persistence";
+import { fileManifestHash, qualifiesForIssue, qualifiesForRelease } from "@lintel/persistence";
 import { compareRoomTrace } from "@lintel/design-engine";
+import { checkDrawingStaleness, checkRoomDrawingStaleness } from "@lintel/drawing-engine";
 import { checkQuotationStaleness } from "@lintel/pricing-engine";
+import { FileService } from "@lintel/storage";
 import type { RequestScope } from "../../common/auth/context.js";
 import type { Tx } from "../../common/db/tx.js";
 import { UnitOfWork } from "../../common/db/unit-of-work.js";
@@ -14,23 +16,47 @@ import type { IdempotentRequest } from "../../common/http/request.js";
 import type { PageQuery } from "../../common/http/schemas.js";
 import type { IdempotencyScope, StoredResponse } from "../../common/idempotency/idempotency.service.js";
 import { IdempotencyService } from "../../common/idempotency/idempotency.service.js";
-import { API_CONFIG, ENGINE_MANIFEST } from "../../common/tokens.js";
+import { API_CONFIG, ENGINE_MANIFEST, FILE_STORAGE } from "../../common/tokens.js";
 import type { ApiConfig } from "../../config.js";
 import type { EngineManifest } from "../../infrastructure/engines/engine-manifest.js";
 import { designVersionsRepository } from "../../infrastructure/persistence/design-versions.repository.js";
+import type { DrawingFileLinkRow } from "../../infrastructure/persistence/files.repository.js";
+import { filesRepository } from "../../infrastructure/persistence/files.repository.js";
+import type { SigningStorageProvider } from "../../infrastructure/storage/file-storage.js";
 import { outputsRepository } from "../../infrastructure/persistence/outputs.repository.js";
 import { pinsOf } from "../design-versions/design-content.js";
 import type { OutputEngine, OutputKind } from "./output-context.js";
 import { buildOutputExecutionContext, outputEngines } from "./output-context.js";
-import type { Produced } from "./output-generation.js";
+import type { DrawingOrder, Produced } from "./output-generation.js";
 import { OutputGeneration, READ_ACTION, GENERATE_ACTION, SNAPSHOT_TABLE, SOURCE_COLUMN, SOURCE_KIND, assertPurposeAllowed, producedFrom } from "./output-generation.js";
-import type { GenerateRequest, Snapshot, SnapshotEnvelope } from "./outputs.schemas.js";
+import type { DrawingGenerateRequest, GenerateRequest, Snapshot, SnapshotEnvelope, SnapshotFileResponse } from "./outputs.schemas.js";
 import { StalenessCalculator } from "./staleness.js";
 
 const IDEMPOTENCY: Readonly<Record<OutputKind, IdempotencyScope>> = {
-  BOM: "snapshot.bom.generate", BOQ: "snapshot.boq.generate", PRICING: "snapshot.pricing.generate", QUOTATION: "snapshot.quotation.generate",
+  BOM: "snapshot.bom.generate", BOQ: "snapshot.boq.generate", PRICING: "snapshot.pricing.generate", QUOTATION: "snapshot.quotation.generate", DRAWING: "snapshot.drawing.generate",
 };
-export const KIND_PATH: Readonly<Record<OutputKind, string>> = { BOM: "bom-snapshots", BOQ: "boq-snapshots", PRICING: "pricing-snapshots", QUOTATION: "quotation-snapshots" };
+export const KIND_PATH: Readonly<Record<OutputKind, string>> = {
+  BOM: "bom-snapshots", BOQ: "boq-snapshots", PRICING: "pricing-snapshots", QUOTATION: "quotation-snapshots", DRAWING: "drawing-snapshots",
+};
+const KINDS: readonly OutputKind[] = ["BOM", "BOQ", "PRICING", "QUOTATION", "DRAWING"];
+
+/** The drawing to generate, from a validated request (engine parameters, number and revision only). */
+function drawingOrder(b: DrawingGenerateRequest): DrawingOrder {
+  const common = { drawingNumber: b.drawingNumber, drawingRevision: b.drawingRevision };
+  switch (b.drawingType) {
+    case "WALL_INTERNAL_ELEVATION": return { drawingType: b.drawingType, wallId: b.wallId, ...common };
+    case "ROOM_PANEL_SCHEDULE": return { drawingType: b.drawingType, ...common };
+    case "SIDE_SECTION": return { drawingType: b.drawingType, objectLineageId: b.objectLineageId, cutXMm: b.cutXMm ?? null, ...common };
+    case "FRONT_ELEVATION":
+    case "CABINET_INTERNAL_ELEVATION":
+    case "PANEL_SCHEDULE":
+      return { drawingType: b.drawingType, objectLineageId: b.objectLineageId, ...common };
+  }
+}
+
+const fileOf = (l: DrawingFileLinkRow): SnapshotFileResponse => ({
+  sequence: l.sequence, format: l.format, sheetIndex: l.sheet_index, fileId: l.file_object_id, contentType: l.content_type, byteSize: l.byte_size, checksum: l.checksum,
+});
 const KIND_OF_TABLE = Object.fromEntries(Object.entries(SNAPSHOT_TABLE).map(([k, t]) => [t, k])) as Record<string, OutputKind>;
 
 const summary = (row: SnapshotRow) => ({ kind: row.kind as OutputKind, id: row.id, purpose: row.purpose, contentHash: row.content_hash });
@@ -43,6 +69,7 @@ const summary = (row: SnapshotRow) => ({ kind: row.kind as OutputKind, id: row.i
 @Injectable()
 export class OutputsService {
   private readonly engines: Readonly<Record<OutputEngine, EngineProvenance>>;
+  private readonly fileService: FileService;
 
   constructor(
     @Inject(API_CONFIG) config: ApiConfig,
@@ -50,8 +77,11 @@ export class OutputsService {
     @Inject(UnitOfWork) private readonly uow: UnitOfWork,
     @Inject(CursorCodec) private readonly cursors: CursorCodec,
     @Inject(IdempotencyService) private readonly idempotency: IdempotencyService,
+    @Inject(FILE_STORAGE) storage: SigningStorageProvider,
   ) {
     this.engines = outputEngines(manifest, config.buildRevision);
+    // Output files are immutable evidence: this service never deletes one (every stored file counts as referenced).
+    this.fileService = new FileService(storage, () => Promise.resolve(true));
   }
 
   /* ------------------------------------------------------------ generation */
@@ -71,7 +101,9 @@ export class OutputsService {
         const ctx = await buildOutputExecutionContext(tx, { orgId: scope.org.orgId, actorId: scope.principal.userId, versionId, commercial: chosen, engines: this.engines });
         const blockers = ctx.resolved.validation.counts.BLOCKER;
         if (purpose === "FOR_PRODUCTION" && blockers > 0) throw new ApiProblem("VALIDATION_BLOCKERS", `FOR_PRODUCTION requires 0 BLOCKERs (the validation of these inputs has ${String(blockers)})`);
-        const outcome = await new OutputGeneration(tx, ctx, purpose, (body.sources ?? {}) as SnapshotSources).generate(kind);
+        const drawing = "drawingType" in body ? { order: drawingOrder(body), sink: { service: this.fileService, formats: await filesRepository.formats(tx) } } : undefined;
+        const sources = "sources" in body ? (body.sources ?? {}) as SnapshotSources : {};
+        const outcome = await new OutputGeneration(tx, ctx, purpose, sources, drawing).generate(kind);
         if (outcome.status === "UNAVAILABLE") {
           // Nothing of the requested kind is persisted; upstream snapshots created from the same context (and their run) are valid on their own.
           return { status: 200, body: { status: "UNAVAILABLE", kind: outcome.kind, blockers: outcome.blockers, snapshot: null, dependencies: outcome.upstream.map((p) => summary(p.row)) } };
@@ -158,9 +190,76 @@ export class OutputsService {
         orgId: scope.org.orgId, actorId: scope.principal.userId, versionId: row.design_version_id, commercial: { pricingStandardVersionId: null, quotationPolicyVersionId: null }, engines: this.engines,
       });
       const stored = producedFrom(row, false);
-      const change = stored.kind === "QUOTATION" ? checkQuotationStaleness(stored.payload, ctx.resolved) : compareRoomTrace(stored.payload.trace, stored.payload.roomFingerprint, ctx.resolved);
+      let change: { readonly stale: boolean; readonly reasons: readonly string[]; readonly changedObjectIds: readonly string[] };
+      if (stored.kind === "QUOTATION") change = checkQuotationStaleness(stored.payload, ctx.resolved);
+      else if (stored.kind !== "DRAWING") change = compareRoomTrace(stored.payload.trace, stored.payload.roomFingerprint, ctx.resolved);
+      else if ("wallId" in stored.payload) change = checkRoomDrawingStaleness(stored.payload, ctx.resolved);
+      else {
+        const objectId = stored.payload.trace.objectId;
+        const cabinet = ctx.resolved.cabinets.find((c) => c.object.objectId === objectId);
+        const d = cabinet === undefined ? { stale: true, reasons: [`Object removed: ${objectId}`] } : checkDrawingStaleness(stored.payload, cabinet);
+        change = { ...d, changedObjectIds: d.stale ? [objectId] : [] };
+      }
       return { ...base, model: { stale: change.stale, reasons: [...change.reasons], changedObjectIds: [...change.changedObjectIds] } };
     });
+  }
+
+  /** A drawing snapshot's files, in manifest order, after verifying they are exactly its sealed file manifest. */
+  files(scope: RequestScope, snapshotId: string) {
+    return this.uow.run(scope, { readOnly: true, action: READ_ACTION.DRAWING }, async (tx) => {
+      const row = await outputsRepository.get(tx, "drawing_snapshot", snapshotId);
+      if (row === null) throw new ApiProblem("NOT_FOUND");
+      return { items: (await this.drawingOf(tx, row as unknown as SnapshotRow)).files };
+    });
+  }
+
+  /**
+   * Every output of a design version the caller may read (no payloads), its OUTPUT_GENERATION runs, and the edges
+   * between them: SOURCE (upstream snapshot → output) and EVIDENCE (run → output). Kinds the caller cannot read are
+   * listed as hidden, never partially shown.
+   */
+  graph(scope: RequestScope, versionId: string) {
+    return this.uow.run(scope, { readOnly: true }, async (tx) => {
+      const v = await designVersionsRepository.get(tx, versionId);
+      if (v === null) throw new ApiProblem("NOT_FOUND");
+      const staleness = this.staleness(tx);
+      const nodes: SnapshotEnvelope[] = [];
+      const hiddenKinds: OutputKind[] = [];
+      for (const kind of KINDS) {
+        if (!(await outputsRepository.hasPermission(tx, READ_ACTION[kind]))) {
+          hiddenKinds.push(kind);
+          continue;
+        }
+        for (const r of await outputsRepository.all(tx, SNAPSHOT_TABLE[kind], versionId)) nodes.push(await this.snapshot(tx, r as unknown as SnapshotRow, staleness, false));
+      }
+      const ids = new Set(nodes.map((n) => n.id));
+      const runs = (await designVersionsRepository.outputRuns(tx, versionId)).map((r) => ({
+        id: r.id, inputHash: r.input_hash, inputRevision: r.input_revision, blockerCount: r.blocker_count, warningCount: r.warning_count,
+        engine: { name: r.engine_name, version: r.engine_version, build: r.engine_build, fingerprint: r.engine_fingerprint }, createdAt: iso(r.created_at),
+      }));
+      const edges = nodes.flatMap((n) => [
+        ...Object.entries(n.sources).filter((e): e is [string, string] => e[1] !== undefined && ids.has(e[1])).map(([source, id]) => ({ from: id, to: n.id, relation: "SOURCE" as const, source })),
+        { from: n.validationRun.id, to: n.id, relation: "EVIDENCE" as const },
+      ]);
+      return { designVersionId: versionId, designVersionStatus: v.status, nodes, validationRuns: runs, edges, hiddenKinds };
+    });
+  }
+
+  /**
+   * Drawing identity and files: the linked files must be exactly the sealed manifest (re-verified on every read,
+   * beside the database's commit-time check); a mismatch is never served.
+   */
+  private async drawingOf(tx: Tx, row: SnapshotRow): Promise<NonNullable<SnapshotEnvelope["drawing"]>> {
+    const links = await filesRepository.links(tx, row.id);
+    const files = links.map(fileOf);
+    if (fileManifestHash(files.map((f) => ({ ...f, checksum: f.checksum as Sha256 }))) !== row.file_manifest_hash) {
+      throw new ApiProblem("STORED_OUTPUT_INVALID", `drawing snapshot ${row.id}: linked files do not match the sealed file manifest`, { context: { kind: "DRAWING", snapshotId: row.id, reason: "FILE_MANIFEST" } });
+    }
+    const cut = row.cut_x_mm ?? null;
+    return {
+      drawingType: row.drawing_type ?? "FRONT_ELEVATION", scope: row.drawing_scope ?? "OBJECT", wallId: row.wall_id ?? null, objectLineageId: row.object_lineage_id ?? null,
+      cutXMm: cut === null ? null : Number(cut), drawingNumber: row.drawing_number ?? "", drawingRevision: row.drawing_revision ?? "", fileManifestHash: row.file_manifest_hash ?? fileManifestHash([]), files,
+    };
   }
 
   /* ------------------------------------------------------------ mapping */
@@ -204,6 +303,7 @@ export class OutputsService {
       qualifiesForIssue: qualifiesForIssue(kind, row.purpose),
       qualifiesForRelease: qualifiesForRelease(kind, row.purpose),
       ...(row.revision_number === undefined ? {} : { revisionNumber: row.revision_number }),
+      ...(kind === "DRAWING" ? { drawing: await this.drawingOf(tx, row) } : {}),
       staleness: await staleness.of(row),
       createdBy: row.created_by,
       createdAt: iso(row.created_at),

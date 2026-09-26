@@ -1,0 +1,26 @@
+-- 0003 down
+SET LOCAL ROLE design_os_owner;
+DELETE FROM design_os.versioned_table WHERE subject_type IN ('construction_standard', 'planning_standard', 'edge_band_standard', 'manufacturing_standard', 'pricing_standard', 'quotation_policy');
+DROP TABLE design_os.tax_rate_mapping;
+DROP TABLE design_os.tax_rate;
+DROP TABLE design_os.quotation_policy_version;
+DROP TABLE design_os.rate_card_line;
+DROP TABLE design_os.pricing_standard_version;
+DROP TABLE design_os.manufacturing_standard_value;
+DROP TABLE design_os.manufacturing_standard_version;
+DROP TABLE design_os.edge_band_rule;
+DROP TABLE design_os.edge_band_rule_set;
+DROP TABLE design_os.edge_band_standard_version;
+DROP TABLE design_os.planning_standard_value;
+DROP TABLE design_os.planning_standard_version;
+DROP TABLE design_os.construction_standard_value;
+DROP TABLE design_os.construction_standard_version;
+DROP TABLE design_os.quotation_policy;
+DROP TABLE design_os.pricing_standard;
+DROP TABLE design_os.manufacturing_standard;
+DROP TABLE design_os.edge_band_standard;
+DROP TABLE design_os.planning_standard;
+DROP TABLE design_os.construction_standard;
+DROP TABLE design_os.manufacturing_variable;
+DROP TABLE design_os.planning_variable;
+DROP TABLE design_os.construction_variable;

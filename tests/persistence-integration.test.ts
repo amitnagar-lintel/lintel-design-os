@@ -56,7 +56,7 @@ describe("rows → engine gives exactly the engine result of the original data",
   it("production L-layout room: identical resolved room (108 BLOCKERs, still blocked)", () => {
     const direct = productionRoom();
     const r = roomToRows(KITCHEN, { revisionId: "rr_1", revisionNumber: 1, source: "survey", surveyedBy: "user_site", surveyedAt: T0 }, CTX);
-    const objects = lLayout().map((o, i) => designObjectFromRow(designObjectToRow(o, { ...CTX, designVersionId: "dv_001", rowId: `row_${i}` }), { projectId: KITCHEN.projectId, roomId: KITCHEN.id }));
+    const objects = lLayout().map((o, i) => designObjectFromRow(designObjectToRow(o, { ...CTX, designVersionId: "dv_001", rowId: `row_${i}`, productVersionId: "prv_1" }), { projectId: KITCHEN.projectId, roomId: KITCHEN.id }));
     const viaRows = resolveRoom({
       designVersion: DESIGN_VERSION,
       room: roomFromRows(r.room, r.revision),
@@ -72,10 +72,10 @@ describe("rows → engine gives exactly the engine result of the original data",
   });
   it("a catalog assembled from pinned releases resolves identically (apart from its release-based catalogVersion)", () => {
     const { catalog } = assembleCatalogSnapshot({
-      material: { releaseId: "mcr_1", versionLabel: "1", status: "DRAFT", materials: LINTEL_CATALOG.materials, edgeBands: LINTEL_CATALOG.edgeBands },
-      finish: { releaseId: "fcr_1", versionLabel: "1", status: "DRAFT", finishes: LINTEL_CATALOG.finishes },
-      hardware: { releaseId: "hcr_1", versionLabel: "1", status: "DRAFT", hardwareRuleSets: LINTEL_CATALOG.hardwareRuleSets },
-      product: { releaseId: "pcr_1", versionLabel: "1", status: "DRAFT", products: LINTEL_CATALOG.products, recipes: LINTEL_CATALOG.recipes },
+      material: { catalogVersionId: "mcr_1", versionLabel: "1", status: "DRAFT", materials: LINTEL_CATALOG.materials, edgeBands: LINTEL_CATALOG.edgeBands },
+      finish: { catalogVersionId: "fcr_1", versionLabel: "1", status: "DRAFT", finishes: LINTEL_CATALOG.finishes },
+      hardware: { catalogVersionId: "hcr_1", versionLabel: "1", status: "DRAFT", hardwareRuleSets: LINTEL_CATALOG.hardwareRuleSets },
+      product: { catalogVersionId: "pcr_1", versionLabel: "1", status: "DRAFT", products: LINTEL_CATALOG.products, recipes: LINTEL_CATALOG.recipes },
     });
     const direct = productionRoom();
     const assembled = resolveRoom({
@@ -102,24 +102,24 @@ describe("snapshots", () => {
     manufacturingStandardVersionId: null,
     pricingStandardVersionId: null,
     quotationPolicyVersionId: null,
-    materialCatalogReleaseId: "mcr_1",
-    finishCatalogReleaseId: "fcr_1",
-    hardwareCatalogReleaseId: "hcr_1",
+    materialCatalogVersionId: "mcr_1",
+    finishCatalogVersionId: "fcr_1",
+    hardwareCatalogVersionId: "hcr_1",
     hettichDatasetVersionId: "hdv_1",
-    applianceCatalogReleaseId: null,
-    productCatalogReleaseId: "pcr_1",
+    applianceCatalogVersionId: null,
+    productCatalogVersionId: "pcr_1",
   };
   it("a PRODUCTION room BOM (blocked) can be sealed with full provenance", () => {
     const room = productionRoom();
     const bom = generateRoomBom(room);
-    const rec = buildSnapshotRecord({ snapshotId: "snap_1", kind: "BOM", provenance: buildSnapshotProvenance("BOM", "dv_001", PINS, room.trace.engineVersion), inputHash: contentHash("inputs"), payload: bom, blockerCount: room.validation.counts.BLOCKER, createdBy: "u", createdAt: T0 });
+    const rec = buildSnapshotRecord({ snapshotId: "snap_1", kind: "BOM", provenance: buildSnapshotProvenance("BOM", { versionId: "dv_001", status: "DRAFT", contentHash: contentHash("dv") }, PINS, room.trace.engineVersion), inputHash: contentHash("inputs"), payload: bom, blockerCount: room.validation.counts.BLOCKER, createdBy: "u", createdAt: T0 });
     expect(rec.contentHash).toBe(contentHash(bom));
     expect(rec.provenance.edgeBandStandardVersionId).toBe("ebv_1");
   });
   it("a TEST_FIXTURE room BOM is refused", () => {
     const bom = generateRoomBom(fixtureRoom());
     expect(() =>
-      buildSnapshotRecord({ snapshotId: "snap_2", kind: "BOM", provenance: buildSnapshotProvenance("BOM", "dv_001", PINS, "0.1.0"), inputHash: contentHash("inputs"), payload: bom, blockerCount: 1, createdBy: "u", createdAt: T0 }),
+      buildSnapshotRecord({ snapshotId: "snap_2", kind: "BOM", provenance: buildSnapshotProvenance("BOM", { versionId: "dv_001", status: "DRAFT", contentHash: contentHash("dv") }, PINS, "0.1.0"), inputHash: contentHash("inputs"), payload: bom, blockerCount: 1, createdBy: "u", createdAt: T0 }),
     ).toThrow(TestFixturePersistenceError);
   });
 });

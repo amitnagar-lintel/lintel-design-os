@@ -78,12 +78,12 @@ export interface DesignVersionPins {
   readonly manufacturingStandardVersionId: string | null;
   readonly pricingStandardVersionId: string | null;
   readonly quotationPolicyVersionId: string | null;
-  readonly materialCatalogReleaseId: string;
-  readonly finishCatalogReleaseId: string;
-  readonly hardwareCatalogReleaseId: string;
+  readonly materialCatalogVersionId: string;
+  readonly finishCatalogVersionId: string;
+  readonly hardwareCatalogVersionId: string;
   readonly hettichDatasetVersionId: string;
-  readonly applianceCatalogReleaseId: string | null;
-  readonly productCatalogReleaseId: string;
+  readonly applianceCatalogVersionId: string | null;
+  readonly productCatalogVersionId: string;
 }
 
 export interface DesignVersionRow extends EnvelopeRow {
@@ -97,12 +97,12 @@ export interface DesignVersionRow extends EnvelopeRow {
   readonly manufacturing_standard_version_id: string | null;
   readonly pricing_standard_version_id: string | null;
   readonly quotation_policy_version_id: string | null;
-  readonly material_catalog_release_id: string;
-  readonly finish_catalog_release_id: string;
-  readonly hardware_catalog_release_id: string;
+  readonly material_catalog_version_id: string;
+  readonly finish_catalog_version_id: string;
+  readonly hardware_catalog_version_id: string;
   readonly hettich_dataset_version_id: string;
-  readonly appliance_catalog_release_id: string | null;
-  readonly product_catalog_release_id: string;
+  readonly appliance_catalog_version_id: string | null;
+  readonly product_catalog_version_id: string;
   readonly authored_engine_version: string;
   readonly input_hash: Sha256;
 }
@@ -126,12 +126,12 @@ export function pinsToColumns(p: DesignVersionPins) {
     manufacturing_standard_version_id: p.manufacturingStandardVersionId,
     pricing_standard_version_id: p.pricingStandardVersionId,
     quotation_policy_version_id: p.quotationPolicyVersionId,
-    material_catalog_release_id: p.materialCatalogReleaseId,
-    finish_catalog_release_id: p.finishCatalogReleaseId,
-    hardware_catalog_release_id: p.hardwareCatalogReleaseId,
+    material_catalog_version_id: p.materialCatalogVersionId,
+    finish_catalog_version_id: p.finishCatalogVersionId,
+    hardware_catalog_version_id: p.hardwareCatalogVersionId,
     hettich_dataset_version_id: p.hettichDatasetVersionId,
-    appliance_catalog_release_id: p.applianceCatalogReleaseId,
-    product_catalog_release_id: p.productCatalogReleaseId,
+    appliance_catalog_version_id: p.applianceCatalogVersionId,
+    product_catalog_version_id: p.productCatalogVersionId,
   } as const;
 }
 
@@ -143,12 +143,12 @@ export function pinsFromColumns(r: ReturnType<typeof pinsToColumns>): DesignVers
     manufacturingStandardVersionId: r.manufacturing_standard_version_id,
     pricingStandardVersionId: r.pricing_standard_version_id,
     quotationPolicyVersionId: r.quotation_policy_version_id,
-    materialCatalogReleaseId: r.material_catalog_release_id,
-    finishCatalogReleaseId: r.finish_catalog_release_id,
-    hardwareCatalogReleaseId: r.hardware_catalog_release_id,
+    materialCatalogVersionId: r.material_catalog_version_id,
+    finishCatalogVersionId: r.finish_catalog_version_id,
+    hardwareCatalogVersionId: r.hardware_catalog_version_id,
     hettichDatasetVersionId: r.hettich_dataset_version_id,
-    applianceCatalogReleaseId: r.appliance_catalog_release_id,
-    productCatalogReleaseId: r.product_catalog_release_id,
+    applianceCatalogVersionId: r.appliance_catalog_version_id,
+    productCatalogVersionId: r.product_catalog_version_id,
   };
 }
 
@@ -186,11 +186,11 @@ export const REQUIRED_DESIGN_VERSION_PINS: readonly (keyof DesignVersionPins)[] 
   "constructionStandardVersionId",
   "planningStandardVersionId",
   "edgeBandStandardVersionId",
-  "materialCatalogReleaseId",
-  "finishCatalogReleaseId",
-  "hardwareCatalogReleaseId",
+  "materialCatalogVersionId",
+  "finishCatalogVersionId",
+  "hardwareCatalogVersionId",
   "hettichDatasetVersionId",
-  "productCatalogReleaseId",
+  "productCatalogVersionId",
 ];
 
 /** Pin states for `designVersionApprovalProblems`, given the exact lifecycle of each pinned version. */
@@ -230,6 +230,8 @@ export interface DesignObjectRow {
   readonly lineage_id: string;
   readonly object_type: DesignObject["objectType"];
   readonly product_code: string;
+  /** Exact product VERSION (must belong to the pinned product catalog version). */
+  readonly product_version_id: string;
   readonly x_mm: number;
   readonly y_mm: number;
   readonly z_mm: number;
@@ -242,7 +244,7 @@ export interface DesignObjectRow {
   readonly status: DesignObject["status"];
 }
 
-export function designObjectToRow(o: DesignObject, ctx: MapContext & { readonly designVersionId: string; readonly rowId: string }): DesignObjectRow {
+export function designObjectToRow(o: DesignObject, ctx: MapContext & { readonly designVersionId: string; readonly rowId: string; readonly productVersionId: string }): DesignObjectRow {
   const t = o.transform;
   if (t.rotationX !== 0 || t.rotationZ !== 0) throw new MappingError(`${o.objectCode}: only rotation about the vertical axis can be persisted`);
   if (!QUARTER_TURNS.has(t.rotationY)) throw new MappingError(`${o.objectCode}: rotation ${t.rotationY}° is not a quarter turn (ROTATION_UNSUPPORTED)`);
@@ -254,6 +256,7 @@ export function designObjectToRow(o: DesignObject, ctx: MapContext & { readonly 
     lineage_id: o.objectId,
     object_type: o.objectType,
     product_code: o.productId,
+    product_version_id: ctx.productVersionId,
     x_mm: t.x,
     y_mm: t.y,
     z_mm: t.z,

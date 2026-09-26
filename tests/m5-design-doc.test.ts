@@ -55,7 +55,7 @@ describe("M5-TECHNICAL-DESIGN.md", () => {
   });
   it("records complete snapshot provenance, including all six snapshot kinds", () => {
     for (const t of ["bom_snapshot", "boq_snapshot", "pricing_snapshot", "quotation_snapshot", "drawing_snapshot", "manufacturing_document_snapshot"]) expect(design).toContain(`\`${t}\``);
-    for (const c of ["construction_standard_version_id", "planning_standard_version_id", "edge_band_standard_version_id", "manufacturing_standard_version_id", "pricing_standard_version_id", "quotation_policy_version_id", "material_catalog_release_id", "hardware_catalog_release_id", "hettich_dataset_version_id", "engine_version"]) {
+    for (const c of ["construction_standard_version_id", "planning_standard_version_id", "edge_band_standard_version_id", "manufacturing_standard_version_id", "pricing_standard_version_id", "quotation_policy_version_id", "material_catalog_version_id", "hardware_catalog_version_id", "hettich_dataset_version_id", "engine_version"]) {
       expect(design).toContain(`\`${c}\``);
     }
   });

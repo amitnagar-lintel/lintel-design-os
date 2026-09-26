@@ -1,0 +1,28 @@
+-- 0002 down
+SET LOCAL ROLE design_os_owner;
+DROP FUNCTION design_os.can_access_project(uuid);
+DROP FUNCTION design_os.has_permission(text);
+DROP FUNCTION design_os.is_internal();
+DROP FUNCTION design_os.current_org_id();
+DROP TABLE design_os.project_member;
+DROP FUNCTION design_os.guard_project_member();
+DROP TABLE design_os.project;
+DROP TABLE design_os.client_contact;
+DROP FUNCTION design_os.guard_client_contact_identity();
+DROP TABLE design_os.client;
+DROP TABLE design_os.org_membership;
+DROP FUNCTION design_os.guard_membership_identity();
+DROP TABLE design_os.role_permission;
+DROP TABLE design_os.organization;
+DROP FUNCTION design_os.seed_org_permissions();
+DROP TABLE design_os.default_role_permission;
+DROP FUNCTION design_os.finance_approval_actions();
+DROP FUNCTION design_os.client_allowed_actions();
+ALTER TABLE design_os.versioned_table DROP CONSTRAINT versioned_table_author_fk, DROP CONSTRAINT versioned_table_approve_fk;
+DROP TABLE design_os.permission;
+DROP TABLE design_os.role;
+DROP TABLE design_os.app_user;
+DROP FUNCTION design_os.guard_identity_kind();
+RESET ROLE;
+REVOKE SELECT, REFERENCES ON auth.users FROM design_os_owner;
+REVOKE USAGE ON SCHEMA auth FROM design_os_owner;

@@ -40,20 +40,22 @@ There is no `MaterialStandard` and no `HardwareStandard`. These are catalogs of 
 
 Products and construction recipes are also catalog data and are versioned the same way.
 
-Each catalog domain has its **own release**: an approved, immutable set of that domain's item versions. The releases are:
+Each catalog domain has its own **catalog version**: an exact, immutable, versioned record listing exact item versions,
+frozen once it leaves DRAFT. The catalog versions are:
 
-- material catalog release (boards and edge bands);
-- finish catalog release;
-- hardware catalog release;
-- appliance catalog release;
-- product catalog release (products and recipes).
+- material catalog version (boards and edge bands);
+- finish catalog version;
+- hardware catalog version (hardware items and hardware rule sets);
+- appliance catalog version;
+- product catalog version (product versions, each pinning its exact recipe version).
 
-For Hettich, the dataset version is itself the release. A DesignVersion pins one release per domain.
-`@lintel/persistence` assembles the engine's `CatalogSnapshot` from those pinned releases. There is no cross-domain generic release.
+For Hettich, the dataset version is itself the pinned record. A DesignVersion pins one exact catalog version per domain.
+"Releasing" means approving a new catalog version; it never changes a version a design already pins.
+`@lintel/persistence` assembles the engine's `CatalogSnapshot` from those pinned catalog versions. There is no cross-domain generic catalog.
 
 ## Rule 3: every production record keeps its identity envelope
 
-Every versioned production record (standard version, catalog item version, catalog release, Hettich dataset version,
+Every versioned production record (standard version, catalog item version, catalog version, Hettich dataset version,
 DesignVersion) carries these fields:
 
 | Field | Meaning |

@@ -119,13 +119,15 @@ export interface ProductVersionRow extends VersionRow {
   readonly category: ProductDefinition["category"];
   readonly object_type: ProductDefinition["objectType"];
   readonly recipe_code: string;
+  /** Exact recipe VERSION this product version is built from (recipes are a dependency of products, not a design pin). */
+  readonly recipe_version_id: string;
   readonly definition: Omit<ProductDefinition, "status">;
 }
 
-export function productToRow(p: ProductDefinition, meta: VersionMeta, ctx: MapContext, source: string): ProductVersionRow {
+export function productToRow(p: ProductDefinition, meta: VersionMeta, ctx: MapContext & { readonly recipeVersionId: string }, source: string): ProductVersionRow {
   checkEngineStatus(`product ${p.productId}`, p.status, meta);
   const definition = omit(p, "status");
-  return { ...versionRow(ctx, p.productId, meta, source, p.version, definition), category: p.category, object_type: p.objectType, recipe_code: p.recipeId, definition };
+  return { ...versionRow(ctx, p.productId, meta, source, p.version, definition), category: p.category, object_type: p.objectType, recipe_code: p.recipeId, recipe_version_id: ctx.recipeVersionId, definition };
 }
 
 export const productFromRow = (r: ProductVersionRow): Versioned<ProductDefinition> => versioned(r, productValue(r));
@@ -162,6 +164,8 @@ export type HardwareRuleSetVersionRow = VersionRow;
 export interface HardwareRuleRow {
   readonly org_id: string;
   readonly version_id: string;
+  /** Rule order is data (first match wins); stored explicitly. */
+  readonly position: number;
   readonly rule_code: string;
   readonly component_type: ComponentType;
   readonly category: HardwareCategory;
@@ -178,9 +182,10 @@ export interface HardwareRuleSetRows {
 
 export function hardwareRuleSetToRows(s: HardwareRuleSet, meta: VersionMeta, ctx: MapContext, source: string): HardwareRuleSetRows {
   checkEngineStatus(`hardware rule set ${s.ruleSetId}`, s.status, meta);
-  const rules = s.rules.map((r) => ({
+  const rules = s.rules.map((r, position) => ({
     org_id: ctx.orgId,
     version_id: meta.versionId,
+    position,
     rule_code: r.ruleId,
     component_type: r.componentType,
     category: r.category,
@@ -193,13 +198,15 @@ export function hardwareRuleSetToRows(s: HardwareRuleSet, meta: VersionMeta, ctx
   return { version: versionRow(ctx, s.ruleSetId, meta, source, s.version, content), rules };
 }
 
-/** Rule order is significant data; rows are expected in their stored order. */
+/** Rule order is significant data: rows are ordered by `position`. */
 export const hardwareRuleSetFromRows = (rows: HardwareRuleSetRows): Versioned<HardwareRuleSet> => versioned(rows.version, hardwareRuleSetValue(rows));
 
 function hardwareRuleSetValue(rows: HardwareRuleSetRows): HardwareRuleSet {
   const e = readEnvelope(rows.version);
   const seen = new Set<string>();
-  const rules: HardwareRule[] = rows.rules.map((r) => {
+  const ordered = [...rows.rules].sort((a, b) => a.position - b.position);
+  if (ordered.some((r, i) => r.position !== i)) throw new MappingError(`hardware rule set ${rows.version.entity_code}: rule positions must be 0..n-1`);
+  const rules: HardwareRule[] = ordered.map((r) => {
     if (seen.has(r.rule_code)) throw new MappingError(`duplicate hardware rule ${r.rule_code}`);
     seen.add(r.rule_code);
     return {

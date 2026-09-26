@@ -130,7 +130,7 @@ describe("catalog domains map without loss", () => {
     for (const f of LINTEL_CATALOG.finishes) expect(finishFromRow(finishToRow(f, meta(), CTX)).value).toEqual(f);
   });
   it("products, recipes (formulas stay data) and hardware rule sets", () => {
-    for (const p of LINTEL_CATALOG.products) expect(productFromRow(productToRow(p, meta(), CTX, "Lintel catalog")).value).toEqual(p);
+    for (const p of LINTEL_CATALOG.products) expect(productFromRow(productToRow(p, meta(), { ...CTX, recipeVersionId: "rcv_1" }, "Lintel catalog")).value).toEqual(p);
     for (const r of LINTEL_CATALOG.recipes) expect(recipeFromRow(recipeToRow(r, meta(), CTX, "Lintel catalog")).value).toEqual(r);
     for (const h of LINTEL_CATALOG.hardwareRuleSets) expect(hardwareRuleSetFromRows(hardwareRuleSetToRows(h, meta(), CTX, "Lintel catalog")).value).toEqual(h);
   });
@@ -190,13 +190,13 @@ describe("design data", () => {
     status: "DRAFT",
   };
   it("objects round-trip; the engine objectId is the stable lineage id across versions", () => {
-    const row = designObjectToRow(object, { ...CTX, designVersionId: "dv_2", rowId: "row_99" });
+    const row = designObjectToRow(object, { ...CTX, designVersionId: "dv_2", rowId: "row_99", productVersionId: "prv_1" });
     expect(row).toMatchObject({ id: "row_99", lineage_id: "obj_004", rotation_y: 90 });
     expect(designObjectFromRow(row, { projectId: "project_001", roomId: "room_001" })).toEqual(object);
   });
   it("only quarter turns about the vertical axis can be persisted", () => {
-    expect(() => designObjectToRow({ ...object, transform: { ...object.transform, rotationY: 45 } }, { ...CTX, designVersionId: "dv", rowId: "r" })).toThrow(MappingError);
-    expect(() => designObjectToRow({ ...object, transform: { ...object.transform, rotationX: 90 } }, { ...CTX, designVersionId: "dv", rowId: "r" })).toThrow(MappingError);
+    expect(() => designObjectToRow({ ...object, transform: { ...object.transform, rotationY: 45 } }, { ...CTX, designVersionId: "dv", rowId: "r", productVersionId: "prv_1" })).toThrow(MappingError);
+    expect(() => designObjectToRow({ ...object, transform: { ...object.transform, rotationX: 90 } }, { ...CTX, designVersionId: "dv", rowId: "r", productVersionId: "prv_1" })).toThrow(MappingError);
   });
   it("rooms map to an identity row plus an insert-only survey revision", () => {
     const room = { id: "room_001", projectId: "project_001", name: "Kitchen", type: "KITCHEN" as const, length: 4200, width: 3200, height: 3000, wallThickness: 150 };

@@ -13,7 +13,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "golden:update": "UPDATE_GOLDEN=1 vitest run tests/golden",
-    "check": "pnpm typecheck && pnpm lint && pnpm test"
+    "check": "pnpm typecheck && pnpm lint && pnpm test",
+    "test:db": "vitest run --config vitest.db.config.ts",
+    "db:schema:update": "UPDATE_SCHEMA_SNAPSHOT=1 vitest run --config vitest.db.config.ts tests/db/migrations.test.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -30,7 +32,9 @@
     "@lintel/storage": "workspace:*",
     "@lintel/types": "workspace:*",
     "@types/node": "^22.19.0",
+    "@types/pg": "^8.23.1",
     "eslint": "^10.11.0",
+    "pg": "^8.23.0",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.70.1",
     "vitest": "^5.0.2"

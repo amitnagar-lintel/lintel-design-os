@@ -46,9 +46,9 @@ supplied from an explicit iMoS statement; iMoS is cited only as evidence that th
 | 3 | TOP_RAIL_WIDTH | 100 mm ("Top rail depth") | INF-1 | MEDIUM | Directly stated |
 | 4 | SHELF_FRONT_SETBACK | 20 mm ("Shelf reveal") | INF-1 | MEDIUM | Stated, mapping interpreted |
 | 5 | SHELF_SIDE_CLEARANCE | -0.5 mm ("Adjustable Shelf extension value from sides") | INF-1 | MEDIUM | Not converted |
-| 6 | OVERLAY_EDGE_GAP | 1 mm ("Shutter reduction", all four sides) | INF-1, INF-3 | MEDIUM | Stated, mapping interpreted |
-| 7 | OVERLAY_TOP_GAP | 1 mm ("Shutter reduction", all four sides) | INF-1, INF-3 | MEDIUM | Stated, mapping interpreted |
-| 8 | OVERLAY_BOTTOM_GAP | 1 mm ("Shutter reduction", all four sides) | INF-1, INF-3 | MEDIUM | Stated, mapping interpreted |
+| 6 | OVERLAY_EDGE_GAP | NO VERIFIED PUBLIC BENCHMARK FOUND | — | — | — |
+| 7 | OVERLAY_TOP_GAP | NO VERIFIED PUBLIC BENCHMARK FOUND | — | — | — |
+| 8 | OVERLAY_BOTTOM_GAP | NO VERIFIED PUBLIC BENCHMARK FOUND | — | — | — |
 | 9 | FRONT_BETWEEN_GAP | NO VERIFIED PUBLIC BENCHMARK FOUND | — | — | — |
 | 10 | INSET_GAP | NO VERIFIED PUBLIC BENCHMARK FOUND | — | — | — |
 | 11 | FRONT_FINISHED_FACES | NO VERIFIED PUBLIC BENCHMARK FOUND | — | — | — |
@@ -133,13 +133,13 @@ default rather than a hardware manufacturer's specification or a published stand
 | Item | Value |
 |---|---|
 | Field | `OVERLAY_EDGE_GAP` — overlay front reveal at each outer side edge (mm) |
-| Benchmark value | 1 mm |
-| Source | INF-1 — "Shutter reduction on all four sides: 1 mm"; INF-3 — shutter reduction default 1 mm on all four sides |
-| Source URL | https://help.infurnia.com/en/articles/9669589-how-to-modify-your-shutter-reduction |
-| Source type | Software vendor product documentation |
-| Confidence | MEDIUM |
-| Applicability | Infurnia reduces the shutter by 1 mm on each side from its nominal (full overlay) size. Equating the per-side reduction with the outer edge reveal assumes the nominal shutter size equals the carcass outer width. Configurable in Infurnia (INF-3). |
-| Stated or inferred | Stated, mapping interpreted |
+| Benchmark value | NO VERIFIED PUBLIC BENCHMARK FOUND |
+| Source | — |
+| Source URL | — |
+| Source type | — |
+| Confidence | — |
+| Applicability | No source states this reveal. Infurnia's 1 mm is a **shutter reduction** (a different concept — front made smaller than a nominal size), recorded only as a source fact in the "Shutter reduction" section below. No overlay gap is derived from it. iMoS documents front gaps as configurable, with no numeric default recorded. |
+| Stated or inferred | — |
 | Lintel production value | NULL / UNVERIFIED (unchanged) |
 
 ### 7. `OVERLAY_TOP_GAP`
@@ -147,13 +147,13 @@ default rather than a hardware manufacturer's specification or a published stand
 | Item | Value |
 |---|---|
 | Field | `OVERLAY_TOP_GAP` — overlay front reveal at the top (mm) |
-| Benchmark value | 1 mm |
-| Source | INF-1 — "Shutter reduction on all four sides: 1 mm"; INF-3 |
-| Source URL | https://help.infurnia.com/en/articles/9669589-how-to-modify-your-shutter-reduction |
-| Source type | Software vendor product documentation |
-| Confidence | MEDIUM |
-| Applicability | As for field 6: per-side shutter reduction read as the top reveal, assuming the nominal shutter height equals the carcass height. Configurable in Infurnia (INF-3). |
-| Stated or inferred | Stated, mapping interpreted |
+| Benchmark value | NO VERIFIED PUBLIC BENCHMARK FOUND |
+| Source | — |
+| Source URL | — |
+| Source type | — |
+| Confidence | — |
+| Applicability | No source states this reveal. Infurnia's 1 mm is a **shutter reduction** (a different concept — front made smaller than a nominal size), recorded only as a source fact in the "Shutter reduction" section below. No overlay gap is derived from it. iMoS documents front gaps as configurable, with no numeric default recorded. |
+| Stated or inferred | — |
 | Lintel production value | NULL / UNVERIFIED (unchanged) |
 
 ### 8. `OVERLAY_BOTTOM_GAP`
@@ -161,13 +161,13 @@ default rather than a hardware manufacturer's specification or a published stand
 | Item | Value |
 |---|---|
 | Field | `OVERLAY_BOTTOM_GAP` — overlay front reveal at the bottom (mm) |
-| Benchmark value | 1 mm |
-| Source | INF-1 — "Shutter reduction on all four sides: 1 mm"; INF-3 |
-| Source URL | https://help.infurnia.com/en/articles/9669589-how-to-modify-your-shutter-reduction |
-| Source type | Software vendor product documentation |
-| Confidence | MEDIUM |
-| Applicability | As for field 6. INF-1 also states a 100 mm skirting height; the skirting sits below the carcass and is not part of this reveal (the Lintel V1 cabinet height excludes legs/plinth). Configurable in Infurnia (INF-3). |
-| Stated or inferred | Stated, mapping interpreted |
+| Benchmark value | NO VERIFIED PUBLIC BENCHMARK FOUND |
+| Source | — |
+| Source URL | — |
+| Source type | — |
+| Confidence | — |
+| Applicability | No source states this reveal. Infurnia's 1 mm is a **shutter reduction** (a different concept — front made smaller than a nominal size), recorded only as a source fact in the "Shutter reduction" section below. No overlay gap is derived from it. INF-1 also states a 100 mm skirting height, which is below the carcass and unrelated to this reveal. iMoS documents front gaps as configurable, with no numeric default recorded. |
+| Stated or inferred | — |
 | Lintel production value | NULL / UNVERIFIED (unchanged) |
 
 ### 9. `FRONT_BETWEEN_GAP`
@@ -236,9 +236,9 @@ Not part of the original 11-field list; see `KIT_BASE_STANDARD_DATA_REQUIRED.md`
 
 INF-1 / INF-3 publish a **shutter reduction** of 1 mm on all four sides. Shutter reduction is a distinct concept
 (front made smaller than a nominal size) and is **not** used by the Lintel recipe. It is recorded here as a
-source fact only. It is not converted into `SHUTTER_BACK_GAP`, `FRONT_BETWEEN_GAP`, `INSET_GAP`, or any Lintel
-production value. (Fields 6–8 above are preserved exactly as approved; their "Stated, mapping interpreted"
-status records that equating reduction with a reveal is an interpretation, not a conversion.)
+source fact only. It is not converted into `OVERLAY_EDGE_GAP`, `OVERLAY_TOP_GAP`, `OVERLAY_BOTTOM_GAP`, `SHUTTER_BACK_GAP`,
+`FRONT_BETWEEN_GAP`, `INSET_GAP`, or any Lintel production value. Fields 6–8 (overlay reveals) therefore read `NO VERIFIED PUBLIC BENCHMARK FOUND`: reduction and reveal are
+different parameters and no overlay gap is derived from the reduction value.
 
 ---
 

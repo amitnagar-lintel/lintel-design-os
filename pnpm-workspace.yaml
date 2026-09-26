@@ -2,5 +2,6 @@ packages:
   - "packages/*"
   - "apps/api"
   - "apps/db-tools"
+  - "apps/web"
   - "!packages/ui"
   - "!packages/manufacturing-engine"

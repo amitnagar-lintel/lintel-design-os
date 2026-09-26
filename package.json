@@ -8,7 +8,7 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p apps/api/tsconfig.json && tsc --noEmit -p apps/db-tools/tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p apps/api/tsconfig.json && tsc --noEmit -p apps/db-tools/tsconfig.json && tsc --noEmit -p apps/web/tsconfig.json",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -24,7 +24,10 @@
     "pilot:check": "pnpm --silent --filter @lintel/db-tools run pilot check",
     "pilot:demo": "pnpm --silent --filter @lintel/db-tools run pilot demo",
     "pilot:rehearse": "pnpm --silent --filter @lintel/db-tools run pilot rehearse",
-    "pilot:templates": "pnpm --silent --filter @lintel/db-tools run pilot templates"
+    "pilot:templates": "pnpm --silent --filter @lintel/db-tools run pilot templates",
+    "pilot:ui-e2e": "node apps/web/e2e/pilot-ui.e2e.mjs",
+    "web:dev": "pnpm --filter @lintel/web dev",
+    "web:build": "pnpm --filter @lintel/web build"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

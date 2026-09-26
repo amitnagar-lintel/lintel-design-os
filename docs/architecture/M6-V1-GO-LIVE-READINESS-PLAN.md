@@ -1,6 +1,7 @@
 # M6 — V1 Go-Live Readiness Plan (review only)
 
-Status: **PLAN FOR REVIEW.** Nothing in this document is implemented. Nothing connects to hosted Supabase, and no UI work starts, until this plan is approved.
+Status: **DIRECTION APPROVED (2026-09-26); decisions OD-M6-1..8 recorded in §0.1.** Nothing in this document is implemented yet.
+UI development, hosted Supabase work and G1–G7 implementation start only on a separate instruction, one checkpoint at a time (§9).
 
 **Baseline:** `main` at `79452c7`, with M5 complete:
 - core design API;
@@ -20,7 +21,7 @@ Status: **PLAN FOR REVIEW.** Nothing in this document is implemented. Nothing co
 
 ---
 
-## 0. Summary and decisions requested
+## 0. Summary and recorded decisions
 
 **Where V1 stands:**
 
@@ -38,10 +39,34 @@ Status: **PLAN FOR REVIEW.** Nothing in this document is implemented. Nothing co
   - **G6** — a production migration runner.
   - **G7** — readiness and audit-read endpoints (operations; not a pilot blocker, but a go-live gate).
 
-**Decisions requested from the reviewer:**
+### 0.1 Recorded decisions (approved by the reviewer, 2026-09-26)
 
-| # | Decision | Recommendation |
+These decisions are **final for V1**. Changing one needs a new review.
+
+| # | Topic | Decision |
 |---|---|---|
+| OD-M6-1 | Where the API runs in production | The Design OS API runs on the **same hosting platform and region (Mumbai) as Lintel Ops**, but as a **separate service with its own environments** (staging, production), its own secrets, its own deploy pipeline and its own release / rollback cycle. Its deployment lifecycle is **not coupled** to the Ops application: neither deploy triggers, blocks or rolls back the other |
+| OD-M6-2 | Staging environment | A **completely separate Supabase project** for Design OS staging (Mumbai). **Not** a branch of the existing Ops project. It hosts the gate item 9 compatibility check (§1.2) |
+| OD-M6-3 | Reference-data intake (G2) | Production reference data is entered initially through a **reviewed, controlled CLI intake tool** (§2.4). An admin UI is **deferred** |
+| OD-M6-4 | Pilot product scope | **Base-cabinet runs using `KIT_BASE_STANDARD` only** |
+| OD-M6-5 | Pilot room scope | **A rectangular kitchen with no openings** (walls A–D). Services and appliance positions, if any, are recorded off-system |
+| OD-M6-6 | Error tracking and logs | **Sentry** for error tracking. **Structured application logs and database logs are kept as well** (§6) |
+| OD-M6-7 | Point-in-time recovery | PITR must be **enabled and verified** (a test restore to a chosen timestamp, §1.5) **before the first pilot production issue or release** |
+| OD-M6-8 | Pilot client deliverables | **Issued PDF files, delivered offline** by an internal user. Client portal development is **deferred** |
+
+### 0.2 Fixed pilot scope boundary
+
+The M6 pilot scope stays narrow. **None of the following is added to M6 or to the pilot:**
+
+- wall cabinets, tall cabinets, or any product other than `KIT_BASE_STANDARD` base runs;
+- openings (doors, windows), irregular or non-rectangular rooms;
+- manufacturing: manufacturing engine, cut lists, CNC, nesting, drilling, manufacturing release workflow (Phase 2);
+- client portal or CLIENT logins;
+- any other Phase 2 functionality.
+
+If the chosen pilot kitchen cannot be done within this boundary, **a different pilot kitchen is chosen**; the scope is not widened (R3).
+
+---|---|---|
 | OD-M6-1 | Where the API runs in production | Same platform as ops (Railway, per REGION-01 notes), Mumbai region, one service. Confirm |
 | OD-M6-2 | Staging environment | A **separate Supabase project** (Mumbai) for staging and the compatibility check, **not** a branch of the ops project |
 | OD-M6-3 | Reference-data intake mechanism (G2) | A reviewed, versioned **intake CLI** that maps signed data files through `@lintel/persistence` and approves them through `design_os.transition()` as the named approvers. Admin UI comes later |
@@ -98,7 +123,7 @@ The migrations 0001–0018 run unchanged. The procedure:
   - `check_issue()`, `check_snapshot_provenance()`;
   - the audit trigger and the manifest triggers.
 - Owner-bypass of RLS inside them behaves as in CI.
-- The DB test suite's permission and RLS files (`tenancy-rls`, `error-codes`, `output-purpose`, `provenance`) are run **against staging** as the proof.
+- The DB test suite's permission and RLS files (`tenancy-rls`, `error-codes`, `output-purpose`, `provenance`) are run **against staging** as the proof. They use synthetic data inside rolled-back transactions and are **never run against production**.
 
 **RLS through the pooler:**
 
@@ -167,16 +192,18 @@ The migrations 0001–0018 run unchanged. The procedure:
 | `BUILD_REVISION` | set by the deploy (commit SHA) | the API refuses to start without it |
 | `ENGINE_MANIFEST_PATH` | build artefact (`pnpm engines:manifest`) | verified at startup |
 | `CORS_ORIGINS` | config | the web app origin(s) only |
+| `SENTRY_DSN`, `SENTRY_ENVIRONMENT` | secret / config, per environment (OD-M6-6) | release = `BUILD_REVISION`; PII scrubbing on |
 
 **Rules:**
 
 - No secret in the repository, the image or logs. The existing log redaction covers `authorization`, `cookie`, `idempotency-key` and `token`.
-- Separate secrets per environment.
+- Separate secrets per environment, and separate from Lintel Ops (OD-M6-1): the Design OS service never reads the Ops service's variables, and vice versa.
 - The `service_role` key is **never** given to the API or the web app.
 
 ### 1.5 Backup and recovery
 
-- **Pro daily backups** are on. PITR (OD-M6-7) is on before the first real issue.
+- **Pro daily backups** are on.
+- **PITR (OD-M6-7)** is enabled on the production project **and verified before the first pilot production issue or release**. Verification: restore the production project to a chosen timestamp into a separate project (or use Supabase's PITR restore to a clone), check that the rows written just before that timestamp are present and the rows written after it are not, and record the evidence and recovery time in the go-live record.
 - Take `pg_dump --schema=design_os` before every hosted migration, and keep it for 30 days.
 - The storage bucket is copied nightly (§1.3).
 - **Restore drill (acceptance item):**
@@ -189,6 +216,8 @@ The migrations 0001–0018 run unchanged. The procedure:
 
 ### 1.6 Production deployment process
 
+The Design OS API is its **own service** on the Ops hosting platform (OD-M6-1): its own staging and production environments, its own pipeline (below), its own rollback. Nothing in this process deploys, restarts or migrates the Ops application, and no Ops deploy touches Design OS.
+
 1. **PR** → CI (typecheck, lint, unit, DB, OpenAPI drift) → merge to `main`.
 2. **Build:**
    - Build the API image with `BUILD_REVISION = SHA`.
@@ -196,7 +225,7 @@ The migrations 0001–0018 run unchanged. The procedure:
    - Take the OpenAPI document from the repository.
 3. **Staging deploy (automatic):**
    - Pending migrations run with the migration runner (G6), which takes a `pg_dump` first.
-   - Then the smoke tests run: health / readiness, and one BOM + drawing generation on a synthetic staging project.
+   - Then the smoke tests run: health / readiness, and one BOM + drawing generation on a synthetic staging project (staging only; synthetic data never enters production).
 4. **Production deploy (manual approval):**
    - Take a `pg_dump`.
    - Run the migrations, **each reviewed and applied in its own step** (forward-only; rollback scripts exist but are for emergencies).
@@ -265,14 +294,15 @@ Every row is currently **DRAFT**, and every listed field is **UNVERIFIED (NULL)*
 
 **Pilot minimum:** every row above except Appliance and ManufacturingStandard must be APPROVED before a pilot design can be APPROVED (engineering rows), priced (PricingStandard) and quoted (QuotationPolicy).
 
-**G2 — intake tooling (OD-M6-3):**
+### 2.4 G2 — intake CLI (OD-M6-3)
+
 
 - **What the CLI does:**
   1. Reads a signed data file (JSON / YAML) per version.
   2. Maps it with the existing `@lintel/persistence` mappers (`*ToRows`), which already refuse TEST_FIXTURE.
   3. Inserts it as DRAFT, acting as the author.
   4. Approves it by calling `transition()` as the approver in a separate, approver-run command. Separation of duties is enforced by the database.
-- **Why:** there is no reference-data write API today, and V1 does not need one; an admin UI is later.
+- **Why:** there is no reference-data write API today, and V1 does not need one; the admin UI is deferred (OD-M6-3).
 - **Review:** the CLI and the data files are reviewed like code.
 
 ---
@@ -285,15 +315,15 @@ These are the exact conditions for a **real Lintel project**. The database-enfor
 |---|---|---|
 | **IN_REVIEW** (SUBMIT) | APPROVAL validation run for the current input hash and revision exists (LD010); author permission | Room survey entered from a real measurement (§4) |
 | **APPROVED** | IN_REVIEW; approver ≠ submitter (LD004); `design_version.approve`; `expectedContentHash` matches; the latest APPROVAL run has **0 BLOCKERs**; every pinned engineering dependency APPROVED / LOCKED | All engineering data sets of §2.3 APPROVED and pinned; the running build validates with 0 BLOCKERs, which is impossible until they are |
-| **LOCKED** | APPROVED; `design_version.lock` (or an issue action); cascades LOCK to the pinned engineering versions | A named person decides the design is final for issue |
-| **FOR_REVIEW output** | Design IN_REVIEW / APPROVED / LOCKED / SUPERSEDED; BLOCKERs shown, never hidden; watermarked | Reviewer is internal; FOR_REVIEW is never issued |
+| **LOCKED** | APPROVED; the LOCK transition by a holder of `design_version.lock`, `quotation.issue` or `drawing.issue`; cascades LOCK to the pinned engineering versions. Issuing never locks a design by itself | A named person decides the design is final for issue |
+| **FOR_REVIEW output** | Design IN_REVIEW / APPROVED / LOCKED (`output_purpose_rule`); BLOCKERs shown, never hidden; watermarked | Reviewer is internal; FOR_REVIEW is never issued |
 | **FOR_PRODUCTION output** | Design APPROVED / LOCKED; OUTPUT_GENERATION run of the **running build** with 0 BLOCKERs; output 0 BLOCKERs; BOM complete (every hardware requirement resolved); commercial versions APPROVED / LOCKED; no TEST_FIXTURE anywhere (DB CHECKs) | Hettich dataset loaded and APPROVED (so hardware resolves); PricingStandard and QuotationPolicy APPROVED by FINANCE |
-| **QUOTATION ISSUE** | `quotation.issue`; design LOCKED; FOR_PRODUCTION; 0 BLOCKERs; current inputs and dependency content; declared content hash and exact commercial versions match; locks them; one issue per snapshot / revision; audited | GST / tax sign-off recorded; a person has reviewed the quotation PDF / payload; client identity for delivery is outside the system (OD-M6-8) |
+| **QUOTATION ISSUE** | `quotation.issue`; design LOCKED; FOR_PRODUCTION; 0 BLOCKERs; current inputs and dependency content; declared content hash and exact commercial versions match; locks them; one issue per snapshot / revision; audited | GST / tax sign-off recorded; a person has reviewed the quotation PDF / payload; delivered offline as an issued PDF (OD-M6-8) |
 | **DRAWING ISSUE** | `drawing.issue`; design LOCKED; FOR_PRODUCTION; 0 BLOCKERs; exact sealed file manifest; one issue per snapshot / number + revision; audited | Drawing numbering scheme agreed (per project); checker = approver of the design version (title block from records) |
 
 **Operational gates** apply to every state on hosted infrastructure:
 - the §1 cut-over is complete;
-- PITR is on (OD-M6-7);
+- PITR is enabled **and verified** before the first production issue or release (OD-M6-7);
 - the restore drill has passed;
 - monitoring and alerting are live (§6).
 
@@ -314,12 +344,13 @@ These are the exact conditions for a **real Lintel project**. The database-enfor
   | FINANCE | 1 |
   | SITE_ENGINEER | 1 |
 
-- **Room:** rectangular kitchen, walls A–D (OD-M6-5).
+- **Room:** rectangular kitchen with no openings, walls A–D (OD-M6-5).
 - **Product:** base-cabinet runs of `KIT_BASE_STANDARD` only (OD-M6-4).
 - **Outputs:** BOM, BOQ, pricing, quotation, and execution drawings (wall internal elevations, room panel schedule, cabinet drawings).
 - **Excluded:**
   - manufacturing documents, cut lists, CNC and nesting;
-  - client portal login (the PDF goes to the client by email, OD-M6-8);
+  - client portal and CLIENT logins (issued PDFs are delivered offline, OD-M6-8);
+  - wall / tall cabinets, openings, irregular rooms (§0.2);
   - appliances in the model.
 
 ### 4.2 Workflow (every step through the V1 UI, §5)
@@ -338,9 +369,9 @@ These are the exact conditions for a **real Lintel project**. The database-enfor
 | 10 | Pricing | COSTING | `POST /pricing-snapshots` FOR_PRODUCTION with the APPROVED PricingStandard version | PRICED (not UNAVAILABLE) |
 | 11 | Quotation | COSTING | `POST /quotation-snapshots` FOR_PRODUCTION with the APPROVED QuotationPolicy | revision 1 |
 | 12 | Execution drawings | DESIGNER | `POST /drawing-snapshots` FOR_PRODUCTION: WALL_INTERNAL_ELEVATION per wall, ROOM_PANEL_SCHEDULE, cabinet drawings as needed | PDF + SVG, sealed manifest |
-| 13 | Lock | DESIGN_HEAD (or SALES at issue) | transition LOCK | LOCKED (locks the engineering pins) |
+| 13 | Lock | DESIGN_HEAD (`design_version.lock`), or SALES as a `quotation.issue` holder | transition LOCK | LOCKED (locks the engineering pins) |
 | 14 | Issue | SALES (quotation), DESIGN_HEAD (drawings) | `POST /quotation-snapshots/{id}/issue`, `POST /drawing-snapshots/{id}/issue` | immutable issue records; commercial versions LOCKED; audit |
-| 15 | Deliver | SALES | download issued PDFs (signed URL), send to the client | delivery noted in the project record |
+| 15 | Deliver | SALES | download issued PDFs (signed URL), deliver them to the client offline (OD-M6-8) | delivery noted in the project record |
 
 **Pilot exit:**
 - all 15 steps are done on the real project without database intervention;
@@ -359,13 +390,15 @@ These are the exact conditions for a **real Lintel project**. The database-enfor
 | G2 | **Reference-data intake CLI** (OD-M6-3) | There is no way to enter approved production data | medium |
 | G3 | **Resolved-model preview**: `GET /design-versions/{id}/model`, a non-persisted engine resolution (component boxes, placements, runs, validation messages) | The 2D / 3D workspace must render the engine's geometry; the UI never calculates | medium |
 | G4 | **Organization and user onboarding**: provision `app_user` from Supabase Auth, org membership and roles (ADMIN-only, audited) | Today members exist only via SQL seeding | small |
-| G5 | **SupabaseStorageProvider**, plus the orphan reconciliation report | Hosted file storage | small |
+| G5 | **SupabaseStorageProvider**, plus the orphan reconciliation report | Hosted file storage; verifiable only against the staging project, so it belongs to M6-B | small |
 | G6 | **Production migration runner** | Hosted migrations | small |
 | G7 | **Readiness and audit-read endpoints** (§6) | Operations | small |
 
 ---
 
 ## 5. UI / Design Studio — architecture plan (first UI milestone, M7; review only)
+
+Not started. Screens are limited to the pilot scope (§0.2): no wall / tall cabinet, opening, irregular-room, manufacturing or client-portal screens.
 
 ### 5.1 Principles
 
@@ -424,13 +457,13 @@ These are the exact conditions for a **real Lintel project**. The database-enfor
 
 | Concern | Today | Required for V1 |
 |---|---|---|
-| Logging | Structured pino logs with redaction; `x-request-id` on every response | Ship JSON logs to the host's log drain; 30-day retention; request id, user id and org id on every line; no bodies, no secrets |
+| Logging | Structured pino logs with redaction; `x-request-id` on every response | Kept alongside Sentry (OD-M6-6). Application: ship JSON logs to the host's log drain; 30-day retention; request id, user id and org id on every line; no bodies, no secrets. Database: Supabase Postgres / pooler logs retained and searchable for the same period |
 | Monitoring | none | Uptime check on `/api/v1/health` and readiness; latency / error-rate dashboards per route; database CPU, connections and pooler saturation; storage usage; alerts to the on-call channel |
-| Error tracking | none | OD-M6-6 (Sentry), with release = `BUILD_REVISION` and PII scrubbing; 5xx and `INTERNAL*` problems alert |
+| Error tracking | none | **Sentry** (OD-M6-6), separate project per environment, release = `BUILD_REVISION`, PII scrubbing; 5xx and `INTERNAL*` problems alert. Request bodies are never sent |
 | Audit visibility | hash-chained `audit_log`, `approval_decision`, issue records; no API | Read-only audit API for `audit.read` (G7) by entity / project / date; an audit-chain verification command run nightly with an alert on mismatch |
-| Backups | none (hosted) | §1.5: daily + PITR + pre-migration dumps + storage copy; quarterly restore drill |
+| Backups | none (hosted) | §1.5: daily + PITR (enabled and verified before the first production issue) + pre-migration dumps + storage copy; quarterly restore drill |
 | Deployment | CI only | §1.6: staging auto, production with manual approval, readiness-gated |
-| Environment separation | local / CI | local (Docker PostgreSQL 17, memory storage), staging (separate Supabase project), production; separate secrets, buckets and auth projects |
+| Environment separation | local / CI | local (Docker PostgreSQL 17, memory storage), staging (separate Supabase project, OD-M6-2), production; separate secrets, buckets and auth projects; the Design OS service is separate from the Ops service on the same platform (OD-M6-1) |
 | Secret management | env vars | Host secret store; rotation runbook (cursor secret, storage credential, JWT key rotation via JWKS) |
 | Rate limiting | none (1 MB body limit) | `@fastify/rate-limit`: per user plus a per-IP fallback; stricter on generation / issue POSTs (e.g. 30 / min per user) and on `/file-content`; 429 as an RFC 9457 problem |
 | API health checks | `/api/v1/health` (liveness only) | Add `/api/v1/ready`: database round-trip as `design_os_api`, applied-migration version = expected, engine manifest loaded, storage reachable. Readiness gates deploys and traffic |
@@ -449,14 +482,15 @@ Each item needs evidence (link, report or test run) in the go-live record. **V1 
 - [ ] Production project migrated 0001 → latest with the migration runner; drift check zero diff
 - [ ] Private storage bucket live; checksums verified on a round trip; orphan reconciliation report runs
 - [ ] Secrets in the host store; nothing in the repository or image; `service_role` not used by the API or web app
-- [ ] Daily backups + PITR on; restore drill passed with recovery time recorded
+- [ ] Daily backups on; PITR enabled **and verified** (§1.5, OD-M6-7) before the first production issue; restore drill passed with recovery time recorded
+- [ ] Design OS API deployed as its own service and environments, independent of the Ops deploy lifecycle (OD-M6-1)
 
 **B. Security and access**
 
 - [ ] RLS / permission suites green against staging through the pooler
 - [ ] `design_os` not exposed via PostgREST; no grants to anon / authenticated / service_role
 - [ ] Pilot users onboarded with least-privilege roles (G4); separation of duties verified (submitter ≠ approver)
-- [ ] CLIENT logins remain disabled for the pilot (OD-M6-8), or gate item 8 is verified
+- [ ] CLIENT logins remain disabled for the pilot (OD-M6-8). Gate item 8 must be verified before any future CLIENT login
 
 **C. Production data**
 
@@ -475,17 +509,17 @@ Each item needs evidence (link, report or test run) in the go-live record. **V1 
 
 **E. Operations**
 
-- [ ] Logging, monitoring, error tracking and alerting live (§6)
+- [ ] Structured application and database logs, Sentry error tracking, monitoring and alerting live (§6, OD-M6-6)
 - [ ] `/ready` gates deploys; rate limiting on
 - [ ] Nightly audit-chain verification green
 - [ ] Deployment and rollback runbooks written and rehearsed on staging
 
 **F. Pilot**
 
-- [ ] Pilot users trained; pilot project chosen (rectangular kitchen, base runs, OD-M6-4 / 5)
+- [ ] Pilot users trained; pilot project chosen inside the §0.2 boundary (rectangular kitchen with no openings, `KIT_BASE_STANDARD` base runs, OD-M6-4 / 5)
 - [ ] All 15 workflow steps (§4.2) complete on the real project without database intervention
 - [ ] Outputs reconciled against the manual BOM / quotation; differences explained
-- [ ] Issued quotation and drawings accepted by the design head and finance
+- [ ] Issued quotation and drawings accepted by the design head and finance, and delivered offline as PDFs (OD-M6-8)
 
 ---
 
@@ -495,7 +529,7 @@ Each item needs evidence (link, report or test run) in the go-live record. **V1 
 |---|---|---|
 | R1 | Production data takes longer than the software | Start the §2 data intake now, in parallel with G1–G7 and the UI; it is the critical path |
 | R2 | Supabase `auth.users` REFERENCES grant not available to `postgres` | Found by §1.2 on staging before production; the fallback is recorded before proceeding |
-| R3 | The pilot kitchen needs products other than base cabinets | OD-M6-4: choose a base-run kitchen, or schedule wall / tall recipes (new data plus a milestone) |
+| R3 | The pilot kitchen needs products other than base cabinets, or has openings / an irregular shape | §0.2: choose another pilot kitchen. The scope is **not** widened in M6; wall / tall recipes and openings are future milestones |
 | R4 | Openings, services and appliances are not modelled | OD-M6-5: recorded off-system; the measurement sheet is attached to the project record (file upload is a later feature; until then, stored in the existing document system) |
 | R5 | Orphaned files in hosted storage | Accepted V1 limitation; manual read-only reconciliation report (§1.3) |
 | R6 | Issued files not covered by database PITR | Nightly bucket copy (§1.3) |
@@ -503,25 +537,67 @@ Each item needs evidence (link, report or test run) in the go-live record. **V1 
 
 ---
 
-## 9. Proposed sequence (after approval)
+## 9. Implementation order (approved direction; each step starts only on instruction)
+
+### 9.1 Recommended order of G1–G7
+
+| Order | Gap | Why here |
+|---|---|---|
+| 1 | **G6** production migration runner | No dependencies, local / CI-testable, and every hosted environment (M6-B) needs it. It also writes the migration ledger that G7's readiness check reads |
+| 2 | **G4** organization and user onboarding | Named authors and approvers must exist as `app_user` rows with roles before any reference data can be approved (separation of duties, LD004), and before any pilot user can sign in |
+| 3 | **G1** reference-data read API | Small and read-only. G2 verifies its results through it, and the UI pins picker (M7) needs it |
+| 4 | **G2** reference-data intake CLI (OD-M6-3) | The critical path (R1): production data can only be entered and approved through it. Needs G4 (approvers) and uses G1 for read-back |
+| 5 | **G7** readiness and audit-read endpoints, with the §6 rate limiting and structured-log fields | `/ready` gates every staging and production deploy (M6-B); needs G6's ledger |
+| 6 | **G3** resolved-model preview API | The largest item; only the UI (M7) consumes it, so it follows the items M6-B depends on |
+| 7 | **G5** SupabaseStorageProvider and orphan reconciliation report | Only verifiable against the separate staging project (OD-M6-2), so it is done in M6-B after hosted access is approved |
+
+Proposed checkpoints, each stopping for review with CI green:
+
+- **M6-A CP1:** G6 + G4.
+- **M6-A CP2:** G1 + G2.
+- **M6-A CP3:** G7 + rate limiting + Sentry wiring (disabled without a DSN locally).
+- **M6-A CP4:** G3.
+- **M6-B (hosted, only after explicit approval to connect):** staging project, gate item 9, G5, deploy pipeline, logs / Sentry / monitoring on staging.
+
+### 9.2 Overall sequence
 
 1. **Now, in parallel:**
-   - production data intake (§2) — Lintel teams;
+   - production data intake preparation (§2): providers gather values with sources — Lintel teams;
    - ops confirms gate items 1–8.
-2. **M6-A (backend, local / CI):** G1, G2, G3, G4, G6, G7, then the rate limiting and readiness of §6.
-3. **M6-B (staging):**
-   - create the staging project;
-   - gate item 9 verification;
-   - G5 storage;
-   - deploy pipeline;
-   - monitoring.
+2. **M6-A (backend, local / CI):** G6, G4, G1, G2, G7, G3 (§9.1).
+3. **M6-B (staging):** separate staging project, gate item 9 verification, G5 storage, deploy pipeline, monitoring.
 4. **M7 (UI):** §5, with E2E tests on synthetic data.
 5. **Production:**
    - migrate;
    - intake the APPROVED data;
    - onboard users;
-   - restore drill;
+   - PITR enabled and verified; restore drill;
    - acceptance checklist §7.
 6. **Pilot** (§4).
 
 Each step stops for review, as in M5.
+
+---
+
+## 10. M6 gate list
+
+A gate passes only with its evidence in the go-live record. The per-state production gates (APPROVED, LOCKED, FOR_REVIEW, FOR_PRODUCTION, QUOTATION ISSUE, DRAWING ISSUE) are in §3 and are enforced by the database; the gates below govern the milestone.
+
+| Gate | Passes when | Owner |
+|---|---|---|
+| **M6-0** Plan | This plan approved; OD-M6-1..8 recorded (§0.1) | Reviewer — **passed 2026-09-26** |
+| **M6-1** Foundation | G6 + G4 merged; CI green | Reviewer |
+| **M6-2** Reference data | G1 + G2 merged; CI green; TEST_FIXTURE refusal and author ≠ approver proven by tests | Reviewer |
+| **M6-3** Operability | G7, `/ready`, rate limiting, Sentry wiring merged; CI green | Reviewer |
+| **M6-4** Model preview | G3 merged; CI green | Reviewer |
+| **M6-5** Ops cut-over | Mumbai gate items 1–8 confirmed and dated (§1.1) | Ops owner |
+| **M6-6** Hosted access | Explicit reviewer approval to connect to hosted Supabase; separate staging project created (OD-M6-2) | Reviewer |
+| **M6-7** Compatibility | Gate item 9 passed on staging with outputs attached (§1.2) | Reviewer |
+| **M6-8** Staging service | G5 merged; Design OS deployed as its own service on staging (OD-M6-1); logs + Sentry + monitoring live (OD-M6-6) | Reviewer |
+| **M6-9** UI | M7 screens (§5.3) within the §0.2 boundary; Playwright pilot E2E green | Reviewer |
+| **M6-10** Production data | Every §2.3 pilot data set APPROVED by its named approver; no TEST_FIXTURE in production; reference cabinet 0 BLOCKERs | Data approvers |
+| **M6-11** Production environment | Production migrated with G6; PITR enabled **and verified**; restore drill passed; pilot users onboarded (OD-M6-7) | Reviewer + ops owner |
+| **M6-12** Pilot start | Every §7 box ticked | Reviewer |
+| **M6-13** Pilot exit | §4.2 exit criteria met; issued PDFs delivered offline (OD-M6-8) | Design head + finance |
+
+No gate adds manufacturing, CNC, nesting, drilling, a manufacturing release workflow, a client portal, or pilot scope beyond §0.2.

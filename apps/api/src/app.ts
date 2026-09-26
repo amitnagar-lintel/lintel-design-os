@@ -16,6 +16,7 @@ import { ClientsModule } from "./modules/clients/clients.module.js";
 import { DesignVersionsModule } from "./modules/design-versions/design-versions.module.js";
 import { DesignsModule } from "./modules/designs/designs.module.js";
 import { MeModule } from "./modules/me/me.module.js";
+import { ModelPreviewModule } from "./modules/model-preview/model-preview.module.js";
 import { OrganizationModule } from "./modules/organization/organization.module.js";
 import { OutputsModule } from "./modules/outputs/outputs.module.js";
 import { ProjectsModule } from "./modules/projects/projects.module.js";
@@ -29,7 +30,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 class HealthModule {}
 
 /** Feature modules: the foundation, the core design domain (M5 Step 5), then outputs (M5 Step 7). */
-export const FEATURE_MODULES: readonly Type[] = [HealthModule, ReadinessModule, MeModule, OrganizationModule, ReferenceDataModule, ClientsModule, ProjectsModule, RoomsModule, DesignsModule, DesignVersionsModule, OutputsModule];
+export const FEATURE_MODULES: readonly Type[] = [HealthModule, ReadinessModule, MeModule, OrganizationModule, ReferenceDataModule, ClientsModule, ProjectsModule, RoomsModule, DesignsModule, DesignVersionsModule, ModelPreviewModule, OutputsModule];
 
 /** Build the API: NestJS + Fastify, every route under /api/v1, RFC 9457 errors, fail-closed access guard. */
 export async function createApp(config: ApiConfig, extraModules: readonly (Type | DynamicModule)[] = [], overrides: { readonly errorReporter?: ErrorReporter } = {}): Promise<NestFastifyApplication> {

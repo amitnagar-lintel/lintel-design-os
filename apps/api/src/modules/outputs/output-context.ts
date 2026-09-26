@@ -72,20 +72,12 @@ export function outputEngines(manifest: EngineManifest, build: string): Readonly
 }
 
 /**
- * Build the context inside the caller's REPEATABLE READ transaction: every row is read from the transaction's one
- * snapshot, and the stored input hash must equal the hash of the rows actually read. The design version row is not
- * locked here (a caller-side FOR SHARE is subject to the UPDATE policy, which output roles do not pass): before the
- * first write, design_os.record_validation_run() takes FOR SHARE on it, so a concurrent input change either fails that
- * lock (REPEATABLE READ → 409 CONCURRENT_MODIFICATION) or waits for this transaction to commit.
+ * Read one design version's exact engineering inputs (the version row, its room survey revision, objects, override
+ * history and the EXACT pinned engineering versions — never "latest") and check that the stored input hash equals the
+ * hash of the rows actually read. The single reader of engineering inputs for outputs and for the model preview.
  */
-export async function buildOutputExecutionContext(tx: Tx, input: {
-  readonly orgId: string;
-  readonly actorId: string;
-  readonly versionId: string;
-  readonly commercial: CommercialChoice;
-  readonly engines: Readonly<Record<OutputEngine, EngineProvenance>>;
-}): Promise<OutputExecutionContext> {
-  const v = await designVersionsRepository.get(tx, input.versionId);
+export async function readEngineeringInputs(tx: Tx, versionId: string): Promise<{ readonly v: DesignVersionRow; readonly inputHash: Sha256; readonly pins: DesignVersionPins; readonly rows: EngineeringRows }> {
+  const v = await designVersionsRepository.get(tx, versionId);
   if (v === null) throw new ApiProblem("NOT_FOUND");
   if (!(await outputsRepository.hasPermission(tx, "reference.read"))) throw new ApiProblem("PERMISSION_DENIED", "output generation reads the pinned reference data (reference.read)");
   const { inputHash, objects, overrides } = await computeInputHash(tx, v);
@@ -101,6 +93,26 @@ export async function buildOutputExecutionContext(tx: Tx, input: {
     product_catalog_version_id: pins.productCatalogVersionId, hettich_dataset_version_id: pins.hettichDatasetVersionId,
   });
 
+  return { v, inputHash, pins, rows: { version: v, room, revision, objects, overrides, pinned } };
+}
+
+/**
+ * Build the context inside the caller's REPEATABLE READ transaction: every row is read from the transaction's one
+ * snapshot, and the stored input hash must equal the hash of the rows actually read. The design version row is not
+ * locked here (a caller-side FOR SHARE is subject to the UPDATE policy, which output roles do not pass): before the
+ * first write, design_os.record_validation_run() takes FOR SHARE on it, so a concurrent input change either fails that
+ * lock (REPEATABLE READ → 409 CONCURRENT_MODIFICATION) or waits for this transaction to commit.
+ */
+export async function buildOutputExecutionContext(tx: Tx, input: {
+  readonly orgId: string;
+  readonly actorId: string;
+  readonly versionId: string;
+  readonly commercial: CommercialChoice;
+  readonly engines: Readonly<Record<OutputEngine, EngineProvenance>>;
+}): Promise<OutputExecutionContext> {
+  const { v, inputHash, pins, rows } = await readEngineeringInputs(tx, input.versionId);
+  const { room } = rows;
+
   // Dependency content: engineering pins + exactly the chosen commercial versions of this organization.
   const { pricingStandardVersionId, quotationPolicyVersionId } = input.commercial;
   const all = await outputsRepository.dependencyHashes(tx, v.id, pricingStandardVersionId, quotationPolicyVersionId) as DependencyHashes;
@@ -115,7 +127,6 @@ export async function buildOutputExecutionContext(tx: Tx, input: {
   const engineeringHashes = engineeringDependencyHashes(all);
   const commercialHashes = Object.fromEntries(Object.entries(all).filter(([k]) => COMMERCIAL_PINS.includes(k as DependencyPin))) as DependencyHashes;
 
-  const rows: EngineeringRows = { version: v, room, revision, objects, overrides, pinned };
   const model = engineeringModel(rows);
   const resolved = resolveEngineeringModel(model);
   const createdAt = await outputsRepository.now(tx);

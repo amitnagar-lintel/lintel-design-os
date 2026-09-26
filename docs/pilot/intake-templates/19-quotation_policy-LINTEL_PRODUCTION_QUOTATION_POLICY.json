@@ -1,0 +1,33 @@
+{
+  "format": "lintel.reference-intake/v1",
+  "type": "quotation_policy",
+  "classification": "PRODUCTION",
+  "intent": "WORKING_DRAFT",
+  "entityCode": "LINTEL_PRODUCTION_QUOTATION_POLICY",
+  "versionNumber": 1,
+  "changeReason": "Initial Lintel values for the V1 pilot",
+  "source": "Pending — Lintel finance / tax review",
+  "sourceRef": {
+    "url": null,
+    "documentTitle": null,
+    "documentVersion": null,
+    "sourceDate": null
+  },
+  "data": {
+    "policyId": "LINTEL_PRODUCTION_QUOTATION_POLICY",
+    "version": "0.1.0",
+    "status": "DRAFT",
+    "classification": "PRODUCTION",
+    "source": "Pending — Lintel finance / tax review",
+    "taxRates": {},
+    "taxRateByProductCategory": {
+      "KITCHEN_BASE": null
+    },
+    "taxPolicy": null,
+    "rounding": {
+      "tax": null,
+      "grandTotal": null
+    },
+    "discountPolicy": null
+  }
+}

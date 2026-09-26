@@ -1,0 +1,69 @@
+{
+  "format": "lintel.reference-intake/v1",
+  "type": "planning_standard",
+  "classification": "PRODUCTION",
+  "intent": "WORKING_DRAFT",
+  "entityCode": "LINTEL_PLANNING_STANDARD",
+  "versionNumber": 1,
+  "changeReason": "Initial Lintel values for the V1 pilot",
+  "source": "Pending — Lintel design / production",
+  "sourceRef": {
+    "url": null,
+    "documentTitle": null,
+    "documentVersion": null,
+    "sourceDate": null
+  },
+  "data": {
+    "standardId": "LINTEL_PLANNING_STANDARD",
+    "version": "0.1.0",
+    "status": "DRAFT",
+    "description": "Lintel Space Atelier room planning standard (to be defined by design and production).",
+    "source": "Pending — Lintel design / production",
+    "variables": {
+      "MIN_WALL_CLEARANCE": null,
+      "MIN_CABINET_GAP": null,
+      "MAX_GAP_WITHOUT_FILLER": null,
+      "FILLER_THRESHOLD": null,
+      "MAX_RUN_LENGTH": null,
+      "SERVICE_VOID_REAR": null
+    }
+  },
+  "provenance": {
+    "MIN_WALL_CLEARANCE": {
+      "unit": "MM",
+      "source": null,
+      "evidenceRef": null,
+      "note": null
+    },
+    "MIN_CABINET_GAP": {
+      "unit": "MM",
+      "source": null,
+      "evidenceRef": null,
+      "note": null
+    },
+    "MAX_GAP_WITHOUT_FILLER": {
+      "unit": "MM",
+      "source": null,
+      "evidenceRef": null,
+      "note": null
+    },
+    "FILLER_THRESHOLD": {
+      "unit": "MM",
+      "source": null,
+      "evidenceRef": null,
+      "note": null
+    },
+    "MAX_RUN_LENGTH": {
+      "unit": "MM",
+      "source": null,
+      "evidenceRef": null,
+      "note": null
+    },
+    "SERVICE_VOID_REAR": {
+      "unit": "MM",
+      "source": null,
+      "evidenceRef": null,
+      "note": null
+    }
+  }
+}

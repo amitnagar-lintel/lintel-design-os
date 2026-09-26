@@ -1,0 +1,31 @@
+{
+  "format": "lintel.reference-intake/v1",
+  "type": "material",
+  "classification": "PRODUCTION",
+  "intent": "WORKING_DRAFT",
+  "entityCode": "BOARD_BWP_18",
+  "versionNumber": 1,
+  "changeReason": "Initial Lintel values for the V1 pilot",
+  "source": "PRD v1 §19",
+  "sourceRef": {
+    "url": null,
+    "documentTitle": null,
+    "documentVersion": null,
+    "sourceDate": null
+  },
+  "data": {
+    "materialId": "BOARD_BWP_18",
+    "category": "BOARD",
+    "name": "18 mm BWP board",
+    "substrate": "BWP plywood",
+    "thickness": 18,
+    "sheetSize": {
+      "width": 1220,
+      "height": 2440
+    },
+    "grain": true,
+    "densityKgPerM3": null,
+    "status": "DRAFT",
+    "source": "PRD v1 §19"
+  }
+}

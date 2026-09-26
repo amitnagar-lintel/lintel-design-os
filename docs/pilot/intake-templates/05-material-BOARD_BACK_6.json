@@ -1,0 +1,28 @@
+{
+  "format": "lintel.reference-intake/v1",
+  "type": "material",
+  "classification": "PRODUCTION",
+  "intent": "WORKING_DRAFT",
+  "entityCode": "BOARD_BACK_6",
+  "versionNumber": 1,
+  "changeReason": "Initial Lintel values for the V1 pilot",
+  "source": "PRD v1 §42 (Back: 6 mm); substrate not specified",
+  "sourceRef": {
+    "url": null,
+    "documentTitle": null,
+    "documentVersion": null,
+    "sourceDate": null
+  },
+  "data": {
+    "materialId": "BOARD_BACK_6",
+    "category": "BOARD",
+    "name": "6 mm back panel board",
+    "substrate": null,
+    "thickness": 6,
+    "sheetSize": null,
+    "grain": null,
+    "densityKgPerM3": null,
+    "status": "DRAFT",
+    "source": "PRD v1 §42 (Back: 6 mm); substrate not specified"
+  }
+}

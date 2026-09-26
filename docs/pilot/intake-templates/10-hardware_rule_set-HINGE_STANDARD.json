@@ -1,0 +1,37 @@
+{
+  "format": "lintel.reference-intake/v1",
+  "type": "hardware_rule_set",
+  "classification": "PRODUCTION",
+  "intent": "WORKING_DRAFT",
+  "entityCode": "HINGE_STANDARD",
+  "versionNumber": 1,
+  "changeReason": "Initial Lintel values for the V1 pilot",
+  "source": "Pending — Lintel catalog (confirm or replace with the source document)",
+  "sourceRef": {
+    "url": null,
+    "documentTitle": null,
+    "documentVersion": null,
+    "sourceDate": null
+  },
+  "data": {
+    "ruleSetId": "HINGE_STANDARD",
+    "version": "1.0.0",
+    "status": "DRAFT",
+    "rules": [
+      {
+        "ruleId": "HINGE_SHUTTER",
+        "componentType": "SHUTTER",
+        "category": "HINGE",
+        "application": "HINGED_DOOR",
+        "mounting": {
+          "parameterKey": "frontType",
+          "map": {
+            "OVERLAY": "FULL_OVERLAY",
+            "INSET": "INSET"
+          }
+        },
+        "preferredManufacturer": "HETTICH"
+      }
+    ]
+  }
+}

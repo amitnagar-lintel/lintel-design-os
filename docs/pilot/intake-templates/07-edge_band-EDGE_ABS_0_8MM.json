@@ -1,0 +1,25 @@
+{
+  "format": "lintel.reference-intake/v1",
+  "type": "edge_band",
+  "classification": "PRODUCTION",
+  "intent": "WORKING_DRAFT",
+  "entityCode": "EDGE_ABS_0_8MM",
+  "versionNumber": 1,
+  "changeReason": "Initial Lintel values for the V1 pilot",
+  "source": "Legacy SQL catalog edge_band_08 (reference only)",
+  "sourceRef": {
+    "url": null,
+    "documentTitle": null,
+    "documentVersion": null,
+    "sourceDate": null
+  },
+  "data": {
+    "edgeBandId": "EDGE_ABS_0_8MM",
+    "name": "ABS edge band 0.8 mm",
+    "material": "ABS",
+    "thickness": 0.8,
+    "width": null,
+    "status": "DRAFT",
+    "source": "Legacy SQL catalog edge_band_08 (reference only)"
+  }
+}

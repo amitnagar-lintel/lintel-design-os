@@ -1,0 +1,111 @@
+{
+  "format": "lintel.reference-intake/v1",
+  "type": "construction_standard",
+  "classification": "PRODUCTION",
+  "intent": "WORKING_DRAFT",
+  "entityCode": "LINTEL_CONSTRUCTION_STANDARD",
+  "versionNumber": 1,
+  "changeReason": "Initial Lintel values for the V1 pilot",
+  "source": "Pending — Lintel production team",
+  "sourceRef": {
+    "url": null,
+    "documentTitle": null,
+    "documentVersion": null,
+    "sourceDate": null
+  },
+  "data": {
+    "standardId": "LINTEL_CONSTRUCTION_STANDARD",
+    "version": "0.2.0",
+    "status": "DRAFT",
+    "description": "Lintel Space Atelier construction standard (to be defined by production).",
+    "source": "Pending — Lintel production team",
+    "variables": {
+      "BACK_GROOVE_DEPTH": null,
+      "BACK_REAR_OFFSET": null,
+      "TOP_RAIL_WIDTH": null,
+      "SHELF_FRONT_SETBACK": null,
+      "SHELF_SIDE_CLEARANCE": null,
+      "OVERLAY_EDGE_GAP": null,
+      "OVERLAY_TOP_GAP": null,
+      "OVERLAY_BOTTOM_GAP": null,
+      "FRONT_BETWEEN_GAP": null,
+      "INSET_GAP": null,
+      "FRONT_FINISHED_FACES": null,
+      "SHUTTER_BACK_GAP": null
+    }
+  },
+  "provenance": {
+    "BACK_GROOVE_DEPTH": {
+      "unit": "MM",
+      "source": null,
+      "evidenceRef": null,
+      "note": null
+    },
+    "BACK_REAR_OFFSET": {
+      "unit": "MM",
+      "source": null,
+      "evidenceRef": null,
+      "note": null
+    },
+    "TOP_RAIL_WIDTH": {
+      "unit": "MM",
+      "source": null,
+      "evidenceRef": null,
+      "note": null
+    },
+    "SHELF_FRONT_SETBACK": {
+      "unit": "MM",
+      "source": null,
+      "evidenceRef": null,
+      "note": null
+    },
+    "SHELF_SIDE_CLEARANCE": {
+      "unit": "MM",
+      "source": null,
+      "evidenceRef": null,
+      "note": null
+    },
+    "OVERLAY_EDGE_GAP": {
+      "unit": "MM",
+      "source": null,
+      "evidenceRef": null,
+      "note": null
+    },
+    "OVERLAY_TOP_GAP": {
+      "unit": "MM",
+      "source": null,
+      "evidenceRef": null,
+      "note": null
+    },
+    "OVERLAY_BOTTOM_GAP": {
+      "unit": "MM",
+      "source": null,
+      "evidenceRef": null,
+      "note": null
+    },
+    "FRONT_BETWEEN_GAP": {
+      "unit": "MM",
+      "source": null,
+      "evidenceRef": null,
+      "note": null
+    },
+    "INSET_GAP": {
+      "unit": "MM",
+      "source": null,
+      "evidenceRef": null,
+      "note": null
+    },
+    "FRONT_FINISHED_FACES": {
+      "unit": "MM",
+      "source": null,
+      "evidenceRef": null,
+      "note": null
+    },
+    "SHUTTER_BACK_GAP": {
+      "unit": "MM",
+      "source": null,
+      "evidenceRef": null,
+      "note": null
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "format": "lintel.reference-intake/v1",
+  "type": "finish",
+  "classification": "PRODUCTION",
+  "intent": "WORKING_DRAFT",
+  "entityCode": "LAMINATE_WHITE",
+  "versionNumber": 1,
+  "changeReason": "Initial Lintel values for the V1 pilot",
+  "source": "PRD v1 §19",
+  "sourceRef": {
+    "url": null,
+    "documentTitle": null,
+    "documentVersion": null,
+    "sourceDate": null
+  },
+  "data": {
+    "finishId": "LAMINATE_WHITE",
+    "type": "LAMINATE",
+    "name": "White laminate",
+    "thickness": 1,
+    "status": "DRAFT",
+    "source": "PRD v1 §19"
+  }
+}

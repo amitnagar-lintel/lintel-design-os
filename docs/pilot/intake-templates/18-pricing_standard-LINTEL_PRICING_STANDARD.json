@@ -1,0 +1,57 @@
+{
+  "format": "lintel.reference-intake/v1",
+  "type": "pricing_standard",
+  "classification": "PRODUCTION",
+  "intent": "WORKING_DRAFT",
+  "entityCode": "LINTEL_PRICING_STANDARD",
+  "versionNumber": 1,
+  "changeReason": "Initial Lintel values for the V1 pilot",
+  "source": "Pending — Lintel finance / procurement",
+  "sourceRef": {
+    "url": null,
+    "documentTitle": null,
+    "documentVersion": null,
+    "sourceDate": null
+  },
+  "data": {
+    "rateCard": {
+      "rateCardId": "LINTEL_PRODUCTION_RATE_CARD",
+      "version": "0.1.0",
+      "status": "DRAFT",
+      "classification": "PRODUCTION",
+      "currency": "INR",
+      "effectiveFrom": null,
+      "source": "Pending — Lintel finance / procurement",
+      "boardPerM2": {
+        "BOARD_BWP_18": null,
+        "BOARD_HDHMR_18": null,
+        "BOARD_BACK_6": null
+      },
+      "edgeBandPerM": {
+        "EDGE_ABS_2MM": null,
+        "EDGE_ABS_0_8MM": null
+      },
+      "finishPerM2": {
+        "LAMINATE_WHITE": null
+      },
+      "hardwarePerUnit": {}
+    },
+    "rules": {
+      "ruleSetId": "LINTEL_PRODUCTION_PRICING_RULES",
+      "version": "0.1.0",
+      "status": "DRAFT",
+      "classification": "PRODUCTION",
+      "source": "Pending — Lintel finance",
+      "manufacturingCost": null,
+      "wastagePercent": {
+        "board": null,
+        "edgeBand": null,
+        "finish": null
+      },
+      "overheadPercent": null,
+      "marginBasis": null,
+      "marginPercent": null,
+      "gstPercent": null
+    }
+  }
+}

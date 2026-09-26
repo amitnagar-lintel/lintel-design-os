@@ -1,0 +1,169 @@
+{
+  "format": "lintel.reference-intake/v1",
+  "type": "product",
+  "classification": "PRODUCTION",
+  "intent": "WORKING_DRAFT",
+  "entityCode": "KIT_BASE_STANDARD",
+  "versionNumber": 1,
+  "changeReason": "Initial Lintel values for the V1 pilot",
+  "source": "Pending — Lintel catalog (confirm or replace with the source document)",
+  "sourceRef": {
+    "url": null,
+    "documentTitle": null,
+    "documentVersion": null,
+    "sourceDate": null
+  },
+  "data": {
+    "productId": "KIT_BASE_STANDARD",
+    "version": "1.0.0",
+    "status": "DRAFT",
+    "name": "Kitchen base cabinet — standard",
+    "category": "KITCHEN_BASE",
+    "objectType": "BASE_CABINET",
+    "recipeId": "KITCHEN_BASE_STANDARD_V1",
+    "parameters": [
+      {
+        "kind": "number",
+        "key": "width",
+        "symbol": "W",
+        "label": "Width",
+        "unit": "MM",
+        "default": 600,
+        "min": null,
+        "max": null
+      },
+      {
+        "kind": "number",
+        "key": "height",
+        "symbol": "H",
+        "label": "Height",
+        "unit": "MM",
+        "default": 720,
+        "min": null,
+        "max": null
+      },
+      {
+        "kind": "number",
+        "key": "depth",
+        "symbol": "D",
+        "label": "Depth",
+        "unit": "MM",
+        "default": 560,
+        "min": null,
+        "max": null
+      },
+      {
+        "kind": "number",
+        "key": "carcassThickness",
+        "symbol": "T",
+        "label": "Carcass thickness",
+        "unit": "MM",
+        "default": 18,
+        "min": null,
+        "max": null
+      },
+      {
+        "kind": "number",
+        "key": "backThickness",
+        "symbol": "TB",
+        "label": "Back thickness",
+        "unit": "MM",
+        "default": 6,
+        "min": null,
+        "max": null
+      },
+      {
+        "kind": "integer",
+        "key": "shelfCount",
+        "symbol": "N_SHELF",
+        "label": "Shelf count",
+        "default": 1,
+        "min": 0,
+        "max": null,
+        "allowed": null
+      },
+      {
+        "kind": "integer",
+        "key": "shutterCount",
+        "symbol": "N_SHUTTER",
+        "label": "Shutter count",
+        "default": 2,
+        "min": 1,
+        "max": null,
+        "allowed": null
+      },
+      {
+        "kind": "enum",
+        "key": "frontType",
+        "symbol": "FRONT",
+        "label": "Front type",
+        "values": [
+          "OVERLAY",
+          "INSET"
+        ],
+        "default": "OVERLAY"
+      },
+      {
+        "kind": "material",
+        "key": "material",
+        "symbol": "T_CARCASS_MAT",
+        "label": "Carcass material",
+        "default": "BOARD_BWP_18"
+      },
+      {
+        "kind": "material",
+        "key": "backMaterial",
+        "symbol": "T_BACK_MAT",
+        "label": "Back material",
+        "default": "BOARD_BACK_6"
+      },
+      {
+        "kind": "material",
+        "key": "shutterMaterial",
+        "symbol": "T_FRONT",
+        "label": "Shutter material",
+        "default": "BOARD_HDHMR_18"
+      },
+      {
+        "kind": "finish",
+        "key": "finish",
+        "symbol": "FINISH",
+        "label": "Shutter finish",
+        "default": "LAMINATE_WHITE"
+      }
+    ],
+    "rules": [
+      {
+        "ruleId": "KBS_POSITIVE_WIDTH",
+        "description": "Width must be positive",
+        "assert": "W > 0",
+        "severity": "BLOCKER",
+        "message": "Width must be greater than 0 mm (got {W})"
+      },
+      {
+        "ruleId": "KBS_POSITIVE_HEIGHT",
+        "description": "Height must be positive",
+        "assert": "H > 0",
+        "severity": "BLOCKER",
+        "message": "Height must be greater than 0 mm (got {H})"
+      },
+      {
+        "ruleId": "KBS_POSITIVE_DEPTH",
+        "description": "Depth must be positive",
+        "assert": "D > 0",
+        "severity": "BLOCKER",
+        "message": "Depth must be greater than 0 mm (got {D})"
+      }
+    ],
+    "boq": {
+      "itemCodeTemplate": "KIT_BASE_STANDARD-{width}",
+      "descriptionTemplate": "{width} Base Cabinet",
+      "unit": "NOS",
+      "quantity": "1"
+    }
+  },
+  "recipe": {
+    "entityCode": "KITCHEN_BASE_STANDARD_V1",
+    "versionNumber": 1
+  }
+}

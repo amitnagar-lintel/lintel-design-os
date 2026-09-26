@@ -114,6 +114,16 @@ export default tseslint.config(
     },
   },
   {
+    // The pilot rehearsal (LOCAL only) re-states the engines' in-code test fixtures as intake files; it reaches the API over HTTP only.
+    files: ["apps/db-tools/src/pilot/**/*.ts", "apps/db-tools/test/**/pilot*.ts", "apps/db-tools/test/**/rehearsal*.ts"],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: [{ ...INFRASTRUCTURE, group: INFRASTRUCTURE.group.filter((g) => g !== "pg") }, {
+        group: ["**/apps/api/**", "@lintel/api"],
+        message: "The pilot tools are independent of the API: they use its HTTP interface only.",
+      }] }],
+    },
+  },
+  {
     // Tests may assert presence with `!` after explicit lookups.
     files: ["**/test/**/*.ts", "tests/**/*.ts"],
     rules: { "@typescript-eslint/no-non-null-assertion": "off" },

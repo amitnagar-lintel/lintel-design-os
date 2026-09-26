@@ -1,0 +1,28 @@
+{
+  "format": "lintel.reference-intake/v1",
+  "type": "material",
+  "classification": "PRODUCTION",
+  "intent": "WORKING_DRAFT",
+  "entityCode": "BOARD_HDHMR_18",
+  "versionNumber": 1,
+  "changeReason": "Initial Lintel values for the V1 pilot",
+  "source": "PRD v1 §22 (BOM example: 18mm HDHMR shutter)",
+  "sourceRef": {
+    "url": null,
+    "documentTitle": null,
+    "documentVersion": null,
+    "sourceDate": null
+  },
+  "data": {
+    "materialId": "BOARD_HDHMR_18",
+    "category": "BOARD",
+    "name": "18 mm HDHMR board",
+    "substrate": "HDHMR",
+    "thickness": 18,
+    "sheetSize": null,
+    "grain": null,
+    "densityKgPerM3": null,
+    "status": "DRAFT",
+    "source": "PRD v1 §22 (BOM example: 18mm HDHMR shutter)"
+  }
+}

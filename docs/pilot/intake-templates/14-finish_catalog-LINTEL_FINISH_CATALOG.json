@@ -1,0 +1,27 @@
+{
+  "format": "lintel.reference-intake/v1",
+  "type": "finish_catalog",
+  "classification": "PRODUCTION",
+  "intent": "WORKING_DRAFT",
+  "entityCode": "LINTEL_FINISH_CATALOG",
+  "versionNumber": 1,
+  "changeReason": "Initial Lintel values for the V1 pilot",
+  "source": "Pending — Lintel catalog (confirm or replace with the source document)",
+  "sourceRef": {
+    "url": null,
+    "documentTitle": null,
+    "documentVersion": null,
+    "sourceDate": null
+  },
+  "data": {
+    "versionLabel": "finish catalog",
+    "description": "Lintel finish catalog for the V1 pilot",
+    "members": [
+      {
+        "itemType": "finish",
+        "entityCode": "LAMINATE_WHITE",
+        "versionNumber": 1
+      }
+    ]
+  }
+}

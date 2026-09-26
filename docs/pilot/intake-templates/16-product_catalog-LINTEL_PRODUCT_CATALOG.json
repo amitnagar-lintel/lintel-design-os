@@ -1,0 +1,27 @@
+{
+  "format": "lintel.reference-intake/v1",
+  "type": "product_catalog",
+  "classification": "PRODUCTION",
+  "intent": "WORKING_DRAFT",
+  "entityCode": "LINTEL_PRODUCT_CATALOG",
+  "versionNumber": 1,
+  "changeReason": "Initial Lintel values for the V1 pilot",
+  "source": "Pending — Lintel catalog (confirm or replace with the source document)",
+  "sourceRef": {
+    "url": null,
+    "documentTitle": null,
+    "documentVersion": null,
+    "sourceDate": null
+  },
+  "data": {
+    "versionLabel": "product catalog",
+    "description": "Lintel product catalog for the V1 pilot",
+    "members": [
+      {
+        "itemType": "product",
+        "entityCode": "KIT_BASE_STANDARD",
+        "versionNumber": 1
+      }
+    ]
+  }
+}

@@ -156,6 +156,9 @@ importers:
       '@lintel/persistence':
         specifier: workspace:*
         version: link:../../packages/persistence
+      '@lintel/pricing-engine':
+        specifier: workspace:*
+        version: link:../../packages/pricing-engine
       '@lintel/types':
         specifier: workspace:*
         version: link:../../packages/types

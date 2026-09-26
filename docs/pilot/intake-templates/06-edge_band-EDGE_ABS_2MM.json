@@ -1,0 +1,25 @@
+{
+  "format": "lintel.reference-intake/v1",
+  "type": "edge_band",
+  "classification": "PRODUCTION",
+  "intent": "WORKING_DRAFT",
+  "entityCode": "EDGE_ABS_2MM",
+  "versionNumber": 1,
+  "changeReason": "Initial Lintel values for the V1 pilot",
+  "source": "PRD v1 §20 (thickness 2), §22 (ABS edge band); legacy SQL catalog edge_band_2mm",
+  "sourceRef": {
+    "url": null,
+    "documentTitle": null,
+    "documentVersion": null,
+    "sourceDate": null
+  },
+  "data": {
+    "edgeBandId": "EDGE_ABS_2MM",
+    "name": "ABS edge band 2 mm",
+    "material": "ABS",
+    "thickness": 2,
+    "width": null,
+    "status": "DRAFT",
+    "source": "PRD v1 §20 (thickness 2), §22 (ABS edge band); legacy SQL catalog edge_band_2mm"
+  }
+}

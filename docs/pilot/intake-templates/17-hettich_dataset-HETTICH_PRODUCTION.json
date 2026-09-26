@@ -1,0 +1,24 @@
+{
+  "format": "lintel.reference-intake/v1",
+  "type": "hettich_dataset",
+  "classification": "PRODUCTION",
+  "intent": "WORKING_DRAFT",
+  "entityCode": "HETTICH_PRODUCTION",
+  "versionNumber": 1,
+  "changeReason": "Initial Lintel values for the V1 pilot",
+  "source": "Pending — official Hettich sources (eShop / CAD / Technical Assistant)",
+  "sourceRef": {
+    "url": null,
+    "documentTitle": null,
+    "documentVersion": null,
+    "sourceDate": null
+  },
+  "data": {
+    "kind": "PRODUCTION",
+    "datasetId": "HETTICH_PRODUCTION",
+    "sourceVersion": "none-loaded",
+    "notes": "No source-verified Hettich records ingested yet.",
+    "records": [],
+    "calculationRules": []
+  }
+}

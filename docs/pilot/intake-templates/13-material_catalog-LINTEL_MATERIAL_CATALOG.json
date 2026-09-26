@@ -1,0 +1,47 @@
+{
+  "format": "lintel.reference-intake/v1",
+  "type": "material_catalog",
+  "classification": "PRODUCTION",
+  "intent": "WORKING_DRAFT",
+  "entityCode": "LINTEL_MATERIAL_CATALOG",
+  "versionNumber": 1,
+  "changeReason": "Initial Lintel values for the V1 pilot",
+  "source": "Pending — Lintel catalog (confirm or replace with the source document)",
+  "sourceRef": {
+    "url": null,
+    "documentTitle": null,
+    "documentVersion": null,
+    "sourceDate": null
+  },
+  "data": {
+    "versionLabel": "material catalog",
+    "description": "Lintel material catalog for the V1 pilot",
+    "members": [
+      {
+        "itemType": "material",
+        "entityCode": "BOARD_BWP_18",
+        "versionNumber": 1
+      },
+      {
+        "itemType": "material",
+        "entityCode": "BOARD_HDHMR_18",
+        "versionNumber": 1
+      },
+      {
+        "itemType": "material",
+        "entityCode": "BOARD_BACK_6",
+        "versionNumber": 1
+      },
+      {
+        "itemType": "edge_band",
+        "entityCode": "EDGE_ABS_2MM",
+        "versionNumber": 1
+      },
+      {
+        "itemType": "edge_band",
+        "entityCode": "EDGE_ABS_0_8MM",
+        "versionNumber": 1
+      }
+    ]
+  }
+}

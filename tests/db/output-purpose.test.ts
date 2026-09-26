@@ -5,28 +5,30 @@
  */
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import type { DesignVersionRow, OutputPurpose, SnapshotKind } from "@lintel/persistence";
-import { buildSnapshotProvenance, buildSnapshotRecord, contentHash, designVersionFromRow, OUTPUT_PURPOSE_RULES, OUTPUT_PURPOSES, snapshotToRow } from "@lintel/persistence";
+import type { ChosenVersions, OutputPurpose, SnapshotKind } from "@lintel/persistence";
+import { contentHash, OUTPUT_PURPOSE_RULES, OUTPUT_PURPOSES } from "@lintel/persistence";
 import type { Tx } from "./support/db.js";
 import { actAs, attemptDb, insertRow, one, tx } from "./support/db.js";
-import type { DesignFixture, World } from "./support/world.js";
-import { createWorld, dependencies, designVersion, hashOf, insertManufacturingPin, PIN_SUBJECT, transition, validationRun } from "./support/world.js";
+import type { Commercial, DesignFixture, World } from "./support/world.js";
+import {
+  createWorld, dependencies, designVersion, hashOf, manufacturingStandard, outputChainRow, PIN_SUBJECT, SNAPSHOT_TABLE as TABLE, transition, validationRun,
+} from "./support/world.js";
 
-const TABLE: Readonly<Record<SnapshotKind, string>> = {
-  BOM: "bom_snapshot", BOQ: "boq_snapshot", PRICING: "pricing_snapshot", QUOTATION: "quotation_snapshot", DRAWING: "drawing_snapshot", MANUFACTURING_DOCUMENT: "manufacturing_document_snapshot",
-};
-
-/** A snapshot row for the design version's current state; `purpose` is overridden afterwards to probe the database alone. */
-async function row(c: Tx, w: World, d: DesignFixture, kind: SnapshotKind, purpose: OutputPurpose, blockers = 0): Promise<Record<string, unknown>> {
+/**
+ * A snapshot row for the design version's current state (upstream sources at `purpose`); the row itself is built as
+ * PRELIMINARY and its `purpose` overridden afterwards to probe the database alone. Each probe uses its own engine, so
+ * natural identities never collide.
+ */
+async function row(c: Tx, w: World, d: DesignFixture, kind: SnapshotKind, purpose: OutputPurpose, blockers = 0,
+                   commercial: Commercial | null = null, chosen: Partial<ChosenVersions> = {}): Promise<Record<string, unknown>> {
+  const r = await outputChainRow(c, w, d.designVersionId, kind, commercial, { purpose: "PRELIMINARY", upstreamPurpose: purpose, blockers, engineSeed: randomUUID(), chosen });
   await actAs(c, null);
-  const dv = designVersionFromRow(await one<DesignVersionRow>(c, "SELECT * FROM design_os.design_version WHERE id = $1", [d.designVersionId]));
-  const provenance = buildSnapshotProvenance(kind, { versionId: dv.envelope.versionId, status: dv.envelope.status, contentHash: dv.envelope.contentHash }, dv.pins, "0.1.0+test");
-  const record = buildSnapshotRecord({ snapshotId: randomUUID(), kind, purpose: "PRELIMINARY", provenance, inputHash: dv.inputHash, payload: { items: [] }, blockerCount: blockers, createdBy: w.users.DESIGNER, createdAt: "2026-09-26T10:00:00.000Z" });
-  return { ...snapshotToRow(record, { orgId: w.org }), purpose };
+  return { ...r, purpose };
 }
 
-async function insert(c: Tx, w: World, d: DesignFixture, kind: SnapshotKind, purpose: OutputPurpose, blockers = 0): Promise<{ id: string; code: string | undefined }> {
-  const r = await row(c, w, d, kind, purpose, blockers);
+async function insert(c: Tx, w: World, d: DesignFixture, kind: SnapshotKind, purpose: OutputPurpose, blockers = 0,
+                      commercial: Commercial | null = null, chosen: Partial<ChosenVersions> = {}): Promise<{ id: string; code: string | undefined }> {
+  const r = await row(c, w, d, kind, purpose, blockers, commercial, chosen);
   const err = await attemptDb(c, () => insertRow(c, TABLE[kind], r));
   return { id: String(r.id), code: err?.code };
 }
@@ -127,7 +129,7 @@ describe("which design states allow which purpose", () => {
       for (const p of OUTPUT_PURPOSES) expect([p, (await insert(c, w, d, "DRAWING", p)).code]).toEqual([p, undefined]);
     });
   });
-  it("SUPERSEDED: PRELIMINARY only", async () => {
+  it("SUPERSEDED: PRELIMINARY and FOR_REVIEW (reproduction / review) only; never FOR_PRODUCTION", async () => {
     await tx(async (c) => {
       const w = await createWorld(c);
       const d = await designVersion(c, w, await dependencies(c, w));
@@ -146,23 +148,63 @@ describe("which design states allow which purpose", () => {
       await approve(c, w, successor);
       expect((await one<{ status: string }>(c, "SELECT status FROM design_os.design_version WHERE id = $1", [d.designVersionId])).status).toBe("SUPERSEDED");
       expect((await insert(c, w, d, "DRAWING", "PRELIMINARY")).code).toBeUndefined();
-      expect((await insert(c, w, d, "DRAWING", "FOR_REVIEW")).code).toBe("LD024");
+      expect((await insert(c, w, d, "DRAWING", "FOR_REVIEW")).code).toBeUndefined();
+      expect((await insert(c, w, d, "BOQ", "FOR_REVIEW", 2)).code).toBeUndefined();
       expect((await insert(c, w, d, "DRAWING", "FOR_PRODUCTION")).code).toBe("LD021");
+      // OUTPUT_GENERATION evidence may be recorded for the SUPERSEDED version; it never changes the version.
+      const before = await one<{ row_version: number; status: string }>(c, "SELECT row_version, status FROM design_os.design_version WHERE id = $1", [d.designVersionId]);
+      await validationRun(c, w, d.designVersionId, d.inputHash, 0, "DESIGNER", "OUTPUT_GENERATION");
+      expect(await one(c, "SELECT row_version, status FROM design_os.design_version WHERE id = $1", [d.designVersionId])).toEqual(before);
+      // APPROVAL evidence cannot be recorded for it.
+      expect((await attemptDb(c, () => validationRun(c, w, d.designVersionId, d.inputHash, 0)))?.code).toBe("LD012");
     });
   });
-  it("V1 manufacturing documents: PRELIMINARY and FOR_REVIEW are possible; FOR_PRODUCTION stays blocked (no approvable ManufacturingStandard)", async () => {
+  it("manufacturing documents (reserved; no engine yet): the ManufacturingStandard is chosen per output, and FOR_PRODUCTION stays blocked (no approvable ManufacturingStandard)", async () => {
     await tx(async (c) => {
       const w = await createWorld(c);
       const d = await designVersion(c, w, await dependencies(c, w));
-      await insertManufacturingPin(c, w, d.designVersionId);
-      await validationRun(c, w, d.designVersionId, d.inputHash, 0);
-      expect((await insert(c, w, d, "MANUFACTURING_DOCUMENT", "PRELIMINARY")).code).toBeUndefined();
+      const mfg = { manufacturingStandardVersionId: await manufacturingStandard(c, w) };
+      expect((await insert(c, w, d, "MANUFACTURING_DOCUMENT", "PRELIMINARY", 0, null, mfg)).code).toBeUndefined();
       await submit(c, w, d);
-      expect((await insert(c, w, d, "MANUFACTURING_DOCUMENT", "FOR_REVIEW")).code).toBeUndefined();
-      expect((await insert(c, w, d, "MANUFACTURING_DOCUMENT", "FOR_PRODUCTION")).code).toBe("LD021");
-      // …and the design cannot become APPROVED while its ManufacturingStandard pin is not approvable.
-      const err = await attemptDb(c, async () => approve(c, w, d));
-      expect(err?.code).toBe("LD008");
+      expect((await insert(c, w, d, "MANUFACTURING_DOCUMENT", "FOR_REVIEW", 0, null, mfg)).code).toBeUndefined();
+      // The design itself is approvable: the ManufacturingStandard is not a design dependency any more (0017)…
+      await approve(c, w, d);
+      // …but a FOR_PRODUCTION manufacturing document needs an APPROVED / LOCKED ManufacturingStandard, which cannot exist yet.
+      expect((await insert(c, w, d, "MANUFACTURING_DOCUMENT", "FOR_PRODUCTION", 0, null, mfg)).code).toBe("LD021");
+      // Without the chosen standard the provenance is incomplete (refused by @lintel/persistence, and by the database if bypassed).
+      const r = await row(c, w, d, "MANUFACTURING_DOCUMENT", "PRELIMINARY", 0, null, mfg);
+      expect((await attemptDb(c, () => insertRow(c, TABLE.MANUFACTURING_DOCUMENT, { ...r, manufacturing_standard_version_id: null })))?.code).toBe("LD016");
+    });
+  });
+});
+
+describe("SUPERSEDED designs: issue and release are forbidden; earlier issues stay valid", () => {
+  it("a drawing issued while LOCKED stays issued after supersession; nothing more can be issued from the SUPERSEDED design (LD017)", async () => {
+    await tx(async (c) => {
+      const w = await createWorld(c);
+      const d = await designVersion(c, w, await dependencies(c, w));
+      await submit(c, w, d);
+      await approve(c, w, d);
+      await transition(c, w, "SALES", "design", d.designVersionId, "LOCK", "locked for issue");
+      const first = await insert(c, w, d, "DRAWING", "FOR_PRODUCTION");
+      const second = await insert(c, w, d, "DRAWING", "FOR_PRODUCTION");
+      await actAs(c, null);
+      const issue = (id: string) => insertRow(c, "drawing_issue", { org_id: w.org, snapshot_id: id, issued_by: w.users.DESIGN_HEAD, reason: "issued" });
+      await issue(first.id);
+      // Version 2 supersedes version 1.
+      const next = randomUUID();
+      const pins = Object.keys(PIN_SUBJECT).join(", ");
+      await c.query(`INSERT INTO design_os.design_version (id, org_id, entity_id, project_id, room_revision_id, ${pins}, authored_engine_version, input_hash, version_number, source, change_reason, created_by, content_hash)
+        SELECT $2, org_id, entity_id, project_id, room_revision_id, ${pins}, authored_engine_version, input_hash, 2, source, 'second version', created_by, $3 FROM design_os.design_version WHERE id = $1`,
+        [d.designVersionId, next, contentHash({ next })]);
+      await validationRun(c, w, next, d.inputHash, 0);
+      await submit(c, w, { ...d, designVersionId: next });
+      await approve(c, w, { ...d, designVersionId: next });
+      await actAs(c, null);
+      expect((await one<{ status: string }>(c, "SELECT status FROM design_os.design_version WHERE id = $1", [d.designVersionId])).status).toBe("SUPERSEDED");
+      expect((await c.query("SELECT 1 FROM design_os.drawing_issue WHERE snapshot_id = $1", [first.id])).rowCount).toBe(1);
+      expect((await attemptDb(c, () => issue(second.id)))?.code).toBe("LD017");
+      expect((await insert(c, w, d, "DRAWING", "FOR_PRODUCTION")).code).toBe("LD021");
     });
   });
 });
@@ -205,10 +247,12 @@ describe("purposes never change and only FOR_PRODUCTION can be issued", () => {
   it("a FOR_REVIEW quotation of a LOCKED design can never be issued (LD017)", async () => {
     await tx(async (c) => {
       const w = await createWorld(c);
-      const d = await designVersion(c, w, await dependencies(c, w, { commercial: "approved" }));
+      const deps = await dependencies(c, w, { commercial: "approved" });
+      const d = await designVersion(c, w, deps);
       await submit(c, w, d);
       await approve(c, w, d);
-      const review = await insert(c, w, d, "QUOTATION", "FOR_REVIEW");
+      const review = await insert(c, w, d, "QUOTATION", "FOR_REVIEW", 0, deps.commercial);
+      expect(review.code).toBeUndefined();
       await transition(c, w, "SALES", "design", d.designVersionId, "LOCK", "locked for issue");
       await actAs(c, null);
       expect((await attemptDb(c, () => insertRow(c, "quotation_issue", { org_id: w.org, snapshot_id: review.id, issued_by: w.users.SALES, reason: "sent" })))?.code).toBe("LD017");

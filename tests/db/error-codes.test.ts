@@ -5,12 +5,12 @@
  */
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import type { DesignVersionRow, OutputPurpose, SnapshotKind } from "@lintel/persistence";
-import { buildSnapshotProvenance, buildSnapshotRecord, contentHash, designVersionFromRow, snapshotToRow } from "@lintel/persistence";
+import type { OutputPurpose, SnapshotKind } from "@lintel/persistence";
+import { contentHash, RECORD_VALIDATION_RUN_SQL } from "@lintel/persistence";
 import type { Tx } from "./support/db.js";
-import { actAs, attemptDb, insertRow, one, tx } from "./support/db.js";
+import { actAs, attemptDb, insertRow, tx } from "./support/db.js";
 import type { DesignFixture, World } from "./support/world.js";
-import { constructionStandard, createUser, createWorld, dependencies, designVersion, hashOf, transition, validationRun } from "./support/world.js";
+import { constructionStandard, createUser, createWorld, dependencies, designVersion, hashOf, outputChainRow, outputSnapshotRow, testEngine, transition, validationRun } from "./support/world.js";
 
 /** Codes produced by the tests below; the last test checks every API-facing registry row was produced. */
 const produced = new Set<string>();
@@ -35,11 +35,9 @@ function tr(c: Tx, w: World, role: Parameters<World["actor"]>[0], subject: strin
 }
 
 async function snapshotRow(c: Tx, w: World, d: DesignFixture, kind: SnapshotKind, blockers = 0, purpose: OutputPurpose = "PRELIMINARY"): Promise<Record<string, unknown>> {
+  const row = await outputChainRow(c, w, d.designVersionId, kind, null, { blockers, purpose, engineSeed: randomUUID() });
   await actAs(c, null);
-  const dv = designVersionFromRow(await one<DesignVersionRow>(c, "SELECT * FROM design_os.design_version WHERE id = $1", [d.designVersionId]));
-  const provenance = buildSnapshotProvenance(kind, { versionId: dv.envelope.versionId, status: dv.envelope.status, contentHash: dv.envelope.contentHash }, dv.pins, "0.1.0+test");
-  const record = buildSnapshotRecord({ snapshotId: randomUUID(), kind, purpose, provenance, inputHash: dv.inputHash, payload: { items: [] }, blockerCount: blockers, createdBy: w.users.DESIGNER, createdAt: "2026-09-26T10:00:00.000Z" });
-  return { ...snapshotToRow(record, { orgId: w.org }) };
+  return row;
 }
 
 async function approveDesign(c: Tx, w: World, d: DesignFixture): Promise<void> {
@@ -69,7 +67,7 @@ describe("every RAISE in design_os carries a registered LD SQLSTATE", () => {
     await tx(async (c) => {
       await actAs(c, null);
       const rows = (await c.query<{ sqlstate: string; code: string; http_status: number; api_facing: boolean }>("SELECT sqlstate, code, http_status, api_facing FROM design_os.error_code ORDER BY sqlstate")).rows;
-      expect(rows.length).toBe(29);
+      expect(rows.length).toBe(32);
       for (const r of rows) {
         if (r.sqlstate < "LD900") expect([r.code, r.api_facing, r.http_status >= 400 && r.http_status < 500]).toEqual([r.code, true, true]);
         else expect([r.code, r.api_facing, r.http_status]).toEqual([r.code, false, 500]);
@@ -81,7 +79,7 @@ describe("every RAISE in design_os carries a registered LD SQLSTATE", () => {
     await tx(async (c) => {
       const w = await createWorld(c);
       await actAs(c, w.actor("ADMIN"), { apiRole: true });
-      expect((await c.query("SELECT count(*) FROM design_os.error_code")).rows).toEqual([{ count: 29 }]);
+      expect((await c.query("SELECT count(*) FROM design_os.error_code")).rows).toEqual([{ count: 32 }]);
       expect((await sqlstate(c, () => c.query("INSERT INTO design_os.error_code VALUES ('LD099', 'X', 400, true, 'x')"))).code).toBe("42501");
       await actAs(c, null);
       expect((await sqlstate(c, () => c.query("UPDATE design_os.error_code SET http_status = 418 WHERE sqlstate = 'LD001'"))).code).toBe("LD015");
@@ -172,7 +170,8 @@ describe("each API-facing LD code is produced by its real database path", () => 
       const d = await designVersion(c, w, await dependencies(c, w), { withRun: false });
       const call = (actor: Parameters<typeof actAs>[1], id = d.designVersionId, hash = d.inputHash) => async () => {
         await actAs(c, actor, { apiRole: true });
-        await c.query("SELECT design_os.record_validation_run($1, $2, '0.1.0', '0000000000000000000000000000000000000000', 'engine', 0, 0, '[]'::jsonb, $3)", [id, hash, contentHash("run")]);
+        const e = testEngine("validation");
+        await c.query(RECORD_VALIDATION_RUN_SQL, ["APPROVAL", id, hash, e.name, e.version, e.build, e.fingerprint, JSON.stringify(e.closure), 0, 0, "[]", contentHash("run")]);
       };
       expect((await sqlstate(c, call(w.actor("SALES")))).code).toBe("LD001");
       expect((await sqlstate(c, call(null))).code).toBe("LD002");
@@ -230,6 +229,26 @@ describe("each API-facing LD code is produced by its real database path", () => 
         org_id: w.org, design_version_id: d.designVersionId, object_code: "OBJ-X", lineage_id: "obj_x", object_type: "BASE_CABINET", product_code: "KIT_BASE_STANDARD",
         product_version_id: randomUUID(), x_mm: 0, y_mm: 0, z_mm: 0, rotation_y: 0, width_mm: 600, height_mm: 720, depth_mm: 560, parameters: {}, status: "DRAFT",
       }))).code).toBe("LD019");
+    });
+  });
+  it("snapshot sources: LD025 incompatible upstream snapshot, LD026 weaker upstream purpose", async () => {
+    await tx(async (c) => {
+      const w = await createWorld(c);
+      const deps = await dependencies(c, w);
+      const d = await designVersion(c, w, deps);
+      const d2 = await designVersion(c, w, deps);
+      await actAs(c, null);
+      const bom2 = await outputSnapshotRow(c, w, d2.designVersionId, "BOM");
+      await insertRow(c, "bom_snapshot", bom2);
+      // A BOQ of one design version can never use another design version's BOM.
+      const foreign = await outputSnapshotRow(c, w, d.designVersionId, "BOQ", { sources: { bomSnapshotId: String(bom2.id) } });
+      expect((await sqlstate(c, () => insertRow(c, "boq_snapshot", foreign))).code).toBe("LD025");
+      await transition(c, w, "DESIGNER", "design", d.designVersionId, "SUBMIT");
+      const bom = await outputSnapshotRow(c, w, d.designVersionId, "BOM", { purpose: "PRELIMINARY" });
+      await insertRow(c, "bom_snapshot", bom);
+      const review = await outputSnapshotRow(c, w, d.designVersionId, "BOQ", { purpose: "FOR_REVIEW", sources: { bomSnapshotId: String(bom.id) } });
+      const weaker = await sqlstate(c, () => insertRow(c, "boq_snapshot", review));
+      expect(weaker).toMatchObject({ code: "LD026", detail: { source: "bom_snapshot_id", sourcePurpose: "PRELIMINARY", purpose: "FOR_REVIEW" } });
     });
   });
   it("internal integrity guards use LD9xx codes (never explained to API callers)", async () => {

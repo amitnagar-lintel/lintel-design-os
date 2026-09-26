@@ -4,10 +4,9 @@ import { jsonRow, jsonRows } from "./json.js";
 
 export type LifecycleStatus = "DRAFT" | "IN_REVIEW" | "APPROVED" | "LOCKED" | "SUPERSEDED";
 
-/** The 12 exact pins (column names). */
+/** The 9 exact engineering pins (column names). Commercial / manufacturing versions are chosen per output (0017). */
 export const PIN_COLUMNS = [
-  "construction_standard_version_id", "planning_standard_version_id", "edge_band_standard_version_id", "manufacturing_standard_version_id",
-  "pricing_standard_version_id", "quotation_policy_version_id", "material_catalog_version_id", "finish_catalog_version_id",
+  "construction_standard_version_id", "planning_standard_version_id", "edge_band_standard_version_id", "material_catalog_version_id", "finish_catalog_version_id",
   "hardware_catalog_version_id", "appliance_catalog_version_id", "product_catalog_version_id", "hettich_dataset_version_id",
 ] as const;
 export type PinColumn = (typeof PIN_COLUMNS)[number];
@@ -84,10 +83,17 @@ export interface ValidationRunRow {
   readonly design_version_id: string;
   readonly input_hash: string;
   readonly input_revision: number;
+  /** APPROVAL (SUBMIT / APPROVE evidence) or OUTPUT_GENERATION (evidence for one output-generation context). */
+  readonly purpose: "APPROVAL" | "OUTPUT_GENERATION";
+  /** NULL only for runs recorded before migration 0017. */
+  readonly dependency_set_hash: string | null;
+  readonly engine_name: string;
   readonly engine_version: string;
   /** NULL only for runs recorded before migration 0016. */
   readonly engine_build: string | null;
-  readonly engine_hash: string;
+  readonly engine_fingerprint: string;
+  /** NULL only for runs recorded before migration 0017. */
+  readonly engine_closure: Readonly<Record<string, unknown>> | null;
   readonly content_hash: string;
   readonly blocker_count: number;
   readonly warning_count: number;
@@ -98,7 +104,7 @@ export interface ValidationRunRow {
 
 const OBJECT_COLS = "id, org_id, design_version_id, object_code, lineage_id, object_type, product_code, product_version_id, x_mm, y_mm, z_mm, rotation_y, width_mm, height_mm, depth_mm, parameters, status";
 const OVERRIDE_COLS = "org_id, design_version_id, override_code, version, kind, object_ids, reason, created_by, created_at";
-const RUN_COLS = "id, seq, org_id, design_version_id, input_hash, input_revision, engine_version, engine_build, engine_hash, content_hash, blocker_count, warning_count, messages, created_by, created_at";
+const RUN_COLS = "id, seq, org_id, design_version_id, input_hash, input_revision, purpose, dependency_set_hash, engine_name, engine_version, engine_build, engine_fingerprint, engine_closure, content_hash, blocker_count, warning_count, messages, created_by, created_at";
 
 export interface NewDesignVersion extends PinColumns {
   readonly id: string;
@@ -211,10 +217,11 @@ export const designVersionsRepository = {
   run(tx: Tx, id: string): Promise<ValidationRunRow | null> {
     return jsonRow<ValidationRunRow>(tx, `SELECT ${RUN_COLS} FROM design_os.validation_run WHERE id = $1`, [id]);
   },
+  /** The latest APPROVAL run: the evidence SUBMIT / APPROVE use (OUTPUT_GENERATION runs belong to their snapshots). */
   latestRun(tx: Tx, versionId: string): Promise<ValidationRunRow | null> {
-    return jsonRow<ValidationRunRow>(tx, `SELECT ${RUN_COLS} FROM design_os.validation_run WHERE design_version_id = $1 ORDER BY seq DESC LIMIT 1`, [versionId]);
+    return jsonRow<ValidationRunRow>(tx, `SELECT ${RUN_COLS} FROM design_os.validation_run WHERE design_version_id = $1 AND purpose = 'APPROVAL' ORDER BY seq DESC LIMIT 1`, [versionId]);
   },
   recordRun(tx: Tx, args: readonly unknown[]): Promise<string> {
-    return tx.one<{ id: string }>("SELECT design_os.record_validation_run($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9)::text AS id", args).then((r) => r.id);
+    return tx.one<{ id: string }>("SELECT design_os.record_validation_run($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11::jsonb, $12)::text AS id", args).then((r) => r.id);
   },
 };

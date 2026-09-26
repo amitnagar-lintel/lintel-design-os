@@ -124,13 +124,24 @@ column: bom_snapshot.hettich_dataset_version_id uuid NOT NULL
 column: bom_snapshot.engine_version text NOT NULL
 column: bom_snapshot.input_hash text NOT NULL
 column: bom_snapshot.content_hash text NOT NULL
-column: bom_snapshot.engine_hash text
+column: bom_snapshot.engine_seal text
 column: bom_snapshot.blocker_count integer NOT NULL
 column: bom_snapshot.payload jsonb NOT NULL
 column: bom_snapshot.data_classification text NOT NULL DEFAULT 'PRODUCTION'::text
 column: bom_snapshot.purpose text NOT NULL DEFAULT 'PRELIMINARY'::text
 column: bom_snapshot.created_by uuid NOT NULL
 column: bom_snapshot.created_at timestamp with time zone NOT NULL DEFAULT now()
+column: bom_snapshot.input_revision integer NOT NULL
+column: bom_snapshot.dependency_hashes jsonb NOT NULL
+column: bom_snapshot.dependency_set_hash text NOT NULL
+column: bom_snapshot.commercial_input_hash text
+column: bom_snapshot.validation_run_id uuid NOT NULL
+column: bom_snapshot.engine_name text NOT NULL
+column: bom_snapshot.engine_build text NOT NULL
+column: bom_snapshot.engine_fingerprint text NOT NULL
+column: bom_snapshot.engine_closure jsonb NOT NULL
+column: bom_snapshot.warning_count integer NOT NULL
+column: bom_snapshot.output_complete boolean NOT NULL
 column: boq_snapshot.id uuid NOT NULL DEFAULT gen_random_uuid()
 column: boq_snapshot.org_id uuid NOT NULL
 column: boq_snapshot.kind design_os.snapshot_kind NOT NULL
@@ -152,13 +163,25 @@ column: boq_snapshot.hettich_dataset_version_id uuid NOT NULL
 column: boq_snapshot.engine_version text NOT NULL
 column: boq_snapshot.input_hash text NOT NULL
 column: boq_snapshot.content_hash text NOT NULL
-column: boq_snapshot.engine_hash text
+column: boq_snapshot.engine_seal text
 column: boq_snapshot.blocker_count integer NOT NULL
 column: boq_snapshot.payload jsonb NOT NULL
 column: boq_snapshot.data_classification text NOT NULL DEFAULT 'PRODUCTION'::text
 column: boq_snapshot.purpose text NOT NULL DEFAULT 'PRELIMINARY'::text
 column: boq_snapshot.created_by uuid NOT NULL
 column: boq_snapshot.created_at timestamp with time zone NOT NULL DEFAULT now()
+column: boq_snapshot.input_revision integer NOT NULL
+column: boq_snapshot.dependency_hashes jsonb NOT NULL
+column: boq_snapshot.dependency_set_hash text NOT NULL
+column: boq_snapshot.commercial_input_hash text
+column: boq_snapshot.validation_run_id uuid NOT NULL
+column: boq_snapshot.engine_name text NOT NULL
+column: boq_snapshot.engine_build text NOT NULL
+column: boq_snapshot.engine_fingerprint text NOT NULL
+column: boq_snapshot.engine_closure jsonb NOT NULL
+column: boq_snapshot.warning_count integer NOT NULL
+column: boq_snapshot.output_complete boolean NOT NULL
+column: boq_snapshot.bom_snapshot_id uuid NOT NULL
 column: client.id uuid NOT NULL DEFAULT gen_random_uuid()
 column: client.org_id uuid NOT NULL
 column: client.client_code text NOT NULL
@@ -254,9 +277,6 @@ column: design_version.room_revision_id uuid NOT NULL
 column: design_version.construction_standard_version_id uuid NOT NULL
 column: design_version.planning_standard_version_id uuid NOT NULL
 column: design_version.edge_band_standard_version_id uuid NOT NULL
-column: design_version.manufacturing_standard_version_id uuid
-column: design_version.pricing_standard_version_id uuid
-column: design_version.quotation_policy_version_id uuid
 column: design_version.material_catalog_version_id uuid NOT NULL
 column: design_version.finish_catalog_version_id uuid NOT NULL
 column: design_version.hardware_catalog_version_id uuid NOT NULL
@@ -312,18 +332,38 @@ column: drawing_snapshot.hettich_dataset_version_id uuid NOT NULL
 column: drawing_snapshot.engine_version text NOT NULL
 column: drawing_snapshot.input_hash text NOT NULL
 column: drawing_snapshot.content_hash text NOT NULL
-column: drawing_snapshot.engine_hash text
+column: drawing_snapshot.engine_seal text
 column: drawing_snapshot.blocker_count integer NOT NULL
 column: drawing_snapshot.payload jsonb NOT NULL
 column: drawing_snapshot.data_classification text NOT NULL DEFAULT 'PRODUCTION'::text
 column: drawing_snapshot.purpose text NOT NULL DEFAULT 'PRELIMINARY'::text
 column: drawing_snapshot.created_by uuid NOT NULL
 column: drawing_snapshot.created_at timestamp with time zone NOT NULL DEFAULT now()
-column: drawing_snapshot.drawing_type text NOT NULL DEFAULT 'FRONT_ELEVATION'::text
+column: drawing_snapshot.drawing_type text NOT NULL
+column: drawing_snapshot.input_revision integer NOT NULL
+column: drawing_snapshot.dependency_hashes jsonb NOT NULL
+column: drawing_snapshot.dependency_set_hash text NOT NULL
+column: drawing_snapshot.commercial_input_hash text
+column: drawing_snapshot.validation_run_id uuid NOT NULL
+column: drawing_snapshot.engine_name text NOT NULL
+column: drawing_snapshot.engine_build text NOT NULL
+column: drawing_snapshot.engine_fingerprint text NOT NULL
+column: drawing_snapshot.engine_closure jsonb NOT NULL
+column: drawing_snapshot.warning_count integer NOT NULL
+column: drawing_snapshot.output_complete boolean NOT NULL
+column: drawing_snapshot.drawing_scope text NOT NULL
+column: drawing_snapshot.wall_id text
+column: drawing_snapshot.object_lineage_id text
+column: drawing_snapshot.cut_x_mm numeric
+column: drawing_snapshot.drawing_number text NOT NULL
+column: drawing_snapshot.drawing_revision text NOT NULL
+column: drawing_snapshot.file_manifest_hash text NOT NULL
 column: drawing_snapshot_file.org_id uuid NOT NULL
 column: drawing_snapshot_file.snapshot_id uuid NOT NULL
 column: drawing_snapshot_file.file_object_id uuid NOT NULL
 column: drawing_snapshot_file.format text NOT NULL
+column: drawing_snapshot_file.sequence integer NOT NULL
+column: drawing_snapshot_file.sheet_index integer
 column: edge_band.id uuid NOT NULL DEFAULT gen_random_uuid()
 column: edge_band.org_id uuid NOT NULL
 column: edge_band.code text NOT NULL
@@ -671,13 +711,24 @@ column: manufacturing_document_snapshot.hettich_dataset_version_id uuid NOT NULL
 column: manufacturing_document_snapshot.engine_version text NOT NULL
 column: manufacturing_document_snapshot.input_hash text NOT NULL
 column: manufacturing_document_snapshot.content_hash text NOT NULL
-column: manufacturing_document_snapshot.engine_hash text
+column: manufacturing_document_snapshot.engine_seal text
 column: manufacturing_document_snapshot.blocker_count integer NOT NULL
 column: manufacturing_document_snapshot.payload jsonb NOT NULL
 column: manufacturing_document_snapshot.data_classification text NOT NULL DEFAULT 'PRODUCTION'::text
 column: manufacturing_document_snapshot.purpose text NOT NULL DEFAULT 'PRELIMINARY'::text
 column: manufacturing_document_snapshot.created_by uuid NOT NULL
 column: manufacturing_document_snapshot.created_at timestamp with time zone NOT NULL DEFAULT now()
+column: manufacturing_document_snapshot.input_revision integer NOT NULL
+column: manufacturing_document_snapshot.dependency_hashes jsonb NOT NULL
+column: manufacturing_document_snapshot.dependency_set_hash text NOT NULL
+column: manufacturing_document_snapshot.commercial_input_hash text
+column: manufacturing_document_snapshot.validation_run_id uuid NOT NULL
+column: manufacturing_document_snapshot.engine_name text NOT NULL
+column: manufacturing_document_snapshot.engine_build text NOT NULL
+column: manufacturing_document_snapshot.engine_fingerprint text NOT NULL
+column: manufacturing_document_snapshot.engine_closure jsonb NOT NULL
+column: manufacturing_document_snapshot.warning_count integer NOT NULL
+column: manufacturing_document_snapshot.output_complete boolean NOT NULL
 column: manufacturing_document_snapshot_file.org_id uuid NOT NULL
 column: manufacturing_document_snapshot_file.snapshot_id uuid NOT NULL
 column: manufacturing_document_snapshot_file.file_object_id uuid NOT NULL
@@ -804,6 +855,15 @@ column: organization.name text NOT NULL
 column: organization.status text NOT NULL DEFAULT 'ACTIVE'::text
 column: organization.parent_org_id uuid
 column: organization.created_at timestamp with time zone NOT NULL DEFAULT now()
+column: output_engine.name text NOT NULL
+column: output_engine.snapshot_kind design_os.snapshot_kind
+column: output_engine.description text NOT NULL
+column: output_file_format.code text NOT NULL
+column: output_file_format.content_type text NOT NULL
+column: output_file_format.extension text NOT NULL
+column: output_file_format.sort_order integer NOT NULL
+column: output_file_format.sheet_scoped boolean NOT NULL
+column: output_file_format.kinds design_os.snapshot_kind[] NOT NULL
 column: output_purpose_rule.kind design_os.snapshot_kind NOT NULL
 column: output_purpose_rule.purpose text NOT NULL
 column: output_purpose_rule.design_statuses design_os.record_lifecycle_status[] NOT NULL
@@ -873,13 +933,26 @@ column: pricing_snapshot.hettich_dataset_version_id uuid NOT NULL
 column: pricing_snapshot.engine_version text NOT NULL
 column: pricing_snapshot.input_hash text NOT NULL
 column: pricing_snapshot.content_hash text NOT NULL
-column: pricing_snapshot.engine_hash text
+column: pricing_snapshot.engine_seal text
 column: pricing_snapshot.blocker_count integer NOT NULL
 column: pricing_snapshot.payload jsonb NOT NULL
 column: pricing_snapshot.data_classification text NOT NULL DEFAULT 'PRODUCTION'::text
 column: pricing_snapshot.purpose text NOT NULL DEFAULT 'PRELIMINARY'::text
 column: pricing_snapshot.created_by uuid NOT NULL
 column: pricing_snapshot.created_at timestamp with time zone NOT NULL DEFAULT now()
+column: pricing_snapshot.input_revision integer NOT NULL
+column: pricing_snapshot.dependency_hashes jsonb NOT NULL
+column: pricing_snapshot.dependency_set_hash text NOT NULL
+column: pricing_snapshot.commercial_input_hash text
+column: pricing_snapshot.validation_run_id uuid NOT NULL
+column: pricing_snapshot.engine_name text NOT NULL
+column: pricing_snapshot.engine_build text NOT NULL
+column: pricing_snapshot.engine_fingerprint text NOT NULL
+column: pricing_snapshot.engine_closure jsonb NOT NULL
+column: pricing_snapshot.warning_count integer NOT NULL
+column: pricing_snapshot.output_complete boolean NOT NULL
+column: pricing_snapshot.bom_snapshot_id uuid NOT NULL
+column: pricing_snapshot.boq_snapshot_id uuid NOT NULL
 column: pricing_standard.id uuid NOT NULL DEFAULT gen_random_uuid()
 column: pricing_standard.org_id uuid NOT NULL
 column: pricing_standard.code text NOT NULL
@@ -1060,7 +1133,7 @@ column: quotation_snapshot.hettich_dataset_version_id uuid NOT NULL
 column: quotation_snapshot.engine_version text NOT NULL
 column: quotation_snapshot.input_hash text NOT NULL
 column: quotation_snapshot.content_hash text NOT NULL
-column: quotation_snapshot.engine_hash text
+column: quotation_snapshot.engine_seal text
 column: quotation_snapshot.blocker_count integer NOT NULL
 column: quotation_snapshot.payload jsonb NOT NULL
 column: quotation_snapshot.data_classification text NOT NULL DEFAULT 'PRODUCTION'::text
@@ -1068,6 +1141,19 @@ column: quotation_snapshot.purpose text NOT NULL DEFAULT 'PRELIMINARY'::text
 column: quotation_snapshot.created_by uuid NOT NULL
 column: quotation_snapshot.created_at timestamp with time zone NOT NULL DEFAULT now()
 column: quotation_snapshot.revision_number integer NOT NULL DEFAULT 1
+column: quotation_snapshot.input_revision integer NOT NULL
+column: quotation_snapshot.dependency_hashes jsonb NOT NULL
+column: quotation_snapshot.dependency_set_hash text NOT NULL
+column: quotation_snapshot.commercial_input_hash text
+column: quotation_snapshot.validation_run_id uuid NOT NULL
+column: quotation_snapshot.engine_name text NOT NULL
+column: quotation_snapshot.engine_build text NOT NULL
+column: quotation_snapshot.engine_fingerprint text NOT NULL
+column: quotation_snapshot.engine_closure jsonb NOT NULL
+column: quotation_snapshot.warning_count integer NOT NULL
+column: quotation_snapshot.output_complete boolean NOT NULL
+column: quotation_snapshot.boq_snapshot_id uuid NOT NULL
+column: quotation_snapshot.pricing_snapshot_id uuid NOT NULL
 column: rate_card_line.org_id uuid NOT NULL
 column: rate_card_line.version_id uuid NOT NULL
 column: rate_card_line.measure text NOT NULL
@@ -1147,7 +1233,7 @@ column: validation_run.design_version_id uuid NOT NULL
 column: validation_run.input_hash text NOT NULL
 column: validation_run.input_revision integer NOT NULL
 column: validation_run.engine_version text NOT NULL
-column: validation_run.engine_hash text NOT NULL
+column: validation_run.engine_fingerprint text NOT NULL
 column: validation_run.content_hash text NOT NULL
 column: validation_run.blocker_count integer NOT NULL
 column: validation_run.warning_count integer NOT NULL
@@ -1155,6 +1241,10 @@ column: validation_run.messages jsonb NOT NULL
 column: validation_run.created_by uuid NOT NULL
 column: validation_run.created_at timestamp with time zone NOT NULL DEFAULT now()
 column: validation_run.engine_build text
+column: validation_run.purpose text NOT NULL
+column: validation_run.engine_name text NOT NULL
+column: validation_run.engine_closure jsonb
+column: validation_run.dependency_set_hash text
 column: versioned_table.subject_type text NOT NULL
 column: versioned_table.version_table regclass NOT NULL
 column: versioned_table.entity_table regclass NOT NULL
@@ -1235,18 +1325,28 @@ constraint: design_os.audit_log audit_log_pkey PRIMARY KEY (id)
 constraint: design_os.audit_log audit_log_row_hash_check CHECK ((row_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.bom_snapshot bom_snapshot_appliance_fk FOREIGN KEY (org_id, appliance_catalog_version_id) REFERENCES design_os.appliance_catalog_version(org_id, id)
 constraint: design_os.bom_snapshot bom_snapshot_blocker_count_check CHECK ((blocker_count >= 0))
+constraint: design_os.bom_snapshot bom_snapshot_commercial_input CHECK (((kind = ANY (ARRAY['PRICING'::design_os.snapshot_kind, 'QUOTATION'::design_os.snapshot_kind])) = (commercial_input_hash IS NOT NULL)))
+constraint: design_os.bom_snapshot bom_snapshot_commercial_input_hash_check CHECK ((commercial_input_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.bom_snapshot bom_snapshot_construction_fk FOREIGN KEY (org_id, construction_standard_version_id) REFERENCES design_os.construction_standard_version(org_id, id)
 constraint: design_os.bom_snapshot bom_snapshot_content_hash_check CHECK ((content_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.bom_snapshot bom_snapshot_created_by_fkey FOREIGN KEY (created_by) REFERENCES design_os.app_user(id)
 constraint: design_os.bom_snapshot bom_snapshot_data_classification_check CHECK ((data_classification = 'PRODUCTION'::text))
+constraint: design_os.bom_snapshot bom_snapshot_dependency_hashes_check CHECK ((jsonb_typeof(dependency_hashes) = 'object'::text))
+constraint: design_os.bom_snapshot bom_snapshot_dependency_set_hash_check CHECK ((dependency_set_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.bom_snapshot bom_snapshot_design_version_content_hash_check CHECK ((design_version_content_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.bom_snapshot bom_snapshot_design_version_fk FOREIGN KEY (org_id, design_version_id) REFERENCES design_os.design_version(org_id, id)
 constraint: design_os.bom_snapshot bom_snapshot_edge_band_fk FOREIGN KEY (org_id, edge_band_standard_version_id) REFERENCES design_os.edge_band_standard_version(org_id, id)
+constraint: design_os.bom_snapshot bom_snapshot_engine_build_check CHECK ((engine_build ~ '^[0-9A-Za-z][0-9A-Za-z._+-]{6,127}$'::text))
+constraint: design_os.bom_snapshot bom_snapshot_engine_closure_check CHECK ((jsonb_typeof(engine_closure) = 'object'::text))
+constraint: design_os.bom_snapshot bom_snapshot_engine_fingerprint_check CHECK ((engine_fingerprint ~ '^sha256:[0-9a-f]{64}$'::text))
+constraint: design_os.bom_snapshot bom_snapshot_engine_name_check CHECK ((engine_name = 'bom'::text))
+constraint: design_os.bom_snapshot bom_snapshot_engine_name_fkey FOREIGN KEY (engine_name) REFERENCES design_os.output_engine(name)
 constraint: design_os.bom_snapshot bom_snapshot_engine_version_check CHECK ((btrim(engine_version) <> ''::text))
 constraint: design_os.bom_snapshot bom_snapshot_finish_fk FOREIGN KEY (org_id, finish_catalog_version_id) REFERENCES design_os.finish_catalog_version(org_id, id)
 constraint: design_os.bom_snapshot bom_snapshot_hardware_fk FOREIGN KEY (org_id, hardware_catalog_version_id) REFERENCES design_os.hardware_catalog_version(org_id, id)
 constraint: design_os.bom_snapshot bom_snapshot_hettich_fk FOREIGN KEY (org_id, hettich_dataset_version_id) REFERENCES design_os.hettich_dataset_version(org_id, id)
 constraint: design_os.bom_snapshot bom_snapshot_input_hash_check CHECK ((input_hash ~ '^sha256:[0-9a-f]{64}$'::text))
+constraint: design_os.bom_snapshot bom_snapshot_input_revision_check CHECK ((input_revision >= 1))
 constraint: design_os.bom_snapshot bom_snapshot_kind_check CHECK ((kind = 'BOM'::design_os.snapshot_kind))
 constraint: design_os.bom_snapshot bom_snapshot_manufacturing_fk FOREIGN KEY (org_id, manufacturing_standard_version_id) REFERENCES design_os.manufacturing_standard_version(org_id, id)
 constraint: design_os.bom_snapshot bom_snapshot_material_fk FOREIGN KEY (org_id, material_catalog_version_id) REFERENCES design_os.material_catalog_version(org_id, id)
@@ -1260,20 +1360,33 @@ constraint: design_os.bom_snapshot bom_snapshot_product_fk FOREIGN KEY (org_id, 
 constraint: design_os.bom_snapshot bom_snapshot_purpose_check CHECK ((purpose = ANY (ARRAY['PRELIMINARY'::text, 'FOR_REVIEW'::text, 'FOR_PRODUCTION'::text])))
 constraint: design_os.bom_snapshot bom_snapshot_purpose_rule_fk FOREIGN KEY (kind, purpose) REFERENCES design_os.output_purpose_rule(kind, purpose)
 constraint: design_os.bom_snapshot bom_snapshot_quotation_policy_fk FOREIGN KEY (org_id, quotation_policy_version_id) REFERENCES design_os.quotation_policy_version(org_id, id)
+constraint: design_os.bom_snapshot bom_snapshot_validation_run_fk FOREIGN KEY (org_id, validation_run_id) REFERENCES design_os.validation_run(org_id, id)
+constraint: design_os.bom_snapshot bom_snapshot_warning_count_check CHECK ((warning_count >= 0))
 constraint: design_os.boq_snapshot boq_snapshot_appliance_fk FOREIGN KEY (org_id, appliance_catalog_version_id) REFERENCES design_os.appliance_catalog_version(org_id, id)
 constraint: design_os.boq_snapshot boq_snapshot_blocker_count_check CHECK ((blocker_count >= 0))
+constraint: design_os.boq_snapshot boq_snapshot_bom_source_fk FOREIGN KEY (org_id, bom_snapshot_id) REFERENCES design_os.bom_snapshot(org_id, id)
+constraint: design_os.boq_snapshot boq_snapshot_commercial_input CHECK (((kind = ANY (ARRAY['PRICING'::design_os.snapshot_kind, 'QUOTATION'::design_os.snapshot_kind])) = (commercial_input_hash IS NOT NULL)))
+constraint: design_os.boq_snapshot boq_snapshot_commercial_input_hash_check CHECK ((commercial_input_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.boq_snapshot boq_snapshot_construction_fk FOREIGN KEY (org_id, construction_standard_version_id) REFERENCES design_os.construction_standard_version(org_id, id)
 constraint: design_os.boq_snapshot boq_snapshot_content_hash_check CHECK ((content_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.boq_snapshot boq_snapshot_created_by_fkey FOREIGN KEY (created_by) REFERENCES design_os.app_user(id)
 constraint: design_os.boq_snapshot boq_snapshot_data_classification_check CHECK ((data_classification = 'PRODUCTION'::text))
+constraint: design_os.boq_snapshot boq_snapshot_dependency_hashes_check CHECK ((jsonb_typeof(dependency_hashes) = 'object'::text))
+constraint: design_os.boq_snapshot boq_snapshot_dependency_set_hash_check CHECK ((dependency_set_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.boq_snapshot boq_snapshot_design_version_content_hash_check CHECK ((design_version_content_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.boq_snapshot boq_snapshot_design_version_fk FOREIGN KEY (org_id, design_version_id) REFERENCES design_os.design_version(org_id, id)
 constraint: design_os.boq_snapshot boq_snapshot_edge_band_fk FOREIGN KEY (org_id, edge_band_standard_version_id) REFERENCES design_os.edge_band_standard_version(org_id, id)
+constraint: design_os.boq_snapshot boq_snapshot_engine_build_check CHECK ((engine_build ~ '^[0-9A-Za-z][0-9A-Za-z._+-]{6,127}$'::text))
+constraint: design_os.boq_snapshot boq_snapshot_engine_closure_check CHECK ((jsonb_typeof(engine_closure) = 'object'::text))
+constraint: design_os.boq_snapshot boq_snapshot_engine_fingerprint_check CHECK ((engine_fingerprint ~ '^sha256:[0-9a-f]{64}$'::text))
+constraint: design_os.boq_snapshot boq_snapshot_engine_name_check CHECK ((engine_name = 'boq'::text))
+constraint: design_os.boq_snapshot boq_snapshot_engine_name_fkey FOREIGN KEY (engine_name) REFERENCES design_os.output_engine(name)
 constraint: design_os.boq_snapshot boq_snapshot_engine_version_check CHECK ((btrim(engine_version) <> ''::text))
 constraint: design_os.boq_snapshot boq_snapshot_finish_fk FOREIGN KEY (org_id, finish_catalog_version_id) REFERENCES design_os.finish_catalog_version(org_id, id)
 constraint: design_os.boq_snapshot boq_snapshot_hardware_fk FOREIGN KEY (org_id, hardware_catalog_version_id) REFERENCES design_os.hardware_catalog_version(org_id, id)
 constraint: design_os.boq_snapshot boq_snapshot_hettich_fk FOREIGN KEY (org_id, hettich_dataset_version_id) REFERENCES design_os.hettich_dataset_version(org_id, id)
 constraint: design_os.boq_snapshot boq_snapshot_input_hash_check CHECK ((input_hash ~ '^sha256:[0-9a-f]{64}$'::text))
+constraint: design_os.boq_snapshot boq_snapshot_input_revision_check CHECK ((input_revision >= 1))
 constraint: design_os.boq_snapshot boq_snapshot_kind_check CHECK ((kind = 'BOQ'::design_os.snapshot_kind))
 constraint: design_os.boq_snapshot boq_snapshot_manufacturing_fk FOREIGN KEY (org_id, manufacturing_standard_version_id) REFERENCES design_os.manufacturing_standard_version(org_id, id)
 constraint: design_os.boq_snapshot boq_snapshot_material_fk FOREIGN KEY (org_id, material_catalog_version_id) REFERENCES design_os.material_catalog_version(org_id, id)
@@ -1287,6 +1400,8 @@ constraint: design_os.boq_snapshot boq_snapshot_product_fk FOREIGN KEY (org_id, 
 constraint: design_os.boq_snapshot boq_snapshot_purpose_check CHECK ((purpose = ANY (ARRAY['PRELIMINARY'::text, 'FOR_REVIEW'::text, 'FOR_PRODUCTION'::text])))
 constraint: design_os.boq_snapshot boq_snapshot_purpose_rule_fk FOREIGN KEY (kind, purpose) REFERENCES design_os.output_purpose_rule(kind, purpose)
 constraint: design_os.boq_snapshot boq_snapshot_quotation_policy_fk FOREIGN KEY (org_id, quotation_policy_version_id) REFERENCES design_os.quotation_policy_version(org_id, id)
+constraint: design_os.boq_snapshot boq_snapshot_validation_run_fk FOREIGN KEY (org_id, validation_run_id) REFERENCES design_os.validation_run(org_id, id)
+constraint: design_os.boq_snapshot boq_snapshot_warning_count_check CHECK ((warning_count >= 0))
 constraint: design_os.client client_code_unique UNIQUE (org_id, client_code)
 constraint: design_os.client client_org_id_fkey FOREIGN KEY (org_id) REFERENCES design_os.organization(id)
 constraint: design_os.client client_org_id_unique UNIQUE (org_id, id)
@@ -1372,7 +1487,6 @@ constraint: design_os.design_version design_version_input_hash_check CHECK ((inp
 constraint: design_os.design_version design_version_input_revision_check CHECK ((input_revision >= 1))
 constraint: design_os.design_version design_version_locked_by_fkey FOREIGN KEY (locked_by) REFERENCES design_os.app_user(id)
 constraint: design_os.design_version design_version_locked_iff CHECK ((((locked_by IS NULL) = (locked_at IS NULL)) AND ((status <> 'LOCKED'::design_os.record_lifecycle_status) OR (locked_by IS NOT NULL)) AND ((status <> ALL (ARRAY['DRAFT'::design_os.record_lifecycle_status, 'IN_REVIEW'::design_os.record_lifecycle_status, 'APPROVED'::design_os.record_lifecycle_status])) OR (locked_by IS NULL))))
-constraint: design_os.design_version design_version_manufacturing_fk FOREIGN KEY (org_id, manufacturing_standard_version_id) REFERENCES design_os.manufacturing_standard_version(org_id, id)
 constraint: design_os.design_version design_version_material_fk FOREIGN KEY (org_id, material_catalog_version_id) REFERENCES design_os.material_catalog_version(org_id, id)
 constraint: design_os.design_version design_version_not_self_superseded CHECK (((superseded_by IS NULL) OR (superseded_by <> id)))
 constraint: design_os.design_version design_version_org_entity_id_unique UNIQUE (org_id, entity_id, id)
@@ -1380,11 +1494,9 @@ constraint: design_os.design_version design_version_org_id_fkey FOREIGN KEY (org
 constraint: design_os.design_version design_version_org_id_unique UNIQUE (org_id, id)
 constraint: design_os.design_version design_version_pkey PRIMARY KEY (id)
 constraint: design_os.design_version design_version_planning_fk FOREIGN KEY (org_id, planning_standard_version_id) REFERENCES design_os.planning_standard_version(org_id, id)
-constraint: design_os.design_version design_version_pricing_fk FOREIGN KEY (org_id, pricing_standard_version_id) REFERENCES design_os.pricing_standard_version(org_id, id)
 constraint: design_os.design_version design_version_product_fk FOREIGN KEY (org_id, product_catalog_version_id) REFERENCES design_os.product_catalog_version(org_id, id)
 constraint: design_os.design_version design_version_production_only CHECK ((data_classification = 'PRODUCTION'::text))
 constraint: design_os.design_version design_version_project_fk FOREIGN KEY (org_id, entity_id, project_id) REFERENCES design_os.design(org_id, id, project_id)
-constraint: design_os.design_version design_version_quotation_policy_fk FOREIGN KEY (org_id, quotation_policy_version_id) REFERENCES design_os.quotation_policy_version(org_id, id)
 constraint: design_os.design_version design_version_reason_required CHECK ((btrim(change_reason) <> ''::text))
 constraint: design_os.design_version design_version_room_revision_fk FOREIGN KEY (org_id, room_revision_id) REFERENCES design_os.room_revision(org_id, id)
 constraint: design_os.design_version design_version_source_required CHECK ((btrim(source) <> ''::text))
@@ -1398,24 +1510,42 @@ constraint: design_os.drawing_issue drawing_issue_issued_by_fkey FOREIGN KEY (is
 constraint: design_os.drawing_issue drawing_issue_pkey PRIMARY KEY (snapshot_id)
 constraint: design_os.drawing_issue drawing_issue_reason_check CHECK ((btrim(reason) <> ''::text))
 constraint: design_os.drawing_issue drawing_issue_snapshot_fk FOREIGN KEY (org_id, snapshot_id) REFERENCES design_os.drawing_snapshot(org_id, id)
+constraint: design_os.drawing_snapshot check_drawing_manifest TRIGGER DEFERRABLE INITIALLY DEFERRED
 constraint: design_os.drawing_snapshot drawing_snapshot_appliance_fk FOREIGN KEY (org_id, appliance_catalog_version_id) REFERENCES design_os.appliance_catalog_version(org_id, id)
 constraint: design_os.drawing_snapshot drawing_snapshot_blocker_count_check CHECK ((blocker_count >= 0))
+constraint: design_os.drawing_snapshot drawing_snapshot_commercial_input CHECK (((kind = ANY (ARRAY['PRICING'::design_os.snapshot_kind, 'QUOTATION'::design_os.snapshot_kind])) = (commercial_input_hash IS NOT NULL)))
+constraint: design_os.drawing_snapshot drawing_snapshot_commercial_input_hash_check CHECK ((commercial_input_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.drawing_snapshot drawing_snapshot_construction_fk FOREIGN KEY (org_id, construction_standard_version_id) REFERENCES design_os.construction_standard_version(org_id, id)
 constraint: design_os.drawing_snapshot drawing_snapshot_content_hash_check CHECK ((content_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.drawing_snapshot drawing_snapshot_created_by_fkey FOREIGN KEY (created_by) REFERENCES design_os.app_user(id)
+constraint: design_os.drawing_snapshot drawing_snapshot_cut CHECK (((cut_x_mm IS NULL) OR (drawing_type = 'SIDE_SECTION'::text)))
 constraint: design_os.drawing_snapshot drawing_snapshot_data_classification_check CHECK ((data_classification = 'PRODUCTION'::text))
+constraint: design_os.drawing_snapshot drawing_snapshot_dependency_hashes_check CHECK ((jsonb_typeof(dependency_hashes) = 'object'::text))
+constraint: design_os.drawing_snapshot drawing_snapshot_dependency_set_hash_check CHECK ((dependency_set_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.drawing_snapshot drawing_snapshot_design_version_content_hash_check CHECK ((design_version_content_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.drawing_snapshot drawing_snapshot_design_version_fk FOREIGN KEY (org_id, design_version_id) REFERENCES design_os.design_version(org_id, id)
+constraint: design_os.drawing_snapshot drawing_snapshot_drawing_number_check CHECK ((drawing_number ~ '^[A-Z0-9][A-Z0-9-]{0,39}$'::text))
+constraint: design_os.drawing_snapshot drawing_snapshot_drawing_revision_check CHECK ((drawing_revision ~ '^[A-Z0-9]{1,4}$'::text))
+constraint: design_os.drawing_snapshot drawing_snapshot_drawing_scope_check CHECK ((drawing_scope = ANY (ARRAY['ROOM'::text, 'OBJECT'::text])))
 constraint: design_os.drawing_snapshot drawing_snapshot_edge_band_fk FOREIGN KEY (org_id, edge_band_standard_version_id) REFERENCES design_os.edge_band_standard_version(org_id, id)
+constraint: design_os.drawing_snapshot drawing_snapshot_engine_build_check CHECK ((engine_build ~ '^[0-9A-Za-z][0-9A-Za-z._+-]{6,127}$'::text))
+constraint: design_os.drawing_snapshot drawing_snapshot_engine_closure_check CHECK ((jsonb_typeof(engine_closure) = 'object'::text))
+constraint: design_os.drawing_snapshot drawing_snapshot_engine_fingerprint_check CHECK ((engine_fingerprint ~ '^sha256:[0-9a-f]{64}$'::text))
+constraint: design_os.drawing_snapshot drawing_snapshot_engine_name_check CHECK ((engine_name = 'drawing'::text))
+constraint: design_os.drawing_snapshot drawing_snapshot_engine_name_fkey FOREIGN KEY (engine_name) REFERENCES design_os.output_engine(name)
 constraint: design_os.drawing_snapshot drawing_snapshot_engine_version_check CHECK ((btrim(engine_version) <> ''::text))
+constraint: design_os.drawing_snapshot drawing_snapshot_file_manifest_hash_check CHECK ((file_manifest_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.drawing_snapshot drawing_snapshot_finish_fk FOREIGN KEY (org_id, finish_catalog_version_id) REFERENCES design_os.finish_catalog_version(org_id, id)
 constraint: design_os.drawing_snapshot drawing_snapshot_hardware_fk FOREIGN KEY (org_id, hardware_catalog_version_id) REFERENCES design_os.hardware_catalog_version(org_id, id)
 constraint: design_os.drawing_snapshot drawing_snapshot_hettich_fk FOREIGN KEY (org_id, hettich_dataset_version_id) REFERENCES design_os.hettich_dataset_version(org_id, id)
 constraint: design_os.drawing_snapshot drawing_snapshot_input_hash_check CHECK ((input_hash ~ '^sha256:[0-9a-f]{64}$'::text))
+constraint: design_os.drawing_snapshot drawing_snapshot_input_revision_check CHECK ((input_revision >= 1))
 constraint: design_os.drawing_snapshot drawing_snapshot_kind_check CHECK ((kind = 'DRAWING'::design_os.snapshot_kind))
 constraint: design_os.drawing_snapshot drawing_snapshot_manufacturing_fk FOREIGN KEY (org_id, manufacturing_standard_version_id) REFERENCES design_os.manufacturing_standard_version(org_id, id)
 constraint: design_os.drawing_snapshot drawing_snapshot_material_fk FOREIGN KEY (org_id, material_catalog_version_id) REFERENCES design_os.material_catalog_version(org_id, id)
 constraint: design_os.drawing_snapshot drawing_snapshot_no_test_fixture CHECK ((NOT jsonb_path_exists(payload, '$.**?(@ == "TEST_FIXTURE")'::jsonpath)))
+constraint: design_os.drawing_snapshot drawing_snapshot_object CHECK (((drawing_scope = 'OBJECT'::text) = (object_lineage_id IS NOT NULL)))
+constraint: design_os.drawing_snapshot drawing_snapshot_object_lineage_id_check CHECK ((btrim(object_lineage_id) <> ''::text))
 constraint: design_os.drawing_snapshot drawing_snapshot_org_id_fkey FOREIGN KEY (org_id) REFERENCES design_os.organization(id)
 constraint: design_os.drawing_snapshot drawing_snapshot_org_id_unique UNIQUE (org_id, id)
 constraint: design_os.drawing_snapshot drawing_snapshot_pkey PRIMARY KEY (id)
@@ -1425,10 +1555,20 @@ constraint: design_os.drawing_snapshot drawing_snapshot_product_fk FOREIGN KEY (
 constraint: design_os.drawing_snapshot drawing_snapshot_purpose_check CHECK ((purpose = ANY (ARRAY['PRELIMINARY'::text, 'FOR_REVIEW'::text, 'FOR_PRODUCTION'::text])))
 constraint: design_os.drawing_snapshot drawing_snapshot_purpose_rule_fk FOREIGN KEY (kind, purpose) REFERENCES design_os.output_purpose_rule(kind, purpose)
 constraint: design_os.drawing_snapshot drawing_snapshot_quotation_policy_fk FOREIGN KEY (org_id, quotation_policy_version_id) REFERENCES design_os.quotation_policy_version(org_id, id)
+constraint: design_os.drawing_snapshot drawing_snapshot_scope CHECK (((drawing_type = ANY (ARRAY['WALL_INTERNAL_ELEVATION'::text, 'ROOM_PANEL_SCHEDULE'::text])) = (drawing_scope = 'ROOM'::text)))
+constraint: design_os.drawing_snapshot drawing_snapshot_type_check CHECK ((drawing_type = ANY (ARRAY['WALL_INTERNAL_ELEVATION'::text, 'ROOM_PANEL_SCHEDULE'::text, 'FRONT_ELEVATION'::text, 'SIDE_SECTION'::text, 'CABINET_INTERNAL_ELEVATION'::text, 'PANEL_SCHEDULE'::text])))
+constraint: design_os.drawing_snapshot drawing_snapshot_validation_run_fk FOREIGN KEY (org_id, validation_run_id) REFERENCES design_os.validation_run(org_id, id)
+constraint: design_os.drawing_snapshot drawing_snapshot_wall CHECK (((drawing_type = 'WALL_INTERNAL_ELEVATION'::text) = (wall_id IS NOT NULL)))
+constraint: design_os.drawing_snapshot drawing_snapshot_wall_id_check CHECK ((wall_id = ANY (ARRAY['A'::text, 'B'::text, 'C'::text, 'D'::text])))
+constraint: design_os.drawing_snapshot drawing_snapshot_warning_count_check CHECK ((warning_count >= 0))
+constraint: design_os.drawing_snapshot_file check_drawing_manifest TRIGGER DEFERRABLE INITIALLY DEFERRED
 constraint: design_os.drawing_snapshot_file drawing_snapshot_file_file_fk FOREIGN KEY (org_id, file_object_id) REFERENCES design_os.file_object(org_id, id)
-constraint: design_os.drawing_snapshot_file drawing_snapshot_file_format_check CHECK ((format = ANY (ARRAY['SVG'::text, 'PDF'::text])))
-constraint: design_os.drawing_snapshot_file drawing_snapshot_file_pkey PRIMARY KEY (snapshot_id, format)
+constraint: design_os.drawing_snapshot_file drawing_snapshot_file_format_fk FOREIGN KEY (format) REFERENCES design_os.output_file_format(code)
+constraint: design_os.drawing_snapshot_file drawing_snapshot_file_pkey PRIMARY KEY (snapshot_id, sequence)
+constraint: design_os.drawing_snapshot_file drawing_snapshot_file_sequence_check CHECK ((sequence >= 1))
+constraint: design_os.drawing_snapshot_file drawing_snapshot_file_sheet_index_check CHECK ((sheet_index >= 0))
 constraint: design_os.drawing_snapshot_file drawing_snapshot_file_snapshot_fk FOREIGN KEY (org_id, snapshot_id) REFERENCES design_os.drawing_snapshot(org_id, id)
+constraint: design_os.drawing_snapshot_file drawing_snapshot_file_unique UNIQUE NULLS NOT DISTINCT (snapshot_id, format, sheet_index)
 constraint: design_os.edge_band edge_band_code_unique UNIQUE (org_id, code)
 constraint: design_os.edge_band edge_band_org_id_fkey FOREIGN KEY (org_id) REFERENCES design_os.organization(id)
 constraint: design_os.edge_band edge_band_org_id_unique UNIQUE (org_id, id)
@@ -1711,17 +1851,27 @@ constraint: design_os.idempotency_record idempotency_record_status_check CHECK (
 constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapsh_design_version_content_hash_check CHECK ((design_version_content_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_appliance_fk FOREIGN KEY (org_id, appliance_catalog_version_id) REFERENCES design_os.appliance_catalog_version(org_id, id)
 constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_blocker_count_check CHECK ((blocker_count >= 0))
+constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_commercial_input CHECK (((kind = ANY (ARRAY['PRICING'::design_os.snapshot_kind, 'QUOTATION'::design_os.snapshot_kind])) = (commercial_input_hash IS NOT NULL)))
+constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_commercial_input_hash_check CHECK ((commercial_input_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_construction_fk FOREIGN KEY (org_id, construction_standard_version_id) REFERENCES design_os.construction_standard_version(org_id, id)
 constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_content_hash_check CHECK ((content_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_created_by_fkey FOREIGN KEY (created_by) REFERENCES design_os.app_user(id)
 constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_data_classification_check CHECK ((data_classification = 'PRODUCTION'::text))
+constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_dependency_hashes_check CHECK ((jsonb_typeof(dependency_hashes) = 'object'::text))
+constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_dependency_set_hash_check CHECK ((dependency_set_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_design_version_fk FOREIGN KEY (org_id, design_version_id) REFERENCES design_os.design_version(org_id, id)
 constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_edge_band_fk FOREIGN KEY (org_id, edge_band_standard_version_id) REFERENCES design_os.edge_band_standard_version(org_id, id)
+constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_engine_build_check CHECK ((engine_build ~ '^[0-9A-Za-z][0-9A-Za-z._+-]{6,127}$'::text))
+constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_engine_closure_check CHECK ((jsonb_typeof(engine_closure) = 'object'::text))
+constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_engine_fingerprint_check CHECK ((engine_fingerprint ~ '^sha256:[0-9a-f]{64}$'::text))
+constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_engine_name_check CHECK ((engine_name = 'manufacturing'::text))
+constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_engine_name_fkey FOREIGN KEY (engine_name) REFERENCES design_os.output_engine(name)
 constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_engine_version_check CHECK ((btrim(engine_version) <> ''::text))
 constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_finish_fk FOREIGN KEY (org_id, finish_catalog_version_id) REFERENCES design_os.finish_catalog_version(org_id, id)
 constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_hardware_fk FOREIGN KEY (org_id, hardware_catalog_version_id) REFERENCES design_os.hardware_catalog_version(org_id, id)
 constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_hettich_fk FOREIGN KEY (org_id, hettich_dataset_version_id) REFERENCES design_os.hettich_dataset_version(org_id, id)
 constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_input_hash_check CHECK ((input_hash ~ '^sha256:[0-9a-f]{64}$'::text))
+constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_input_revision_check CHECK ((input_revision >= 1))
 constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_kind_check CHECK ((kind = 'MANUFACTURING_DOCUMENT'::design_os.snapshot_kind))
 constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_manufacturing_fk FOREIGN KEY (org_id, manufacturing_standard_version_id) REFERENCES design_os.manufacturing_standard_version(org_id, id)
 constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_material_fk FOREIGN KEY (org_id, material_catalog_version_id) REFERENCES design_os.material_catalog_version(org_id, id)
@@ -1735,6 +1885,8 @@ constraint: design_os.manufacturing_document_snapshot manufacturing_document_sna
 constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_purpose_check CHECK ((purpose = ANY (ARRAY['PRELIMINARY'::text, 'FOR_REVIEW'::text, 'FOR_PRODUCTION'::text])))
 constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_purpose_rule_fk FOREIGN KEY (kind, purpose) REFERENCES design_os.output_purpose_rule(kind, purpose)
 constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_quotation_policy_fk FOREIGN KEY (org_id, quotation_policy_version_id) REFERENCES design_os.quotation_policy_version(org_id, id)
+constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_validation_run_fk FOREIGN KEY (org_id, validation_run_id) REFERENCES design_os.validation_run(org_id, id)
+constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_warning_count_check CHECK ((warning_count >= 0))
 constraint: design_os.manufacturing_document_snapshot_file manufacturing_document_file_file_fk FOREIGN KEY (org_id, file_object_id) REFERENCES design_os.file_object(org_id, id)
 constraint: design_os.manufacturing_document_snapshot_file manufacturing_document_file_snapshot_fk FOREIGN KEY (org_id, snapshot_id) REFERENCES design_os.manufacturing_document_snapshot(org_id, id)
 constraint: design_os.manufacturing_document_snapshot_file manufacturing_document_snapshot_file_pkey PRIMARY KEY (snapshot_id, format)
@@ -1842,6 +1994,14 @@ constraint: design_os.organization organization_code_key UNIQUE (code)
 constraint: design_os.organization organization_parent_org_id_fkey FOREIGN KEY (parent_org_id) REFERENCES design_os.organization(id)
 constraint: design_os.organization organization_pkey PRIMARY KEY (id)
 constraint: design_os.organization organization_status_check CHECK ((status = ANY (ARRAY['ACTIVE'::text, 'SUSPENDED'::text, 'INACTIVE'::text])))
+constraint: design_os.output_engine output_engine_name_check CHECK ((name ~ '^[a-z][a-z_]*$'::text))
+constraint: design_os.output_engine output_engine_pkey PRIMARY KEY (name)
+constraint: design_os.output_engine output_engine_snapshot_kind_key UNIQUE (snapshot_kind)
+constraint: design_os.output_file_format output_file_format_code_check CHECK ((code ~ '^[A-Z][A-Z0-9]*$'::text))
+constraint: design_os.output_file_format output_file_format_extension_check CHECK ((extension ~ '^[a-z0-9]+$'::text))
+constraint: design_os.output_file_format output_file_format_kinds_check CHECK ((cardinality(kinds) > 0))
+constraint: design_os.output_file_format output_file_format_pkey PRIMARY KEY (code)
+constraint: design_os.output_file_format output_file_format_sort_order_key UNIQUE (sort_order)
 constraint: design_os.output_purpose_rule output_purpose_rule_design_statuses_check CHECK ((cardinality(design_statuses) > 0))
 constraint: design_os.output_purpose_rule output_purpose_rule_issue_kinds CHECK (((NOT qualifies_for_issue) OR (kind = ANY (ARRAY['QUOTATION'::design_os.snapshot_kind, 'DRAWING'::design_os.snapshot_kind]))))
 constraint: design_os.output_purpose_rule output_purpose_rule_only_production_qualifies CHECK (((purpose = 'FOR_PRODUCTION'::text) OR (NOT (qualifies_for_issue OR qualifies_for_release))))
@@ -1849,7 +2009,7 @@ constraint: design_os.output_purpose_rule output_purpose_rule_pkey PRIMARY KEY (
 constraint: design_os.output_purpose_rule output_purpose_rule_production_guard CHECK (((purpose <> 'FOR_PRODUCTION'::text) OR (requires_zero_blockers AND (design_statuses <@ ARRAY['APPROVED'::design_os.record_lifecycle_status, 'LOCKED'::design_os.record_lifecycle_status]))))
 constraint: design_os.output_purpose_rule output_purpose_rule_purpose_check CHECK ((purpose = ANY (ARRAY['PRELIMINARY'::text, 'FOR_REVIEW'::text, 'FOR_PRODUCTION'::text])))
 constraint: design_os.output_purpose_rule output_purpose_rule_release_kinds CHECK (((NOT qualifies_for_release) OR (kind = 'MANUFACTURING_DOCUMENT'::design_os.snapshot_kind)))
-constraint: design_os.output_purpose_rule output_purpose_rule_review_states CHECK (((purpose <> 'FOR_REVIEW'::text) OR (design_statuses <@ ARRAY['IN_REVIEW'::design_os.record_lifecycle_status, 'APPROVED'::design_os.record_lifecycle_status, 'LOCKED'::design_os.record_lifecycle_status])))
+constraint: design_os.output_purpose_rule output_purpose_rule_review_states CHECK (((purpose <> 'FOR_REVIEW'::text) OR (design_statuses <@ ARRAY['IN_REVIEW'::design_os.record_lifecycle_status, 'APPROVED'::design_os.record_lifecycle_status, 'LOCKED'::design_os.record_lifecycle_status, 'SUPERSEDED'::design_os.record_lifecycle_status])))
 constraint: design_os.permission permission_pkey PRIMARY KEY (action)
 constraint: design_os.planning_standard planning_standard_code_unique UNIQUE (org_id, code)
 constraint: design_os.planning_standard planning_standard_org_id_fkey FOREIGN KEY (org_id) REFERENCES design_os.organization(id)
@@ -1883,18 +2043,30 @@ constraint: design_os.planning_standard_version planning_standard_version_versio
 constraint: design_os.planning_variable planning_variable_pkey PRIMARY KEY (code)
 constraint: design_os.pricing_snapshot pricing_snapshot_appliance_fk FOREIGN KEY (org_id, appliance_catalog_version_id) REFERENCES design_os.appliance_catalog_version(org_id, id)
 constraint: design_os.pricing_snapshot pricing_snapshot_blocker_count_check CHECK ((blocker_count >= 0))
+constraint: design_os.pricing_snapshot pricing_snapshot_bom_source_fk FOREIGN KEY (org_id, bom_snapshot_id) REFERENCES design_os.bom_snapshot(org_id, id)
+constraint: design_os.pricing_snapshot pricing_snapshot_boq_source_fk FOREIGN KEY (org_id, boq_snapshot_id) REFERENCES design_os.boq_snapshot(org_id, id)
+constraint: design_os.pricing_snapshot pricing_snapshot_commercial_input CHECK (((kind = ANY (ARRAY['PRICING'::design_os.snapshot_kind, 'QUOTATION'::design_os.snapshot_kind])) = (commercial_input_hash IS NOT NULL)))
+constraint: design_os.pricing_snapshot pricing_snapshot_commercial_input_hash_check CHECK ((commercial_input_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.pricing_snapshot pricing_snapshot_construction_fk FOREIGN KEY (org_id, construction_standard_version_id) REFERENCES design_os.construction_standard_version(org_id, id)
 constraint: design_os.pricing_snapshot pricing_snapshot_content_hash_check CHECK ((content_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.pricing_snapshot pricing_snapshot_created_by_fkey FOREIGN KEY (created_by) REFERENCES design_os.app_user(id)
 constraint: design_os.pricing_snapshot pricing_snapshot_data_classification_check CHECK ((data_classification = 'PRODUCTION'::text))
+constraint: design_os.pricing_snapshot pricing_snapshot_dependency_hashes_check CHECK ((jsonb_typeof(dependency_hashes) = 'object'::text))
+constraint: design_os.pricing_snapshot pricing_snapshot_dependency_set_hash_check CHECK ((dependency_set_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.pricing_snapshot pricing_snapshot_design_version_content_hash_check CHECK ((design_version_content_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.pricing_snapshot pricing_snapshot_design_version_fk FOREIGN KEY (org_id, design_version_id) REFERENCES design_os.design_version(org_id, id)
 constraint: design_os.pricing_snapshot pricing_snapshot_edge_band_fk FOREIGN KEY (org_id, edge_band_standard_version_id) REFERENCES design_os.edge_band_standard_version(org_id, id)
+constraint: design_os.pricing_snapshot pricing_snapshot_engine_build_check CHECK ((engine_build ~ '^[0-9A-Za-z][0-9A-Za-z._+-]{6,127}$'::text))
+constraint: design_os.pricing_snapshot pricing_snapshot_engine_closure_check CHECK ((jsonb_typeof(engine_closure) = 'object'::text))
+constraint: design_os.pricing_snapshot pricing_snapshot_engine_fingerprint_check CHECK ((engine_fingerprint ~ '^sha256:[0-9a-f]{64}$'::text))
+constraint: design_os.pricing_snapshot pricing_snapshot_engine_name_check CHECK ((engine_name = 'pricing'::text))
+constraint: design_os.pricing_snapshot pricing_snapshot_engine_name_fkey FOREIGN KEY (engine_name) REFERENCES design_os.output_engine(name)
 constraint: design_os.pricing_snapshot pricing_snapshot_engine_version_check CHECK ((btrim(engine_version) <> ''::text))
 constraint: design_os.pricing_snapshot pricing_snapshot_finish_fk FOREIGN KEY (org_id, finish_catalog_version_id) REFERENCES design_os.finish_catalog_version(org_id, id)
 constraint: design_os.pricing_snapshot pricing_snapshot_hardware_fk FOREIGN KEY (org_id, hardware_catalog_version_id) REFERENCES design_os.hardware_catalog_version(org_id, id)
 constraint: design_os.pricing_snapshot pricing_snapshot_hettich_fk FOREIGN KEY (org_id, hettich_dataset_version_id) REFERENCES design_os.hettich_dataset_version(org_id, id)
 constraint: design_os.pricing_snapshot pricing_snapshot_input_hash_check CHECK ((input_hash ~ '^sha256:[0-9a-f]{64}$'::text))
+constraint: design_os.pricing_snapshot pricing_snapshot_input_revision_check CHECK ((input_revision >= 1))
 constraint: design_os.pricing_snapshot pricing_snapshot_kind_check CHECK ((kind = 'PRICING'::design_os.snapshot_kind))
 constraint: design_os.pricing_snapshot pricing_snapshot_manufacturing_fk FOREIGN KEY (org_id, manufacturing_standard_version_id) REFERENCES design_os.manufacturing_standard_version(org_id, id)
 constraint: design_os.pricing_snapshot pricing_snapshot_material_fk FOREIGN KEY (org_id, material_catalog_version_id) REFERENCES design_os.material_catalog_version(org_id, id)
@@ -1908,6 +2080,8 @@ constraint: design_os.pricing_snapshot pricing_snapshot_product_fk FOREIGN KEY (
 constraint: design_os.pricing_snapshot pricing_snapshot_purpose_check CHECK ((purpose = ANY (ARRAY['PRELIMINARY'::text, 'FOR_REVIEW'::text, 'FOR_PRODUCTION'::text])))
 constraint: design_os.pricing_snapshot pricing_snapshot_purpose_rule_fk FOREIGN KEY (kind, purpose) REFERENCES design_os.output_purpose_rule(kind, purpose)
 constraint: design_os.pricing_snapshot pricing_snapshot_quotation_policy_fk FOREIGN KEY (org_id, quotation_policy_version_id) REFERENCES design_os.quotation_policy_version(org_id, id)
+constraint: design_os.pricing_snapshot pricing_snapshot_validation_run_fk FOREIGN KEY (org_id, validation_run_id) REFERENCES design_os.validation_run(org_id, id)
+constraint: design_os.pricing_snapshot pricing_snapshot_warning_count_check CHECK ((warning_count >= 0))
 constraint: design_os.pricing_standard pricing_standard_code_unique UNIQUE (org_id, code)
 constraint: design_os.pricing_standard pricing_standard_org_id_fkey FOREIGN KEY (org_id) REFERENCES design_os.organization(id)
 constraint: design_os.pricing_standard pricing_standard_org_id_unique UNIQUE (org_id, id)
@@ -2055,18 +2229,29 @@ constraint: design_os.quotation_policy_version quotation_policy_version_version_
 constraint: design_os.quotation_policy_version quotation_policy_version_version_number_unique UNIQUE (org_id, entity_id, version_number)
 constraint: design_os.quotation_snapshot quotation_snapshot_appliance_fk FOREIGN KEY (org_id, appliance_catalog_version_id) REFERENCES design_os.appliance_catalog_version(org_id, id)
 constraint: design_os.quotation_snapshot quotation_snapshot_blocker_count_check CHECK ((blocker_count >= 0))
+constraint: design_os.quotation_snapshot quotation_snapshot_boq_source_fk FOREIGN KEY (org_id, boq_snapshot_id) REFERENCES design_os.boq_snapshot(org_id, id)
+constraint: design_os.quotation_snapshot quotation_snapshot_commercial_input CHECK (((kind = ANY (ARRAY['PRICING'::design_os.snapshot_kind, 'QUOTATION'::design_os.snapshot_kind])) = (commercial_input_hash IS NOT NULL)))
+constraint: design_os.quotation_snapshot quotation_snapshot_commercial_input_hash_check CHECK ((commercial_input_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.quotation_snapshot quotation_snapshot_construction_fk FOREIGN KEY (org_id, construction_standard_version_id) REFERENCES design_os.construction_standard_version(org_id, id)
 constraint: design_os.quotation_snapshot quotation_snapshot_content_hash_check CHECK ((content_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.quotation_snapshot quotation_snapshot_created_by_fkey FOREIGN KEY (created_by) REFERENCES design_os.app_user(id)
 constraint: design_os.quotation_snapshot quotation_snapshot_data_classification_check CHECK ((data_classification = 'PRODUCTION'::text))
+constraint: design_os.quotation_snapshot quotation_snapshot_dependency_hashes_check CHECK ((jsonb_typeof(dependency_hashes) = 'object'::text))
+constraint: design_os.quotation_snapshot quotation_snapshot_dependency_set_hash_check CHECK ((dependency_set_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.quotation_snapshot quotation_snapshot_design_version_content_hash_check CHECK ((design_version_content_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.quotation_snapshot quotation_snapshot_design_version_fk FOREIGN KEY (org_id, design_version_id) REFERENCES design_os.design_version(org_id, id)
 constraint: design_os.quotation_snapshot quotation_snapshot_edge_band_fk FOREIGN KEY (org_id, edge_band_standard_version_id) REFERENCES design_os.edge_band_standard_version(org_id, id)
+constraint: design_os.quotation_snapshot quotation_snapshot_engine_build_check CHECK ((engine_build ~ '^[0-9A-Za-z][0-9A-Za-z._+-]{6,127}$'::text))
+constraint: design_os.quotation_snapshot quotation_snapshot_engine_closure_check CHECK ((jsonb_typeof(engine_closure) = 'object'::text))
+constraint: design_os.quotation_snapshot quotation_snapshot_engine_fingerprint_check CHECK ((engine_fingerprint ~ '^sha256:[0-9a-f]{64}$'::text))
+constraint: design_os.quotation_snapshot quotation_snapshot_engine_name_check CHECK ((engine_name = 'quotation'::text))
+constraint: design_os.quotation_snapshot quotation_snapshot_engine_name_fkey FOREIGN KEY (engine_name) REFERENCES design_os.output_engine(name)
 constraint: design_os.quotation_snapshot quotation_snapshot_engine_version_check CHECK ((btrim(engine_version) <> ''::text))
 constraint: design_os.quotation_snapshot quotation_snapshot_finish_fk FOREIGN KEY (org_id, finish_catalog_version_id) REFERENCES design_os.finish_catalog_version(org_id, id)
 constraint: design_os.quotation_snapshot quotation_snapshot_hardware_fk FOREIGN KEY (org_id, hardware_catalog_version_id) REFERENCES design_os.hardware_catalog_version(org_id, id)
 constraint: design_os.quotation_snapshot quotation_snapshot_hettich_fk FOREIGN KEY (org_id, hettich_dataset_version_id) REFERENCES design_os.hettich_dataset_version(org_id, id)
 constraint: design_os.quotation_snapshot quotation_snapshot_input_hash_check CHECK ((input_hash ~ '^sha256:[0-9a-f]{64}$'::text))
+constraint: design_os.quotation_snapshot quotation_snapshot_input_revision_check CHECK ((input_revision >= 1))
 constraint: design_os.quotation_snapshot quotation_snapshot_kind_check CHECK ((kind = 'QUOTATION'::design_os.snapshot_kind))
 constraint: design_os.quotation_snapshot quotation_snapshot_manufacturing_fk FOREIGN KEY (org_id, manufacturing_standard_version_id) REFERENCES design_os.manufacturing_standard_version(org_id, id)
 constraint: design_os.quotation_snapshot quotation_snapshot_material_fk FOREIGN KEY (org_id, material_catalog_version_id) REFERENCES design_os.material_catalog_version(org_id, id)
@@ -2076,11 +2261,15 @@ constraint: design_os.quotation_snapshot quotation_snapshot_org_id_unique UNIQUE
 constraint: design_os.quotation_snapshot quotation_snapshot_pkey PRIMARY KEY (id)
 constraint: design_os.quotation_snapshot quotation_snapshot_planning_fk FOREIGN KEY (org_id, planning_standard_version_id) REFERENCES design_os.planning_standard_version(org_id, id)
 constraint: design_os.quotation_snapshot quotation_snapshot_pricing_fk FOREIGN KEY (org_id, pricing_standard_version_id) REFERENCES design_os.pricing_standard_version(org_id, id)
+constraint: design_os.quotation_snapshot quotation_snapshot_pricing_source_fk FOREIGN KEY (org_id, pricing_snapshot_id) REFERENCES design_os.pricing_snapshot(org_id, id)
 constraint: design_os.quotation_snapshot quotation_snapshot_product_fk FOREIGN KEY (org_id, product_catalog_version_id) REFERENCES design_os.product_catalog_version(org_id, id)
 constraint: design_os.quotation_snapshot quotation_snapshot_purpose_check CHECK ((purpose = ANY (ARRAY['PRELIMINARY'::text, 'FOR_REVIEW'::text, 'FOR_PRODUCTION'::text])))
 constraint: design_os.quotation_snapshot quotation_snapshot_purpose_rule_fk FOREIGN KEY (kind, purpose) REFERENCES design_os.output_purpose_rule(kind, purpose)
 constraint: design_os.quotation_snapshot quotation_snapshot_quotation_policy_fk FOREIGN KEY (org_id, quotation_policy_version_id) REFERENCES design_os.quotation_policy_version(org_id, id)
 constraint: design_os.quotation_snapshot quotation_snapshot_revision_number_check CHECK ((revision_number >= 1))
+constraint: design_os.quotation_snapshot quotation_snapshot_revision_unique UNIQUE (design_version_id, revision_number)
+constraint: design_os.quotation_snapshot quotation_snapshot_validation_run_fk FOREIGN KEY (org_id, validation_run_id) REFERENCES design_os.validation_run(org_id, id)
+constraint: design_os.quotation_snapshot quotation_snapshot_warning_count_check CHECK ((warning_count >= 0))
 constraint: design_os.rate_card_line rate_card_line_measure_check CHECK ((measure = ANY (ARRAY['BOARD_M2'::text, 'EDGE_M'::text, 'FINISH_M2'::text, 'HARDWARE_UNIT'::text])))
 constraint: design_os.rate_card_line rate_card_line_pkey PRIMARY KEY (version_id, measure, item_key)
 constraint: design_os.rate_card_line rate_card_line_rate_paise_check CHECK ((rate_paise >= 0))
@@ -2147,17 +2336,23 @@ constraint: design_os.tax_rate tax_rate_version_fk FOREIGN KEY (org_id, version_
 constraint: design_os.tax_rate_mapping tax_rate_mapping_pkey PRIMARY KEY (version_id, product_category)
 constraint: design_os.tax_rate_mapping tax_rate_mapping_rate_fk FOREIGN KEY (version_id, rate_code) REFERENCES design_os.tax_rate(version_id, rate_code)
 constraint: design_os.tax_rate_mapping tax_rate_mapping_version_fk FOREIGN KEY (org_id, version_id) REFERENCES design_os.quotation_policy_version(org_id, id)
+constraint: design_os.validation_run check_output_run_referenced TRIGGER DEFERRABLE INITIALLY DEFERRED
 constraint: design_os.validation_run validation_run_blocker_count_check CHECK ((blocker_count >= 0))
 constraint: design_os.validation_run validation_run_content_hash_check CHECK ((content_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.validation_run validation_run_created_by_fkey FOREIGN KEY (created_by) REFERENCES design_os.app_user(id)
 constraint: design_os.validation_run validation_run_engine_build_required CHECK (((engine_build IS NOT NULL) AND (engine_build ~ '^[0-9A-Za-z][0-9A-Za-z._+-]{6,127}$'::text))) NOT VALID
-constraint: design_os.validation_run validation_run_engine_hash_check CHECK ((btrim(engine_hash) <> ''::text))
+constraint: design_os.validation_run validation_run_engine_fingerprint_check CHECK ((btrim(engine_fingerprint) <> ''::text))
+constraint: design_os.validation_run validation_run_engine_name_check CHECK ((engine_name = 'validation'::text))
+constraint: design_os.validation_run validation_run_engine_name_fkey FOREIGN KEY (engine_name) REFERENCES design_os.output_engine(name)
 constraint: design_os.validation_run validation_run_engine_version_check CHECK ((btrim(engine_version) <> ''::text))
 constraint: design_os.validation_run validation_run_input_hash_check CHECK ((input_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.validation_run validation_run_input_revision_check CHECK ((input_revision >= 1))
 constraint: design_os.validation_run validation_run_messages_check CHECK ((jsonb_typeof(messages) = 'array'::text))
 constraint: design_os.validation_run validation_run_no_test_fixture CHECK ((NOT jsonb_path_exists(messages, '$.**?(@ == "TEST_FIXTURE" || @ == "TEST_FIXTURE_DATA_IN_USE")'::jsonpath)))
+constraint: design_os.validation_run validation_run_org_id_unique UNIQUE (org_id, id)
 constraint: design_os.validation_run validation_run_pkey PRIMARY KEY (id)
+constraint: design_os.validation_run validation_run_provenance_required CHECK (((engine_fingerprint IS NOT NULL) AND (engine_fingerprint ~ '^sha256:[0-9a-f]{64}$'::text) AND (engine_closure IS NOT NULL) AND (jsonb_typeof(engine_closure) = 'object'::text) AND (dependency_set_hash IS NOT NULL) AND (dependency_set_hash ~ '^sha256:[0-9a-f]{64}$'::text))) NOT VALID
+constraint: design_os.validation_run validation_run_purpose_check CHECK ((purpose = ANY (ARRAY['APPROVAL'::text, 'OUTPUT_GENERATION'::text])))
 constraint: design_os.validation_run validation_run_seq_key UNIQUE (seq)
 constraint: design_os.validation_run validation_run_version_fk FOREIGN KEY (org_id, design_version_id) REFERENCES design_os.design_version(org_id, id)
 constraint: design_os.validation_run validation_run_warning_count_check CHECK ((warning_count >= 0))
@@ -2189,8 +2384,10 @@ index: CREATE UNIQUE INDEX approval_decision_pkey ON design_os.approval_decision
 index: CREATE UNIQUE INDEX approval_request_one_open ON design_os.approval_request USING btree (subject_type, subject_id) WHERE (status = 'OPEN'::text)
 index: CREATE UNIQUE INDEX approval_request_pkey ON design_os.approval_request USING btree (id)
 index: CREATE UNIQUE INDEX audit_log_pkey ON design_os.audit_log USING btree (id)
+index: CREATE UNIQUE INDEX bom_snapshot_identity ON design_os.bom_snapshot USING btree (org_id, design_version_id, purpose, input_hash, input_revision, dependency_set_hash, engine_fingerprint)
 index: CREATE UNIQUE INDEX bom_snapshot_org_id_unique ON design_os.bom_snapshot USING btree (org_id, id)
 index: CREATE UNIQUE INDEX bom_snapshot_pkey ON design_os.bom_snapshot USING btree (id)
+index: CREATE UNIQUE INDEX boq_snapshot_identity ON design_os.boq_snapshot USING btree (org_id, design_version_id, purpose, input_hash, input_revision, dependency_set_hash, engine_fingerprint, bom_snapshot_id)
 index: CREATE UNIQUE INDEX boq_snapshot_org_id_unique ON design_os.boq_snapshot USING btree (org_id, id)
 index: CREATE UNIQUE INDEX boq_snapshot_pkey ON design_os.boq_snapshot USING btree (id)
 index: CREATE UNIQUE INDEX client_code_unique ON design_os.client USING btree (org_id, client_code)
@@ -2223,7 +2420,9 @@ index: CREATE UNIQUE INDEX design_version_org_id_unique ON design_os.design_vers
 index: CREATE UNIQUE INDEX design_version_pkey ON design_os.design_version USING btree (id)
 index: CREATE UNIQUE INDEX design_version_version_number_unique ON design_os.design_version USING btree (org_id, entity_id, version_number)
 index: CREATE UNIQUE INDEX drawing_issue_pkey ON design_os.drawing_issue USING btree (snapshot_id)
-index: CREATE UNIQUE INDEX drawing_snapshot_file_pkey ON design_os.drawing_snapshot_file USING btree (snapshot_id, format)
+index: CREATE UNIQUE INDEX drawing_snapshot_file_pkey ON design_os.drawing_snapshot_file USING btree (snapshot_id, sequence)
+index: CREATE UNIQUE INDEX drawing_snapshot_file_unique ON design_os.drawing_snapshot_file USING btree (snapshot_id, format, sheet_index) NULLS NOT DISTINCT
+index: CREATE UNIQUE INDEX drawing_snapshot_identity ON design_os.drawing_snapshot USING btree (org_id, design_version_id, purpose, input_hash, input_revision, dependency_set_hash, engine_fingerprint, drawing_type, drawing_scope, wall_id, object_lineage_id, cut_x_mm, drawing_number, drawing_revision) NULLS NOT DISTINCT
 index: CREATE UNIQUE INDEX drawing_snapshot_org_id_unique ON design_os.drawing_snapshot USING btree (org_id, id)
 index: CREATE UNIQUE INDEX drawing_snapshot_pkey ON design_os.drawing_snapshot USING btree (id)
 index: CREATE UNIQUE INDEX edge_band_code_unique ON design_os.edge_band USING btree (org_id, code)
@@ -2302,6 +2501,7 @@ index: CREATE UNIQUE INDEX hettich_rule_position_unique ON design_os.hettich_cal
 index: CREATE UNIQUE INDEX idempotency_record_key ON design_os.idempotency_record USING btree (org_id, scope, idempotency_key)
 index: CREATE UNIQUE INDEX idempotency_record_pkey ON design_os.idempotency_record USING btree (id)
 index: CREATE UNIQUE INDEX manufacturing_document_snapshot_file_pkey ON design_os.manufacturing_document_snapshot_file USING btree (snapshot_id, format)
+index: CREATE UNIQUE INDEX manufacturing_document_snapshot_identity ON design_os.manufacturing_document_snapshot USING btree (org_id, design_version_id, purpose, input_hash, input_revision, dependency_set_hash, engine_fingerprint, manufacturing_standard_version_id)
 index: CREATE UNIQUE INDEX manufacturing_document_snapshot_org_id_unique ON design_os.manufacturing_document_snapshot USING btree (org_id, id)
 index: CREATE UNIQUE INDEX manufacturing_document_snapshot_pkey ON design_os.manufacturing_document_snapshot USING btree (id)
 index: CREATE UNIQUE INDEX manufacturing_standard_code_unique ON design_os.manufacturing_standard USING btree (org_id, code)
@@ -2332,6 +2532,10 @@ index: CREATE UNIQUE INDEX material_version_version_number_unique ON design_os.m
 index: CREATE UNIQUE INDEX org_membership_pkey ON design_os.org_membership USING btree (org_id, user_id, role)
 index: CREATE UNIQUE INDEX organization_code_key ON design_os.organization USING btree (code)
 index: CREATE UNIQUE INDEX organization_pkey ON design_os.organization USING btree (id)
+index: CREATE UNIQUE INDEX output_engine_pkey ON design_os.output_engine USING btree (name)
+index: CREATE UNIQUE INDEX output_engine_snapshot_kind_key ON design_os.output_engine USING btree (snapshot_kind)
+index: CREATE UNIQUE INDEX output_file_format_pkey ON design_os.output_file_format USING btree (code)
+index: CREATE UNIQUE INDEX output_file_format_sort_order_key ON design_os.output_file_format USING btree (sort_order)
 index: CREATE UNIQUE INDEX output_purpose_rule_pkey ON design_os.output_purpose_rule USING btree (kind, purpose)
 index: CREATE UNIQUE INDEX permission_pkey ON design_os.permission USING btree (action)
 index: CREATE UNIQUE INDEX planning_standard_code_unique ON design_os.planning_standard USING btree (org_id, code)
@@ -2343,6 +2547,7 @@ index: CREATE UNIQUE INDEX planning_standard_version_org_id_unique ON design_os.
 index: CREATE UNIQUE INDEX planning_standard_version_pkey ON design_os.planning_standard_version USING btree (id)
 index: CREATE UNIQUE INDEX planning_standard_version_version_number_unique ON design_os.planning_standard_version USING btree (org_id, entity_id, version_number)
 index: CREATE UNIQUE INDEX planning_variable_pkey ON design_os.planning_variable USING btree (code)
+index: CREATE UNIQUE INDEX pricing_snapshot_identity ON design_os.pricing_snapshot USING btree (org_id, design_version_id, purpose, input_hash, input_revision, dependency_set_hash, engine_fingerprint, commercial_input_hash, bom_snapshot_id, boq_snapshot_id)
 index: CREATE UNIQUE INDEX pricing_snapshot_org_id_unique ON design_os.pricing_snapshot USING btree (org_id, id)
 index: CREATE UNIQUE INDEX pricing_snapshot_pkey ON design_os.pricing_snapshot USING btree (id)
 index: CREATE UNIQUE INDEX pricing_standard_code_unique ON design_os.pricing_standard USING btree (org_id, code)
@@ -2379,8 +2584,10 @@ index: CREATE UNIQUE INDEX quotation_policy_version_org_entity_id_unique ON desi
 index: CREATE UNIQUE INDEX quotation_policy_version_org_id_unique ON design_os.quotation_policy_version USING btree (org_id, id)
 index: CREATE UNIQUE INDEX quotation_policy_version_pkey ON design_os.quotation_policy_version USING btree (id)
 index: CREATE UNIQUE INDEX quotation_policy_version_version_number_unique ON design_os.quotation_policy_version USING btree (org_id, entity_id, version_number)
+index: CREATE UNIQUE INDEX quotation_snapshot_identity ON design_os.quotation_snapshot USING btree (org_id, design_version_id, purpose, input_hash, input_revision, dependency_set_hash, engine_fingerprint, commercial_input_hash, boq_snapshot_id, pricing_snapshot_id)
 index: CREATE UNIQUE INDEX quotation_snapshot_org_id_unique ON design_os.quotation_snapshot USING btree (org_id, id)
 index: CREATE UNIQUE INDEX quotation_snapshot_pkey ON design_os.quotation_snapshot USING btree (id)
+index: CREATE UNIQUE INDEX quotation_snapshot_revision_unique ON design_os.quotation_snapshot USING btree (design_version_id, revision_number)
 index: CREATE UNIQUE INDEX rate_card_line_pkey ON design_os.rate_card_line USING btree (version_id, measure, item_key)
 index: CREATE UNIQUE INDEX recipe_version_org_entity_id_unique ON design_os.recipe_version USING btree (org_id, entity_id, id)
 index: CREATE UNIQUE INDEX recipe_version_org_id_unique ON design_os.recipe_version USING btree (org_id, id)
@@ -2398,10 +2605,15 @@ index: CREATE UNIQUE INDEX room_revision_org_room_id_unique ON design_os.room_re
 index: CREATE UNIQUE INDEX room_revision_pkey ON design_os.room_revision USING btree (id)
 index: CREATE UNIQUE INDEX tax_rate_mapping_pkey ON design_os.tax_rate_mapping USING btree (version_id, product_category)
 index: CREATE UNIQUE INDEX tax_rate_pkey ON design_os.tax_rate USING btree (version_id, rate_code)
+index: CREATE UNIQUE INDEX validation_run_org_id_unique ON design_os.validation_run USING btree (org_id, id)
+index: CREATE UNIQUE INDEX validation_run_output_identity ON design_os.validation_run USING btree (org_id, design_version_id, input_hash, input_revision, dependency_set_hash, engine_fingerprint) WHERE (purpose = 'OUTPUT_GENERATION'::text)
 index: CREATE UNIQUE INDEX validation_run_pkey ON design_os.validation_run USING btree (id)
 index: CREATE UNIQUE INDEX validation_run_seq_key ON design_os.validation_run USING btree (seq)
 index: CREATE UNIQUE INDEX versioned_table_pkey ON design_os.versioned_table USING btree (subject_type)
 index: CREATE UNIQUE INDEX versioned_table_version_table_key ON design_os.versioned_table USING btree (version_table)
+trigger: CREATE CONSTRAINT TRIGGER check_drawing_manifest AFTER INSERT ON design_os.drawing_snapshot DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION design_os.check_drawing_manifest()
+trigger: CREATE CONSTRAINT TRIGGER check_drawing_manifest AFTER INSERT ON design_os.drawing_snapshot_file DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION design_os.check_drawing_manifest()
+trigger: CREATE CONSTRAINT TRIGGER check_output_run_referenced AFTER INSERT ON design_os.validation_run DEFERRABLE INITIALLY DEFERRED FOR EACH ROW WHEN ((new.purpose = 'OUTPUT_GENERATION'::text)) EXECUTE FUNCTION design_os.check_output_run_referenced()
 trigger: CREATE CONSTRAINT TRIGGER idempotency_must_complete AFTER INSERT OR UPDATE ON design_os.idempotency_record DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION design_os.check_idempotency_completed()
 trigger: CREATE TRIGGER audit_row AFTER INSERT OR DELETE OR UPDATE ON design_os.app_user FOR EACH ROW EXECUTE FUNCTION design_os.audit_row()
 trigger: CREATE TRIGGER audit_row AFTER INSERT OR DELETE OR UPDATE ON design_os.appliance FOR EACH ROW EXECUTE FUNCTION design_os.audit_row()
@@ -2494,12 +2706,16 @@ trigger: CREATE TRIGGER bump_input_revision AFTER INSERT OR DELETE OR UPDATE ON 
 trigger: CREATE TRIGGER bump_input_revision AFTER INSERT OR DELETE OR UPDATE ON design_os.relationship_override FOR EACH ROW EXECUTE FUNCTION design_os.bump_input_revision()
 trigger: CREATE TRIGGER check_issue BEFORE INSERT ON design_os.drawing_issue FOR EACH ROW EXECUTE FUNCTION design_os.check_issue('drawing_snapshot')
 trigger: CREATE TRIGGER check_issue BEFORE INSERT ON design_os.quotation_issue FOR EACH ROW EXECUTE FUNCTION design_os.check_issue('quotation_snapshot')
+trigger: CREATE TRIGGER check_snapshot_file BEFORE INSERT ON design_os.drawing_snapshot_file FOR EACH ROW EXECUTE FUNCTION design_os.check_snapshot_file()
 trigger: CREATE TRIGGER check_snapshot_provenance BEFORE INSERT ON design_os.bom_snapshot FOR EACH ROW EXECUTE FUNCTION design_os.check_snapshot_provenance()
 trigger: CREATE TRIGGER check_snapshot_provenance BEFORE INSERT ON design_os.boq_snapshot FOR EACH ROW EXECUTE FUNCTION design_os.check_snapshot_provenance()
 trigger: CREATE TRIGGER check_snapshot_provenance BEFORE INSERT ON design_os.drawing_snapshot FOR EACH ROW EXECUTE FUNCTION design_os.check_snapshot_provenance()
 trigger: CREATE TRIGGER check_snapshot_provenance BEFORE INSERT ON design_os.manufacturing_document_snapshot FOR EACH ROW EXECUTE FUNCTION design_os.check_snapshot_provenance()
 trigger: CREATE TRIGGER check_snapshot_provenance BEFORE INSERT ON design_os.pricing_snapshot FOR EACH ROW EXECUTE FUNCTION design_os.check_snapshot_provenance()
 trigger: CREATE TRIGGER check_snapshot_provenance BEFORE INSERT ON design_os.quotation_snapshot FOR EACH ROW EXECUTE FUNCTION design_os.check_snapshot_provenance()
+trigger: CREATE TRIGGER check_snapshot_sources BEFORE INSERT ON design_os.boq_snapshot FOR EACH ROW EXECUTE FUNCTION design_os.check_snapshot_sources('bom_snapshot_id', 'bom_snapshot')
+trigger: CREATE TRIGGER check_snapshot_sources BEFORE INSERT ON design_os.pricing_snapshot FOR EACH ROW EXECUTE FUNCTION design_os.check_snapshot_sources('bom_snapshot_id', 'bom_snapshot', 'boq_snapshot_id', 'boq_snapshot')
+trigger: CREATE TRIGGER check_snapshot_sources BEFORE INSERT ON design_os.quotation_snapshot FOR EACH ROW EXECUTE FUNCTION design_os.check_snapshot_sources('boq_snapshot_id', 'boq_snapshot', 'pricing_snapshot_id', 'pricing_snapshot')
 trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.approval_decision FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
 trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.audit_log FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
 trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.bom_snapshot FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
@@ -2511,6 +2727,8 @@ trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.err
 trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.file_object FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
 trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.manufacturing_document_snapshot FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
 trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.manufacturing_document_snapshot_file FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
+trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.output_engine FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
+trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.output_file_format FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
 trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.output_purpose_rule FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
 trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.pricing_snapshot FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
 trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.quotation_issue FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
@@ -2570,22 +2788,28 @@ trigger: CREATE TRIGGER guard_version_row BEFORE INSERT OR DELETE OR UPDATE ON d
 trigger: CREATE TRIGGER guard_version_row BEFORE INSERT OR DELETE OR UPDATE ON design_os.product_version FOR EACH ROW EXECUTE FUNCTION design_os.guard_version_row()
 trigger: CREATE TRIGGER guard_version_row BEFORE INSERT OR DELETE OR UPDATE ON design_os.quotation_policy_version FOR EACH ROW EXECUTE FUNCTION design_os.guard_version_row()
 trigger: CREATE TRIGGER guard_version_row BEFORE INSERT OR DELETE OR UPDATE ON design_os.recipe_version FOR EACH ROW EXECUTE FUNCTION design_os.guard_version_row()
+trigger: CREATE TRIGGER lock_issued_commercial_versions AFTER INSERT ON design_os.quotation_issue FOR EACH ROW EXECUTE FUNCTION design_os.lock_issued_commercial_versions()
 trigger: CREATE TRIGGER maintain_input_revision BEFORE INSERT OR UPDATE ON design_os.design_version FOR EACH ROW EXECUTE FUNCTION design_os.maintain_input_revision()
 trigger: CREATE TRIGGER seed_org_permissions AFTER INSERT ON design_os.organization FOR EACH ROW EXECUTE FUNCTION design_os.seed_org_permissions()
-function: approval_problem_items(p_subject_type text, p_id uuid, p_org uuid) -> TABLE(problem_code text, problem_message text) owner=design_os_owner src=06f3acdc48219f57b4fc6e59ced2e8f5
+function: approval_problem_items(p_subject_type text, p_id uuid, p_org uuid) -> TABLE(problem_code text, problem_message text) owner=design_os_owner src=830ef9991b635b037393b939e3a3c42a
 function: approval_problems(p_subject_type text, p_id uuid, p_org uuid) -> text[] owner=design_os_owner src=1ddfa6a4b4d546eb7f6ade2e0480112f
 function: audit_canonical(p_org uuid, p_at timestamp with time zone, p_actor uuid, p_action text, p_table text, p_row text, p_old jsonb, p_new jsonb, p_reason text, p_request text) -> text owner=design_os_owner src=110dffb1a7d3b029b9d582058e9a4ed6
 function: audit_chain_hash(p_prev text, p_canonical text) -> text owner=design_os_owner src=1dc12ca77292286f3273c509a7629339
 function: audit_row() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=902eaf060ff0e3b2d8ab4599822d2e8d
 function: bump_input_revision() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=6dd7dc4b9ec9b7379ece0b4e5ed1940e
 function: can_access_project(p_project uuid) -> boolean SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=d5ccb73fb532950fa57f3c23c0d265ac
+function: check_drawing_manifest() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=79ef07c9500d32a3cf62a77a38cbd039
 function: check_idempotency_completed() -> trigger SECURITY DEFINER search_path=pg_catalog, pg_temp owner=design_os_owner src=875de1c9e46e8d69138c77e6342d7267
 function: check_issue() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=9baf6c36b1f458ae1ceb37bc6c3c8336
-function: check_snapshot_provenance() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=5d67b8b85ea2919ad368f2c4c1cbe38b
+function: check_output_run_referenced() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=eecbe7504741a62021bac8cbd52f65ca
+function: check_snapshot_file() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=b6806bca395dbf8d4173b5497a6928cb
+function: check_snapshot_provenance() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=75f4abedc5dcb600e80af61a936c79b9
+function: check_snapshot_sources() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=94c6526f52339b13fb26a2a913408cf7
 function: claim_idempotency(p_scope text, p_idempotency_key text, p_request_hash text, p_ttl interval) -> TABLE(outcome text, record_id uuid, response_status smallint, response_body jsonb, resource_type text, resource_id uuid) SECURITY DEFINER search_path=pg_catalog, pg_temp,lock_timeout=5s owner=design_os_owner src=db21810df6d86458ee3dd15a3ecbadaa
 function: claims() -> jsonb owner=design_os_owner src=31cad67d90d968f9aead02cac268c52c
 function: client_allowed_actions() -> text[] owner=design_os_owner src=93e330c956139ad417309bff62bcbaea
 function: client_can_read_file(p_file uuid) -> boolean SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=9f1356f7fa459d2c96626903c00926a0
+function: commercial_input_hash(p_pricing uuid, p_pricing_hash text, p_policy uuid, p_policy_hash text) -> text owner=design_os_owner src=f9cd9b527ecbc81b878407903de69cd4
 function: complete_idempotency(p_record_id uuid, p_response_status smallint, p_response_body jsonb, p_resource_type text, p_resource_id uuid) -> void SECURITY DEFINER search_path=pg_catalog, pg_temp owner=design_os_owner src=8f6cdb29df8b46f1161d3b6ff5025e94
 function: create_catalog_member_table(p_domain text, p_item text) -> void owner=design_os_owner src=291af56c181c38a207ebfa414b7a127f
 function: create_catalog_version_table(p_domain text) -> void owner=design_os_owner src=e8d51ab1c8effe4718825e4b96aff155
@@ -2594,7 +2818,10 @@ function: create_snapshot_table(p_name text, p_kind design_os.snapshot_kind) -> 
 function: current_memberships() -> TABLE(org_id uuid) SECURITY DEFINER search_path=pg_catalog, pg_temp owner=design_os_owner src=c3fa20b747d4b792369e44401cb6424d
 function: current_org_id() -> uuid SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=e16dd340255900740fd41d07da5cc971
 function: current_user_id() -> uuid owner=design_os_owner src=146d8b484b1175a77c42a5109db6a017
+function: dependency_set_hash(p jsonb) -> text owner=design_os_owner src=a3ea8643422fa966ec352cfc646c2d27
 function: design_version_project(p_design_version uuid) -> uuid SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=590ea98bfa2a8ffd784faca591ff3967
+function: drawing_file_manifest_hash(p_snapshot uuid) -> text SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=4c706a831d5d37ca52d86a79297f3883
+function: engineering_dependency_hashes(p_org uuid, p_design_version uuid) -> jsonb SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=8232fa7fc032e9321f89f85fc8526476
 function: finance_approval_actions() -> text[] owner=design_os_owner src=8160933d9dd69f29529ed3f4f0a0bc87
 function: forbid_mutation() -> trigger owner=design_os_owner src=77cb526cc01dc732a4dd022945a503d7
 function: forbid_truncate() -> trigger owner=design_os_owner src=49f9bcec51922f246e7883586e67ee28
@@ -2619,16 +2846,20 @@ function: is_issued(p_kind text, p_snapshot uuid) -> boolean SECURITY DEFINER se
 function: is_official_hettich_url(p_url text) -> boolean owner=design_os_owner src=bcf1722ba67f2eaeb4ab1e5f14bd99a1
 function: lifecycle_columns() -> text[] owner=design_os_owner src=d2bb83af218260d9a3e2d507964aa88c
 function: lock_cascade(p_subject_type text, p_id uuid, p_org uuid, p_actor uuid, p_reason text) -> void owner=design_os_owner src=db490775a95442a3d3b35993209e1d93
-function: maintain_input_revision() -> trigger owner=design_os_owner src=def61d0142b34ea796340cbafa2060fb
+function: lock_issued_commercial_versions() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=d8e452259c2d5e2d3d84435af58cedd5
+function: maintain_input_revision() -> trigger owner=design_os_owner src=1deb73c62c6e914b0d8a84b0f8949edb
+function: output_dependency_hashes(p_design_version uuid, p_pricing_standard uuid, p_quotation_policy uuid) -> jsonb SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=52460580adee4eea400d10c0a3f92e2f
 function: products_outside_catalog(p_org uuid, p_design_version uuid, p_catalog_version uuid) -> uuid[] SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=b39a84a40d4d7f8d1df79a469812bc14
 function: record_decision(p_org uuid, p_subject_type text, p_id uuid, p_action text, p_actor uuid, p_reason text, p_prev design_os.record_lifecycle_status, p_new design_os.record_lifecycle_status, p_hash text, p_request uuid) -> void owner=design_os_owner src=e5a66bb9c859daa3e0911043b62c3505
-function: record_validation_run(p_design_version_id uuid, p_input_hash text, p_engine_version text, p_engine_build text, p_engine_hash text, p_blocker_count integer, p_warning_count integer, p_messages jsonb, p_content_hash text) -> uuid SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=0a84bcce9f07d40212798e4e3cd052f1
+function: record_validation_run(p_purpose text, p_design_version_id uuid, p_input_hash text, p_engine_name text, p_engine_version text, p_engine_build text, p_engine_fingerprint text, p_engine_closure jsonb, p_blocker_count integer, p_warning_count integer, p_messages jsonb, p_content_hash text) -> uuid SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=394329782668bac595eeb64c7e2717e1
 function: room_project(p_room uuid) -> uuid SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=2fc701b3a69dc86e4e0ac5f50fee93d2
 function: seed_org_permissions() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=f6c845acde51f7abe9a6c090d6ae546b
-function: transition(p_subject_type text, p_id uuid, p_action text, p_reason text, p_expected_content_hash text) -> design_os.record_lifecycle_status SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=f56ab141e932485c35d1b2f52b42d1db
-function: unaudited_tables() -> text[] owner=design_os_owner src=3afa3d856016f81ce3381bc58f298f10
+function: sha256_text(p text) -> text owner=design_os_owner src=5a15a50b55cc5ba1369f13edbe9f090d
+function: transition(p_subject_type text, p_id uuid, p_action text, p_reason text, p_expected_content_hash text) -> design_os.record_lifecycle_status SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=f0d65fd94bcf4c255748ad197c806811
+function: unaudited_tables() -> text[] owner=design_os_owner src=7883478b840d1e121cdd5a7c8b1dd89e
 function: verify_audit_chain(p_org uuid) -> TABLE(ok boolean, checked bigint, first_bad_id bigint) SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=73aa89afa4bc59f748a0fb20fb4fdfa0
-function: version_dependencies(p_subject_type text, p_id uuid, p_org uuid) -> TABLE(dep_subject_type text, dep_version_id uuid, name text, required boolean) owner=design_os_owner src=7fa01d72c8605be2094ef15d3154f648
+function: version_content_hash(p_subject_type text, p_id uuid, p_org uuid) -> text SECURITY DEFINER search_path=design_os, pg_temp,TimeZone=UTC owner=design_os_owner src=79bc75269e3ae1bc3e6c1372585d2542
+function: version_dependencies(p_subject_type text, p_id uuid, p_org uuid) -> TABLE(dep_subject_type text, dep_version_id uuid, name text, required boolean) owner=design_os_owner src=f9d013ae2aa76d412d7ed7bd106b9d14
 function: version_status(p_subject_type text, p_id uuid, p_org uuid) -> design_os.record_lifecycle_status owner=design_os_owner src=b17b69a50ed7061b90deb6fe27f186b0
 enum: design_os_role ADMIN,DESIGNER,DESIGN_HEAD,SALES,COSTING,FINANCE,PROCUREMENT,PRODUCTION,SITE_ENGINEER,CLIENT
 enum: identity_kind INTERNAL,CLIENT
@@ -2701,6 +2932,8 @@ table: material_catalog_version_material owner=design_os_owner rls=true
 table: material_version owner=design_os_owner rls=true
 table: org_membership owner=design_os_owner rls=true
 table: organization owner=design_os_owner rls=true
+table: output_engine owner=design_os_owner rls=true
+table: output_file_format owner=design_os_owner rls=true
 table: output_purpose_rule owner=design_os_owner rls=true
 table: permission owner=design_os_owner rls=true
 table: planning_standard owner=design_os_owner rls=true
@@ -2952,6 +3185,8 @@ policy: org_membership membership_insert INSERT design_os_api USING - CHECK ((or
 policy: org_membership membership_read SELECT design_os_api USING ((org_id = design_os.current_org_id()) AND (design_os.is_internal() OR (user_id = design_os.current_user_id()))) CHECK -
 policy: org_membership membership_update UPDATE design_os_api USING ((org_id = design_os.current_org_id()) AND design_os.has_permission('org.members.manage'::text)) CHECK ((org_id = design_os.current_org_id()) AND design_os.has_permission('org.members.manage'::text))
 policy: organization own_org SELECT design_os_api USING (id = design_os.current_org_id()) CHECK -
+policy: output_engine registry_read SELECT design_os_api USING true CHECK -
+policy: output_file_format registry_read SELECT design_os_api USING true CHECK -
 policy: output_purpose_rule registry_read SELECT design_os_api USING true CHECK -
 policy: permission registry_read SELECT design_os_api USING true CHECK -
 policy: planning_standard ref_delete DELETE design_os_api USING ((org_id = design_os.current_org_id()) AND design_os.has_permission('planning_standard.author'::text)) CHECK -
@@ -3254,6 +3489,8 @@ grant: design_os_api org_membership INSERT
 grant: design_os_api org_membership SELECT
 grant: design_os_api org_membership UPDATE
 grant: design_os_api organization SELECT
+grant: design_os_api output_engine SELECT
+grant: design_os_api output_file_format SELECT
 grant: design_os_api output_purpose_rule SELECT
 grant: design_os_api permission SELECT
 grant: design_os_api planning_standard DELETE
@@ -3447,13 +3684,10 @@ column_grant: design_os_api design_version.finish_catalog_version_id UPDATE
 column_grant: design_os_api design_version.hardware_catalog_version_id UPDATE
 column_grant: design_os_api design_version.hettich_dataset_version_id UPDATE
 column_grant: design_os_api design_version.input_hash UPDATE
-column_grant: design_os_api design_version.manufacturing_standard_version_id UPDATE
 column_grant: design_os_api design_version.material_catalog_version_id UPDATE
 column_grant: design_os_api design_version.planning_standard_version_id UPDATE
-column_grant: design_os_api design_version.pricing_standard_version_id UPDATE
 column_grant: design_os_api design_version.product_catalog_version_id UPDATE
 column_grant: design_os_api design_version.project_id UPDATE
-column_grant: design_os_api design_version.quotation_policy_version_id UPDATE
 column_grant: design_os_api design_version.room_revision_id UPDATE
 column_grant: design_os_api design_version.source UPDATE
 column_grant: design_os_api design_version.source_ref UPDATE
@@ -3821,6 +4055,7 @@ routine_grant: design_os_api has_permission EXECUTE
 routine_grant: design_os_api is_internal EXECUTE
 routine_grant: design_os_api is_issued EXECUTE
 routine_grant: design_os_api lifecycle_columns EXECUTE
+routine_grant: design_os_api output_dependency_hashes EXECUTE
 routine_grant: design_os_api record_validation_run EXECUTE
 routine_grant: design_os_api room_project EXECUTE
 routine_grant: design_os_api transition EXECUTE

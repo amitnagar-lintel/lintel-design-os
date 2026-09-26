@@ -2,12 +2,16 @@ import { z } from "zod";
 import { Millimetres, PositiveMillimetres } from "../../common/http/measures.js";
 import { LifecycleStatus, Reason, Sha256Hash, TransitionAction, Uuid } from "../../common/http/schemas.js";
 
-/** The 12 exact pins (M5 §2.3). Required pins are never null; manufacturing, pricing, quotation policy and appliance may be. */
+/**
+ * The 9 exact engineering pins (M5 §2.3; Step 6 plan revision 4 §3). Required pins are never null; the appliance
+ * catalog may be. A design version is engineering-only: PricingStandard, QuotationPolicy and ManufacturingStandard
+ * versions are chosen when an output is generated, never pinned here (sending them is a 400).
+ */
 export const REQUIRED_PINS = [
   "constructionStandardVersionId", "planningStandardVersionId", "edgeBandStandardVersionId", "materialCatalogVersionId",
   "finishCatalogVersionId", "hardwareCatalogVersionId", "productCatalogVersionId", "hettichDatasetVersionId",
 ] as const;
-export const OPTIONAL_PINS = ["manufacturingStandardVersionId", "pricingStandardVersionId", "quotationPolicyVersionId", "applianceCatalogVersionId"] as const;
+export const OPTIONAL_PINS = ["applianceCatalogVersionId"] as const;
 export type PinName = (typeof REQUIRED_PINS)[number] | (typeof OPTIONAL_PINS)[number];
 
 export const PinsInput = z.strictObject({
@@ -19,9 +23,6 @@ export const PinsInput = z.strictObject({
   hardwareCatalogVersionId: Uuid.optional(),
   productCatalogVersionId: Uuid.optional(),
   hettichDatasetVersionId: Uuid.optional(),
-  manufacturingStandardVersionId: Uuid.nullable().optional(),
-  pricingStandardVersionId: Uuid.nullable().optional(),
-  quotationPolicyVersionId: Uuid.nullable().optional(),
   applianceCatalogVersionId: Uuid.nullable().optional(),
 });
 export type PinsInput = z.infer<typeof PinsInput>;
@@ -130,7 +131,9 @@ export const ValidationRequest = z.strictObject({});
 export const RunId = z.strictObject({ runId: Uuid });
 export const ValidationMessage = z.strictObject({ code: z.string(), severity: z.string(), message: z.string() }).catchall(z.unknown());
 export const ValidationRunResponse = z.strictObject({
-  id: Uuid, designVersionId: Uuid, inputHash: Sha256Hash, inputRevision: z.number().int(), engineVersion: z.string(), engineBuild: z.string().nullable(), engineHash: z.string(), contentHash: Sha256Hash,
+  id: Uuid, designVersionId: Uuid, purpose: z.enum(["APPROVAL", "OUTPUT_GENERATION"]), inputHash: Sha256Hash, inputRevision: z.number().int(), dependencySetHash: Sha256Hash.nullable(),
+  engine: z.strictObject({ name: z.string(), version: z.string(), build: z.string().nullable(), fingerprint: z.string(), closure: z.record(z.string(), z.unknown()).nullable() }),
+  contentHash: Sha256Hash,
   blockerCount: z.number().int(), warningCount: z.number().int(), canApprove: z.boolean(), current: z.boolean(), messages: z.array(ValidationMessage),
   createdBy: Uuid, createdAt: z.string(),
 });

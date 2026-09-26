@@ -1,8 +1,9 @@
 import { Inject, Injectable } from "@nestjs/common";
+import type { EngineProvenance } from "@lintel/persistence";
 import { buildValidationRun, recordValidationRunArgs } from "@lintel/persistence";
 import type { RequestScope } from "../../common/auth/context.js";
 import { UnitOfWork } from "../../common/db/unit-of-work.js";
-import { API_CONFIG } from "../../common/tokens.js";
+import { API_CONFIG, ENGINE_MANIFEST } from "../../common/tokens.js";
 import type { ApiConfig } from "../../config.js";
 import { ApiProblem } from "../../common/errors/api-problem.js";
 import { assertWritable, parseIfMatch } from "../../common/http/etag.js";
@@ -18,12 +19,14 @@ import { designVersionsRepository as repo } from "../../infrastructure/persisten
 import { roomsRepository } from "../../infrastructure/persistence/rooms.repository.js";
 import { computeInputHash, etagOf, isCurrent } from "./design-content.js";
 import type { ValidationRunResponse } from "./design-versions.schemas.js";
-import type { EngineIdentity } from "./engine.js";
-import { engineIdentity, runDesignEngine } from "./engine.js";
+import type { EngineManifest } from "../../infrastructure/engines/engine-manifest.js";
+import { engineProvenance } from "../../infrastructure/engines/engine-manifest.js";
+import { runDesignEngine } from "../outputs/engines/validation.js";
 
 function toRun(r: ValidationRunRow, v: DesignVersionRow): ValidationRunResponse {
   return {
-    id: r.id, designVersionId: r.design_version_id, inputHash: r.input_hash, inputRevision: r.input_revision, engineVersion: r.engine_version, engineBuild: r.engine_build, engineHash: r.engine_hash,
+    id: r.id, designVersionId: r.design_version_id, purpose: r.purpose, inputHash: r.input_hash, inputRevision: r.input_revision, dependencySetHash: r.dependency_set_hash,
+    engine: { name: r.engine_name, version: r.engine_version, build: r.engine_build, fingerprint: r.engine_fingerprint, closure: r.engine_closure },
     contentHash: r.content_hash, blockerCount: r.blocker_count, warningCount: r.warning_count, canApprove: r.blocker_count === 0, current: isCurrent(r, v),
     messages: r.messages as ValidationRunResponse["messages"], createdBy: r.created_by, createdAt: iso(r.created_at),
   };
@@ -36,14 +39,15 @@ function toRun(r: ValidationRunRow, v: DesignVersionRow): ValidationRunResponse 
  */
 @Injectable()
 export class ValidationService {
-  private readonly engine: EngineIdentity;
+  private readonly engine: EngineProvenance;
   constructor(
     @Inject(API_CONFIG) config: ApiConfig,
+    @Inject(ENGINE_MANIFEST) manifest: EngineManifest,
     @Inject(UnitOfWork) private readonly uow: UnitOfWork,
     @Inject(CursorCodec) private readonly cursors: CursorCodec,
     @Inject(IdempotencyService) private readonly idempotency: IdempotencyService,
   ) {
-    this.engine = engineIdentity(config.buildRevision);
+    this.engine = engineProvenance(manifest, "validation", config.buildRevision);
   }
 
   /**
@@ -71,7 +75,8 @@ export class ValidationService {
           product_catalog_version_id: v.product_catalog_version_id ?? "", hettich_dataset_version_id: v.hettich_dataset_version_id ?? "",
         });
         const resolved = runDesignEngine({ version: v, room, revision, objects, overrides, pinned });
-        const run = buildValidationRun({ designVersionId: v.id, inputHash, engineVersion: this.engine.version, engineBuild: this.engine.build, engineHash: this.engine.hash, validation: resolved.validation });
+        // APPROVAL evidence (SUBMIT / APPROVE). OUTPUT_GENERATION runs are recorded only by output generation.
+        const run = buildValidationRun({ purpose: "APPROVAL", designVersionId: v.id, inputHash, engine: this.engine, validation: resolved.validation });
         const runId = await repo.recordRun(tx, recordValidationRunArgs(run));
         const stored = await repo.run(tx, runId);
         const current = await repo.get(tx, versionId);

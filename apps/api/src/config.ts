@@ -19,10 +19,12 @@ export interface ApiConfig {
   readonly corsOrigins: readonly string[];
   readonly logger: boolean;
   /**
-   * Immutable identity of the running build (Git commit SHA / build revision). It is part of the engine
-   * fingerprint and is recorded with every validation run, so a result names the exact code that produced it.
+   * Immutable identity of the running build (Git commit SHA / build revision). Recorded beside the engine fingerprint
+   * on every validation run and snapshot (human-readable; not an input of the fingerprint, OD-S6-9).
    */
   readonly buildRevision: string;
+  /** Build-time engine manifest (`pnpm engines:manifest`). When absent the manifest is computed from the working tree. */
+  readonly engineManifestPath?: string;
 }
 
 const Env = z.object({
@@ -38,6 +40,7 @@ const Env = z.object({
   API_LOG: z.enum(["true", "false"]).default("true"),
   BUILD_REVISION: z.string().optional(),
   GITHUB_SHA: z.string().optional(),
+  ENGINE_MANIFEST_PATH: z.string().min(1).optional(),
 });
 
 /** The checked-out commit, marked `+dirty` when tracked files differ from it (local development only). */
@@ -79,5 +82,6 @@ export function loadConfig(env: Readonly<Record<string, string | undefined>>, gi
     corsOrigins: e.CORS_ORIGINS.split(",").map((s) => s.trim()).filter((s) => s !== ""),
     logger: e.API_LOG === "true",
     buildRevision: resolveBuildRevision(env, git),
+    ...(e.ENGINE_MANIFEST_PATH === undefined ? {} : { engineManifestPath: e.ENGINE_MANIFEST_PATH }),
   };
 }

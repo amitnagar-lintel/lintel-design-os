@@ -20,7 +20,8 @@ Browser / client portal / apps → /api/v1 → controllers → application servi
 | `src/common/idempotency` | Idempotency-Key handling over `design_os.claim_idempotency()` / `complete_idempotency()` |
 | `src/infrastructure/persistence` | Repositories: SQL only |
 | `src/modules/*` | Feature modules: `health`, `me` (foundation); `clients`, `projects`, `rooms`, `designs`, `design-versions` (core design domain, M5 Step 5 — see `docs/architecture/M5-STEP5-CORE-DESIGN-API.md`). Output modules come later |
-| `src/modules/design-versions/engine.ts` | Rebuilds the engine inputs from the exact pinned rows (via `@lintel/persistence`) and runs `@lintel/design-engine` for validation |
+| `src/modules/outputs/engines/validation.ts` | Entry module of the `validation` engine: rebuilds the engine inputs from the exact pinned rows (via `@lintel/persistence`) and runs `@lintel/design-engine`. Its static import graph is the engine's fingerprint closure |
+| `src/infrastructure/engines/` | Engine manifest (OD-S6-9): per-engine semantic version, dependency-closure fingerprint and closure; computed from the working tree in development / tests, loaded from `ENGINE_MANIFEST_PATH` in production (`pnpm engines:manifest`) |
 
 Boundaries are enforced by ESLint. Controllers never import repositories, the database, engines, persistence or
 storage. Repositories never import engines or `@lintel/persistence`. `pg` is used only in `common/db`,
@@ -34,7 +35,8 @@ storage. Repositories never import engines or `@lintel/persistence`. `pg` is use
 | `AUTH_ISSUER`, `AUTH_AUDIENCE` | Expected token issuer / audience (`authenticated`) |
 | `AUTH_JWKS_URL` **or** `AUTH_JWT_SECRET` | Supabase Auth verification key (asymmetric JWKS or the HS256 shared secret) |
 | `CURSOR_SECRET` | HMAC key for pagination cursors (≥ 32 characters) |
-| `BUILD_REVISION` | Immutable build identity (Git commit SHA / build revision), recorded with every validation run and part of the engine fingerprint. Falls back to `GITHUB_SHA`, then the Git checkout; the API refuses to start without one |
+| `ENGINE_MANIFEST_PATH` | Build-time engine manifest (`pnpm engines:manifest <path>`); verified at startup. Without it the manifest is computed from the working tree (development / tests) |
+| `BUILD_REVISION` | Immutable build identity (Git commit SHA / build revision), recorded with every validation run and snapshot beside the engine fingerprint (not an input of it, OD-S6-9). Falls back to `GITHUB_SHA`, then the Git checkout; the API refuses to start without one |
 | `API_PORT`, `DB_POOL_MAX`, `CORS_ORIGINS`, `API_LOG` | Optional |
 
 No hosted Supabase configuration exists yet. The API runs against local / CI PostgreSQL 17 until the Mumbai gate (M5 §13).

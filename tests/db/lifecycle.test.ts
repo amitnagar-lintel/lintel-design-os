@@ -201,10 +201,10 @@ describe("lifecycle round trip through the database: rows → domain → rows ke
         await actAs(c, null);
         const v2 = randomUUID();
         await c.query(`INSERT INTO design_os.design_version (id, org_id, entity_id, project_id, based_on_version_id, room_revision_id, construction_standard_version_id, planning_standard_version_id,
-            edge_band_standard_version_id, manufacturing_standard_version_id, pricing_standard_version_id, quotation_policy_version_id, material_catalog_version_id, finish_catalog_version_id,
+            edge_band_standard_version_id, material_catalog_version_id, finish_catalog_version_id,
             hardware_catalog_version_id, appliance_catalog_version_id, product_catalog_version_id, hettich_dataset_version_id, authored_engine_version, input_hash, version_number, source, change_reason, created_by, content_hash)
-          SELECT $2, org_id, entity_id, project_id, id, room_revision_id, construction_standard_version_id, planning_standard_version_id, edge_band_standard_version_id, manufacturing_standard_version_id,
-            pricing_standard_version_id, quotation_policy_version_id, material_catalog_version_id, finish_catalog_version_id, hardware_catalog_version_id, appliance_catalog_version_id,
+          SELECT $2, org_id, entity_id, project_id, id, room_revision_id, construction_standard_version_id, planning_standard_version_id, edge_band_standard_version_id,
+            material_catalog_version_id, finish_catalog_version_id, hardware_catalog_version_id, appliance_catalog_version_id,
             product_catalog_version_id, hettich_dataset_version_id, authored_engine_version, input_hash, 2, source, 'second version', created_by, content_hash FROM design_os.design_version WHERE id = $1`,
           [d.designVersionId, v2]);
         await validationRun(c, w, v2, d.inputHash, 0);

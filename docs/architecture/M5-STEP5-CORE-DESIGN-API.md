@@ -162,6 +162,7 @@ A run is `current` only while the version's input hash and input revision are un
    - Every validation run stores `engine_version`, `engine_build`, `engine_hash` and `input_hash`, and the response returns `engineVersion`, `engineBuild`, `engineHash` and `inputHash`.
    - `record_validation_run()` now takes the build. `validation_run_engine_build_required` enforces it for every new run (`NOT VALID`: runs recorded before 0016 keep `engine_build` NULL; nothing is back-filled or invented).
    - Snapshot tables (output modules, not started) will carry the same fingerprint when they are built.
+   - **Superseded in M5 Step 7 (migration 0017, Step 6 plan revision 4 §5–§6):** the fingerprint became a per-engine dependency-closure hash (`engine_fingerprint`, with `engine_name` and `engine_closure`); the commit stays in `engine_build` beside it and is no longer hashed in; validation runs carry a purpose (APPROVAL for SUBMIT / APPROVE, OUTPUT_GENERATION for outputs); a design version pins the 9 engineering versions only.
 5. **The approval success path cannot be exercised over HTTP yet.**
    - With the test-only synthetic reference data, the engine reports BLOCKERs (for example `EDGE_RULES_UNDEFINED` and `MATERIAL_UNKNOWN`), so the database refuses APPROVE with `VALIDATION_BLOCKERS`.
    - The tests assert exactly that.

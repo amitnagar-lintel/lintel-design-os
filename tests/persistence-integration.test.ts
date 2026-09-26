@@ -9,6 +9,7 @@ import { resolveRoom } from "@lintel/design-engine";
 import { generateRoomBom } from "@lintel/bom-engine";
 import type { VersionMeta } from "@lintel/persistence";
 import {
+  NO_CHOSEN_VERSIONS,
   assembleCatalogSnapshot,
   buildSnapshotProvenance,
   buildSnapshotRecord,
@@ -99,9 +100,6 @@ describe("snapshots", () => {
     constructionStandardVersionId: "csv_1",
     planningStandardVersionId: "psv_1",
     edgeBandStandardVersionId: "ebv_1",
-    manufacturingStandardVersionId: null,
-    pricingStandardVersionId: null,
-    quotationPolicyVersionId: null,
     materialCatalogVersionId: "mcr_1",
     finishCatalogVersionId: "fcr_1",
     hardwareCatalogVersionId: "hcr_1",
@@ -109,17 +107,25 @@ describe("snapshots", () => {
     applianceCatalogVersionId: null,
     productCatalogVersionId: "pcr_1",
   };
+  const hashes = Object.fromEntries(["construction_standard_version_id", "planning_standard_version_id", "edge_band_standard_version_id", "material_catalog_version_id",
+    "finish_catalog_version_id", "hardware_catalog_version_id", "hettich_dataset_version_id", "product_catalog_version_id"].map((k) => [k, contentHash(k)]));
+  const engine = { name: "bom" as const, version: "0.1.0", build: "0000000000000000000000000000000000000000", fingerprint: contentHash("bom engine"),
+    closure: { packages: {}, externals: {}, entry: contentHash("entry"), runtime: "node-22" } };
+  const provenanceOf = () => buildSnapshotProvenance("BOM", {
+    designVersion: { versionId: "dv_001", status: "DRAFT", contentHash: contentHash("dv"), inputHash: contentHash("inputs"), inputRevision: 1 },
+    pins: PINS, chosen: NO_CHOSEN_VERSIONS, dependencyHashes: hashes, validationRunId: "run_1", engine, sources: {},
+  });
   it("a PRODUCTION room BOM (blocked) can be sealed with full provenance", () => {
     const room = productionRoom();
     const bom = generateRoomBom(room);
-    const rec = buildSnapshotRecord({ snapshotId: "snap_1", kind: "BOM", purpose: "PRELIMINARY", provenance: buildSnapshotProvenance("BOM", { versionId: "dv_001", status: "DRAFT", contentHash: contentHash("dv") }, PINS, room.trace.engineVersion), inputHash: contentHash("inputs"), payload: bom, blockerCount: room.validation.counts.BLOCKER, createdBy: "u", createdAt: T0 });
+    const rec = buildSnapshotRecord({ snapshotId: "snap_1", kind: "BOM", purpose: "PRELIMINARY", provenance: provenanceOf(), payload: bom, blockerCount: room.validation.counts.BLOCKER, warningCount: 0, outputComplete: !bom.incomplete, validationBlockerCount: room.validation.counts.BLOCKER, createdBy: "u", createdAt: T0 });
     expect(rec.contentHash).toBe(contentHash(bom));
-    expect(rec.provenance.edgeBandStandardVersionId).toBe("ebv_1");
+    expect(rec.provenance.pins.edgeBandStandardVersionId).toBe("ebv_1");
   });
   it("a TEST_FIXTURE room BOM is refused", () => {
     const bom = generateRoomBom(fixtureRoom());
     expect(() =>
-      buildSnapshotRecord({ snapshotId: "snap_2", kind: "BOM", purpose: "PRELIMINARY", provenance: buildSnapshotProvenance("BOM", { versionId: "dv_001", status: "DRAFT", contentHash: contentHash("dv") }, PINS, "0.1.0"), inputHash: contentHash("inputs"), payload: bom, blockerCount: 1, createdBy: "u", createdAt: T0 }),
+      buildSnapshotRecord({ snapshotId: "snap_2", kind: "BOM", purpose: "PRELIMINARY", provenance: provenanceOf(), payload: bom, blockerCount: 1, warningCount: 0, outputComplete: true, validationBlockerCount: 1, createdBy: "u", createdAt: T0 }),
     ).toThrow(TestFixturePersistenceError);
   });
 });

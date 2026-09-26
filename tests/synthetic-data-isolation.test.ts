@@ -33,6 +33,8 @@ const ALLOWED_INSERT_TARGETS = new Set([
   "role_permission", "approval_request", "approval_decision", "audit_log", "validation_run",
   // 0012 error-code and output-purpose registries; 0013 idempotency claims (written only at runtime by design_os.claim_idempotency()).
   "error_code", "output_purpose_rule", "idempotency_record",
+  // 0017 output registries: the output engines and the file formats snapshots may carry (schema, not content).
+  "output_engine", "output_file_format",
 ]);
 
 describe("synthetic database-test data stays isolated", () => {

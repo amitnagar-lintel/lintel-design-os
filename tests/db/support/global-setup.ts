@@ -21,14 +21,17 @@ export interface MigrationReport {
 declare module "vitest" {
   export interface ProvidedContext {
     dbUrl: string;
+    raceDbUrl: string;
     migrationReport: MigrationReport;
   }
 }
 
 const TEST_DB = "design_os_test";
+/** A copy of the migrated test database for the few tests that must COMMIT across connections (races); dropped at teardown. */
+const RACE_DB = "design_os_race";
 
 /** Registries and seeded grants: the only tables allowed to hold rows when the suite ends. */
-const SCHEMA_TABLES = new Set(["versioned_table", "role", "permission", "default_role_permission", "construction_variable", "planning_variable", "manufacturing_variable"]);
+const SCHEMA_TABLES = new Set(["versioned_table", "role", "permission", "default_role_permission", "construction_variable", "planning_variable", "manufacturing_variable", "error_code"]);
 
 export default async function setup(project: TestProject): Promise<() => Promise<void>> {
   const admin = process.env.DATABASE_URL;
@@ -37,6 +40,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
 
   const root = new pg.Client({ connectionString: admin });
   await root.connect();
+  await root.query(`DROP DATABASE IF EXISTS ${RACE_DB} WITH (FORCE)`);
   await root.query(`DROP DATABASE IF EXISTS ${TEST_DB} WITH (FORCE)`);
   await root.query(`CREATE DATABASE ${TEST_DB}`);
   await root.end();
@@ -67,6 +71,13 @@ export default async function setup(project: TestProject): Promise<() => Promise
   } finally {
     await client.end();
   }
+  const raceUrl = new URL(admin);
+  raceUrl.pathname = `/${RACE_DB}`;
+  const templater = new pg.Client({ connectionString: admin });
+  await templater.connect();
+  await templater.query(`CREATE DATABASE ${RACE_DB} TEMPLATE ${TEST_DB}`);
+  await templater.end();
+  project.provide("raceDbUrl", raceUrl.toString());
 
   // Teardown: every test ran in a rolled-back transaction, so no data (synthetic or otherwise) may persist.
   return async () => {
@@ -83,6 +94,10 @@ export default async function setup(project: TestProject): Promise<() => Promise
       if (left.length > 0) throw new Error(`database tests left persistent rows behind: ${left.join(", ")}`);
     } finally {
       await check.end();
+      const dropper = new pg.Client({ connectionString: admin });
+      await dropper.connect();
+      await dropper.query(`DROP DATABASE IF EXISTS ${RACE_DB} WITH (FORCE)`);
+      await dropper.end();
     }
   };
 }

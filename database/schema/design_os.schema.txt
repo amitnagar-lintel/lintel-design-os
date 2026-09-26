@@ -392,6 +392,11 @@ column: edge_band_version.superseded_by uuid
 column: edge_band_version.superseded_at timestamp with time zone
 column: edge_band_version.content_hash text NOT NULL
 column: edge_band_version.row_version integer NOT NULL DEFAULT 1
+column: error_code.sqlstate text NOT NULL
+column: error_code.code text NOT NULL
+column: error_code.http_status smallint NOT NULL
+column: error_code.api_facing boolean NOT NULL
+column: error_code.description text NOT NULL
 column: file_object.id uuid NOT NULL DEFAULT gen_random_uuid()
 column: file_object.org_id uuid NOT NULL
 column: file_object.provider_id text NOT NULL
@@ -631,6 +636,20 @@ column: hettich_dataset_version.superseded_by uuid
 column: hettich_dataset_version.superseded_at timestamp with time zone
 column: hettich_dataset_version.content_hash text NOT NULL
 column: hettich_dataset_version.row_version integer NOT NULL DEFAULT 1
+column: idempotency_record.id uuid NOT NULL DEFAULT gen_random_uuid()
+column: idempotency_record.org_id uuid NOT NULL
+column: idempotency_record.scope text NOT NULL
+column: idempotency_record.idempotency_key text NOT NULL
+column: idempotency_record.actor_user_id uuid NOT NULL
+column: idempotency_record.request_hash text NOT NULL
+column: idempotency_record.status text NOT NULL DEFAULT 'IN_PROGRESS'::text
+column: idempotency_record.response_status smallint
+column: idempotency_record.response_body jsonb
+column: idempotency_record.resource_type text
+column: idempotency_record.resource_id uuid
+column: idempotency_record.created_at timestamp with time zone NOT NULL DEFAULT now()
+column: idempotency_record.completed_at timestamp with time zone
+column: idempotency_record.expires_at timestamp with time zone NOT NULL
 column: manufacturing_document_snapshot.id uuid NOT NULL DEFAULT gen_random_uuid()
 column: manufacturing_document_snapshot.org_id uuid NOT NULL
 column: manufacturing_document_snapshot.kind design_os.snapshot_kind NOT NULL
@@ -1461,6 +1480,13 @@ constraint: design_os.edge_band_version edge_band_version_thickness_mm_check CHE
 constraint: design_os.edge_band_version edge_band_version_version_number_check CHECK ((version_number >= 1))
 constraint: design_os.edge_band_version edge_band_version_version_number_unique UNIQUE (org_id, entity_id, version_number)
 constraint: design_os.edge_band_version edge_band_version_width_mm_check CHECK ((width_mm > (0)::numeric))
+constraint: design_os.error_code error_code_class CHECK ((api_facing = (sqlstate < 'LD900'::text)))
+constraint: design_os.error_code error_code_code_check CHECK ((code ~ '^[A-Z][A-Z0-9_]*$'::text))
+constraint: design_os.error_code error_code_code_key UNIQUE (code)
+constraint: design_os.error_code error_code_http_status_check CHECK (((http_status >= 400) AND (http_status <= 599)))
+constraint: design_os.error_code error_code_internal_status CHECK ((api_facing OR (http_status = 500)))
+constraint: design_os.error_code error_code_pkey PRIMARY KEY (sqlstate)
+constraint: design_os.error_code error_code_sqlstate_check CHECK ((sqlstate ~ '^LD[0-9]{3}$'::text))
 constraint: design_os.file_object file_object_byte_size_check CHECK ((byte_size >= 0))
 constraint: design_os.file_object file_object_checksum_check CHECK ((checksum ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.file_object file_object_created_by_fkey FOREIGN KEY (created_by) REFERENCES design_os.app_user(id)
@@ -1655,6 +1681,22 @@ constraint: design_os.hettich_dataset_version hettich_dataset_version_superseded
 constraint: design_os.hettich_dataset_version hettich_dataset_version_superseded_iff CHECK (((status = 'SUPERSEDED'::design_os.record_lifecycle_status) = ((superseded_by IS NOT NULL) AND (superseded_at IS NOT NULL))))
 constraint: design_os.hettich_dataset_version hettich_dataset_version_version_number_check CHECK ((version_number >= 1))
 constraint: design_os.hettich_dataset_version hettich_dataset_version_version_number_unique UNIQUE (org_id, entity_id, version_number)
+constraint: design_os.idempotency_record idempotency_must_complete TRIGGER DEFERRABLE INITIALLY DEFERRED
+constraint: design_os.idempotency_record idempotency_record_actor_user_id_fkey FOREIGN KEY (actor_user_id) REFERENCES design_os.app_user(id)
+constraint: design_os.idempotency_record idempotency_record_completed CHECK (((status <> 'COMPLETED'::text) OR ((response_status IS NOT NULL) AND (completed_at IS NOT NULL) AND ((response_body IS NOT NULL) OR ((resource_type IS NOT NULL) AND (resource_id IS NOT NULL))))))
+constraint: design_os.idempotency_record idempotency_record_expiry CHECK (((expires_at > created_at) AND (expires_at <= (created_at + '7 days'::interval))))
+constraint: design_os.idempotency_record idempotency_record_idempotency_key_check CHECK ((idempotency_key ~ '^[!-~]{16,128}$'::text))
+constraint: design_os.idempotency_record idempotency_record_in_progress CHECK (((status <> 'IN_PROGRESS'::text) OR ((response_status IS NULL) AND (response_body IS NULL) AND (resource_type IS NULL) AND (resource_id IS NULL) AND (completed_at IS NULL))))
+constraint: design_os.idempotency_record idempotency_record_key UNIQUE (org_id, scope, idempotency_key)
+constraint: design_os.idempotency_record idempotency_record_no_test_fixture CHECK (((response_body IS NULL) OR (NOT jsonb_path_exists(response_body, '$.**?(@ == "TEST_FIXTURE" || @ == "TEST_FIXTURE_DATA_IN_USE")'::jsonpath))))
+constraint: design_os.idempotency_record idempotency_record_org_id_fkey FOREIGN KEY (org_id) REFERENCES design_os.organization(id)
+constraint: design_os.idempotency_record idempotency_record_pkey PRIMARY KEY (id)
+constraint: design_os.idempotency_record idempotency_record_request_hash_check CHECK ((request_hash ~ '^sha256:[0-9a-f]{64}$'::text))
+constraint: design_os.idempotency_record idempotency_record_resource_type_check CHECK (((resource_type IS NULL) OR (resource_type ~ '^[a-z][a-z0-9_]*$'::text)))
+constraint: design_os.idempotency_record idempotency_record_response_body_check CHECK (((response_body IS NULL) OR (octet_length((response_body)::text) <= 65536)))
+constraint: design_os.idempotency_record idempotency_record_response_status_check CHECK (((response_status >= 200) AND (response_status <= 299)))
+constraint: design_os.idempotency_record idempotency_record_scope_check CHECK ((scope = ANY (ARRAY['transition'::text, 'validation_run.record'::text, 'snapshot.bom.generate'::text, 'snapshot.boq.generate'::text, 'snapshot.pricing.generate'::text, 'snapshot.quotation.generate'::text, 'snapshot.drawing.generate'::text, 'snapshot.manufacturing_document.generate'::text, 'quotation.issue'::text, 'drawing.issue'::text, 'manufacturing.release'::text, 'file.upload'::text, 'client_contact.invite'::text])))
+constraint: design_os.idempotency_record idempotency_record_status_check CHECK ((status = ANY (ARRAY['IN_PROGRESS'::text, 'COMPLETED'::text])))
 constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapsh_design_version_content_hash_check CHECK ((design_version_content_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_appliance_fk FOREIGN KEY (org_id, appliance_catalog_version_id) REFERENCES design_os.appliance_catalog_version(org_id, id)
 constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_blocker_count_check CHECK ((blocker_count >= 0))
@@ -2101,6 +2143,7 @@ constraint: design_os.versioned_table versioned_table_author_fk FOREIGN KEY (aut
 constraint: design_os.versioned_table versioned_table_pkey PRIMARY KEY (subject_type)
 constraint: design_os.versioned_table versioned_table_version_table_key UNIQUE (version_table)
 index: CREATE INDEX audit_log_chain ON design_os.audit_log USING btree (org_id, id)
+index: CREATE INDEX idempotency_record_expires ON design_os.idempotency_record USING btree (expires_at)
 index: CREATE INDEX validation_run_lookup ON design_os.validation_run USING btree (design_version_id, input_hash, input_revision, seq DESC)
 index: CREATE UNIQUE INDEX app_user_email_unique ON design_os.app_user USING btree (lower(email))
 index: CREATE UNIQUE INDEX app_user_pkey ON design_os.app_user USING btree (id)
@@ -2176,6 +2219,8 @@ index: CREATE UNIQUE INDEX edge_band_version_org_entity_id_unique ON design_os.e
 index: CREATE UNIQUE INDEX edge_band_version_org_id_unique ON design_os.edge_band_version USING btree (org_id, id)
 index: CREATE UNIQUE INDEX edge_band_version_pkey ON design_os.edge_band_version USING btree (id)
 index: CREATE UNIQUE INDEX edge_band_version_version_number_unique ON design_os.edge_band_version USING btree (org_id, entity_id, version_number)
+index: CREATE UNIQUE INDEX error_code_code_key ON design_os.error_code USING btree (code)
+index: CREATE UNIQUE INDEX error_code_pkey ON design_os.error_code USING btree (sqlstate)
 index: CREATE UNIQUE INDEX file_object_key_unique ON design_os.file_object USING btree (org_id, provider_id, storage_key)
 index: CREATE UNIQUE INDEX file_object_org_id_unique ON design_os.file_object USING btree (org_id, id)
 index: CREATE UNIQUE INDEX file_object_pkey ON design_os.file_object USING btree (id)
@@ -2231,6 +2276,8 @@ index: CREATE UNIQUE INDEX hettich_dataset_version_org_id_unique ON design_os.he
 index: CREATE UNIQUE INDEX hettich_dataset_version_pkey ON design_os.hettich_dataset_version USING btree (id)
 index: CREATE UNIQUE INDEX hettich_dataset_version_version_number_unique ON design_os.hettich_dataset_version USING btree (org_id, entity_id, version_number)
 index: CREATE UNIQUE INDEX hettich_rule_position_unique ON design_os.hettich_calculation_rule USING btree (version_id, "position")
+index: CREATE UNIQUE INDEX idempotency_record_key ON design_os.idempotency_record USING btree (org_id, scope, idempotency_key)
+index: CREATE UNIQUE INDEX idempotency_record_pkey ON design_os.idempotency_record USING btree (id)
 index: CREATE UNIQUE INDEX manufacturing_document_snapshot_file_pkey ON design_os.manufacturing_document_snapshot_file USING btree (snapshot_id, format)
 index: CREATE UNIQUE INDEX manufacturing_document_snapshot_org_id_unique ON design_os.manufacturing_document_snapshot USING btree (org_id, id)
 index: CREATE UNIQUE INDEX manufacturing_document_snapshot_pkey ON design_os.manufacturing_document_snapshot USING btree (id)
@@ -2331,6 +2378,7 @@ index: CREATE UNIQUE INDEX validation_run_pkey ON design_os.validation_run USING
 index: CREATE UNIQUE INDEX validation_run_seq_key ON design_os.validation_run USING btree (seq)
 index: CREATE UNIQUE INDEX versioned_table_pkey ON design_os.versioned_table USING btree (subject_type)
 index: CREATE UNIQUE INDEX versioned_table_version_table_key ON design_os.versioned_table USING btree (version_table)
+trigger: CREATE CONSTRAINT TRIGGER idempotency_must_complete AFTER INSERT OR UPDATE ON design_os.idempotency_record DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION design_os.check_idempotency_completed()
 trigger: CREATE TRIGGER audit_row AFTER INSERT OR DELETE OR UPDATE ON design_os.app_user FOR EACH ROW EXECUTE FUNCTION design_os.audit_row()
 trigger: CREATE TRIGGER audit_row AFTER INSERT OR DELETE OR UPDATE ON design_os.appliance FOR EACH ROW EXECUTE FUNCTION design_os.audit_row()
 trigger: CREATE TRIGGER audit_row AFTER INSERT OR DELETE OR UPDATE ON design_os.appliance_catalog FOR EACH ROW EXECUTE FUNCTION design_os.audit_row()
@@ -2435,6 +2483,7 @@ trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.boq
 trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.drawing_issue FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
 trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.drawing_snapshot FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
 trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.drawing_snapshot_file FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
+trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.error_code FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
 trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.file_object FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
 trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.manufacturing_document_snapshot FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
 trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.manufacturing_document_snapshot_file FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
@@ -2468,6 +2517,7 @@ trigger: CREATE TRIGGER guard_draft_content BEFORE INSERT OR DELETE OR UPDATE ON
 trigger: CREATE TRIGGER guard_draft_content BEFORE INSERT OR DELETE OR UPDATE ON design_os.relationship_override FOR EACH ROW EXECUTE FUNCTION design_os.guard_draft_content('design_os.design_version', 'design_version_id')
 trigger: CREATE TRIGGER guard_draft_content BEFORE INSERT OR DELETE OR UPDATE ON design_os.tax_rate FOR EACH ROW EXECUTE FUNCTION design_os.guard_draft_content('design_os.quotation_policy_version', 'version_id')
 trigger: CREATE TRIGGER guard_draft_content BEFORE INSERT OR DELETE OR UPDATE ON design_os.tax_rate_mapping FOR EACH ROW EXECUTE FUNCTION design_os.guard_draft_content('design_os.quotation_policy_version', 'version_id')
+trigger: CREATE TRIGGER guard_idempotency_record BEFORE DELETE OR UPDATE ON design_os.idempotency_record FOR EACH ROW EXECUTE FUNCTION design_os.guard_idempotency_record()
 trigger: CREATE TRIGGER guard_identity_kind BEFORE UPDATE ON design_os.app_user FOR EACH ROW EXECUTE FUNCTION design_os.guard_identity_kind()
 trigger: CREATE TRIGGER guard_membership_identity BEFORE INSERT OR UPDATE ON design_os.org_membership FOR EACH ROW EXECUTE FUNCTION design_os.guard_membership_identity()
 trigger: CREATE TRIGGER guard_product_recipe BEFORE INSERT OR UPDATE ON design_os.product_version FOR EACH ROW EXECUTE FUNCTION design_os.guard_product_recipe()
@@ -2495,36 +2545,42 @@ trigger: CREATE TRIGGER guard_version_row BEFORE INSERT OR DELETE OR UPDATE ON d
 trigger: CREATE TRIGGER guard_version_row BEFORE INSERT OR DELETE OR UPDATE ON design_os.recipe_version FOR EACH ROW EXECUTE FUNCTION design_os.guard_version_row()
 trigger: CREATE TRIGGER maintain_input_revision BEFORE INSERT OR UPDATE ON design_os.design_version FOR EACH ROW EXECUTE FUNCTION design_os.maintain_input_revision()
 trigger: CREATE TRIGGER seed_org_permissions AFTER INSERT ON design_os.organization FOR EACH ROW EXECUTE FUNCTION design_os.seed_org_permissions()
-function: approval_problems(p_subject_type text, p_id uuid, p_org uuid) -> text[] owner=design_os_owner src=58e5d648159a14d51b4163b6e4e1092b
+function: approval_problem_items(p_subject_type text, p_id uuid, p_org uuid) -> TABLE(problem_code text, problem_message text) owner=design_os_owner src=06f3acdc48219f57b4fc6e59ced2e8f5
+function: approval_problems(p_subject_type text, p_id uuid, p_org uuid) -> text[] owner=design_os_owner src=1ddfa6a4b4d546eb7f6ade2e0480112f
 function: audit_canonical(p_org uuid, p_at timestamp with time zone, p_actor uuid, p_action text, p_table text, p_row text, p_old jsonb, p_new jsonb, p_reason text, p_request text) -> text owner=design_os_owner src=110dffb1a7d3b029b9d582058e9a4ed6
 function: audit_chain_hash(p_prev text, p_canonical text) -> text owner=design_os_owner src=1dc12ca77292286f3273c509a7629339
 function: audit_row() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=902eaf060ff0e3b2d8ab4599822d2e8d
 function: bump_input_revision() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=6dd7dc4b9ec9b7379ece0b4e5ed1940e
 function: can_access_project(p_project uuid) -> boolean SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=d5ccb73fb532950fa57f3c23c0d265ac
-function: check_issue() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=b70a838c3f1072478754a2f4680f9c4d
-function: check_snapshot_provenance() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=1c33a9d9de86d5c8b9d82a5506b70613
+function: check_idempotency_completed() -> trigger SECURITY DEFINER search_path=pg_catalog, pg_temp owner=design_os_owner src=875de1c9e46e8d69138c77e6342d7267
+function: check_issue() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=f27f42d77c1960a3ecb5c83b89fff60a
+function: check_snapshot_provenance() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=bf3297e93bb148e0539fc7e6fee308db
+function: claim_idempotency(p_scope text, p_idempotency_key text, p_request_hash text, p_ttl interval) -> TABLE(outcome text, record_id uuid, response_status smallint, response_body jsonb, resource_type text, resource_id uuid) SECURITY DEFINER search_path=pg_catalog, pg_temp,lock_timeout=5s owner=design_os_owner src=db21810df6d86458ee3dd15a3ecbadaa
 function: claims() -> jsonb owner=design_os_owner src=31cad67d90d968f9aead02cac268c52c
 function: client_allowed_actions() -> text[] owner=design_os_owner src=93e330c956139ad417309bff62bcbaea
 function: client_can_read_file(p_file uuid) -> boolean SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=9f1356f7fa459d2c96626903c00926a0
+function: complete_idempotency(p_record_id uuid, p_response_status smallint, p_response_body jsonb, p_resource_type text, p_resource_id uuid) -> void SECURITY DEFINER search_path=pg_catalog, pg_temp owner=design_os_owner src=8f6cdb29df8b46f1161d3b6ff5025e94
 function: create_catalog_member_table(p_domain text, p_item text) -> void owner=design_os_owner src=291af56c181c38a207ebfa414b7a127f
 function: create_catalog_version_table(p_domain text) -> void owner=design_os_owner src=e8d51ab1c8effe4718825e4b96aff155
 function: create_entity_table(p_name text) -> void owner=design_os_owner src=cf6232eba644481d8982f09a48b1b360
 function: create_snapshot_table(p_name text, p_kind design_os.snapshot_kind) -> void owner=design_os_owner src=61275082d540d0e68dd485dbf76a38ff
+function: current_memberships() -> TABLE(org_id uuid) SECURITY DEFINER search_path=pg_catalog, pg_temp owner=design_os_owner src=c3fa20b747d4b792369e44401cb6424d
 function: current_org_id() -> uuid SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=31141e1fdcdd5924c3fe03e74fccba97
 function: current_user_id() -> uuid owner=design_os_owner src=146d8b484b1175a77c42a5109db6a017
 function: design_version_project(p_design_version uuid) -> uuid SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=590ea98bfa2a8ffd784faca591ff3967
 function: finance_approval_actions() -> text[] owner=design_os_owner src=8160933d9dd69f29529ed3f4f0a0bc87
-function: forbid_mutation() -> trigger owner=design_os_owner src=3fdabb41f6b44d9f45004121b06435fd
-function: forbid_truncate() -> trigger owner=design_os_owner src=09f67e0cbcf78faa7100629c1675e773
-function: guard_client_contact_identity() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=7139421d5b5fa74cf7b84995f63907fc
-function: guard_design_object_product() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=d21717d8b54a166880839703caeaf6e9
-function: guard_design_version_room() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=8c5ea2893759ab6da59b312604de27ca
-function: guard_draft_content() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=2b0a7b402823374874a0fa067fa80260
-function: guard_identity_kind() -> trigger owner=design_os_owner src=8e7461514b1820b948c93af185487915
-function: guard_membership_identity() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=4a1231c91cdd39086f22e85c429b03bc
-function: guard_product_recipe() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=422ab9f49ef3b67078730f0fa461cb81
-function: guard_project_member() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=05c8f988b23c0a9b376f84a07eb8b810
-function: guard_version_row() -> trigger owner=design_os_owner src=1e3f2ea318cc3195dcb48acb024000f6
+function: forbid_mutation() -> trigger owner=design_os_owner src=77cb526cc01dc732a4dd022945a503d7
+function: forbid_truncate() -> trigger owner=design_os_owner src=49f9bcec51922f246e7883586e67ee28
+function: guard_client_contact_identity() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=10918969645f2bab02d7452647daec7b
+function: guard_design_object_product() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=db7afdd3e3da87c6e7327154e089c8ca
+function: guard_design_version_room() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=cbfc3e3bd3fd1a88b8febe735ff25daf
+function: guard_draft_content() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=7afb81b6915feafd9d837f8932a79c13
+function: guard_idempotency_record() -> trigger search_path=pg_catalog, pg_temp owner=design_os_owner src=406cae35c1e2dab604f7dc1bedb22b33
+function: guard_identity_kind() -> trigger owner=design_os_owner src=a7d77cb9c2f7c71cb6c36b77cadade05
+function: guard_membership_identity() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=dc3a8d38004807f0d8318edaad83939b
+function: guard_product_recipe() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=dab06c53f19ba585efc00a2f6f81ec18
+function: guard_project_member() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=561d3f1ca61a873506645b57c25d4ce4
+function: guard_version_row() -> trigger owner=design_os_owner src=0ef4b3c88d306cc76bf35595882ac404
 function: has_permission(p_action text) -> boolean SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=8178cab8a618a831086e5833463cd71d
 function: install_draft_guard(p_table regclass, p_parent regclass, p_fk text) -> void owner=design_os_owner src=02146b2e0ca835a6ca99a440bfc62a6d
 function: install_insert_only(p_table regclass) -> void owner=design_os_owner src=7d5af8bad03d640b8b0176a5318b7dde
@@ -2533,14 +2589,14 @@ function: is_internal() -> boolean SECURITY DEFINER search_path=design_os, pg_te
 function: is_issued(p_kind text, p_snapshot uuid) -> boolean SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=fb68857d6de6d252a324730397fa8b48
 function: is_official_hettich_url(p_url text) -> boolean owner=design_os_owner src=bcf1722ba67f2eaeb4ab1e5f14bd99a1
 function: lifecycle_columns() -> text[] owner=design_os_owner src=d2bb83af218260d9a3e2d507964aa88c
-function: lock_cascade(p_subject_type text, p_id uuid, p_org uuid, p_actor uuid, p_reason text) -> void owner=design_os_owner src=4d1bdc30ad947c1954b477a550ef3d5e
+function: lock_cascade(p_subject_type text, p_id uuid, p_org uuid, p_actor uuid, p_reason text) -> void owner=design_os_owner src=db490775a95442a3d3b35993209e1d93
 function: maintain_input_revision() -> trigger owner=design_os_owner src=def61d0142b34ea796340cbafa2060fb
 function: record_decision(p_org uuid, p_subject_type text, p_id uuid, p_action text, p_actor uuid, p_reason text, p_prev design_os.record_lifecycle_status, p_new design_os.record_lifecycle_status, p_hash text, p_request uuid) -> void owner=design_os_owner src=e5a66bb9c859daa3e0911043b62c3505
-function: record_validation_run(p_design_version_id uuid, p_input_hash text, p_engine_version text, p_engine_hash text, p_blocker_count integer, p_warning_count integer, p_messages jsonb, p_content_hash text) -> uuid SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=f4a0bb11f540dc14448a2093022ee98d
+function: record_validation_run(p_design_version_id uuid, p_input_hash text, p_engine_version text, p_engine_hash text, p_blocker_count integer, p_warning_count integer, p_messages jsonb, p_content_hash text) -> uuid SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=194ac98994271c32a15fb3d4d0eb4d4d
 function: room_project(p_room uuid) -> uuid SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=2fc701b3a69dc86e4e0ac5f50fee93d2
 function: seed_org_permissions() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=f6c845acde51f7abe9a6c090d6ae546b
-function: transition(p_subject_type text, p_id uuid, p_action text, p_reason text, p_expected_content_hash text) -> design_os.record_lifecycle_status SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=0fe3056776371e583a84fe2343f23620
-function: unaudited_tables() -> text[] owner=design_os_owner src=567f88bb198740e61b9cc3d37fd6ba99
+function: transition(p_subject_type text, p_id uuid, p_action text, p_reason text, p_expected_content_hash text) -> design_os.record_lifecycle_status SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=f56ab141e932485c35d1b2f52b42d1db
+function: unaudited_tables() -> text[] owner=design_os_owner src=b4f3fddf47112dbc13f732fc09052de4
 function: verify_audit_chain(p_org uuid) -> TABLE(ok boolean, checked bigint, first_bad_id bigint) SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=73aa89afa4bc59f748a0fb20fb4fdfa0
 function: version_dependencies(p_subject_type text, p_id uuid, p_org uuid) -> TABLE(dep_subject_type text, dep_version_id uuid, name text, required boolean) owner=design_os_owner src=7fa01d72c8605be2094ef15d3154f648
 function: version_status(p_subject_type text, p_id uuid, p_org uuid) -> design_os.record_lifecycle_status owner=design_os_owner src=b17b69a50ed7061b90deb6fe27f186b0
@@ -2579,6 +2635,7 @@ table: edge_band_rule_set owner=design_os_owner rls=true
 table: edge_band_standard owner=design_os_owner rls=true
 table: edge_band_standard_version owner=design_os_owner rls=true
 table: edge_band_version owner=design_os_owner rls=true
+table: error_code owner=design_os_owner rls=true
 table: file_object owner=design_os_owner rls=true
 table: finish owner=design_os_owner rls=true
 table: finish_catalog owner=design_os_owner rls=true
@@ -2599,6 +2656,7 @@ table: hettich_article owner=design_os_owner rls=true
 table: hettich_calculation_rule owner=design_os_owner rls=true
 table: hettich_dataset owner=design_os_owner rls=true
 table: hettich_dataset_version owner=design_os_owner rls=true
+table: idempotency_record owner=design_os_owner rls=true
 table: manufacturing_document_snapshot owner=design_os_owner rls=true
 table: manufacturing_document_snapshot_file owner=design_os_owner rls=true
 table: manufacturing_standard owner=design_os_owner rls=true
@@ -2737,6 +2795,7 @@ policy: edge_band_version ref_delete DELETE design_os_api USING ((org_id = desig
 policy: edge_band_version ref_insert INSERT design_os_api USING - CHECK ((org_id = design_os.current_org_id()) AND design_os.has_permission('material_catalog.author'::text))
 policy: edge_band_version ref_read SELECT design_os_api USING ((org_id = design_os.current_org_id()) AND design_os.is_internal() AND design_os.has_permission('reference.read'::text)) CHECK -
 policy: edge_band_version ref_update UPDATE design_os_api USING ((org_id = design_os.current_org_id()) AND design_os.has_permission('material_catalog.author'::text)) CHECK ((org_id = design_os.current_org_id()) AND design_os.has_permission('material_catalog.author'::text))
+policy: error_code registry_read SELECT design_os_api USING true CHECK -
 policy: file_object file_insert INSERT design_os_api USING - CHECK ((org_id = design_os.current_org_id()) AND design_os.is_internal() AND (created_by = design_os.current_user_id()) AND (design_os.has_permission('output.generate.engineering'::text) OR design_os.has_permission('manufacturing.release'::text)))
 policy: file_object file_read SELECT design_os_api USING ((org_id = design_os.current_org_id()) AND ((design_os.is_internal() AND design_os.has_permission('output.read.production'::text)) OR design_os.client_can_read_file(id))) CHECK -
 policy: finish ref_delete DELETE design_os_api USING ((org_id = design_os.current_org_id()) AND design_os.has_permission('finish_catalog.author'::text)) CHECK -
@@ -2815,6 +2874,7 @@ policy: hettich_dataset_version ref_delete DELETE design_os_api USING ((org_id =
 policy: hettich_dataset_version ref_insert INSERT design_os_api USING - CHECK ((org_id = design_os.current_org_id()) AND design_os.has_permission('hettich.author'::text))
 policy: hettich_dataset_version ref_read SELECT design_os_api USING ((org_id = design_os.current_org_id()) AND design_os.is_internal() AND design_os.has_permission('reference.read'::text)) CHECK -
 policy: hettich_dataset_version ref_update UPDATE design_os_api USING ((org_id = design_os.current_org_id()) AND design_os.has_permission('hettich.author'::text)) CHECK ((org_id = design_os.current_org_id()) AND design_os.has_permission('hettich.author'::text))
+policy: idempotency_record own_records SELECT design_os_api USING ((org_id = design_os.current_org_id()) AND (actor_user_id = design_os.current_user_id())) CHECK -
 policy: manufacturing_document_snapshot snapshot_insert INSERT design_os_api USING - CHECK (design_os.is_internal() AND design_os.can_access_project(design_os.design_version_project(design_version_id)) AND design_os.has_permission('manufacturing.release'::text) AND (created_by = design_os.current_user_id()))
 policy: manufacturing_document_snapshot snapshot_read SELECT design_os_api USING (design_os.is_internal() AND design_os.can_access_project(design_os.design_version_project(design_version_id)) AND design_os.has_permission('output.read.production'::text)) CHECK -
 policy: manufacturing_document_snapshot_file link_insert INSERT design_os_api USING - CHECK ((org_id = design_os.current_org_id()) AND design_os.is_internal() AND (design_os.has_permission('output.generate.engineering'::text) OR design_os.has_permission('manufacturing.release'::text)))
@@ -3045,6 +3105,7 @@ grant: design_os_api edge_band_standard_version SELECT
 grant: design_os_api edge_band_version DELETE
 grant: design_os_api edge_band_version INSERT
 grant: design_os_api edge_band_version SELECT
+grant: design_os_api error_code SELECT
 grant: design_os_api file_object INSERT
 grant: design_os_api file_object SELECT
 grant: design_os_api finish DELETE
@@ -3117,6 +3178,7 @@ grant: design_os_api hettich_dataset UPDATE
 grant: design_os_api hettich_dataset_version DELETE
 grant: design_os_api hettich_dataset_version INSERT
 grant: design_os_api hettich_dataset_version SELECT
+grant: design_os_api idempotency_record SELECT
 grant: design_os_api manufacturing_document_snapshot INSERT
 grant: design_os_api manufacturing_document_snapshot SELECT
 grant: design_os_api manufacturing_document_snapshot_file INSERT
@@ -3712,9 +3774,12 @@ column_grant: design_os_api tax_rate_mapping.product_category UPDATE
 column_grant: design_os_api tax_rate_mapping.rate_code UPDATE
 column_grant: design_os_api tax_rate_mapping.version_id UPDATE
 routine_grant: design_os_api can_access_project EXECUTE
+routine_grant: design_os_api claim_idempotency EXECUTE
 routine_grant: design_os_api claims EXECUTE
 routine_grant: design_os_api client_allowed_actions EXECUTE
 routine_grant: design_os_api client_can_read_file EXECUTE
+routine_grant: design_os_api complete_idempotency EXECUTE
+routine_grant: design_os_api current_memberships EXECUTE
 routine_grant: design_os_api current_org_id EXECUTE
 routine_grant: design_os_api current_user_id EXECUTE
 routine_grant: design_os_api design_version_project EXECUTE

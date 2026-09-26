@@ -106,7 +106,12 @@ controller ──► service ──► engines (@lintel/*-engine, pure)
 9. RLS                 re-checks org, permission and project scope on every statement (final boundary)
 ```
 
-- `current_memberships()` is the one new helper this step needs, because `org_membership` RLS reads only the current org's rows, so the API cannot list an identity's memberships without first choosing an org. It returns only the caller's own ACTIVE memberships. It is delivered by migration 0013 (§13) and is tested against another user's memberships, suspended memberships and suspended users.
+- `current_memberships()` (migration 0013) is the one new helper this step needs. `org_membership` RLS reads only the current org's rows, so the API cannot list an identity's memberships without first choosing an org.
+  - It is SECURITY DEFINER with `SET search_path = pg_catalog, pg_temp`.
+  - Identity comes **only from `auth.uid()`**. It takes no parameters, so there is no user id to pass in.
+  - It returns **only `org_id`**, for the caller's own ACTIVE memberships whose user and organization are also ACTIVE. It returns nothing for revoked memberships, disabled users, suspended orgs or other users, and an `org_id` claim or `X-Org` cannot widen the result.
+  - EXECUTE is revoked from PUBLIC, anon, authenticated and service_role, and granted to `design_os_api` only.
+  - Tests cover cross-user and cross-tenant leakage, each exclusion, the definition and the privileges.
 - **The client never supplies an org, role, permission or user id in the body.** Any such field is rejected by the Zod schema (`.strict()`).
 - **Identity kind is fixed per route family.**
   - `/api/v1/portal/**` accepts only `identity_kind = CLIENT`.
@@ -176,7 +181,20 @@ The client portal is **not switched on in Step 4**. No invitation table, functio
 | Atomic consumption | a SECURITY DEFINER `consume_client_invitation(p_token_hash)` runs one `UPDATE … SET consumed_at = now(), consumed_by = current_user_id() WHERE token_hash = $1 AND consumed_at IS NULL AND revoked_at IS NULL AND expires_at > now() RETURNING …`. In the same transaction it checks that the verified JWT email equals the invited email and the identity is CLIENT. It then links `client_contact.user_id`, sets the contact ACTIVE, creates the CLIENT `org_membership` and inserts the bound `project_member`, with `granted_by` set to the inviting staff member. The existing identity and project-member triggers still run. Any failure rolls back the whole consumption |
 | Replay / expiry | a consumed, revoked, expired or unknown token all return the same `410 INVITATION_INVALID`, so the response is not an oracle for which case applied. Consumption is rate-limited per IP and per identity |
 | No raw tokens in logs | the token travels in the request body (`POST /portal/invitations/accept { token }`), never in a URL the API logs. The Fastify logger redacts `token`, `authorization` and cookie fields. Audit rows contain `token_hash` only |
+| Claiming another contact is impossible | acceptance requires all of the following: the identity is CLIENT; the verified JWT email (`email_verified = true`) equals the invitation's email **and** the bound contact's email; the contact is INVITED with no `user_id` (or already linked to this same identity); and the contact, client, project and invitation all belong to the invitation's org. A token presented by any other authenticated account fails with the same `410 INVITATION_INVALID` and consumes nothing |
 | Supabase Auth | sign-up stays disabled on the client route. How the auth user is provisioned for the first OTP sign-in (pre-created at invite through the server-side Admin API, or created on acceptance) is decided at the portal step against the hosted configuration (gate item 8) |
+
+**Acceptance sequence.** It runs in one transaction inside `consume_client_invitation(token_hash)`, SECURITY DEFINER; the API passes only `sha256(token)`:
+
+1. **Invitation / verify token.** `SELECT … FROM client_invitation WHERE token_hash = $1 FOR UPDATE`. The row must exist, be unconsumed, unrevoked and unexpired. The row lock serialises concurrent acceptances of the same token.
+2. **Authenticate identity.** The identity is `auth.uid()` from the verified JWT, and its `app_user` must be CLIENT and ACTIVE.
+3. **Verify the intended contact.** The JWT email is verified and equals the invitation email and the bound contact's email. The contact is INVITED and unlinked (or linked to this identity). Client, project and contact are all in the invitation's org.
+4. **Bind identity to contact.** Set `client_contact.user_id` and `status = ACTIVE`.
+5. **Create the org membership.** CLIENT role, `granted_by` = inviter.
+6. **Create the project membership.** The bound project, CLIENT role, `client_contact_id`, `granted_by` = inviter. The existing `guard_project_member` trigger re-checks the contact ↔ project-client match.
+7. **Consume atomically.** `UPDATE client_invitation SET consumed_at = now(), consumed_by = auth.uid() WHERE id = … AND consumed_at IS NULL`; exactly one row must change.
+
+Any failure rolls back steps 4–7 together. A replayed, expired, revoked or foreign token is refused at step 1, 2 or 3 with the same response.
 
 ---
 
@@ -241,40 +259,46 @@ The client portal is **not switched on in Step 4**. No invitation table, functio
 - The database stores it; `transition(APPROVE)` requires `expectedContentHash` to equal it. The approver must send the hash of **what they reviewed**; a stale review → 409 `CONTENT_HASH_MISMATCH`.
 - For design versions, `input_hash` is recomputed with `designInputHash` after every object/override/pin change in the same transaction. The database independently bumps `input_revision`, so a run for an out-of-date hash or revision is never accepted (`validation-run.test.ts`).
 
-### 4.3 Idempotency (OD-2)
+### 4.3 Idempotency (OD-2, implemented in migration 0013)
 
-**Table `design_os.idempotency_record`** (migration 0013):
+**Table `design_os.idempotency_record`:**
 
 | Column | Type / rule |
 |---|---|
 | `id` | uuid PK |
 | `org_id` | uuid NOT NULL, FK organization |
+| `scope` | text NOT NULL, **CHECK against a fixed list of operations**: `transition`, `validation_run.record`, `snapshot.{bom,boq,pricing,quotation,drawing,manufacturing_document}.generate`, `quotation.issue`, `drawing.issue`, `manufacturing.release`, `file.upload`, `client_contact.invite`. Adding an operation needs a reviewed migration, so a key can never be reused across unrelated operations by accident |
 | `idempotency_key` | text NOT NULL, 16–128 visible ASCII characters (clients send a UUID) |
-| `scope` | text NOT NULL, the operation id from a fixed allow-list, e.g. `transition`, `validation_run.record`, `snapshot.generate.bom`, `snapshot.generate.boq`, `snapshot.generate.pricing`, `snapshot.generate.quotation`, `snapshot.generate.drawing`, `snapshot.generate.manufacturing_document`, `issue.quotation`, `issue.drawing`, `file.upload`, `client_contact.invite` |
 | `actor_user_id` | uuid NOT NULL, FK app_user |
-| `request_hash` | text NOT NULL, `sha256:` over the canonical request: actor, method, route template, path params, canonical body (`stableStringify`), and for uploads the declared file checksum |
-| `status` | text NOT NULL CHECK IN (`IN_PROGRESS`, `COMPLETED`) |
-| `response_status` | smallint NULL until completed |
-| `response_body` | jsonb NULL, the stored response for small responses (≤ 64 KiB; same no-TEST_FIXTURE CHECK as snapshots) |
-| `resource_type`, `resource_id` | text / uuid NULL, the **durable response reference**. Used for replay when the body is not stored, e.g. a large snapshot response is re-read from the immutable snapshot |
-| `created_at`, `completed_at`, `expires_at` | timestamptz; `expires_at = created_at + 24 h` |
-| Uniqueness | **`UNIQUE (org_id, scope, idempotency_key)`** |
-| Checks | `COMPLETED` ⇒ `response_status` set and (`response_body` or `resource_id`) present |
-| Access | RLS: `org_id = current_org_id() AND actor_user_id = current_user_id()` for SELECT/INSERT/UPDATE. Column UPDATE grant only on `status`, `response_*`, `resource_*`, `completed_at`. No DELETE grant. Excluded from the audit chain via `unaudited_tables()` because the effect itself is audited |
+| `request_hash` | text NOT NULL, `sha256:` + 64 hex. The API computes it with `contentHash(stableStringify(…))` over the canonical request `{ method, operation (normalized route template), userId, orgId, pathParams, queryParams (sorted), body }`, plus the declared file checksum for uploads. It is deterministic, so key order never matters |
+| `status` | `IN_PROGRESS` \| `COMPLETED` |
+| `response_status` | smallint 200–299, set on completion (failures are never stored) |
+| `response_body` | jsonb ≤ 64 KiB (no-TEST_FIXTURE CHECK), or NULL when a durable reference is stored |
+| `resource_type`, `resource_id` | the **durable response reference**. Replay re-reads the immutable resource, e.g. a snapshot |
+| `created_at`, `completed_at`, `expires_at` | `expires_at` = claim time + TTL (default 24 h, at most 7 days) |
+| Uniqueness | **`UNIQUE (org_id, scope, idempotency_key)`**, enforced by the database |
+| Checks | IN_PROGRESS ⇒ no result columns; COMPLETED ⇒ status + completion time + (body or reference) |
+| Guards | identity columns never change; a COMPLETED, unexpired result is immutable; no deletes (LD015). A deferred constraint trigger refuses to commit a claim that was not completed (LD905) |
+| Access | RLS on. `design_os_api` may only **SELECT its own records in the current org**; there is no INSERT/UPDATE/DELETE grant. All writes go through two SECURITY DEFINER functions with a fixed `search_path`. Nothing for PUBLIC, anon, authenticated or service_role. Not in the audit chain (`unaudited_tables()`); the protected operation's own rows are audited |
 
-**Behaviour.** The record is claimed in the same transaction as the effect, before the effect runs:
+**Protocol**, inside the request transaction after the org context is established:
 
-1. **First request executes once.** `INSERT … (status IN_PROGRESS)`, then the operation, then `UPDATE … SET status = COMPLETED, response_* …`, then COMMIT. Record and effect commit together or roll back together.
-2. **Retry with the same key and identical request.** The insert conflicts on the unique key. The API reads the committed record and **replays the original response** (status, body, `ETag`, `Location`) with `Idempotent-Replayed: true`. The operation does not run again.
-3. **Same key, different `request_hash`** → **`409 IDEMPOTENCY_CONFLICT`**. This includes a different actor, route or body.
-4. **Concurrent duplicate.** The second insert waits on the unique index until the first transaction ends:
-   - first committed → replay (rule 2);
-   - first rolled back → the second executes as the first;
-   - `lock_timeout` (5 s) exceeded → `409 IDEMPOTENCY_IN_PROGRESS` (retryable).
+```sql
+SELECT * FROM design_os.claim_idempotency(scope, key, request_hash);   -- identity and org from the verified claims
+--   'EXECUTE' → run the operation, then:
+SELECT design_os.complete_idempotency(record_id, status, body, resource_type, resource_id);
+--   'REPLAY'  → return the stored result (status, body or re-read resource) with Idempotent-Replayed: true
+```
 
-   **The operation can never execute twice.**
-5. **Failures are not stored.** A 4xx/5xx rolls back the claim with the effect, so the same key may retry. This is safe because nothing executed.
-6. **Expired records.** An expired record (`expires_at < now()`) is replaced atomically by the new claim. There is no sweeper, because background jobs are deferred.
+| Situation | Database result | API response |
+|---|---|---|
+| First request | `EXECUTE`; the claim and the effect commit together | the operation's own response |
+| Same org + scope + key, same request hash, completed | `REPLAY` with the stored result | the original status, body, `ETag` and `Location`, plus `Idempotent-Replayed: true` |
+| Same org + scope + key, different request hash (or a different user) | `LD022` | **`409 IDEMPOTENCY_CONFLICT`** |
+| Duplicate while the original transaction is still running | the claim waits on the unique key (`lock_timeout` 5 s, set on the function) and then: original committed → `REPLAY`; original rolled back → `EXECUTE`; still running → `LD023` | replay / execute / **`409 IDEMPOTENCY_IN_PROGRESS`** (deterministic; the client retries with the same key) |
+| Expired record | replaced atomically by the new claim → `EXECUTE` | the operation's response |
+
+**The operation never executes twice.** A claim is only visible to other transactions once it is committed, and it can only commit as COMPLETED, together with its effect. Real two-connection races are covered by tests: commit → replay, rollback → execute, still running → `LD023`, and the effect row count stays 1 in each case.
 
 **Where it is required** (missing header → 428 `PRECONDITION_REQUIRED`):
 
@@ -358,20 +382,21 @@ The `SQLSTATE` column lists the database code (§5.3) where the database can rai
 | `RECORD_LOCKED` | 409 | LD014 | write touching a LOCKED record or what it freezes, whatever the ETag |
 | `RECORD_IMMUTABLE` | 409 | LD015 | update/delete of an insert-only record or deletion of a version |
 | `PROVENANCE_MISMATCH` | 409 | LD016 | `check_snapshot_provenance` rejects the snapshot; `context.problems[]` |
+| `PRODUCTION_GUARD_FAILED` | 409 | LD021 | FOR_PRODUCTION output for a design version that is not APPROVED or LOCKED |
 | `ISSUE_PRECONDITIONS_FAILED` | 409 | LD017 | `check_issue`: design not LOCKED, BLOCKERs, snapshot not of the locked content; release guards (§8) |
 | `MEMBERSHIP_RULE_VIOLATION` | 409 | LD018 | role ↔ identity-kind rules, contact ↔ CLIENT identity, project member ↔ client contact |
 | `INVALID_REFERENCE` | 422 | LD019, 23503 | referenced row missing or in another org (composite tenant FK), recipe/room-revision/product-catalog membership rules, rows moved between versions |
 | `DUPLICATE_RESOURCE` | 409 | 23505 | unique business key already used (e.g. entity code) |
 | `STALE_VERSION` | 412 | — | If-Match mismatch / zero-row guarded update |
 | `PRECONDITION_REQUIRED` | 428 | — | missing `If-Match` or `Idempotency-Key` where required |
-| `IDEMPOTENCY_CONFLICT` | 409 | — | same `(org, scope, key)` with a different request hash |
-| `IDEMPOTENCY_IN_PROGRESS` | 409 | 55P03 (while claiming) | the same key is still executing past `lock_timeout`; retryable |
-| `CONCURRENT_MODIFICATION` | 409 | 40001, 40P01, 55P03 | serialization failure / deadlock / lock timeout; retryable with the same Idempotency-Key |
+| `IDEMPOTENCY_CONFLICT` | 409 | LD022 | same `(org, scope, key)` with a different request hash |
+| `IDEMPOTENCY_IN_PROGRESS` | 409 | LD023 | the same key is still executing after the claim's 5 s wait; retryable with the same key |
+| `CONCURRENT_MODIFICATION` | 409 | 40001, 40P01, 55P03 (outside a claim) | serialization failure / deadlock / lock timeout; retryable with the same Idempotency-Key |
 | `CHECKSUM_MISMATCH` | 422 | — | uploaded bytes do not match the declared SHA-256 |
 | `FILE_REFERENCED` | 409 | — | delete of a file referenced by a snapshot or issue |
 | `INVITATION_INVALID` | 410 | (portal step) | unknown, expired, revoked or consumed invitation (§2.4); not built in Step 4 |
 | `DATABASE_UNAVAILABLE` | 503 | 08xxx, 57P01–57P03 | connection loss or shutdown; retryable |
-| `INTERNAL_DATABASE_ERROR` | 500 | anything else, incl. LD9xx | unexpected database error. The response has **no** SQL, message, constraint, table or SQLSTATE; the full error is logged under `requestId` |
+| `INTERNAL_DATABASE_ERROR` | 500 | anything else, incl. LD901–LD905 | unexpected database error. The response has **no** SQL, message, constraint, table or SQLSTATE; the full error is logged under `requestId` |
 | `INTERNAL` | 500 | — | any other unexpected error (never leaked) |
 
 ### 5.3 Database error codes (OD-1)
@@ -526,6 +551,19 @@ If-Match: W/"<versionId>:<row_version>"
 - it writes nothing except the LOCK decision and the audit entries.
 
 `GET /design-versions/{id}/manufacturing-release` returns the derived status and the qualifying snapshot id. Failures return `ISSUE_PRECONDITIONS_FAILED` or `VALIDATION_BLOCKERS`.
+
+**What V1 may produce.**
+
+- Manufacturing documents with `purpose = PRELIMINARY`, and FOR_REVIEW once that purpose exists (see the open item below).
+- A FOR_PRODUCTION manufacturing document stays blocked until:
+  - a valid APPROVED or LOCKED ManufacturingStandard exists;
+  - the design is LOCKED;
+  - every required dependency is APPROVED or LOCKED;
+  - there are zero BLOCKERs;
+  - all production guards pass.
+- ManufacturingStandard is **not** weakened to make release available.
+
+**Open item (needs a decision, not built): the `FOR_REVIEW` purpose.** Snapshot `purpose` is currently `PRELIMINARY | FOR_PRODUCTION` (migration 0007). Adding `FOR_REVIEW` is a schema change for a later reviewed migration. It needs two decisions: which kinds get it, and its guard (for example, design version IN_REVIEW, APPROVED or LOCKED, never usable for issue or release).
 
 **Consequence in V1:** the manufacturing variable registry is empty, so no ManufacturingStandard version can be approved (`completeness.test.ts`). No design version can therefore pin an approved manufacturing standard, and **no manufacturing release is possible until ManufacturingStandard is production-ready.** This is intended. A test asserts the release endpoint refuses, and a formal release entity arrives with the production workflow.
 
@@ -709,8 +747,8 @@ Each item is one reviewable commit or a small group of them. Everything is local
 
 | # | Scope | Contents | Tests |
 |---|---|---|---|
-| 1 | **OD-1: database error-code migration** `0012_error_codes` (+ down) | SQLSTATE class `LD`; `design_os.error_code` registry (seeded, SELECT for `design_os_api`, unaudited); `CREATE OR REPLACE` of every raising function/trigger with `LDnnn` codes and JSON `DETAIL`, logic and messages unchanged; `approval_problem_items()` + wrapper; split codes (LD002/LD003, LD013/LD014); schema snapshot updated | all existing DB tests still pass unchanged; new `error-codes.test.ts`: every RAISE registered, one trigger per API-facing code, coverage assertion, up/down/up |
-| 2 | **OD-2: idempotency migration** `0013_idempotency_context` (+ down) | `design_os.idempotency_record` (columns, checks, `UNIQUE (org_id, scope, idempotency_key)`, RLS own-actor, column grants, no DELETE, no-TEST_FIXTURE CHECK); `unaudited_tables()` extended; `current_memberships()` SECURITY DEFINER | uniqueness, RLS isolation between actors/orgs, grants, completed-row CHECK, `current_memberships()` isolation, up/down/up, drift. **⏸ review migrations 0012–0013** |
+| 1 ✅ | **OD-1: database error-code migration** `0012_error_codes` (+ down) | SQLSTATE class `LD`; `design_os.error_code` registry (seeded, SELECT for `design_os_api`, unaudited); `CREATE OR REPLACE` of every raising function/trigger with `LDnnn` codes and JSON `DETAIL`, logic and messages unchanged; `approval_problem_items()` + wrapper; split codes (LD002/LD003, LD013/LD014); schema snapshot updated | all existing DB tests still pass unchanged; new `error-codes.test.ts`: every RAISE registered, one trigger per API-facing code, coverage assertion, up/down/up |
+| 2 ✅ | **OD-2: idempotency migration** `0013_idempotency_context` (+ down) | `design_os.idempotency_record` (columns, checks, `UNIQUE (org_id, scope, idempotency_key)`, RLS own-actor SELECT only, writes only via `claim_idempotency()` / `complete_idempotency()`, immutability guard, deferred must-complete trigger, no-TEST_FIXTURE CHECK); `unaudited_tables()` extended; `current_memberships()` SECURITY DEFINER | uniqueness, RLS isolation between actors/orgs, grants, completed-row CHECK, `current_memberships()` isolation, up/down/up, drift. **⏸ review migrations 0012–0013** |
 | 3 | **API authentication / context layer** | `apps/api` skeleton (NestJS + FastifyAdapter, `/api/v1`, config, request id, logger with redaction); `pg` pool + unit of work (`SET LOCAL ROLE`, claims, request id, reason); JWT guard (`jose`, local test issuer); org-context resolution through `current_memberships()` (§2.1); `GET /me`; ESLint boundary rules for `apps/api` | JWT failures, tenant-context matrix, claims never leak across pooled transactions |
 | 4 | **Authorization / permission layer** | `@RequiresAction` + permission guard, identity-kind route families, service scope helpers (`can_access_project`), subject allow-list derived from `versioned_table` | per-role matrix generated from `default_role_permission`; RLS-without-API suite |
 | 5 | **Error / problem-details layer** | RFC 9457 filter, the §5.2 code table, TS registry with parity against `design_os.error_code`, `pg-error.translator.ts`, Standard Schema pipe → `VALIDATION_FAILED` | translator rules, no-leak assertions, message-lookalike → `INTERNAL_DATABASE_ERROR` |

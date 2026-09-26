@@ -40,6 +40,14 @@ export async function attempt(c: Tx, fn: () => Promise<unknown>): Promise<Error 
   }
 }
 
+/** Like `attempt`, for failures raised by PostgreSQL: returns the driver's DatabaseError (SQLSTATE in `code`). */
+export async function attemptDb(c: Tx, fn: () => Promise<unknown>): Promise<pg.DatabaseError | null> {
+  const err = await attempt(c, fn);
+  if (err === null) return null;
+  if (err instanceof pg.DatabaseError) return err;
+  throw err;
+}
+
 export interface Actor {
   readonly userId: string;
   readonly orgId: string;

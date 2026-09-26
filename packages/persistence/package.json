@@ -1,0 +1,18 @@
+{
+  "name": "@lintel/persistence",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure persistence adapter: version envelope, lifecycle rules, row <-> engine mapping, provenance and SHA-256 content hashes. No database client.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@lintel/types": "workspace:*",
+    "@lintel/catalog-engine": "workspace:*",
+    "@lintel/hettich-engine": "workspace:*"
+  },
+  "devDependencies": {
+    "@lintel/pricing-engine": "workspace:*"
+  }
+}

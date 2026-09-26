@@ -191,10 +191,10 @@ The `ops_*_ref` columns are informational text only. There is no foreign key and
 | Table | Columns |
 |---|---|
 | `room` | org_id, project_id, name, room_type (`KITCHEN` in V1) |
-| `room_revision` | org_id, room_id, revision_number, length_mm, width_mm, height_mm, wall_thickness_mm, walls jsonb, source, surveyed_by, surveyed_at, content_hash. **Insert-only** |
+| `room_revision` | org_id, room_id, revision_number, length_mm, width_mm, height_mm, wall_thickness_mm, source, surveyed_by, surveyed_at, content_hash. **Insert-only**. Walls are not stored: the engine derives them from the dimensions |
 | `design` | entity table: org_id, project_id, room_id, name, status (`ACTIVE` or `ARCHIVED`) |
 | `design_version` | envelope + based_on_version_id, room_revision_id, **pins** (below), authored_engine_version, input_hash |
-| `design_object` | org_id, design_version_id, object_code (unique per version), lineage_id, object_type, product_version_id, x_mm, y_mm, z_mm, `rotation_y CHECK IN (0,90,180,270)`, width_mm, height_mm, depth_mm, parameters jsonb |
+| `design_object` | org_id, design_version_id, object_code (unique per version), lineage_id (= the engine `objectId`, stable across versions; the row `id` is new per copy), object_type, product_code, x_mm, y_mm, z_mm, `rotation_y CHECK IN (0,90,180,270)`, width_mm, height_mm, depth_mm, parameters jsonb |
 | `relationship_override` | org_id, design_version_id, override_code, object_a_code, object_b_code, kind, reason not null, created_by |
 | `validation_run` | org_id, design_version_id, input_hash, engine_version, blocker_count, warning_count, messages jsonb, result_hash, ran_by, ran_at. **Insert-only** |
 
@@ -221,9 +221,9 @@ Pins are editable only while the version is DRAFT and are never re-pointed after
 |---|---|---|
 | ConstructionStandard | `construction_standard`, `construction_standard_version` | `construction_variable` (registry of 12 codes incl. SHUTTER_BACK_GAP) and `construction_standard_value` (version_id, variable_code, value numeric **nullable**, unit, source, evidence_ref, note) |
 | PlanningStandard | `planning_standard`, `planning_standard_version` | `planning_variable` (registry of 6 codes) and `planning_standard_value` |
-| EdgeBandStandard | `edge_band_standard`, `edge_band_standard_version` | `edge_band_rule` (version_id, rule_set_code, component_type, edge_side, edge_band_entity_id; an explicit "no banding" row is allowed) |
+| EdgeBandStandard | `edge_band_standard`, `edge_band_standard_version` | `edge_band_rule_set` (version_id, rule_set_code; keeps a rule set that exists but has no rules yet) and `edge_band_rule` (version_id, rule_set_code, component_type, edge_side, edge_band_id; side and band both null = explicitly no banding) |
 | ManufacturingStandard | `manufacturing_standard`, `manufacturing_standard_version` | `manufacturing_variable` registry and `manufacturing_standard_value` |
-| PricingStandard | `pricing_standard`, `pricing_standard_version` | `pricing_rule_value` (manufacturing-cost formula, wastage, overhead, margin basis and %) and `rate_card_line` (measure, catalog entity id, rate_paise **nullable**) |
+| PricingStandard | `pricing_standard`, `pricing_standard_version` | Typed nullable rule columns on the version (rate_card_code, rule_set_code, rules_source, manufacturing_cost_formula, wastage/overhead/margin/GST percentages, margin_basis) and `rate_card_line` (measure, item key, rate_paise **nullable**) |
 | Finance / QuotationPolicy | `quotation_policy`, `quotation_policy_version` | `tax_rate` (rate_code, percent **nullable**), `tax_rate_mapping` (product_category → rate_code), and typed columns tax_policy, tax_rounding, grand_total_rounding, discount_mode (`NONE`) |
 
 Formulas such as `manufacturingCost` are stored as **text data** and evaluated only by the TypeScript formula engine.
@@ -697,7 +697,15 @@ Only then is the canonical project chosen and the first `design_os` migration ap
 
 No hosted Supabase work and no UI work is included.
 
-## 16. Open items
+## 16. Technical backlog (required future work)
+
+| # | Item | Why it is required | When |
+|---|---|---|---|
+| BL-1 | **Hardware rule-set version in the engine trace.** Add a separate `hardwareRuleSet` VersionRef to `TraceInfo`, like the EdgeBandStandard in step 1 | Hardware rules affect BOM, drilling, drawings and production eligibility. Today the version is covered only through `catalogVersion`, so a rule-set change is not visible as its own provenance entry | A dedicated provenance/versioning change after M5 step 2. Not part of step 1 or step 2 (decision on PR #4) |
+| BL-2 | **Hettich dataset approval status visible to the engine.** `HardwareDatasetRef` has no record status, so a pinned DRAFT dataset version is treated like any PRODUCTION dataset in draft outputs | Design-version approval already requires the pinned dataset version to be APPROVED or LOCKED (§4). The engine should also raise its own BLOCKER, as it does for standards | Same provenance change as BL-1 |
+| BL-3 | **Remove `CHANGES_REQUIRED` from the engine `DesignState` type.** `@lintel/persistence` already refuses to persist it (D2) | Keeps the engine type aligned with the persisted lifecycle | With BL-1 |
+
+## 17. Open items
 
 None. The FINANCE role (D9) and client authentication (D10) are resolved.
 Production Supabase remains blocked until the §13 gate is satisfied.

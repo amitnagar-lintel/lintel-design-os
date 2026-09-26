@@ -1154,6 +1154,7 @@ column: validation_run.warning_count integer NOT NULL
 column: validation_run.messages jsonb NOT NULL
 column: validation_run.created_by uuid NOT NULL
 column: validation_run.created_at timestamp with time zone NOT NULL DEFAULT now()
+column: validation_run.engine_build text
 column: versioned_table.subject_type text NOT NULL
 column: versioned_table.version_table regclass NOT NULL
 column: versioned_table.entity_table regclass NOT NULL
@@ -2149,6 +2150,7 @@ constraint: design_os.tax_rate_mapping tax_rate_mapping_version_fk FOREIGN KEY (
 constraint: design_os.validation_run validation_run_blocker_count_check CHECK ((blocker_count >= 0))
 constraint: design_os.validation_run validation_run_content_hash_check CHECK ((content_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.validation_run validation_run_created_by_fkey FOREIGN KEY (created_by) REFERENCES design_os.app_user(id)
+constraint: design_os.validation_run validation_run_engine_build_required CHECK (((engine_build IS NOT NULL) AND (engine_build ~ '^[0-9A-Za-z][0-9A-Za-z._+-]{6,127}$'::text))) NOT VALID
 constraint: design_os.validation_run validation_run_engine_hash_check CHECK ((btrim(engine_hash) <> ''::text))
 constraint: design_os.validation_run validation_run_engine_version_check CHECK ((btrim(engine_version) <> ''::text))
 constraint: design_os.validation_run validation_run_input_hash_check CHECK ((input_hash ~ '^sha256:[0-9a-f]{64}$'::text))
@@ -2518,6 +2520,7 @@ trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.val
 trigger: CREATE TRIGGER forbid_truncate BEFORE TRUNCATE ON design_os.audit_log FOR EACH STATEMENT EXECUTE FUNCTION design_os.forbid_truncate()
 trigger: CREATE TRIGGER guard_client_contact_identity BEFORE INSERT OR UPDATE ON design_os.client_contact FOR EACH ROW EXECUTE FUNCTION design_os.guard_client_contact_identity()
 trigger: CREATE TRIGGER guard_design_object_product BEFORE INSERT OR UPDATE ON design_os.design_object FOR EACH ROW EXECUTE FUNCTION design_os.guard_design_object_product()
+trigger: CREATE TRIGGER guard_design_version_product_catalog BEFORE UPDATE OF product_catalog_version_id ON design_os.design_version FOR EACH ROW EXECUTE FUNCTION design_os.guard_design_version_product_catalog()
 trigger: CREATE TRIGGER guard_design_version_room BEFORE INSERT OR UPDATE ON design_os.design_version FOR EACH ROW EXECUTE FUNCTION design_os.guard_design_version_room()
 trigger: CREATE TRIGGER guard_draft_content BEFORE INSERT OR DELETE OR UPDATE ON design_os.appliance_catalog_version_appliance FOR EACH ROW EXECUTE FUNCTION design_os.guard_draft_content('design_os.appliance_catalog_version', 'catalog_version_id')
 trigger: CREATE TRIGGER guard_draft_content BEFORE INSERT OR DELETE OR UPDATE ON design_os.construction_standard_value FOR EACH ROW EXECUTE FUNCTION design_os.guard_draft_content('design_os.construction_standard_version', 'version_id')
@@ -2543,6 +2546,7 @@ trigger: CREATE TRIGGER guard_draft_content BEFORE INSERT OR DELETE OR UPDATE ON
 trigger: CREATE TRIGGER guard_idempotency_record BEFORE DELETE OR UPDATE ON design_os.idempotency_record FOR EACH ROW EXECUTE FUNCTION design_os.guard_idempotency_record()
 trigger: CREATE TRIGGER guard_identity_kind BEFORE UPDATE ON design_os.app_user FOR EACH ROW EXECUTE FUNCTION design_os.guard_identity_kind()
 trigger: CREATE TRIGGER guard_membership_identity BEFORE INSERT OR UPDATE ON design_os.org_membership FOR EACH ROW EXECUTE FUNCTION design_os.guard_membership_identity()
+trigger: CREATE TRIGGER guard_product_catalog_member_in_use BEFORE DELETE OR UPDATE ON design_os.product_catalog_version_product FOR EACH ROW EXECUTE FUNCTION design_os.guard_product_catalog_member_in_use()
 trigger: CREATE TRIGGER guard_product_recipe BEFORE INSERT OR UPDATE ON design_os.product_version FOR EACH ROW EXECUTE FUNCTION design_os.guard_product_recipe()
 trigger: CREATE TRIGGER guard_project_member BEFORE INSERT OR UPDATE ON design_os.project_member FOR EACH ROW EXECUTE FUNCTION design_os.guard_project_member()
 trigger: CREATE TRIGGER guard_version_row BEFORE INSERT OR DELETE OR UPDATE ON design_os.appliance_catalog_version FOR EACH ROW EXECUTE FUNCTION design_os.guard_version_row()
@@ -2596,11 +2600,13 @@ function: forbid_mutation() -> trigger owner=design_os_owner src=77cb526cc01dc73
 function: forbid_truncate() -> trigger owner=design_os_owner src=49f9bcec51922f246e7883586e67ee28
 function: guard_client_contact_identity() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=10918969645f2bab02d7452647daec7b
 function: guard_design_object_product() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=db7afdd3e3da87c6e7327154e089c8ca
+function: guard_design_version_product_catalog() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=90db060836de298ecc76ddfdc94f5543
 function: guard_design_version_room() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=cbfc3e3bd3fd1a88b8febe735ff25daf
 function: guard_draft_content() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=7afb81b6915feafd9d837f8932a79c13
 function: guard_idempotency_record() -> trigger search_path=pg_catalog, pg_temp owner=design_os_owner src=406cae35c1e2dab604f7dc1bedb22b33
 function: guard_identity_kind() -> trigger owner=design_os_owner src=a7d77cb9c2f7c71cb6c36b77cadade05
 function: guard_membership_identity() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=dc3a8d38004807f0d8318edaad83939b
+function: guard_product_catalog_member_in_use() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=065a7867f8d6d51322a76dc3a6c99621
 function: guard_product_recipe() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=dab06c53f19ba585efc00a2f6f81ec18
 function: guard_project_member() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=561d3f1ca61a873506645b57c25d4ce4
 function: guard_version_row() -> trigger owner=design_os_owner src=0ef4b3c88d306cc76bf35595882ac404
@@ -2614,8 +2620,9 @@ function: is_official_hettich_url(p_url text) -> boolean owner=design_os_owner s
 function: lifecycle_columns() -> text[] owner=design_os_owner src=d2bb83af218260d9a3e2d507964aa88c
 function: lock_cascade(p_subject_type text, p_id uuid, p_org uuid, p_actor uuid, p_reason text) -> void owner=design_os_owner src=db490775a95442a3d3b35993209e1d93
 function: maintain_input_revision() -> trigger owner=design_os_owner src=def61d0142b34ea796340cbafa2060fb
+function: products_outside_catalog(p_org uuid, p_design_version uuid, p_catalog_version uuid) -> uuid[] SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=b39a84a40d4d7f8d1df79a469812bc14
 function: record_decision(p_org uuid, p_subject_type text, p_id uuid, p_action text, p_actor uuid, p_reason text, p_prev design_os.record_lifecycle_status, p_new design_os.record_lifecycle_status, p_hash text, p_request uuid) -> void owner=design_os_owner src=e5a66bb9c859daa3e0911043b62c3505
-function: record_validation_run(p_design_version_id uuid, p_input_hash text, p_engine_version text, p_engine_hash text, p_blocker_count integer, p_warning_count integer, p_messages jsonb, p_content_hash text) -> uuid SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=194ac98994271c32a15fb3d4d0eb4d4d
+function: record_validation_run(p_design_version_id uuid, p_input_hash text, p_engine_version text, p_engine_build text, p_engine_hash text, p_blocker_count integer, p_warning_count integer, p_messages jsonb, p_content_hash text) -> uuid SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=0a84bcce9f07d40212798e4e3cd052f1
 function: room_project(p_room uuid) -> uuid SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=2fc701b3a69dc86e4e0ac5f50fee93d2
 function: seed_org_permissions() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=f6c845acde51f7abe9a6c090d6ae546b
 function: transition(p_subject_type text, p_id uuid, p_action text, p_reason text, p_expected_content_hash text) -> design_os.record_lifecycle_status SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=f56ab141e932485c35d1b2f52b42d1db

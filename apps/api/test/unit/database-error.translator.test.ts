@@ -28,6 +28,9 @@ describe("LD codes (design_os.error_code)", () => {
     const p = translateDatabaseError(dbError("LD006", "x", { detail: JSON.stringify({ status: "DRAFT", secret: "org 123 of tenant B", sql: "SELECT" }) }));
     expect(p.options.context).toEqual({ status: "DRAFT" });
     expect(translateDatabaseError(dbError("LD006", "x", { detail: "not json" })).options.context).toBeUndefined();
+    // 0015: the product catalog guard names the product versions a re-pin would orphan.
+    const ref = translateDatabaseError(dbError("LD019", "x", { detail: JSON.stringify({ productVersionIds: ["5d1c0b8e-0000-4000-8000-000000000001"], orgId: "tenant" }) }));
+    expect([ref.code, ref.options.context]).toEqual(["INVALID_REFERENCE", { productVersionIds: ["5d1c0b8e-0000-4000-8000-000000000001"] }]);
     expect(translateDatabaseError(dbError("LD005", "x", { detail: JSON.stringify({ status: "LOCKED" }) })).options.context).toBeUndefined();
   });
 });

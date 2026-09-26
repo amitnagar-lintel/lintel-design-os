@@ -130,7 +130,7 @@ export const ValidationRequest = z.strictObject({});
 export const RunId = z.strictObject({ runId: Uuid });
 export const ValidationMessage = z.strictObject({ code: z.string(), severity: z.string(), message: z.string() }).catchall(z.unknown());
 export const ValidationRunResponse = z.strictObject({
-  id: Uuid, designVersionId: Uuid, inputHash: Sha256Hash, inputRevision: z.number().int(), engineVersion: z.string(), engineHash: z.string(), contentHash: Sha256Hash,
+  id: Uuid, designVersionId: Uuid, inputHash: Sha256Hash, inputRevision: z.number().int(), engineVersion: z.string(), engineBuild: z.string().nullable(), engineHash: z.string(), contentHash: Sha256Hash,
   blockerCount: z.number().int(), warningCount: z.number().int(), canApprove: z.boolean(), current: z.boolean(), messages: z.array(ValidationMessage),
   createdBy: Uuid, createdAt: z.string(),
 });

@@ -172,7 +172,7 @@ describe("each API-facing LD code is produced by its real database path", () => 
       const d = await designVersion(c, w, await dependencies(c, w), { withRun: false });
       const call = (actor: Parameters<typeof actAs>[1], id = d.designVersionId, hash = d.inputHash) => async () => {
         await actAs(c, actor, { apiRole: true });
-        await c.query("SELECT design_os.record_validation_run($1, $2, '0.1.0', 'engine', 0, 0, '[]'::jsonb, $3)", [id, hash, contentHash("run")]);
+        await c.query("SELECT design_os.record_validation_run($1, $2, '0.1.0', '0000000000000000000000000000000000000000', 'engine', 0, 0, '[]'::jsonb, $3)", [id, hash, contentHash("run")]);
       };
       expect((await sqlstate(c, call(w.actor("SALES")))).code).toBe("LD001");
       expect((await sqlstate(c, call(null))).code).toBe("LD002");

@@ -39,10 +39,10 @@ describe("only the authorised execution path creates validation runs", () => {
       const w = await createWorld(c);
       const d = await designVersion(c, w, await dependencies(c, w), { withRun: false });
       const id = await validationRun(c, w, d.designVersionId, d.inputHash, 0);
-      const run = await one<{ design_version_id: string; input_hash: string; input_revision: number; created_by: string; created_at: string; engine_version: string; engine_hash: string }>(c,
+      const run = await one<{ design_version_id: string; input_hash: string; input_revision: number; created_by: string; created_at: string; engine_version: string; engine_build: string; engine_hash: string }>(c,
         "SELECT * FROM design_os.validation_run WHERE id = $1", [id]);
       const dv = await one<{ input_revision: number; now: string }>(c, "SELECT input_revision, now() AS now FROM design_os.design_version WHERE id = $1", [d.designVersionId]);
-      expect(run).toMatchObject({ design_version_id: d.designVersionId, input_hash: d.inputHash, input_revision: dv.input_revision, created_by: w.users.DESIGNER, created_at: dv.now, engine_version: "0.1.0", engine_hash: "engine-fingerprint" });
+      expect(run).toMatchObject({ design_version_id: d.designVersionId, input_hash: d.inputHash, input_revision: dv.input_revision, created_by: w.users.DESIGNER, created_at: dv.now, engine_version: "0.1.0", engine_build: "0000000000000000000000000000000000000000", engine_hash: "engine-fingerprint" });
     });
   });
   it("refuses callers without the permission, clients and other tenants", async () => {
@@ -61,8 +61,15 @@ describe("only the authorised execution path creates validation runs", () => {
       const d = await designVersion(c, w, await dependencies(c, w));
       expect((await attempt(c, () => validationRun(c, w, d.designVersionId, contentHash("stale inputs"), 0)))?.message).toContain("different inputs");
       await actAs(c, w.actor("DESIGNER"), { apiRole: true });
-      const noEngine = await attempt(c, () => c.query("SELECT design_os.record_validation_run($1, $2, '0.1.0', ' ', 0, 0, '[]'::jsonb, $3)", [d.designVersionId, d.inputHash, contentHash("r")]));
+      const noEngine = await attempt(c, () => c.query("SELECT design_os.record_validation_run($1, $2, '0.1.0', '0000000000000000000000000000000000000000', ' ', 0, 0, '[]'::jsonb, $3)", [d.designVersionId, d.inputHash, contentHash("r")]));
       expect(noEngine?.message).toContain("validation_run_engine_hash_check");
+      // 0016: the engine build identity (commit SHA / build revision) is required on every new run.
+      for (const build of [null, "", "  ", "abc", "-dash-first"]) {
+        const noBuild = await attempt(c, () => c.query("SELECT design_os.record_validation_run($1, $2, '0.1.0', $4, 'engine', 0, 0, '[]'::jsonb, $3)", [d.designVersionId, d.inputHash, contentHash("r"), build]));
+        expect(noBuild?.message).toContain("validation_run_engine_build_required");
+      }
+      // The previous 8-argument signature (no build) no longer exists.
+      expect((await attempt(c, () => c.query("SELECT design_os.record_validation_run($1, $2, '0.1.0', 'engine', 0, 0, '[]'::jsonb, $3)", [d.designVersionId, d.inputHash, contentHash("r")])))?.message).toContain("does not exist");
       await transition(c, w, "DESIGNER", "design", d.designVersionId, "SUBMIT");
       expect(await approveDesign(c, w, d)).toBeNull();
       expect((await attempt(c, () => validationRun(c, w, d.designVersionId, d.inputHash, 0)))?.message).toContain("runs are recorded only for DRAFT or IN_REVIEW");

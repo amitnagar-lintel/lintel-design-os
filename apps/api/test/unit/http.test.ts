@@ -42,7 +42,7 @@ beforeAll(async () => {
   const config: ApiConfig = {
     databaseUrl: "postgresql://nobody@127.0.0.1:1/none", dbPoolMax: 1, port: 0,
     auth: { issuer: "https://auth.test.local/auth/v1", audience: "authenticated", key: { kind: "secret", secret: new TextEncoder().encode("s".repeat(40)) } },
-    cursorSecret: "c".repeat(32), corsOrigins: [], logger: false,
+    cursorSecret: "c".repeat(32), corsOrigins: [], logger: false, buildRevision: "0000000",
   };
   app = await createApp(config, [HttpProbeModule]);
 });

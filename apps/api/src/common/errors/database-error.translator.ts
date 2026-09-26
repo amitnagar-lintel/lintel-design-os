@@ -24,6 +24,7 @@ const DETAIL_KEYS: Partial<Readonly<Record<ProblemCode, readonly string[]>>> = {
   ISSUE_PRECONDITIONS_FAILED: ["status", "blockerCount", "purpose"],
   PRODUCTION_GUARD_FAILED: ["problems", "purpose", "blockerCount"],
   OUTPUT_PURPOSE_NOT_ALLOWED: ["problems", "purpose", "blockerCount"],
+  INVALID_REFERENCE: ["productVersionIds"],
 };
 
 export function isDatabaseError(e: unknown): e is DatabaseErrorFields {

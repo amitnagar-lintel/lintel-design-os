@@ -4,11 +4,12 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { engineIdentity } from "../../src/modules/design-versions/engine.js";
 import { ObjectResponse, ValidationRunResponse, VersionResponse, VersionState } from "../../src/modules/design-versions/design-versions.schemas.js";
 import type { DomainWorld } from "../support/domain.js";
-import { cabinet, domainWorld, key } from "../support/domain.js";
+import { cabinet, domainWorld, key, productCatalogVariants } from "../support/domain.js";
 import type { Api, Problem } from "../support/harness.js";
-import { sql, startApi, world } from "../support/harness.js";
+import { sql, startApi, TEST_BUILD, world } from "../support/harness.js";
 
 let api: Api;
 let d: DomainWorld;
@@ -141,6 +142,31 @@ describe("draft content: objects and overrides", () => {
     expect([after.inputHash === v.inputHash, after.contentHash === v.contentHash, after.versionLabel]).toEqual([true, false, "client option B"]);
     expect(problem(await api.request({ method: "PATCH", url: `/api/v1/design-versions/${v.id}`, as: as("SALES"), payload: { versionLabel: "x" }, headers: { "if-match": r.headers.etag as string } })).code).toBe("PERMISSION_DENIED");
   });
+  it("re-pinning the product catalog: a catalog without a placed object's exact product version is refused (422, draft unchanged); a compatible one keeps the objects", async () => {
+    const { compatible, incompatible } = await productCatalogVariants(d);
+    const v = VersionResponse.parse((await newVersion()).json());
+    let { etag } = await getVersion(v.id);
+    const placed = await addObject(v.id, etag, cabinet(productVersionId));
+    etag = placed.headers.etag as string;
+    const repin = (catalog: string, ifMatch: string) =>
+      api.request({ method: "PATCH", url: `/api/v1/design-versions/${v.id}`, as: as("DESIGNER"), payload: { pins: { productCatalogVersionId: catalog } }, headers: { "if-match": ifMatch } });
+    const refused = await repin(incompatible, etag);
+    expect([refused.statusCode, problem(refused).code, problem(refused).context]).toEqual([422, "INVALID_REFERENCE", { productVersionIds: [productVersionId] }]);
+    const unchanged = await getVersion(v.id);
+    expect([unchanged.etag, unchanged.v.pins.productCatalogVersionId]).toEqual([etag, d.pins.productCatalogVersionId]);
+    const ok = await repin(compatible, etag);
+    expect(ok.statusCode).toBe(200);
+    const after = VersionResponse.parse(ok.json());
+    expect(after.pins.productCatalogVersionId).toBe(compatible);
+    expect(after.inputHash).not.toBe(v.inputHash);
+    const objects = await api.request({ method: "GET", url: `/api/v1/design-versions/${v.id}/objects`, as: as("DESIGNER") });
+    expect(objects.json<{ items: { productVersionId: string; objectCode: string }[] }>().items.map((o) => [o.objectCode, o.productVersionId])).toEqual([["OBJ-KIT-001", productVersionId]]);
+    // The objects remain valid under the new pin: another can still be placed with the same exact product version.
+    expect((await addObject(v.id, ok.headers.etag as string, cabinet(productVersionId, "OBJ-KIT-002", 600))).statusCode).toBe(201);
+    // Direct rows agree (the database guard, not only the API, holds the invariant).
+    const rows = await sql<{ outside: string[] }>("SELECT design_os.products_outside_catalog(org_id, id, product_catalog_version_id) AS outside FROM design_os.design_version WHERE id = $1", [v.id]);
+    expect(rows[0]?.outside).toEqual([]);
+  });
   it("based-on versions copy pins, survey, objects (same lineage) and override history — and hash identically", async () => {
     const v1 = VersionResponse.parse((await newVersion()).json());
     const e1 = (await addObject(v1.id, (await getVersion(v1.id)).etag, cabinet(productVersionId, "OBJ-COPY"))).headers.etag as string;
@@ -168,8 +194,12 @@ describe("validation runs", () => {
     const r = await validate(v.id);
     expect(r.statusCode).toBe(201);
     const run = ValidationRunResponse.parse(r.json());
-    expect(run).toMatchObject({ designVersionId: v.id, inputHash: current.inputHash, inputRevision: current.inputRevision, engineVersion: "0.1.0", current: true });
+    // Provenance: which engine version ran, which exact build, the resulting fingerprint, and the validated input hash.
+    const engine = engineIdentity(TEST_BUILD);
+    expect(run).toMatchObject({ designVersionId: v.id, inputHash: current.inputHash, inputRevision: current.inputRevision, engineVersion: "0.1.0", engineBuild: TEST_BUILD, engineHash: engine.hash, current: true });
     expect(run.engineHash).toMatch(/^sha256:/);
+    const [row] = await sql<{ engine_version: string; engine_build: string; engine_hash: string; input_hash: string }>("SELECT engine_version, engine_build, engine_hash, input_hash FROM design_os.validation_run WHERE id = $1", [run.id]);
+    expect(row).toEqual({ engine_version: "0.1.0", engine_build: TEST_BUILD, engine_hash: engine.hash, input_hash: current.inputHash });
     expect(run.blockerCount).toBe(run.messages.filter((m) => m.severity === "BLOCKER").length);
     expect(run.warningCount).toBe(run.messages.filter((m) => m.severity === "WARNING").length);
     expect(run.canApprove).toBe(run.blockerCount === 0);

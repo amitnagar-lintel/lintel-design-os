@@ -314,6 +314,13 @@ export async function recipeAndProduct(c: Tx, w: World): Promise<{ recipe: Item;
   return { recipe: { entityId: rm.entityId, versionId: rm.versionId }, product: { entityId: pm.entityId, versionId: pm.versionId } };
 }
 
+/** Another exact version of an existing product (same entity), e.g. to prove catalog membership is by exact version. */
+export async function productVersion(c: Tx, w: World, product: Item, recipeVersionId: string, versionNumber: number): Promise<Item> {
+  const pm = meta(w, "DESIGN_HEAD", { entityId: product.entityId, versionNumber });
+  await insertRow(c, "product_version", strip(productToRow(KIT_BASE_STANDARD, pm, { orgId: w.org, recipeVersionId }, "Lintel catalog")));
+  return { entityId: pm.entityId, versionId: pm.versionId };
+}
+
 export async function hettichDataset(c: Tx, w: World, o: VersionOpts & { readonly hettich?: Parameters<typeof syntheticHettichDataset>[1] } = {}): Promise<string> {
   const m = meta(w, "PROCUREMENT", { ...(o.entityId === undefined ? {} : { entityId: o.entityId }), versionNumber: o.versionNumber ?? 1 });
   const dataset = o.complete === true ? syntheticHettichDataset(HETTICH_PRODUCTION_DATASET, o.hettich ?? {}) : HETTICH_PRODUCTION_DATASET;
@@ -464,11 +471,12 @@ export async function validationRun(c: Tx, w: World, designVersionId: string, in
     designVersionId,
     inputHash: inputHash as `sha256:${string}`,
     engineVersion: "0.1.0",
+    engineBuild: "0000000000000000000000000000000000000000",
     engineHash: "engine-fingerprint",
     validation: { messages: Array.from({ length: blockers }, (_, i) => ({ code: `ENGINE_BLOCKER_${i}`, severity: "BLOCKER" as const, message: "engine result" })), counts: { INFO: 0, WARNING: 0, ERROR: 0, BLOCKER: blockers }, canApprove: blockers === 0 },
   });
   await actAs(c, w.actor(role), { apiRole: true });
-  const id = (await one<{ id: string }>(c, "SELECT design_os.record_validation_run($1, $2, $3, $4, $5, $6, $7::jsonb, $8) AS id", [...recordValidationRunArgs(run)])).id;
+  const id = (await one<{ id: string }>(c, "SELECT design_os.record_validation_run($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9) AS id", [...recordValidationRunArgs(run)])).id;
   await actAs(c, null);
   return id;
 }

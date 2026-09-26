@@ -34,6 +34,7 @@ storage. Repositories never import engines or `@lintel/persistence`. `pg` is use
 | `AUTH_ISSUER`, `AUTH_AUDIENCE` | Expected token issuer / audience (`authenticated`) |
 | `AUTH_JWKS_URL` **or** `AUTH_JWT_SECRET` | Supabase Auth verification key (asymmetric JWKS or the HS256 shared secret) |
 | `CURSOR_SECRET` | HMAC key for pagination cursors (≥ 32 characters) |
+| `BUILD_REVISION` | Immutable build identity (Git commit SHA / build revision), recorded with every validation run and part of the engine fingerprint. Falls back to `GITHUB_SHA`, then the Git checkout; the API refuses to start without one |
 | `API_PORT`, `DB_POOL_MAX`, `CORS_ORIGINS`, `API_LOG` | Optional |
 
 No hosted Supabase configuration exists yet. The API runs against local / CI PostgreSQL 17 until the Mumbai gate (M5 §13).

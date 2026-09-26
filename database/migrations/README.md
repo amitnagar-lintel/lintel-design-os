@@ -19,6 +19,8 @@
 | 0012 | error_codes_output_purpose | SQLSTATE class `LD` on every `RAISE`, `design_os.error_code` registry, coded approval problems (`approval_problem_items`); output purposes PRELIMINARY / FOR_REVIEW / FOR_PRODUCTION per snapshot kind (`output_purpose_rule`), only FOR_PRODUCTION can be issued |
 | 0013 | idempotency_context | `current_memberships()` (own ACTIVE org ids from `auth.uid()`), `current_org_id()` with the same ACTIVE-organization rule (INACTIVE status added), `idempotency_record` with `UNIQUE (org_id, scope, idempotency_key)`, `claim_idempotency()` / `complete_idempotency()` |
 | 0014 | idempotency_scopes | Idempotency scopes for the core design API creates without a natural key (rooms, room revisions, designs, design versions, relationship overrides) |
+| 0015 | product_catalog_object_guard | Every design object's exact product version stays a member of its DesignVersion's pinned product catalog version: refused when the pin changes or when catalog membership changes (LD019) |
+| 0016 | engine_build_provenance | validation_run.engine_build: the immutable engine build identity (Git commit SHA / build revision) required on every new run; record_validation_run() takes it |
 
 Rules:
 

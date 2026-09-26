@@ -135,7 +135,7 @@ Lists return `{ items, nextCursor }`. Cursors are signed and bound to the collec
 3. The input hash is recomputed from the exact stored rows: room survey revision, objects, override history and pins, using the `@lintel/persistence` `designInputHash`. It must equal the stored `input_hash` (otherwise `VALIDATION_INPUT_MISMATCH`).
 4. The exact pinned versions are loaded: construction, planning and edge band standards; material, finish, hardware and product catalog versions with their frozen member item versions and the products' recipe versions; and the Hettich dataset. They are mapped with the `@lintel/persistence` `…FromRows` mappers, and the catalog is assembled with `assembleCatalogSnapshot`.
 5. `resolveRoom` from `@lintel/design-engine` runs in the application service. The engine alone decides the messages, BLOCKERs and WARNINGs.
-6. `buildValidationRun` and `design_os.record_validation_run()` store the run immutably, bound to the input hash and the database input revision, with `engine_version` and `engine_hash`.
+6. `buildValidationRun` and `design_os.record_validation_run()` store the run immutably, bound to the input hash and the database input revision, with `engine_version`, `engine_build` and `engine_hash` (§9.4).
 7. The response returns the run: `current` flag, counts, `canApprove`, and all engine messages. The request body must be `{}`; a client can never submit counts.
 
 A run is `current` only while the version's input hash and input revision are unchanged. Any later edit makes it stale, and SUBMIT then needs a new run.
@@ -146,14 +146,22 @@ A run is `current` only while the version's input hash and input revision are un
    - `RETURNING` must satisfy the SELECT policy. `project_read` calls `can_access_project(id)`, which looks the project up, and a row inserted by the same statement is not yet visible to it.
    - Projects are therefore inserted with a service-generated id and read back in a second statement.
    - Other tables' policies look up an existing parent, so they are not affected. Future tables whose read policy looks up their own row need the same pattern.
-2. **Re-pinning the product catalog is not enforced in the database for objects already placed.**
-   - `guard_design_object_product` fires on object insert and update, not on a version's pin change.
-   - The API checks that every placed object's product version belongs to the new product catalog version and refuses otherwise (`422 INVALID_REFERENCE`). Approval and the engine would also flag it.
-   - A database trigger on `design_version` would make this a hard guarantee (proposed follow-up migration).
+2. **Product catalog / object compatibility is enforced in the database (migration 0015).**
+   - `guard_design_object_product` (0006) covers object insert and update. 0015 covers the other two sides:
+     - `guard_design_version_product_catalog` (BEFORE UPDATE OF `product_catalog_version_id` on `design_version`) refuses a re-pin to a catalog version that lacks the exact `product_version` of any of the version's objects.
+     - `guard_product_catalog_member_in_use` (BEFORE UPDATE OR DELETE on `product_catalog_version_product`) refuses dropping or re-pointing a DRAFT catalog member that a pinning design's objects use.
+   - Both raise `LD019` with DETAIL `{"productVersionIds": [...]}` → `422 INVALID_REFERENCE` with that context. Membership is matched within the design version's own organization, and composite foreign keys make another tenant's catalog or product unreachable.
+   - The API still checks first (same 422, draft unchanged); the database refuses even when the API is bypassed. DRAFT lifecycle rules are unchanged.
+   - Tests: `tests/db/product-catalog-guard.test.ts` (direct DB path as owner and as the API role, compatible change, objects still valid, unrelated versions and members unaffected, cross-tenant) and the API re-pin test in `apps/api/test/db/design-versions.test.ts`.
 3. **The design version content hash was undefined until now.**
    - `@lintel/persistence` `designVersionContentHash` defines it: the input hash plus the room revision, based-on version, label, reason, source and authored engine version.
    - It is recomputed with the input hash on every draft change.
-4. **Engine fingerprint.** `engine_hash` hashes the design-engine version constants. It identifies an engine version, not a build; a code change without a version bump is not visible (related to BL-1).
+4. **Engine provenance includes the build (migration 0016).**
+   - The API resolves an immutable build identity at startup: `BUILD_REVISION` (set by the build / deployment), else `GITHUB_SHA` (CI), else the Git checkout (`+dirty` when tracked files differ). Without one the API refuses to start.
+   - `engineIdentity(build)` keeps the semantic version (`ROOM_ENGINE_VERSION`) and fingerprints `{engine versions, build}` as `engine_hash`. A code change is visible without a manual version bump.
+   - Every validation run stores `engine_version`, `engine_build`, `engine_hash` and `input_hash`, and the response returns `engineVersion`, `engineBuild`, `engineHash` and `inputHash`.
+   - `record_validation_run()` now takes the build. `validation_run_engine_build_required` enforces it for every new run (`NOT VALID`: runs recorded before 0016 keep `engine_build` NULL; nothing is back-filled or invented).
+   - Snapshot tables (output modules, not started) will carry the same fingerprint when they are built.
 5. **The approval success path cannot be exercised over HTTP yet.**
    - With the test-only synthetic reference data, the engine reports BLOCKERs (for example `EDGE_RULES_UNDEFINED` and `MATERIAL_UNKNOWN`), so the database refuses APPROVE with `VALIDATION_BLOCKERS`.
    - The tests assert exactly that.

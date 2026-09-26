@@ -14,14 +14,25 @@ import type { PinnedInputRows, VersionRowWithCode } from "../../infrastructure/p
 import type { DesignObjectRow, DesignVersionRow, RelationshipOverrideRow } from "../../infrastructure/persistence/design-versions.repository.js";
 import type { RoomRevisionRow, RoomRow } from "../../infrastructure/persistence/rooms.repository.js";
 
+/** Which engine ran: its semantic version, the exact build, and the fingerprint of both. */
+export interface EngineIdentity {
+  readonly version: string;
+  readonly build: string;
+  readonly hash: string;
+}
+
 /**
- * The engine the API validates with. `engineHash` fingerprints the engine versions used; it is stored with every
- * validation run (and later every snapshot) so a result is always traceable to the engine that produced it.
+ * The engine the API validates with. The semantic version says what the engine claims to be; the build identity
+ * (commit SHA / build revision, from the API config) says which exact code ran — so a code change is detectable
+ * without a manual version bump. The fingerprint hashes both; all three are stored with every validation run.
  */
-export const ENGINE = {
-  version: ROOM_ENGINE_VERSION,
-  hash: contentHash({ engine: "@lintel/design-engine", roomEngineVersion: ROOM_ENGINE_VERSION, cabinetEngineVersion: ENGINE_VERSION }),
-} as const;
+export function engineIdentity(build: string): EngineIdentity {
+  return {
+    version: ROOM_ENGINE_VERSION,
+    build,
+    hash: contentHash({ engine: "@lintel/design-engine", roomEngineVersion: ROOM_ENGINE_VERSION, cabinetEngineVersion: ENGINE_VERSION, build }),
+  };
+}
 
 function required<T>(row: T | null, what: string): T {
   if (row === null) throw new ApiProblem("INTERNAL", `pinned ${what} is not readable`);

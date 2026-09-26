@@ -7,7 +7,7 @@ import { randomUUID } from "node:crypto";
 import { expect } from "vitest";
 import type { Tx } from "../../../../tests/db/support/db.js";
 import type { Dependencies, World } from "../../../../tests/db/support/world.js";
-import { dependencies } from "../../../../tests/db/support/world.js";
+import { catalogVersion, dependencies, productVersion } from "../../../../tests/db/support/world.js";
 import type { Api } from "./harness.js";
 import { admin, world } from "./harness.js";
 
@@ -71,4 +71,28 @@ export function cabinet(productVersionId: string, code = "OBJ-KIT-001", x = 0) {
     objectCode: code, objectType: "BASE_CABINET", productCode: "KIT_BASE_STANDARD", productVersionId,
     position: { xMm: x, yMm: 0, zMm: 0 }, rotationY: 0, dimensions: { widthMm: 600, heightMm: 720, depthMm: 560 }, parameters: { frontType: "OVERLAY" },
   };
+}
+
+/**
+ * Two more DRAFT versions of the world's product catalog (committed): `compatible` lists the exact product version
+ * the world's objects use; `incompatible` lists only another exact version of the same product.
+ */
+export async function productCatalogVariants(d: DomainWorld): Promise<{ compatible: string; incompatible: string; otherProductVersionId: string }> {
+  const product = d.deps.items.product;
+  const recipe = d.deps.items.recipe;
+  if (product === undefined || recipe === undefined) throw new Error("world has no product");
+  const c = await admin();
+  try {
+    await c.query("BEGIN");
+    const tx = c as unknown as Tx;
+    const entity = (await c.query<{ entity_id: string }>("SELECT entity_id FROM design_os.product_catalog_version WHERE id = $1", [d.pins.productCatalogVersionId])).rows[0]?.entity_id;
+    if (entity === undefined) throw new Error("no product catalog");
+    const other = await productVersion(tx, d.w, product, recipe.versionId, 2);
+    const compatible = await catalogVersion(tx, d.w, "product", [["product", product.entityId, product.versionId]], { entityId: entity, versionNumber: 2 });
+    const incompatible = await catalogVersion(tx, d.w, "product", [["product", other.entityId, other.versionId]], { entityId: entity, versionNumber: 3 });
+    await c.query("COMMIT");
+    return { compatible, incompatible, otherProductVersionId: other.versionId };
+  } finally {
+    await c.end();
+  }
 }

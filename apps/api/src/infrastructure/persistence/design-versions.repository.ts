@@ -85,6 +85,8 @@ export interface ValidationRunRow {
   readonly input_hash: string;
   readonly input_revision: number;
   readonly engine_version: string;
+  /** NULL only for runs recorded before migration 0016. */
+  readonly engine_build: string | null;
   readonly engine_hash: string;
   readonly content_hash: string;
   readonly blocker_count: number;
@@ -96,7 +98,7 @@ export interface ValidationRunRow {
 
 const OBJECT_COLS = "id, org_id, design_version_id, object_code, lineage_id, object_type, product_code, product_version_id, x_mm, y_mm, z_mm, rotation_y, width_mm, height_mm, depth_mm, parameters, status";
 const OVERRIDE_COLS = "org_id, design_version_id, override_code, version, kind, object_ids, reason, created_by, created_at";
-const RUN_COLS = "id, seq, org_id, design_version_id, input_hash, input_revision, engine_version, engine_hash, content_hash, blocker_count, warning_count, messages, created_by, created_at";
+const RUN_COLS = "id, seq, org_id, design_version_id, input_hash, input_revision, engine_version, engine_build, engine_hash, content_hash, blocker_count, warning_count, messages, created_by, created_at";
 
 export interface NewDesignVersion extends PinColumns {
   readonly id: string;
@@ -213,6 +215,6 @@ export const designVersionsRepository = {
     return jsonRow<ValidationRunRow>(tx, `SELECT ${RUN_COLS} FROM design_os.validation_run WHERE design_version_id = $1 ORDER BY seq DESC LIMIT 1`, [versionId]);
   },
   recordRun(tx: Tx, args: readonly unknown[]): Promise<string> {
-    return tx.one<{ id: string }>("SELECT design_os.record_validation_run($1, $2, $3, $4, $5, $6, $7::jsonb, $8)::text AS id", args).then((r) => r.id);
+    return tx.one<{ id: string }>("SELECT design_os.record_validation_run($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9)::text AS id", args).then((r) => r.id);
   },
 };

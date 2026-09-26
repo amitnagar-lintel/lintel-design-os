@@ -1,0 +1,100 @@
+import { describe, expect, it } from "vitest";
+import type { CatalogSnapshot, ConstructionRecipe } from "@lintel/types";
+import {
+  KIT_BASE_STANDARD,
+  KITCHEN_BASE_STANDARD_V1,
+  LINTEL_CATALOG,
+  LINTEL_CONSTRUCTION_STANDARD_DRAFT,
+  TEST_FIXTURE_CONSTRUCTION_STANDARD,
+  findProduct,
+  validateCatalog,
+  validateStandard,
+} from "../src/index.js";
+
+const withRecipe = (patch: Partial<ConstructionRecipe>): CatalogSnapshot => ({
+  ...LINTEL_CATALOG,
+  recipes: [{ ...KITCHEN_BASE_STANDARD_V1, ...patch }],
+});
+
+describe("LINTEL_CATALOG", () => {
+  it("is structurally valid", () => {
+    expect(validateCatalog(LINTEL_CATALOG)).toEqual([]);
+  });
+  it("contains only KIT_BASE_STANDARD in V1 (PRD §41)", () => {
+    expect(LINTEL_CATALOG.products.map((p) => p.productId)).toEqual(["KIT_BASE_STANDARD"]);
+    expect(findProduct(LINTEL_CATALOG, "KIT_BASE_STANDARD")).toBe(KIT_BASE_STANDARD);
+  });
+  it("defaults the product to the PRD §42 reference cabinet", () => {
+    const d = Object.fromEntries(KIT_BASE_STANDARD.parameters.map((p) => [p.key, p.default]));
+    expect(d).toMatchObject({ width: 600, height: 720, depth: 560, carcassThickness: 18, backThickness: 6, shelfCount: 1, shutterCount: 2, frontType: "OVERLAY" });
+  });
+  it("lists the PRD §14 recipe components", () => {
+    const types = new Set(KITCHEN_BASE_STANDARD_V1.components.map((c) => c.componentType));
+    expect([...types].sort()).toEqual(["BACK", "BOTTOM", "SHELF", "SHUTTER", "SIDE_LEFT", "SIDE_RIGHT", "TOP_SUPPORT_BACK", "TOP_SUPPORT_FRONT"]);
+  });
+  it("keeps construction details out of recipe literals: recipe variables are all declared", () => {
+    expect(KITCHEN_BASE_STANDARD_V1.constructionVariables.length).toBeGreaterThan(0);
+  });
+});
+
+describe("validateCatalog detects bad data", () => {
+  it("unknown variables", () => {
+    const bad = withRecipe({ formulas: [{ formulaId: "X", expression: "W - MYSTERY", variables: ["W", "MYSTERY"], unit: "MM" }] });
+    expect(validateCatalog(bad).map((m) => m.code)).toContain("CATALOG_UNKNOWN_VARIABLE");
+  });
+  it("parse errors", () => {
+    const bad = withRecipe({ formulas: [{ formulaId: "X", expression: "W -", variables: ["W"], unit: "MM" }] });
+    expect(validateCatalog(bad).map((m) => m.code)).toContain("CATALOG_FORMULA_PARSE_ERROR");
+  });
+  it("declared vs used variable mismatch", () => {
+    const bad = withRecipe({ formulas: [{ formulaId: "X", expression: "W - T", variables: ["W"], unit: "MM" }] });
+    expect(validateCatalog(bad).map((m) => m.code)).toContain("CATALOG_FORMULA_VARIABLES_MISMATCH");
+  });
+  it("instance index `i` is only valid inside component geometry", () => {
+    const bad = withRecipe({
+      components: KITCHEN_BASE_STANDARD_V1.components.map((c) => (c.templateId === "SHELF" ? { ...c, count: "i + 1" } : c)),
+    });
+    expect(validateCatalog(bad).map((m) => m.code)).toContain("CATALOG_UNKNOWN_VARIABLE");
+  });
+  it("grain outside the panel face", () => {
+    const bad = withRecipe({
+      components: KITCHEN_BASE_STANDARD_V1.components.map((c) => (c.templateId === "SIDE_LEFT" ? { ...c, grainDirection: "WIDTH" as const } : c)),
+    });
+    expect(validateCatalog(bad).map((m) => m.code)).toContain("CATALOG_INVALID_GRAIN");
+  });
+  it("material role pointing at a non-material parameter", () => {
+    const bad = withRecipe({ materialRoles: { ...KITCHEN_BASE_STANDARD_V1.materialRoles, BACK: "width" } });
+    expect(validateCatalog(bad).map((m) => m.code)).toContain("CATALOG_UNKNOWN_REFERENCE");
+  });
+  it("duplicate ids", () => {
+    expect(validateCatalog({ ...LINTEL_CATALOG, materials: [...LINTEL_CATALOG.materials, LINTEL_CATALOG.materials[0]!] }).map((m) => m.code)).toContain("CATALOG_DUPLICATE_ID");
+  });
+});
+
+describe("construction standards", () => {
+  it("the Lintel draft standard defines no values yet (nothing invented)", () => {
+    expect(LINTEL_CONSTRUCTION_STANDARD_DRAFT.status).toBe("DRAFT");
+    expect(Object.values(LINTEL_CONSTRUCTION_STANDARD_DRAFT.variables).every((v) => v === null)).toBe(true);
+    expect(Object.keys(LINTEL_CONSTRUCTION_STANDARD_DRAFT.variables).sort()).toEqual(KITCHEN_BASE_STANDARD_V1.constructionVariables.map((v) => v.key).sort());
+  });
+  it("both standards are consistent with the recipe", () => {
+    expect(validateStandard(LINTEL_CATALOG, KITCHEN_BASE_STANDARD_V1, LINTEL_CONSTRUCTION_STANDARD_DRAFT)).toEqual([]);
+    expect(validateStandard(LINTEL_CATALOG, KITCHEN_BASE_STANDARD_V1, TEST_FIXTURE_CONSTRUCTION_STANDARD)).toEqual([]);
+  });
+  it("the test fixture standard is labelled as such", () => {
+    expect(TEST_FIXTURE_CONSTRUCTION_STANDARD.status).toBe("TEST_FIXTURE");
+  });
+  it("detects invalid edge sides and unknown edge bands", () => {
+    const bad = {
+      ...TEST_FIXTURE_CONSTRUCTION_STANDARD,
+      edgeRuleSets: { CARCASS_STANDARD: { SIDE_LEFT: { LEFT: "EDGE_ABS_2MM" }, SHELF: { FRONT: "NOPE" } } },
+    };
+    const codes = validateStandard(LINTEL_CATALOG, KITCHEN_BASE_STANDARD_V1, bad).map((m) => m.code);
+    expect(codes).toContain("STANDARD_INVALID_EDGE_SIDE");
+    expect(codes).toContain("CATALOG_UNKNOWN_REFERENCE");
+  });
+  it("detects variables the recipe does not declare", () => {
+    const bad = { ...TEST_FIXTURE_CONSTRUCTION_STANDARD, variables: { ...TEST_FIXTURE_CONSTRUCTION_STANDARD.variables, MAGIC: 5 } };
+    expect(validateStandard(LINTEL_CATALOG, KITCHEN_BASE_STANDARD_V1, bad).map((m) => m.code)).toEqual(["STANDARD_UNKNOWN_VARIABLE"]);
+  });
+});

@@ -1,0 +1,13 @@
+{
+  "name": "@lintel/boq-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@lintel/types": "workspace:*",
+    "@lintel/rules-engine": "workspace:*"
+  }
+}

@@ -4,7 +4,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { engineIdentity } from "../../src/modules/design-versions/engine.js";
+import { computeEngineManifest } from "../../src/infrastructure/engines/engine-manifest.build.js";
 import { ObjectResponse, ValidationRunResponse, VersionResponse, VersionState } from "../../src/modules/design-versions/design-versions.schemas.js";
 import type { DomainWorld } from "../support/domain.js";
 import { cabinet, domainWorld, key, productCatalogVariants } from "../support/domain.js";
@@ -55,7 +55,10 @@ describe("creating versions: exact pins", () => {
     expect(r.statusCode).toBe(201);
     const v = VersionResponse.parse(r.json());
     expect(v).toMatchObject({ status: "DRAFT", versionNumber: 1, versionLabel: "v1", roomRevisionId: d.revisionId, basedOnVersionId: null, validation: null, designId: d.designId, projectId: d.projectId });
-    expect(v.pins).toMatchObject({ ...d.pins, manufacturingStandardVersionId: null, pricingStandardVersionId: null, quotationPolicyVersionId: null, applianceCatalogVersionId: null });
+    // Engineering pins only: commercial / manufacturing versions are chosen per output, never pinned (0017).
+    expect(v.pins).toEqual({ ...d.pins, applianceCatalogVersionId: null });
+    const commercial = await newVersion({ pins: { ...d.pins, pricingStandardVersionId: randomUUID() } });
+    expect([commercial.statusCode, problem(commercial).code]).toEqual([400, "VALIDATION_FAILED"]);
     expect(r.headers.etag).toBe(`"${v.id}:${String(v.rowVersion)}"`);
     expect(v.inputHash).not.toBe(`sha256:${"0".repeat(64)}`);
   });
@@ -195,11 +198,16 @@ describe("validation runs", () => {
     expect(r.statusCode).toBe(201);
     const run = ValidationRunResponse.parse(r.json());
     // Provenance: which engine version ran, which exact build, the resulting fingerprint, and the validated input hash.
-    const engine = engineIdentity(TEST_BUILD);
-    expect(run).toMatchObject({ designVersionId: v.id, inputHash: current.inputHash, inputRevision: current.inputRevision, engineVersion: "0.1.0", engineBuild: TEST_BUILD, engineHash: engine.hash, current: true });
-    expect(run.engineHash).toMatch(/^sha256:/);
-    const [row] = await sql<{ engine_version: string; engine_build: string; engine_hash: string; input_hash: string }>("SELECT engine_version, engine_build, engine_hash, input_hash FROM design_os.validation_run WHERE id = $1", [run.id]);
-    expect(row).toEqual({ engine_version: "0.1.0", engine_build: TEST_BUILD, engine_hash: engine.hash, input_hash: current.inputHash });
+    const engine = computeEngineManifest().engines.validation;
+    expect(run).toMatchObject({
+      designVersionId: v.id, purpose: "APPROVAL", inputHash: current.inputHash, inputRevision: current.inputRevision, current: true,
+      engine: { name: "validation", version: "0.1.0", build: TEST_BUILD, fingerprint: engine?.fingerprint, closure: engine?.closure },
+    });
+    expect(run.engine.fingerprint).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(run.dependencySetHash).toMatch(/^sha256:[0-9a-f]{64}$/);
+    const [row] = await sql<{ purpose: string; engine_name: string; engine_version: string; engine_build: string; engine_fingerprint: string; input_hash: string }>(
+      "SELECT purpose, engine_name, engine_version, engine_build, engine_fingerprint, input_hash FROM design_os.validation_run WHERE id = $1", [run.id]);
+    expect(row).toEqual({ purpose: "APPROVAL", engine_name: "validation", engine_version: "0.1.0", engine_build: TEST_BUILD, engine_fingerprint: engine?.fingerprint, input_hash: current.inputHash });
     expect(run.blockerCount).toBe(run.messages.filter((m) => m.severity === "BLOCKER").length);
     expect(run.warningCount).toBe(run.messages.filter((m) => m.severity === "WARNING").length);
     expect(run.canApprove).toBe(run.blockerCount === 0);

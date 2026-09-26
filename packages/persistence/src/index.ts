@@ -23,9 +23,15 @@ export * from "./mappers/hettich.js";
 export * from "./mappers/design.js";
 export type { AssembledCatalog, CatalogVersionRef, PinnedCatalogReleases } from "./catalog-assembly.js";
 export { assembleCatalogSnapshot } from "./catalog-assembly.js";
-export type { DesignVersionRef, SnapshotKind, SnapshotProvenance, SnapshotRecord, SnapshotRow } from "./provenance.js";
-export { buildSnapshotProvenance, buildSnapshotRecord, provenanceMismatches, snapshotFromRow, snapshotToRow, verifySnapshotRecord } from "./provenance.js";
+export type {
+  ChosenVersions, DependencyHashes, DependencyPin, DesignVersionRef, DrawingIdentity, DrawingType, EngineClosure, EngineName, EngineProvenance, SnapshotFile,
+  SnapshotKind, SnapshotProvenance, SnapshotRecord, SnapshotRow, SnapshotSources,
+} from "./provenance.js";
+export {
+  COMMERCIAL_PINS, ENGINE_OF_KIND, NO_CHOSEN_VERSIONS, ROOM_DRAWING_TYPES, SOURCES_OF_KIND, assertEngineProvenance, buildSnapshotProvenance, buildSnapshotRecord,
+  commercialInputHash, dependencySetHash, engineeringDependencyHashes, fileManifestHash, snapshotFromRow, snapshotIdentity, snapshotToRow, verifySnapshotRecord,
+} from "./provenance.js";
 export type { OutputPurpose, OutputPurposeProblem, OutputPurposeProblemCode, OutputPurposeRule } from "./output-purpose.js";
 export { OUTPUT_PURPOSE_RULES, OUTPUT_PURPOSES, outputPurposeProblems, outputPurposeRule, purposeChangeDecision, qualifiesForIssue, qualifiesForRelease } from "./output-purpose.js";
-export type { ValidationRunRecord } from "./validation-run.js";
-export { ENGINE_BUILD, buildValidationRun, recordValidationRunArgs } from "./validation-run.js";
+export type { ValidationPurpose, ValidationRunRecord } from "./validation-run.js";
+export { ENGINE_BUILD, RECORD_VALIDATION_RUN_SQL, buildValidationRun, recordValidationRunArgs } from "./validation-run.js";

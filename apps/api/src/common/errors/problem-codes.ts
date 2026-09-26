@@ -27,6 +27,8 @@ export const PROBLEM_CODES = {
   ISSUE_PRECONDITIONS_FAILED: { status: 409, title: "Issue preconditions failed" },
   PRODUCTION_GUARD_FAILED: { status: 409, title: "Production output requires an approved or locked design version" },
   OUTPUT_PURPOSE_NOT_ALLOWED: { status: 409, title: "The output purpose is not allowed here" },
+  SOURCE_SNAPSHOT_INCOMPATIBLE: { status: 409, title: "An upstream output is for other inputs or versions" },
+  SOURCE_PURPOSE_INSUFFICIENT: { status: 409, title: "An upstream output has a weaker purpose" },
   MEMBERSHIP_RULE_VIOLATION: { status: 409, title: "Membership rules violated" },
   DUPLICATE_RESOURCE: { status: 409, title: "The resource already exists" },
   IDEMPOTENCY_CONFLICT: { status: 409, title: "The idempotency key was used for a different request" },
@@ -73,10 +75,12 @@ export const DATABASE_ERROR_CODES: Readonly<Record<string, ProblemCode>> = {
   LD022: "IDEMPOTENCY_CONFLICT",
   LD023: "IDEMPOTENCY_IN_PROGRESS",
   LD024: "OUTPUT_PURPOSE_NOT_ALLOWED",
+  LD025: "SOURCE_SNAPSHOT_INCOMPATIBLE",
+  LD026: "SOURCE_PURPOSE_INSUFFICIENT",
 };
 
 /** Internal integrity guards: never explained to API callers. */
-export const INTERNAL_DATABASE_SQLSTATES: readonly string[] = ["LD901", "LD902", "LD903", "LD904", "LD905"];
+export const INTERNAL_DATABASE_SQLSTATES: readonly string[] = ["LD901", "LD902", "LD903", "LD904", "LD905", "LD906"];
 
 /** RFC 9457 `type`: a stable URN per code (dereferenceable documentation is not required). */
 export function problemType(code: ProblemCode): string {

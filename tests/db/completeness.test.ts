@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 import type { Tx } from "./support/db.js";
-import { attempt, one, tx } from "./support/db.js";
+import { actAs, attempt, one, tx } from "./support/db.js";
 import type { World } from "./support/world.js";
 import {
   approve,
@@ -16,13 +16,11 @@ import {
   edgeBandStandard,
   hashOf,
   hettichDataset,
-  insertManufacturingPin,
   manufacturingStandard,
   pricingStandard,
   quotationPolicy,
   statusOf,
   transition,
-  validationRun,
   AUTHOR,
 } from "./support/world.js";
 
@@ -103,16 +101,17 @@ describe("ManufacturingStandard", () => {
       expect(await tryApprove(c, w, "manufacturing_standard", id)).toContain("ManufacturingStandard has no defined variable model yet");
     });
   });
-  it("is use-blocked: a design version pinning it cannot be approved", async () => {
+  it("is not a design-version dependency (0017): a design version is approvable without it, and no design version can pin it", async () => {
     await tx(async (c) => {
       const w = await createWorld(c);
       const deps = await dependencies(c, w);
-      const d = await designVersion(c, w, deps, { withRun: false });
-      const mfg = await insertManufacturingPin(c, w, d.designVersionId);
-      await validationRun(c, w, d.designVersionId, d.inputHash, 0);
+      const d = await designVersion(c, w, deps);
+      await actAs(c, null);
+      const cols = (await c.query("SELECT column_name FROM information_schema.columns WHERE table_schema = 'design_os' AND table_name = 'design_version' AND column_name ~ '(manufacturing|pricing)_standard|quotation_policy'")).rows;
+      expect(cols).toEqual([]);
       await transition(c, w, "DESIGNER", "design", d.designVersionId, "SUBMIT");
-      const err = await attempt(c, async () => transition(c, w, "DESIGN_HEAD", "design", d.designVersionId, "APPROVE", "x", await hashOf(c, "design", d.designVersionId)));
-      expect(err?.message).toContain(`manufacturingStandardVersionId ${mfg} is DRAFT`);
+      await transition(c, w, "DESIGN_HEAD", "design", d.designVersionId, "APPROVE", "x", await hashOf(c, "design", d.designVersionId));
+      expect(await statusOf(c, "design", d.designVersionId)).toBe("APPROVED");
     });
   });
 });

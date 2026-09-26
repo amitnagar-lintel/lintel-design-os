@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Lintel Design OS API (NestJS + Fastify, /api/v1). The only application boundary to the design_os database.",
   "scripts": {
-    "start": "node --import tsx src/main.ts"
+    "start": "node --import tsx src/main.ts",
+    "engines:manifest": "node --import tsx src/infrastructure/engines/write-engine-manifest.ts"
   },
   "dependencies": {
     "@lintel/catalog-engine": "workspace:*",

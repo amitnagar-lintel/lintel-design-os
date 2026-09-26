@@ -2,12 +2,12 @@ import type { RecordLifecycleStatus } from "./envelope.js";
 import type { SnapshotKind } from "./provenance.js";
 
 /**
- * Output purposes (M5 Step 4). Mirrors `design_os.output_purpose_rule` (migration 0012) exactly; a database test
+ * Output purposes (M5 Step 4; FOR_REVIEW widened in Step 7). Mirrors `design_os.output_purpose_rule` (migrations 0012, 0017) exactly; a database test
  * asserts the two are identical. This is the contract the API applies before writing; the database is the final check.
  *
  * - PRELIMINARY: work-in-progress output from any lifecycle state; never issued, never released.
- * - FOR_REVIEW: engineering / client review output from an IN_REVIEW, APPROVED or LOCKED design. BLOCKERs are shown,
- *   not hidden. It never qualifies as FOR_PRODUCTION and never satisfies issue or production-release requirements.
+ * - FOR_REVIEW: engineering / client review output from an IN_REVIEW, APPROVED or LOCKED design, or from a SUPERSEDED
+ *   design for reproduction / review only. BLOCKERs are shown, not hidden. It never qualifies as FOR_PRODUCTION and never satisfies issue or production-release requirements.
  * - FOR_PRODUCTION: APPROVED or LOCKED design, 0 BLOCKERs and every production guard. The only purpose that can be
  *   issued (quotations, drawings) or released to manufacturing (manufacturing documents).
  *
@@ -33,7 +33,7 @@ const ISSUABLE: ReadonlySet<SnapshotKind> = new Set(["QUOTATION", "DRAWING"]);
 /** Every allowed (kind, purpose) pair, explicit per snapshot kind. */
 export const OUTPUT_PURPOSE_RULES: readonly OutputPurposeRule[] = KINDS.flatMap((kind): OutputPurposeRule[] => [
   { kind, purpose: "PRELIMINARY", designStatuses: ["DRAFT", "IN_REVIEW", "APPROVED", "LOCKED", "SUPERSEDED"], requiresZeroBlockers: false, qualifiesForIssue: false, qualifiesForRelease: false },
-  { kind, purpose: "FOR_REVIEW", designStatuses: ["IN_REVIEW", "APPROVED", "LOCKED"], requiresZeroBlockers: false, qualifiesForIssue: false, qualifiesForRelease: false },
+  { kind, purpose: "FOR_REVIEW", designStatuses: ["IN_REVIEW", "APPROVED", "LOCKED", "SUPERSEDED"], requiresZeroBlockers: false, qualifiesForIssue: false, qualifiesForRelease: false },
   { kind, purpose: "FOR_PRODUCTION", designStatuses: ["APPROVED", "LOCKED"], requiresZeroBlockers: true, qualifiesForIssue: ISSUABLE.has(kind), qualifiesForRelease: kind === "MANUFACTURING_DOCUMENT" },
 ]);
 

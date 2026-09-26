@@ -68,16 +68,15 @@ export function roomFromRows(room: RoomRow, revision: RoomRevisionRow): Room {
 /* ------------------------------------------------------------ design version + pins */
 
 /**
- * Exact versions a DesignVersion pins (M5 §2.3), one typed reference per domain.
- * Never re-pointed after DRAFT; nullable pins are "not applicable yet".
+ * Exact engineering versions a DesignVersion pins (M5 §2.3; Step 6 plan revision 4 §3), one typed reference per domain.
+ * A design version is engineering-only: PricingStandard, QuotationPolicy and ManufacturingStandard versions are chosen
+ * when an output is generated and recorded on that snapshot, never pinned here (migration 0017).
+ * Never re-pointed after DRAFT; the appliance catalog pin is nullable ("not applicable yet").
  */
 export interface DesignVersionPins {
   readonly constructionStandardVersionId: string;
   readonly planningStandardVersionId: string;
   readonly edgeBandStandardVersionId: string;
-  readonly manufacturingStandardVersionId: string | null;
-  readonly pricingStandardVersionId: string | null;
-  readonly quotationPolicyVersionId: string | null;
   readonly materialCatalogVersionId: string;
   readonly finishCatalogVersionId: string;
   readonly hardwareCatalogVersionId: string;
@@ -94,9 +93,6 @@ export interface DesignVersionRow extends EnvelopeRow {
   readonly construction_standard_version_id: string;
   readonly planning_standard_version_id: string;
   readonly edge_band_standard_version_id: string;
-  readonly manufacturing_standard_version_id: string | null;
-  readonly pricing_standard_version_id: string | null;
-  readonly quotation_policy_version_id: string | null;
   readonly material_catalog_version_id: string;
   readonly finish_catalog_version_id: string;
   readonly hardware_catalog_version_id: string;
@@ -105,7 +101,7 @@ export interface DesignVersionRow extends EnvelopeRow {
   readonly product_catalog_version_id: string;
   readonly authored_engine_version: string;
   readonly input_hash: Sha256;
-  /** Maintained by the database (bumped on any input change); never set by callers. */
+  /** Maintained by the database (bumped on any engineering input change); never set by callers. */
   readonly input_revision: number;
 }
 
@@ -127,9 +123,6 @@ export function pinsToColumns(p: DesignVersionPins) {
     construction_standard_version_id: p.constructionStandardVersionId,
     planning_standard_version_id: p.planningStandardVersionId,
     edge_band_standard_version_id: p.edgeBandStandardVersionId,
-    manufacturing_standard_version_id: p.manufacturingStandardVersionId,
-    pricing_standard_version_id: p.pricingStandardVersionId,
-    quotation_policy_version_id: p.quotationPolicyVersionId,
     material_catalog_version_id: p.materialCatalogVersionId,
     finish_catalog_version_id: p.finishCatalogVersionId,
     hardware_catalog_version_id: p.hardwareCatalogVersionId,
@@ -144,9 +137,6 @@ export function pinsFromColumns(r: ReturnType<typeof pinsToColumns>): DesignVers
     constructionStandardVersionId: r.construction_standard_version_id,
     planningStandardVersionId: r.planning_standard_version_id,
     edgeBandStandardVersionId: r.edge_band_standard_version_id,
-    manufacturingStandardVersionId: r.manufacturing_standard_version_id,
-    pricingStandardVersionId: r.pricing_standard_version_id,
-    quotationPolicyVersionId: r.quotation_policy_version_id,
     materialCatalogVersionId: r.material_catalog_version_id,
     finishCatalogVersionId: r.finish_catalog_version_id,
     hardwareCatalogVersionId: r.hardware_catalog_version_id,
@@ -317,6 +307,7 @@ export function overrideFromRow(r: RelationshipOverrideRow): RelationshipOverrid
  * Hash of everything a design version's engine result depends on: room survey, objects,
  * overrides and pins. A validation run is valid only for the input hash it was made for.
  */
+/** The engineering input hash of a DesignVersion (its only inputs: room survey, objects, overrides, the 9 engineering pins). */
 export function designInputHash(input: {
   readonly roomRevision: Pick<RoomRevisionRow, "id" | "content_hash">;
   readonly objects: readonly DesignObjectRow[];

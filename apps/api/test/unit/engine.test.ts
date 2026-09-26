@@ -1,23 +1,86 @@
-/** Engine provenance: the fingerprint identifies the semantic version AND the exact build, so code changes are detectable without a version bump. */
+/**
+ * Engine provenance (OD-S6-9): the fingerprint is a dependency-closure hash, so engine code changes are detected
+ * without a version bump while unrelated changes never alter it; the build / commit is recorded separately.
+ */
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { ROOM_ENGINE_VERSION } from "@lintel/design-engine";
 import { describe, expect, it } from "vitest";
 import { loadConfig, resolveBuildRevision } from "../../src/config.js";
-import { engineIdentity } from "../../src/modules/design-versions/engine.js";
+import { ENGINE_ENTRIES } from "../../src/infrastructure/engines/engine-entries.js";
+import type { EngineManifestEntry } from "../../src/infrastructure/engines/engine-manifest.js";
+import { engineFingerprint, engineProvenance, loadEngineManifest, parseEngineManifest } from "../../src/infrastructure/engines/engine-manifest.js";
+import { computeEngineManifest } from "../../src/infrastructure/engines/engine-manifest.build.js";
 
 const A = "3f2a9c1e7b4d5a6f8e9d0c1b2a3f4e5d6c7b8a90";
 const B = "3f2a9c1e7b4d5a6f8e9d0c1b2a3f4e5d6c7b8a91";
 
-describe("engineIdentity", () => {
-  it("two different builds give different fingerprints with the same semantic engine version", () => {
-    const a = engineIdentity(A);
-    const b = engineIdentity(B);
-    expect([a.version, b.version]).toEqual([ROOM_ENGINE_VERSION, ROOM_ENGINE_VERSION]);
-    expect([a.build, b.build]).toEqual([A, B]);
-    expect(a.hash).toMatch(/^sha256:[0-9a-f]{64}$/);
-    expect(a.hash).not.toBe(b.hash);
+const VALIDATION = ENGINE_ENTRIES.validation as { entry: string; version: string };
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
+const abs = (rel: string) => join(ROOT, rel);
+const real = (p: string) => readFileSync(p, "utf8");
+/** A reader that changes exactly one file's content; everything else is read from disk. */
+const patched = (target: string, change: (text: string) => string) => (p: string) => (p === abs(target) ? change(real(p)) : real(p));
+const fp = (o: Parameters<typeof computeEngineManifest>[0] = {}) => (computeEngineManifest({ entries: { validation: VALIDATION }, ...o }).engines.validation as EngineManifestEntry);
+
+describe("engine fingerprint (OD-S6-9): dependency-closure hash", () => {
+  it("covers the semantic version, the reached source per internal package, locked externals and the runtime; not the commit", () => {
+    const e = fp();
+    expect(e).toMatchObject({ name: "validation", version: ROOM_ENGINE_VERSION });
+    expect(e.fingerprint).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(Object.keys(e.closure.packages)).toEqual(expect.arrayContaining(["@lintel/api", "@lintel/design-engine", "@lintel/hettich-engine", "@lintel/persistence", "@lintel/rules-engine", "@lintel/types"]));
+    // Only engines and persistence: no UI, no HTTP stack, no database driver is reachable from an engine entry.
+    for (const p of ["@lintel/ui", "@lintel/storage", "@lintel/drawing-engine"]) expect(Object.keys(e.closure.packages)).not.toContain(p);
+    expect(e.closure.externals).toEqual({});
+    expect(e.closure.runtime).toMatch(/^node-\d+$/);
+    expect(engineFingerprint(e)).toBe(e.fingerprint);
   });
-  it("is deterministic for one build", () => {
-    expect(engineIdentity(A)).toEqual(engineIdentity(A));
+  it("same engine code + same dependency closure → same fingerprint (deterministic; independent of the build / commit)", () => {
+    expect(fp({ readFile: real })).toEqual(fp({ readFile: real }));
+    const e = fp();
+    expect(engineProvenance({ schema: 1, engines: { validation: e } }, "validation", "a".repeat(40)).fingerprint)
+      .toBe(engineProvenance({ schema: 1, engines: { validation: e } }, "validation", "b".repeat(40)).fingerprint);
+  });
+  it("a change to a reached engine file, a reached dependency, the entry module or the semantic version changes the fingerprint", () => {
+    const base = fp({ readFile: real }).fingerprint;
+    expect(fp({ readFile: patched("packages/design-engine/src/room.ts", (t) => `${t}\n// engine change\n`) }).fingerprint).not.toBe(base);
+    expect(fp({ readFile: patched("packages/rules-engine/src/evaluator.ts", (t) => `${t}\n// dependency change\n`) }).fingerprint).not.toBe(base);
+    expect(fp({ readFile: patched(VALIDATION.entry, (t) => `${t}\n// entry change\n`) }).fingerprint).not.toBe(base);
+    expect(fp({ entries: { validation: { ...VALIDATION, version: "9.9.9" } } }).fingerprint).not.toBe(base);
+    expect(fp({ runtime: "node-99" }).fingerprint).not.toBe(base);
+  });
+  it("docs, tests, UI and unreached modules never change it", () => {
+    const base = fp({ readFile: real }).fingerprint;
+    for (const unreached of ["docs/architecture/M5-STEP6-OUTPUT-PLAN.md", "packages/design-engine/README.md", "packages/design-engine/test/components.test.ts",
+      "apps/api/src/modules/clients/clients.service.ts", "packages/drawing-engine/src/svg.ts"]) {
+      expect([unreached, fp({ readFile: patched(unreached, (t) => `${t}\n// unrelated change\n`) }).fingerprint]).toEqual([unreached, base]);
+    }
+  });
+  it("a locked external version is part of the closure fingerprint", () => {
+    const e = fp();
+    const withExternal = { ...e, closure: { ...e.closure, externals: { zod: "4.6.5+sha512-a" } } };
+    expect(engineFingerprint(withExternal)).not.toBe(e.fingerprint);
+    expect(engineFingerprint({ ...e, closure: { ...e.closure, externals: { zod: "4.6.6+sha512-b" } } })).not.toBe(engineFingerprint(withExternal));
+  });
+  it("a dynamic import or require() in the closure is refused (nothing may escape the fingerprint)", () => {
+    expect(() => fp({ readFile: patched(VALIDATION.entry, (t) => `${t}\nexport const lazy = () => import("./x.js");\n`) })).toThrow(/dynamic import/);
+    expect(() => fp({ readFile: patched("packages/design-engine/src/room.ts", (t) => `${t}\nconst m = require("x");\n`) })).toThrow(/dynamic import/);
+  });
+  it("production loads the build-time manifest file (ENGINE_MANIFEST_PATH) instead of computing it", async () => {
+    const m = computeEngineManifest();
+    const path = join(mkdtempSync(join(tmpdir(), "engine-manifest-")), "engine-manifest.json");
+    writeFileSync(path, JSON.stringify(m));
+    expect(await loadEngineManifest(path)).toEqual(m);
+    expect(await loadEngineManifest(undefined)).toEqual(m);
+  });
+  it("a build-time manifest is verified when loaded: a tampered fingerprint or closure is refused", () => {
+    const m = computeEngineManifest();
+    expect(parseEngineManifest(JSON.parse(JSON.stringify(m)))).toEqual(m);
+    const e = m.engines.validation as EngineManifestEntry;
+    expect(() => parseEngineManifest({ schema: 1, engines: { validation: { ...e, fingerprint: `sha256:${"0".repeat(64)}` } } })).toThrow(/does not match/);
+    expect(() => parseEngineManifest({ schema: 1, engines: { validation: { ...e, closure: { ...e.closure, externals: { x: "1" } } } } })).toThrow(/does not match/);
   });
 });
 

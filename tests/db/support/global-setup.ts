@@ -34,7 +34,7 @@ const RACE_DB = "design_os_race";
 const API_LOGIN = "lintel_api_test";
 
 /** Registries and seeded grants: the only tables allowed to hold rows when the suite ends. */
-const SCHEMA_TABLES = new Set(["versioned_table", "role", "permission", "default_role_permission", "construction_variable", "planning_variable", "manufacturing_variable", "error_code", "output_purpose_rule"]);
+const SCHEMA_TABLES = new Set(["versioned_table", "role", "permission", "default_role_permission", "construction_variable", "planning_variable", "manufacturing_variable", "error_code", "output_purpose_rule", "output_engine", "output_file_format"]);
 
 export default async function setup(project: TestProject): Promise<() => Promise<void>> {
   const admin = process.env.DATABASE_URL;

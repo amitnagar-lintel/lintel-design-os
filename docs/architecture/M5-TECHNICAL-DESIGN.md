@@ -337,6 +337,15 @@ DRAFT ──SUBMIT──▶ IN_REVIEW ──APPROVE──▶ APPROVED ──LOCK
 
 ## 6. Snapshot architecture and provenance (requirement B)
 
+> **Updated by M5 Step 6 / Step 7 (migration 0017).** The output model is now defined by `M5-STEP6-OUTPUT-PLAN.md`
+> revision 4: a design version pins the 9 engineering versions only; PricingStandard, QuotationPolicy and
+> ManufacturingStandard versions are chosen per output and recorded on that snapshot; every snapshot records its
+> engineering input hash and revision, database-computed dependency content hashes, an OUTPUT_GENERATION validation
+> run, per-engine provenance (`engine_name`, `engine_version`, `engine_build`, `engine_fingerprint`, `engine_closure`),
+> its upstream snapshots and a natural identity (unique index per kind, replacing the idempotency rule described
+> below, which was never created). `engine_version` is the semantic version only; the commit is `engine_build`.
+> The table and flow below are the original M5 design and are kept for history.
+
 There are six insert-only snapshot tables:
 
 - `bom_snapshot`

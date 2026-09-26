@@ -15,7 +15,7 @@ function dbError(code: string, message: string, extra: { detail?: string; schema
 describe("LD codes (design_os.error_code)", () => {
   it("every API-facing LD code maps to a registered problem code with its status", () => {
     const codes = Object.entries(DATABASE_ERROR_CODES);
-    expect(codes).toHaveLength(24);
+    expect(codes).toHaveLength(26);
     for (const [sqlstate, code] of codes) {
       const p = translateDatabaseError(dbError(sqlstate, "anything"));
       expect([sqlstate, p.code, p.status]).toEqual([sqlstate, code, PROBLEM_CODES[code].status]);

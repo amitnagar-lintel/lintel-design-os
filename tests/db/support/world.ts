@@ -17,9 +17,19 @@ import {
 } from "@lintel/catalog-engine";
 import { HETTICH_PRODUCTION_DATASET } from "@lintel/hettich-engine";
 import { LINTEL_PRODUCTION_PRICING_RULES, LINTEL_PRODUCTION_QUOTATION_POLICY, LINTEL_PRODUCTION_RATE_CARD } from "@lintel/pricing-engine";
-import type { RecordLifecycleStatus, VersionMeta } from "@lintel/persistence";
+import type {
+  ChosenVersions, DependencyHashes, DesignVersionRow, DrawingIdentity, EngineName, EngineProvenance, OutputPurpose, RecordLifecycleStatus, SnapshotKind, SnapshotSources,
+  ValidationPurpose, VersionMeta,
+} from "@lintel/persistence";
 import {
+  buildSnapshotProvenance,
+  buildSnapshotRecord,
   buildValidationRun,
+  designVersionFromRow,
+  ENGINE_OF_KIND,
+  NO_CHOSEN_VERSIONS,
+  RECORD_VALIDATION_RUN_SQL,
+  snapshotToRow,
   constructionStandardToRows,
   contentHash,
   edgeBandStandardToRows,
@@ -332,15 +342,12 @@ export async function hettichDataset(c: Tx, w: World, o: VersionOpts & { readonl
   return m.versionId;
 }
 
-/* ------------------------------------------------------------ the 12 pins */
+/* ------------------------------------------------------------ the 9 engineering pins (a design version is engineering-only, 0017) */
 
 export interface Pins {
   readonly construction_standard_version_id: string;
   readonly planning_standard_version_id: string;
   readonly edge_band_standard_version_id: string;
-  readonly manufacturing_standard_version_id: string | null;
-  readonly pricing_standard_version_id: string | null;
-  readonly quotation_policy_version_id: string | null;
   readonly material_catalog_version_id: string;
   readonly finish_catalog_version_id: string;
   readonly hardware_catalog_version_id: string;
@@ -353,9 +360,6 @@ export const PIN_SUBJECT: Readonly<Record<keyof Pins, string>> = {
   construction_standard_version_id: "construction_standard",
   planning_standard_version_id: "planning_standard",
   edge_band_standard_version_id: "edge_band_standard",
-  manufacturing_standard_version_id: "manufacturing_standard",
-  pricing_standard_version_id: "pricing_standard",
-  quotation_policy_version_id: "quotation_policy",
   material_catalog_version_id: "material_catalog",
   finish_catalog_version_id: "finish_catalog",
   hardware_catalog_version_id: "hardware_catalog",
@@ -364,16 +368,22 @@ export const PIN_SUBJECT: Readonly<Record<keyof Pins, string>> = {
   hettich_dataset_version_id: "hettich_dataset",
 };
 
+/** Commercial versions: chosen per Pricing / Quotation output, never pinned on a design version (0017). */
+export interface Commercial {
+  readonly pricing_standard_version_id: string | null;
+  readonly quotation_policy_version_id: string | null;
+}
+
 export interface Dependencies {
   readonly pins: Pins;
+  readonly commercial: Commercial;
   readonly items: Readonly<Record<string, Item>>;
 }
 
 /**
- * Every required dependency version, each APPROVED via the transition function unless `approveAll` is false.
- * Optional pins: manufacturing and appliance stay NULL (ManufacturingStandard cannot be approved yet; there is no
- * appliance data); pricing / quotation policy are NULL unless `commercial` asks for DRAFT production drafts or
- * approved synthetic versions.
+ * Every required engineering dependency version, each APPROVED via the transition function unless `approveAll` is false.
+ * The appliance pin stays NULL (there is no appliance data). Commercial versions (chosen per output, not pinned) are
+ * NULL unless `commercial` asks for DRAFT production drafts or approved synthetic versions.
  */
 export async function dependencies(c: Tx, w: World, opts: { readonly approveAll?: boolean; readonly commercial?: "none" | "draft" | "approved" } = {}): Promise<Dependencies> {
   const doApprove = opts.approveAll !== false;
@@ -395,9 +405,6 @@ export async function dependencies(c: Tx, w: World, opts: { readonly approveAll?
     construction_standard_version_id: await constructionStandard(c, w, { complete: true }),
     planning_standard_version_id: await planningStandard(c, w, { complete: true }),
     edge_band_standard_version_id: await edgeBandStandard(c, w, { complete: true }),
-    manufacturing_standard_version_id: null,
-    pricing_standard_version_id: commercial === "none" ? null : await pricingStandard(c, w, { complete: commercial === "approved" }),
-    quotation_policy_version_id: commercial === "none" ? null : await quotationPolicy(c, w, { complete: commercial === "approved" }),
     material_catalog_version_id: await catalogVersion(c, w, "material", [["material", material.entityId, material.versionId], ["edge_band", edgeBand.entityId, edgeBand.versionId]]),
     finish_catalog_version_id: await catalogVersion(c, w, "finish", [["finish", finish.entityId, finish.versionId]]),
     hardware_catalog_version_id: await catalogVersion(c, w, "hardware", [["hardware_rule_set", rules.entityId, rules.versionId]]),
@@ -405,12 +412,19 @@ export async function dependencies(c: Tx, w: World, opts: { readonly approveAll?
     product_catalog_version_id: await catalogVersion(c, w, "product", [["product", product.entityId, product.versionId]]),
     hettich_dataset_version_id: await hettichDataset(c, w, { complete: true }),
   };
+  const chosen: Commercial = {
+    pricing_standard_version_id: commercial === "none" ? null : await pricingStandard(c, w, { complete: commercial === "approved" }),
+    quotation_policy_version_id: commercial === "none" ? null : await quotationPolicy(c, w, { complete: commercial === "approved" }),
+  };
   if (doApprove) for (const [col, subject] of Object.entries(PIN_SUBJECT)) {
     const id = pins[col as keyof Pins];
-    const draftCommercial = commercial === "draft" && (subject === "pricing_standard" || subject === "quotation_policy");
-    if (id !== null && !draftCommercial) await approve(c, w, subject, id);
+    if (id !== null) await approve(c, w, subject, id);
   }
-  return { pins, items: { material, edgeBand, finish, rules, recipe, product } };
+  if (doApprove && commercial === "approved") {
+    await approve(c, w, "pricing_standard", chosen.pricing_standard_version_id as string);
+    await approve(c, w, "quotation_policy", chosen.quotation_policy_version_id as string);
+  }
+  return { pins, commercial: chosen, items: { material, edgeBand, finish, rules, recipe, product } };
 }
 
 export { catalogVersion };
@@ -462,29 +476,113 @@ export async function designVersion(c: Tx, w: World, deps: Dependencies, o: { re
   return { projectId, roomId, revisionId, designId, designVersionId, inputHash, clientId };
 }
 
+/** A test engine's provenance: fixed version and build; the fingerprint is a real SHA-256 over a named test closure. */
+export function testEngine(name: EngineName, seed = "test"): EngineProvenance {
+  const closure = { packages: { [`@lintel/test-${name}`]: contentHash({ name, seed }) }, externals: {}, entry: contentHash(`entry:${name}`), runtime: "node-22" };
+  return { name, version: "0.1.0", build: "0000000000000000000000000000000000000000", fingerprint: contentHash({ engine: name, version: "0.1.0", closure }), closure };
+}
+
 /**
  * An engine validation run recorded through the only write path, design_os.record_validation_run(), as the
  * API would do after running the TypeScript engine. The blocker count stands for the engine's result.
+ * APPROVAL runs are SUBMIT / APPROVE evidence; OUTPUT_GENERATION runs are evidence for snapshots (see outputSnapshot).
  */
-export async function validationRun(c: Tx, w: World, designVersionId: string, inputHash: string, blockers: number, role: Role = "DESIGNER"): Promise<string> {
+export async function validationRun(c: Tx, w: World, designVersionId: string, inputHash: string, blockers: number, role: Role = "DESIGNER",
+                                    purpose: ValidationPurpose = "APPROVAL", engine: EngineProvenance = testEngine("validation")): Promise<string> {
   const run = buildValidationRun({
+    purpose,
     designVersionId,
     inputHash: inputHash as `sha256:${string}`,
-    engineVersion: "0.1.0",
-    engineBuild: "0000000000000000000000000000000000000000",
-    engineHash: "engine-fingerprint",
+    engine,
     validation: { messages: Array.from({ length: blockers }, (_, i) => ({ code: `ENGINE_BLOCKER_${i}`, severity: "BLOCKER" as const, message: "engine result" })), counts: { INFO: 0, WARNING: 0, ERROR: 0, BLOCKER: blockers }, canApprove: blockers === 0 },
   });
   await actAs(c, w.actor(role), { apiRole: true });
-  const id = (await one<{ id: string }>(c, "SELECT design_os.record_validation_run($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9) AS id", [...recordValidationRunArgs(run)])).id;
+  const id = (await one<{ id: string }>(c, `${RECORD_VALIDATION_RUN_SQL} AS id`, [...recordValidationRunArgs(run)])).id;
   await actAs(c, null);
   return id;
 }
 
-/** Pin a (necessarily DRAFT) ManufacturingStandard version on a DRAFT design version; returns its id. */
-export async function insertManufacturingPin(c: Tx, w: World, designVersionId: string): Promise<string> {
-  const id = await manufacturingStandard(c, w);
+export interface OutputSnapshotOptions {
+  readonly purpose?: OutputPurpose;
+  readonly blockers?: number;
+  readonly validationBlockers?: number;
+  readonly sources?: SnapshotSources;
+  readonly chosen?: Partial<ChosenVersions>;
+  readonly role?: Role;
+  readonly engineSeed?: string;
+  readonly payload?: unknown;
+  readonly outputComplete?: boolean;
+  readonly revisionNumber?: number;
+  readonly drawing?: DrawingIdentity;
+}
+
+/**
+ * A snapshot row exactly as the output services build it: the design version as read now, the database-computed
+ * dependency hashes, an OUTPUT_GENERATION run of the same inputs, per-engine provenance, and the kind's sources.
+ * Returns the row (not yet inserted) so tests can tamper with single columns; insert it with insertRow().
+ */
+export async function outputSnapshotRow(c: Tx, w: World, designVersionId: string, kind: SnapshotKind, o: OutputSnapshotOptions = {}): Promise<Record<string, unknown>> {
   await actAs(c, null);
-  await c.query("UPDATE design_os.design_version SET manufacturing_standard_version_id = $2 WHERE id = $1", [designVersionId, id]);
-  return id;
+  const dv = designVersionFromRow(await one<DesignVersionRow>(c, "SELECT * FROM design_os.design_version WHERE id = $1", [designVersionId]));
+  const chosen: ChosenVersions = { ...NO_CHOSEN_VERSIONS, ...o.chosen };
+  const hashes = (await one<{ h: DependencyHashes }>(c, `SELECT design_os.engineering_dependency_hashes($1, $2)
+      || CASE WHEN $3::uuid IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('pricing_standard_version_id', design_os.version_content_hash('pricing_standard', $3, $1)) END
+      || CASE WHEN $4::uuid IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('quotation_policy_version_id', design_os.version_content_hash('quotation_policy', $4, $1)) END
+      || CASE WHEN $5::uuid IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('manufacturing_standard_version_id', design_os.version_content_hash('manufacturing_standard', $5, $1)) END AS h`,
+    [w.org, designVersionId, chosen.pricingStandardVersionId, chosen.quotationPolicyVersionId, chosen.manufacturingStandardVersionId])).h;
+  const validationBlockers = o.validationBlockers ?? o.blockers ?? 0;
+  // One test validation engine per (seed, result): the same inputs and engine always give the same result (as in the API).
+  const runId = await validationRun(c, w, designVersionId, dv.inputHash, validationBlockers, o.role ?? "DESIGNER", "OUTPUT_GENERATION",
+    testEngine("validation", `${o.engineSeed ?? "test"}:${String(validationBlockers)}`));
+  await actAs(c, null);
+  const provenance = buildSnapshotProvenance(kind, {
+    designVersion: { versionId: dv.envelope.versionId, status: dv.envelope.status, contentHash: dv.envelope.contentHash, inputHash: dv.inputHash, inputRevision: dv.inputRevision },
+    pins: dv.pins, chosen, dependencyHashes: hashes, validationRunId: runId, engine: testEngine(ENGINE_OF_KIND[kind], o.engineSeed), sources: o.sources ?? {},
+  });
+  const record = buildSnapshotRecord({
+    snapshotId: randomUUID(), kind, purpose: o.purpose ?? "PRELIMINARY", provenance, payload: o.payload ?? { items: [] }, blockerCount: o.blockers ?? 0, warningCount: 0,
+    outputComplete: o.outputComplete ?? true, validationBlockerCount: validationBlockers, createdBy: w.users[o.role ?? "DESIGNER"], createdAt: "2026-09-26T10:00:00.000Z",
+    ...(kind === "QUOTATION" ? { revisionNumber: o.revisionNumber ?? 1 } : {}),
+    ...(kind === "DRAWING" ? { drawing: o.drawing ?? { drawingType: "ROOM_PANEL_SCHEDULE", wallId: null, objectLineageId: null, cutXMm: null, drawingNumber: "D-1", drawingRevision: "A", fileManifestHash: contentHash("no files") } } : {}),
+  });
+  return { ...snapshotToRow(record, { orgId: w.org }) };
+}
+
+export const SNAPSHOT_TABLE: Readonly<Record<SnapshotKind, string>> = {
+  BOM: "bom_snapshot", BOQ: "boq_snapshot", PRICING: "pricing_snapshot", QUOTATION: "quotation_snapshot", DRAWING: "drawing_snapshot",
+  MANUFACTURING_DOCUMENT: "manufacturing_document_snapshot",
+};
+
+/**
+ * A snapshot row of `kind` whose upstream snapshots (same design version, inputs and purpose) are inserted first:
+ * BOQ ← BOM; Pricing ← BOM + BOQ; Quotation ← BOQ + Pricing. Commercial versions come from `deps.commercial`.
+ */
+export async function outputChainRow(c: Tx, w: World, designVersionId: string, kind: SnapshotKind, commercial: Commercial | null, o: OutputSnapshotOptions & { readonly upstreamPurpose?: OutputPurpose } = {}): Promise<Record<string, unknown>> {
+  // Upstream snapshots share the purpose (or `upstreamPurpose`), blockers, role and engine seed; never the drawing / quotation / payload fields.
+  const up: OutputSnapshotOptions = {
+    ...(o.upstreamPurpose ?? o.purpose) === undefined ? {} : { purpose: o.upstreamPurpose ?? o.purpose },
+    ...(o.blockers === undefined ? {} : { blockers: o.blockers }),
+    ...(o.validationBlockers === undefined ? {} : { validationBlockers: o.validationBlockers }),
+    ...(o.role === undefined ? {} : { role: o.role }),
+    ...(o.engineSeed === undefined ? {} : { engineSeed: o.engineSeed }),
+  };
+  const chosen = {
+    ...(kind === "PRICING" || kind === "QUOTATION" ? { pricingStandardVersionId: commercial?.pricing_standard_version_id ?? null } : {}),
+    ...(kind === "QUOTATION" ? { quotationPolicyVersionId: commercial?.quotation_policy_version_id ?? null } : {}),
+    ...o.chosen,
+  };
+  const insert = async (row: Record<string, unknown>, table: string) => { await actAs(c, null); await insertRow(c, table, row); return row.id as string; };
+  let sources: SnapshotSources = {};
+  if (kind === "BOQ" || kind === "PRICING" || kind === "QUOTATION") {
+    const bom = await insert(await outputSnapshotRow(c, w, designVersionId, "BOM", up), "bom_snapshot");
+    const boq = kind === "BOQ" ? undefined : await insert(await outputSnapshotRow(c, w, designVersionId, "BOQ", { ...up, sources: { bomSnapshotId: bom } }), "boq_snapshot");
+    if (kind === "BOQ") sources = { bomSnapshotId: bom };
+    else if (kind === "PRICING") sources = { bomSnapshotId: bom, boqSnapshotId: boq as string };
+    else {
+      const pricing = await insert(await outputSnapshotRow(c, w, designVersionId, "PRICING", { ...up, sources: { bomSnapshotId: bom, boqSnapshotId: boq as string },
+        chosen: { pricingStandardVersionId: chosen.pricingStandardVersionId ?? null } }), "pricing_snapshot");
+      sources = { boqSnapshotId: boq as string, pricingSnapshotId: pricing };
+    }
+  }
+  return outputSnapshotRow(c, w, designVersionId, kind, { ...o, sources: o.sources ?? sources, chosen });
 }

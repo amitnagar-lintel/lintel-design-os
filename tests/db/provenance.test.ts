@@ -4,34 +4,27 @@
  */
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import type { DesignVersionRow, OutputPurpose, SnapshotKind, SnapshotRecord, SnapshotRow } from "@lintel/persistence";
-import { buildSnapshotProvenance, buildSnapshotRecord, contentHash, designVersionFromRow, snapshotFromRow, snapshotToRow } from "@lintel/persistence";
+import type { OutputPurpose, SnapshotKind, SnapshotRow } from "@lintel/persistence";
+import { contentHash, snapshotFromRow } from "@lintel/persistence";
 import type { Tx } from "./support/db.js";
 import { actAs, attempt, insertRow, one, tx } from "./support/db.js";
-import type { DesignFixture, World } from "./support/world.js";
-import { approve, catalogVersion, createWorld, dependencies, designVersion, edgeBandStandard, hashOf, hettichDataset, materialItem, statusOf, transition } from "./support/world.js";
+import type { Commercial, DesignFixture, World } from "./support/world.js";
+import {
+  approve, catalogVersion, createWorld, dependencies, designVersion, edgeBandStandard, hashOf, hettichDataset, materialItem, outputChainRow, SNAPSHOT_TABLE as TABLE, statusOf, transition,
+} from "./support/world.js";
 
 async function entityOf(c: Tx, table: string, id: string): Promise<string> {
   await actAs(c, null);
   return (await one<{ e: string }>(c, `SELECT entity_id AS e FROM design_os.${table} WHERE id = $1`, [id])).e;
 }
 
-const TABLE: Readonly<Record<SnapshotKind, string>> = {
-  BOM: "bom_snapshot",
-  BOQ: "boq_snapshot",
-  PRICING: "pricing_snapshot",
-  QUOTATION: "quotation_snapshot",
-  DRAWING: "drawing_snapshot",
-  MANUFACTURING_DOCUMENT: "manufacturing_document_snapshot",
-};
 const PAYLOAD = { trace: { dataClassification: "PRODUCTION", testFixtureSources: [] }, items: [{ qty: 2 }] };
 
-async function snapshotFor(c: Tx, w: World, d: DesignFixture, kind: SnapshotKind, blockers = 0, payload: unknown = PAYLOAD, purpose: OutputPurpose = "PRELIMINARY"): Promise<{ record: SnapshotRecord; row: SnapshotRow }> {
+async function snapshotFor(c: Tx, w: World, d: DesignFixture, kind: SnapshotKind, blockers = 0, payload: unknown = PAYLOAD, purpose: OutputPurpose = "PRELIMINARY",
+                           commercial: Commercial | null = null): Promise<{ row: SnapshotRow }> {
+  const row = await outputChainRow(c, w, d.designVersionId, kind, commercial, { blockers, payload, purpose });
   await actAs(c, null);
-  const dv = designVersionFromRow(await one<DesignVersionRow>(c, "SELECT * FROM design_os.design_version WHERE id = $1", [d.designVersionId]));
-  const provenance = buildSnapshotProvenance(kind, { versionId: dv.envelope.versionId, status: dv.envelope.status, contentHash: dv.envelope.contentHash }, dv.pins, "0.1.0+test");
-  const record = buildSnapshotRecord({ snapshotId: randomUUID(), kind, purpose, provenance, inputHash: dv.inputHash, payload, blockerCount: blockers, createdBy: w.users.DESIGNER, createdAt: "2026-09-26T10:00:00.000Z" });
-  return { record, row: snapshotToRow(record, { orgId: w.org }) };
+  return { row: row as unknown as SnapshotRow };
 }
 
 async function approvedDesign(c: Tx, w: World, d: DesignFixture): Promise<void> {
@@ -43,17 +36,20 @@ describe("every snapshot records exact provenance", () => {
   it.each((["BOM", "BOQ", "PRICING", "QUOTATION", "DRAWING"] as const).map((k) => [k]))("%s: exact pins, input hash, engine version, content hash and design lifecycle", async (kind) => {
     await tx(async (c) => {
       const w = await createWorld(c);
-      const d = await designVersion(c, w, await dependencies(c, w, { commercial: "draft" }));
-      const { record, row } = await snapshotFor(c, w, d, kind);
+      const deps = await dependencies(c, w, { commercial: "draft" });
+      const d = await designVersion(c, w, deps);
+      const { row } = await snapshotFor(c, w, d, kind, 0, PAYLOAD, "PRELIMINARY", deps.commercial);
       await insertRow(c, TABLE[kind], row);
-      const stored = await one<SnapshotRow>(c, `SELECT * FROM design_os.${TABLE[kind]} WHERE id = $1`, [record.snapshotId]);
+      const stored = await one<SnapshotRow>(c, `SELECT * FROM design_os.${TABLE[kind]} WHERE id = $1`, [row.id]);
       const back = snapshotFromRow(stored);
+      expect(back).toEqual(snapshotFromRow(row));
       expect(back.purpose).toBe("PRELIMINARY");
-      expect(back.provenance).toEqual(record.provenance);
       expect(back.contentHash).toBe(contentHash(PAYLOAD));
-      expect(back.inputHash).toBe(d.inputHash);
+      expect(back.provenance.inputHash).toBe(d.inputHash);
       expect(back.provenance.designVersionStatus).toBe("DRAFT");
-      expect(back.provenance.edgeBandStandardVersionId).not.toBeNull();
+      expect(back.provenance.pins.edgeBandStandardVersionId).toBe(deps.pins.edge_band_standard_version_id);
+      expect(back.provenance.engine.name).toBe(kind.toLowerCase());
+      expect(back.provenance.chosen.pricingStandardVersionId).toBe(kind === "PRICING" || kind === "QUOTATION" ? deps.commercial.pricing_standard_version_id : null);
     });
   });
   it("a snapshot whose provenance differs from the design version is rejected", async () => {
@@ -66,8 +62,11 @@ describe("every snapshot records exact provenance", () => {
         [{ edge_band_standard_version_id: await edgeBandStandard(c, w, { entityId: await entityOf(c, "edge_band_standard_version", deps.pins.edge_band_standard_version_id), versionNumber: 2 }) }, "edge_band_standard_version_id ≠ pin"],
         [{ design_version_status: "APPROVED" }, "design_version_status APPROVED ≠ DRAFT"],
         [{ design_version_content_hash: contentHash("other") }, "design_version_content_hash differs"],
-        [{ input_hash: contentHash("latest inputs") }, "input_hash differs"],
-        [{ pricing_standard_version_id: deps.pins.pricing_standard_version_id }, "pricing_standard_version_id does not apply"],
+        [{ input_hash: contentHash("latest inputs") }, "input_hash / input_revision differ"],
+        [{ input_revision: 99 }, "input_hash / input_revision differ"],
+        [{ pricing_standard_version_id: deps.commercial.pricing_standard_version_id }, "pricing_standard_version_id applies exactly to PRICING and QUOTATION"],
+        [{ dependency_hashes: { ...(row.dependency_hashes as object), hettich_dataset_version_id: contentHash("other content") } }, "dependency_hashes differ"],
+        [{ dependency_set_hash: contentHash("other") }, "dependency_set_hash does not match"],
       ];
       for (const [patch, message] of cases) {
         expect((await attempt(c, () => insertRow(c, "bom_snapshot", { ...row, id: randomUUID(), ...patch })))?.message).toContain(message);
@@ -144,14 +143,18 @@ describe("FOR_PRODUCTION and issuing", () => {
   it("issuing a quotation requires a FOR_PRODUCTION snapshot, a LOCKED design version and a snapshot of the locked content", async () => {
     await tx(async (c) => {
       const w = await createWorld(c);
-      const d = await designVersion(c, w, await dependencies(c, w, { commercial: "approved" }));
+      const deps = await dependencies(c, w, { commercial: "approved" });
+      const d = await designVersion(c, w, deps);
       await approvedDesign(c, w, d);
-      const q = await snapshotFor(c, w, d, "QUOTATION", 0, PAYLOAD, "FOR_PRODUCTION");
+      const q = await snapshotFor(c, w, d, "QUOTATION", 0, PAYLOAD, "FOR_PRODUCTION", deps.commercial);
       await insertRow(c, "quotation_snapshot", q.row);
       const issue = { org_id: w.org, snapshot_id: q.row.id, issued_by: w.users.SALES, reason: "sent to client" };
       expect((await attempt(c, () => insertRow(c, "quotation_issue", issue)))?.message).toContain("issuing requires a LOCKED design version");
       await transition(c, w, "SALES", "design", d.designVersionId, "LOCK", "quotation issued");
       await insertRow(c, "quotation_issue", issue);
+      // Issuing locks the exact commercial basis of the quotation.
+      expect(await statusOf(c, "pricing_standard", deps.commercial.pricing_standard_version_id as string)).toBe("LOCKED");
+      expect(await statusOf(c, "quotation_policy", deps.commercial.quotation_policy_version_id as string)).toBe("LOCKED");
     });
   });
 });

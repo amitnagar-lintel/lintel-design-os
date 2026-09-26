@@ -21,6 +21,7 @@
 | 0014 | idempotency_scopes | Idempotency scopes for the core design API creates without a natural key (rooms, room revisions, designs, design versions, relationship overrides) |
 | 0015 | product_catalog_object_guard | Every design object's exact product version stays a member of its DesignVersion's pinned product catalog version: refused when the pin changes or when catalog membership changes (LD019) |
 | 0016 | engine_build_provenance | validation_run.engine_build: the immutable engine build identity (Git commit SHA / build revision) required on every new run; record_validation_run() takes it |
+| 0017 | output_provenance | Output model: engineering-only design versions (commercial / manufacturing versions chosen per output); validation-run purposes APPROVAL / OUTPUT_GENERATION; DB-computed dependency content hashes; per-engine snapshot provenance, sources, natural identity; one-to-many sealed drawing files; FOR_REVIEW from SUPERSEDED; issuing a quotation locks its commercial versions |
 
 Rules:
 

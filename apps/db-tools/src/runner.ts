@@ -4,7 +4,9 @@
  *
  * - One transaction per migration: the SQL, then its ledger row. A failure rolls both back; earlier migrations stay.
  * - Every transaction first takes a transaction-scoped advisory lock and re-reads the ledger under it, so concurrent
- *   runners apply each migration exactly once. Transaction-scoped, so it also holds through a transaction pooler.
+ *   runners apply each migration exactly once.
+ * - It runs over a DIRECT Postgres connection only (MIGRATION_DATABASE_URL); a Supabase pooler is refused by the
+ *   target guard. The API runtime connection is separate and never used for migrations.
  * - Fail closed: any drift between the ledger and the files (checksum, name, unknown or out-of-order version) stops the
  *   runner before it writes anything, and is re-checked before every migration.
  * - It never creates what Supabase provides (`auth.users`, `auth.uid()`): a database without them is refused.

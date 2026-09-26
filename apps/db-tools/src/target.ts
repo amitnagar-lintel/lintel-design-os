@@ -28,6 +28,8 @@ export interface Target {
   /** What `--confirm` must equal. */
   readonly identity: string;
   readonly hosted: boolean;
+  /** A Supabase pooler endpoint (Supavisor, transaction or session mode): never used for schema changes or intake. */
+  readonly pooled: boolean;
   /** For readouts: host, port and database, never the user or password. */
   readonly display: string;
 }
@@ -45,17 +47,22 @@ export function targetOf(connectionString: string): Target {
   const database = decodeURIComponent(url.pathname.replace(/^\//, "")) || "postgres";
   const display = `${host}:${port}/${database}`;
   const direct = SUPABASE_HOST.exec(host);
-  if (direct?.[1] !== undefined) return { identity: direct[1].toLowerCase(), hosted: true, display };
+  if (direct?.[1] !== undefined) return { identity: direct[1].toLowerCase(), hosted: true, pooled: port === "6543", display };
   if (SUPABASE_POOLER_HOST.test(host)) {
     const ref = POOLER_USER.exec(decodeURIComponent(url.username))?.[1];
     if (ref === undefined) throw new RefusedError("USAGE", "a Supabase pooler URL must name the project in its user (postgres.<project-ref>)");
-    return { identity: ref.toLowerCase(), hosted: true, display };
+    return { identity: ref.toLowerCase(), hosted: true, pooled: true, display };
   }
-  return { identity: display, hosted: /supabase\.(co|com)$/i.test(host), display };
+  return { identity: display, hosted: /supabase\.(co|com)$/i.test(host), pooled: false, display };
 }
 
-/** Refuse unless the environment, the URL and the confirmation agree. */
+/**
+ * Refuse unless the environment, the URL and the confirmation agree. Writes (migrations, organization initialisation,
+ * intake) use a DIRECT Postgres connection only: never a Supabase pooler (transaction mode breaks session-level
+ * migration semantics; the pooler belongs to the API runtime, which has its own, separate connection).
+ */
 export function guard(env: Environment, target: Target, confirm: string | undefined): void {
+  if (target.pooled) throw new RefusedError("GUARD", "a Supabase pooler connection is never used for migrations or data intake: use the project's direct connection (db.<project-ref>.supabase.co:5432)");
   const protectedEnv = env === "staging" || env === "production";
   if (!protectedEnv && target.hosted) throw new RefusedError("GUARD", `a hosted Supabase database needs --env staging or --env production (got --env ${env})`);
   if (!protectedEnv) return;

@@ -20,6 +20,8 @@ export const SORTS = {
   versionNumberDesc: { column: "version_number", type: "bigint", direction: "DESC" },
   revisionNumberDesc: { column: "revision_number", type: "bigint", direction: "DESC" },
   objectCodeAsc: { column: "object_code", type: "text", direction: "ASC" },
+  codeAsc: { column: "code", type: "text", direction: "ASC" },
+  positionAsc: { column: "position", type: "bigint", direction: "ASC" },
   sequenceDesc: { column: "seq", type: "bigint", direction: "DESC" },
 } as const satisfies Record<string, SortSpec>;
 

@@ -37,8 +37,10 @@ describe("assess (ledger vs files)", () => {
 describe("target and guard", () => {
   it("identifies a Supabase project from the direct host or the pooler user, anything else by host:port/database", () => {
     expect(targetOf("postgresql://postgres:pw@db.abcdefghijklmnopqrst.supabase.co:5432/postgres")).toMatchObject({ identity: "abcdefghijklmnopqrst", hosted: true });
-    expect(targetOf("postgresql://postgres.abcdefghijklmnopqrst:pw@aws-0-ap-south-1.pooler.supabase.com:5432/postgres")).toMatchObject({ identity: "abcdefghijklmnopqrst", hosted: true });
-    expect(targetOf("postgresql://postgres@127.0.0.1:55432/design_os")).toEqual({ identity: "127.0.0.1:55432/design_os", hosted: false, display: "127.0.0.1:55432/design_os" });
+    expect(targetOf("postgresql://postgres.abcdefghijklmnopqrst:pw@aws-0-ap-south-1.pooler.supabase.com:5432/postgres")).toMatchObject({ identity: "abcdefghijklmnopqrst", hosted: true, pooled: true });
+    expect(targetOf("postgresql://postgres:pw@db.abcdefghijklmnopqrst.supabase.co:5432/postgres")).toMatchObject({ pooled: false });
+    expect(targetOf("postgresql://postgres:pw@db.abcdefghijklmnopqrst.supabase.co:6543/postgres")).toMatchObject({ pooled: true });
+    expect(targetOf("postgresql://postgres@127.0.0.1:55432/design_os")).toEqual({ identity: "127.0.0.1:55432/design_os", hosted: false, pooled: false, display: "127.0.0.1:55432/design_os" });
     expect(targetOf("postgres://u:secret@localhost/x").display).not.toContain("secret");
     expect(() => targetOf("mysql://x")).toThrow(RefusedError);
     expect(() => targetOf("postgresql://postgres:pw@aws-0-ap-south-1.pooler.supabase.com:5432/postgres")).toThrow(/postgres\.<project-ref>/);
@@ -52,6 +54,12 @@ describe("target and guard", () => {
     expect(() => { guard("staging", local, "127.0.0.1:55432/postgres"); }).not.toThrow();
     expect(() => { guard("local", hosted, undefined); }).toThrow(/staging or --env production/);
     expect(() => { guard("ci", local, undefined); }).not.toThrow();
+  });
+  it("never runs migrations or intake through a Supabase pooler (transaction or session mode): a direct connection only", () => {
+    const transactionPool = targetOf("postgresql://postgres.abcdefghijklmnopqrst:pw@aws-0-ap-south-1.pooler.supabase.com:6543/postgres");
+    const sessionPool = targetOf("postgresql://postgres.abcdefghijklmnopqrst:pw@aws-0-ap-south-1.pooler.supabase.com:5432/postgres");
+    for (const t of [transactionPool, sessionPool]) expect(() => { guard("production", t, "abcdefghijklmnopqrst"); }).toThrow(/direct connection/);
+    expect(() => { guard("production", targetOf("postgresql://postgres:pw@db.abcdefghijklmnopqrst.supabase.co:5432/postgres"), "abcdefghijklmnopqrst"); }).not.toThrow();
   });
   it("parses arguments strictly", () => {
     expect(parseArgs(["up", "--env", "ci", "--dry-run", "--to=0003"])).toEqual({ command: "up", flags: new Map<string, string | true>([["env", "ci"], ["dry-run", true], ["to", "0003"]]) });

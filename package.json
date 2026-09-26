@@ -19,7 +19,8 @@
     "engines:manifest": "pnpm --filter @lintel/api run engines:manifest",
     "api:openapi": "pnpm --filter @lintel/api run openapi",
     "db:migrate": "pnpm --silent --filter @lintel/db-tools run migrate",
-    "db:org": "pnpm --silent --filter @lintel/db-tools run org"
+    "db:org": "pnpm --silent --filter @lintel/db-tools run org",
+    "db:intake": "pnpm --silent --filter @lintel/db-tools run intake"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

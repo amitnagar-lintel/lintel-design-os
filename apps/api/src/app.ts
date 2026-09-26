@@ -16,6 +16,7 @@ import { MeModule } from "./modules/me/me.module.js";
 import { OrganizationModule } from "./modules/organization/organization.module.js";
 import { OutputsModule } from "./modules/outputs/outputs.module.js";
 import { ProjectsModule } from "./modules/projects/projects.module.js";
+import { ReferenceDataModule } from "./modules/reference-data/reference-data.module.js";
 import { RoomsModule } from "./modules/rooms/rooms.module.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -24,7 +25,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 class HealthModule {}
 
 /** Feature modules: the foundation, the core design domain (M5 Step 5), then outputs (M5 Step 7). */
-export const FEATURE_MODULES: readonly Type[] = [HealthModule, MeModule, OrganizationModule, ClientsModule, ProjectsModule, RoomsModule, DesignsModule, DesignVersionsModule, OutputsModule];
+export const FEATURE_MODULES: readonly Type[] = [HealthModule, MeModule, OrganizationModule, ReferenceDataModule, ClientsModule, ProjectsModule, RoomsModule, DesignsModule, DesignVersionsModule, OutputsModule];
 
 /** Build the API: NestJS + Fastify, every route under /api/v1, RFC 9457 errors, fail-closed access guard. */
 export async function createApp(config: ApiConfig, extraModules: readonly (Type | DynamicModule)[] = []): Promise<NestFastifyApplication> {

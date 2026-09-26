@@ -21,7 +21,7 @@ Status: implemented for review (gate M6-1). The plan is `M6-V1-GO-LIVE-READINESS
 
 | Requirement | How |
 |---|---|
-| Works against hosted Supabase / Postgres | Plain `pg` over the connection URL (TLS through `sslmode`). It needs no superuser. It checks the Supabase prerequisites (`auth.users`, `auth.uid()`, the right to create the two roles before 0001). The lock is transaction-scoped, so it works through a pooler |
+| Works against hosted Supabase / Postgres | Plain `pg` over a **direct** Postgres connection (`db.<project-ref>.supabase.co:5432`, TLS through `sslmode`). A Supabase pooler (transaction or session mode) is refused (CP2). It needs no superuser. It checks the Supabase prerequisites (`auth.users`, `auth.uid()`, the right to create the two roles before 0001). The migration connection is separate from the API runtime connection |
 | Detects already-applied migrations | Reads the ledger under the lock before every migration; applies only what follows the last applied version |
 | Fails closed on drift | `CHECKSUM_MISMATCH`, `NAME_MISMATCH`, `UNKNOWN_APPLIED` and `OUT_OF_ORDER` stop the runner before it writes anything. The check repeats before every migration |
 | Forward execution | `up [--to NNNN] [--dry-run]`; one transaction per migration together with its ledger row. A failure rolls back that migration only, and is reported |
@@ -111,7 +111,7 @@ There are two new problem codes: `EMAIL_NOT_VERIFIED` (403) and `LAST_ADMIN` (40
 - **Hosted behaviour not yet verified** (gate M6-7, on staging only). Checks still to run on staging:
   - whether the migration user may `GRANT SELECT, REFERENCES ON auth.users` (0002) and create roles;
   - that `auth.users.email` is the verified sign-in email for the enabled providers;
-  - that the pooler URL form is recognised by the `--confirm` guard.
+  - that the direct connection is reachable from the deploy environment (IPv6, or Supabase's IPv4 add-on); poolers are refused for migrations (CP2).
 - **Email is the invitation key.** A person whose Supabase Auth email changes after the invitation must be re-invited. Email ownership relies on Supabase Auth's email confirmation, and the API additionally requires `email_verified`.
 - **Invitations are not emailed by Design OS.** V1 relies on the administrator telling the person to sign in, or on the Supabase Auth invite email sent by ops. The API never holds the `service_role` key.
 - **The last-ADMIN rule is an application rule** (serialized with row locks), not a database constraint. An operator can re-issue an ADMIN invitation with `db:org init` if an organization ever loses its last ADMIN.

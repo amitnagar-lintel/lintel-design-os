@@ -117,19 +117,17 @@ export interface ConstructionRecipe {
   readonly materialRoles: Readonly<Record<MaterialRole, string>>;
   readonly finishRoles: Readonly<Record<FinishRole, string>>;
   readonly rules: readonly RuleDefinition[];
+  /** Rule set to use from the EdgeBandStandard (not from the ConstructionStandard). */
   readonly edgeRuleSetId: string;
   readonly hardwareRuleSetId: string;
 }
 
-/* ------------------------------------------------------------------ standard */
-
-/** Edge bands per edge side; `{}` means "explicitly no edge banding". */
-export type EdgeRule = Readonly<Partial<Record<EdgeSide, string>>>;
-export type EdgeRuleSet = Readonly<Partial<Record<ComponentType, EdgeRule>>>;
+/* ------------------------------------------------------------------ construction standard */
 
 /**
- * Organisation construction standard: the numeric construction values and edge
- * rules a recipe depends on. `null` = not yet defined; the engine will not invent it.
+ * Organisation construction standard: the numeric construction values a recipe
+ * depends on. `null` = not yet defined; the engine will not invent it.
+ * Edge rules are NOT part of it — they live in the separate EdgeBandStandard.
  */
 export interface ConstructionStandard {
   readonly standardId: string;
@@ -138,7 +136,27 @@ export interface ConstructionStandard {
   readonly description: string;
   readonly source: string;
   readonly variables: Readonly<Record<string, number | null>>;
-  readonly edgeRuleSets: Readonly<Record<string, EdgeRuleSet>>;
+}
+
+/* ------------------------------------------------------------------ edge band standard */
+
+/** Edge bands per edge side; `{}` means "explicitly no edge banding". */
+export type EdgeRule = Readonly<Partial<Record<EdgeSide, string>>>;
+/** Edge rule per component type. A missing component type means "not yet defined" (BLOCKER). */
+export type EdgeRuleSet = Readonly<Partial<Record<ComponentType, EdgeRule>>>;
+
+/**
+ * Organisation edge-band standard (separate from the ConstructionStandard): which edges of
+ * which component types are banded, and with which catalog edge band. Versioned on its own.
+ */
+export interface EdgeBandStandard {
+  readonly standardId: string;
+  readonly version: string;
+  readonly status: DataStatus;
+  readonly description: string;
+  readonly source: string;
+  /** Rule sets by id; a recipe selects one through `edgeRuleSetId`. */
+  readonly ruleSets: Readonly<Record<string, EdgeRuleSet>>;
 }
 
 /* ------------------------------------------------------------------ hardware rules */

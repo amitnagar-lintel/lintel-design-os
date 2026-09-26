@@ -72,6 +72,11 @@
       "dataClassification": "PRODUCTION",
       "designVersionId": "dv_001",
       "designVersionStatus": "DRAFT",
+      "edgeBandStandard": {
+        "id": "LINTEL_EDGE_BAND_STANDARD",
+        "status": "DRAFT",
+        "version": "0.1.0"
+      },
       "engineVersion": "0.1.0",
       "hardwareDatasets": [
         {
@@ -125,6 +130,11 @@
       "dataClassification": "PRODUCTION",
       "designVersionId": "dv_001",
       "designVersionStatus": "DRAFT",
+      "edgeBandStandard": {
+        "id": "LINTEL_EDGE_BAND_STANDARD",
+        "status": "DRAFT",
+        "version": "0.1.0"
+      },
       "engineVersion": "0.1.0",
       "hardwareDatasets": [
         {
@@ -378,6 +388,11 @@
       "dataClassification": "PRODUCTION",
       "designVersionId": "dv_001",
       "designVersionStatus": "DRAFT",
+      "edgeBandStandard": {
+        "id": "LINTEL_EDGE_BAND_STANDARD",
+        "status": "DRAFT",
+        "version": "0.1.0"
+      },
       "engineVersion": "0.1.0",
       "hardwareDatasets": [
         {
@@ -409,7 +424,7 @@
     "validation": {
       "canApprove": false,
       "counts": {
-        "BLOCKER": 25,
+        "BLOCKER": 26,
         "ERROR": 0,
         "INFO": 0,
         "WARNING": 1
@@ -560,23 +575,30 @@
           "sourceObjectId": "obj_001"
         },
         {
+          "code": "EDGE_BAND_STANDARD_NOT_APPROVED",
+          "message": "edge band standard LINTEL_EDGE_BAND_STANDARD v0.1.0 is a DRAFT and not verified for production",
+          "path": "edge_band_standard",
+          "severity": "BLOCKER",
+          "sourceObjectId": "obj_001"
+        },
+        {
           "code": "EDGE_RULES_UNDEFINED",
           "componentId": "OBJ-KIT-001-BOT",
-          "message": "OBJ-KIT-001-BOT: edge rules for BOTTOM are not defined in LINTEL_CONSTRUCTION_STANDARD (CARCASS_STANDARD)",
+          "message": "OBJ-KIT-001-BOT: edge rules for BOTTOM are not defined in LINTEL_EDGE_BAND_STANDARD (CARCASS_STANDARD)",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_001"
         },
         {
           "code": "EDGE_RULES_UNDEFINED",
           "componentId": "OBJ-KIT-001-SL",
-          "message": "OBJ-KIT-001-SL: edge rules for SIDE_LEFT are not defined in LINTEL_CONSTRUCTION_STANDARD (CARCASS_STANDARD)",
+          "message": "OBJ-KIT-001-SL: edge rules for SIDE_LEFT are not defined in LINTEL_EDGE_BAND_STANDARD (CARCASS_STANDARD)",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_001"
         },
         {
           "code": "EDGE_RULES_UNDEFINED",
           "componentId": "OBJ-KIT-001-SR",
-          "message": "OBJ-KIT-001-SR: edge rules for SIDE_RIGHT are not defined in LINTEL_CONSTRUCTION_STANDARD (CARCASS_STANDARD)",
+          "message": "OBJ-KIT-001-SR: edge rules for SIDE_RIGHT are not defined in LINTEL_EDGE_BAND_STANDARD (CARCASS_STANDARD)",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_001"
         },

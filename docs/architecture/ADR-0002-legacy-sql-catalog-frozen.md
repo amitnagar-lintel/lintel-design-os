@@ -18,7 +18,7 @@ Its SQL is recorded (documentation only) in `lintel-os-ops/migrations/recovered/
 | Legacy concept | Ported to |
 |---|---|
 | `part_templates` formulas over `w,d,h,t` | `ConstructionRecipe.components[]` expressions (`@lintel/catalog-engine`) evaluated by `@lintel/rules-engine` |
-| `edge_bands` per side (`front`, `left`, …) | `EdgeSide` per installed orientation + `ConstructionStandard.edgeRuleSets` |
+| `edge_bands` per side (`front`, `left`, …) | `EdgeSide` per installed orientation + `EdgeBandStandard.ruleSets` |
 | `material_role` | `MaterialRole` → `ConstructionRecipe.materialRoles` |
 | `catalog_rules` (condition + qty formula) | `RuleDefinition` (`when` / `assert`) and manufacturer calculation rules |
 | `panels` ← module items | `CabinetComponent` with deterministic ids and `sourceObjectId` |

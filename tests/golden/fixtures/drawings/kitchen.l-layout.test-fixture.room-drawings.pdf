@@ -12,7 +12,7 @@ endobj
 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
 endobj
 5 0 obj
-<< /Length 11288 >>
+<< /Length 11401 >>
 stream
 1 J 1 j
 0.95 0.75 0.74 rg BT /F2 36.04 Tf 0.94 0.342 -0.342 0.94 202.181 347.319 Tm (TEST FIXTURE DATA - NOT FOR PRODUCTION) Tj ET
@@ -127,9 +127,10 @@ stream
 0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 112.535 Tm (4. Adjacency: OBJ-KIT-001/OBJ-KIT-002 touching; OBJ-KIT-002/OBJ-KIT-003 touching.) Tj ET
 0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 100.63 Tm (5. Corner D/A: OBJ-KIT-004 + OBJ-KIT-001, gap 21.) Tj ET
 0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 88.724 Tm (6. Derived from design version dv_001; planning standard TEST_FIXTURE_PLANNING_STANDARD v0.0.1 \(TEST_FIXTURE\); 4 object\(s\).) Tj ET
-0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 76.819 Tm (7. TEST FIXTURE data in use: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; hardware dataset HETTICH_TEST_FIXTURE;) Tj ET
-0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 64.913 Tm (   planning standard TEST_FIXTURE_PLANNING_STANDARD. Values are synthetic.) Tj ET
-0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 53.008 Tm (8. 30 validation BLOCKER\(s\) outstanding: this drawing must not be used for production.) Tj ET
+0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 76.819 Tm (7. TEST FIXTURE data in use: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; edge band standard) Tj ET
+0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 64.913 Tm (   TEST_FIXTURE_EDGE_BAND_STANDARD; hardware dataset HETTICH_TEST_FIXTURE; planning standard TEST_FIXTURE_PLANNING_STANDARD.) Tj ET
+0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 53.008 Tm (   Values are synthetic.) Tj ET
+0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 41.102 Tm (8. 34 validation BLOCKER\(s\) outstanding: this drawing must not be used for production.) Tj ET
 0 0 0 RG 0.992 w [] 0 d 651.969 184.252 m 1162.205 184.252 l S
 0 0 0 RG 0.992 w [] 0 d 1162.205 184.252 m 1162.205 28.346 l S
 0 0 0 RG 0.992 w [] 0 d 1162.205 28.346 m 651.969 28.346 l S
@@ -163,7 +164,7 @@ stream
 0 0 0 rg BT /F1 8.909 Tf 1 0 0 1 775.276 60.661 Tm (dv_001 \(DRAFT\)) Tj ET
 0 0 0 RG 0.51 w [] 0 d 651.969 56.693 m 1162.205 56.693 l S
 0 0 0 rg BT /F1 6.479 Tf 1 0 0 1 656.22 46.772 Tm (MODEL FINGERPRINT) Tj ET
-0 0 0 rg BT /F1 8.909 Tf 1 0 0 1 775.276 46.488 Tm (0ae96d596b740a) Tj ET
+0 0 0 rg BT /F1 8.909 Tf 1 0 0 1 775.276 46.488 Tm (034053d406e9ee) Tj ET
 0 0 0 RG 0.51 w [] 0 d 651.969 42.52 m 1162.205 42.52 l S
 0 0 0 rg BT /F1 6.479 Tf 1 0 0 1 656.22 32.598 Tm (DATA CLASSIFICATION) Tj ET
 0 0 0 rg BT /F1 8.909 Tf 1 0 0 1 775.276 32.315 Tm (TEST_FIXTURE) Tj ET
@@ -173,7 +174,7 @@ endobj
 << /Type /Page /Parent 2 0 R /MediaBox [0 0 1190.551 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 5 0 R >>
 endobj
 7 0 obj
-<< /Length 8818 >>
+<< /Length 8931 >>
 stream
 1 J 1 j
 0.95 0.75 0.74 rg BT /F2 36.04 Tf 0.94 0.342 -0.342 0.94 202.181 347.319 Tm (TEST FIXTURE DATA - NOT FOR PRODUCTION) Tj ET
@@ -251,9 +252,10 @@ stream
 0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 124.441 Tm (3. RUN:D:1: OBJ-KIT-004 \(length 600\).) Tj ET
 0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 112.535 Tm (4. Corner D/A: OBJ-KIT-004 + OBJ-KIT-001, gap 21.) Tj ET
 0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 100.63 Tm (5. Derived from design version dv_001; planning standard TEST_FIXTURE_PLANNING_STANDARD v0.0.1 \(TEST_FIXTURE\); 4 object\(s\).) Tj ET
-0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 88.724 Tm (6. TEST FIXTURE data in use: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; hardware dataset HETTICH_TEST_FIXTURE;) Tj ET
-0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 76.819 Tm (   planning standard TEST_FIXTURE_PLANNING_STANDARD. Values are synthetic.) Tj ET
-0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 64.913 Tm (7. 30 validation BLOCKER\(s\) outstanding: this drawing must not be used for production.) Tj ET
+0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 88.724 Tm (6. TEST FIXTURE data in use: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; edge band standard) Tj ET
+0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 76.819 Tm (   TEST_FIXTURE_EDGE_BAND_STANDARD; hardware dataset HETTICH_TEST_FIXTURE; planning standard TEST_FIXTURE_PLANNING_STANDARD.) Tj ET
+0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 64.913 Tm (   Values are synthetic.) Tj ET
+0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 53.008 Tm (7. 34 validation BLOCKER\(s\) outstanding: this drawing must not be used for production.) Tj ET
 0 0 0 RG 0.992 w [] 0 d 651.969 184.252 m 1162.205 184.252 l S
 0 0 0 RG 0.992 w [] 0 d 1162.205 184.252 m 1162.205 28.346 l S
 0 0 0 RG 0.992 w [] 0 d 1162.205 28.346 m 651.969 28.346 l S
@@ -287,7 +289,7 @@ stream
 0 0 0 rg BT /F1 8.909 Tf 1 0 0 1 775.276 60.661 Tm (dv_001 \(DRAFT\)) Tj ET
 0 0 0 RG 0.51 w [] 0 d 651.969 56.693 m 1162.205 56.693 l S
 0 0 0 rg BT /F1 6.479 Tf 1 0 0 1 656.22 46.772 Tm (MODEL FINGERPRINT) Tj ET
-0 0 0 rg BT /F1 8.909 Tf 1 0 0 1 775.276 46.488 Tm (0ae96d596b740a) Tj ET
+0 0 0 rg BT /F1 8.909 Tf 1 0 0 1 775.276 46.488 Tm (034053d406e9ee) Tj ET
 0 0 0 RG 0.51 w [] 0 d 651.969 42.52 m 1162.205 42.52 l S
 0 0 0 rg BT /F1 6.479 Tf 1 0 0 1 656.22 32.598 Tm (DATA CLASSIFICATION) Tj ET
 0 0 0 rg BT /F1 8.909 Tf 1 0 0 1 775.276 32.315 Tm (TEST_FIXTURE) Tj ET
@@ -297,7 +299,7 @@ endobj
 << /Type /Page /Parent 2 0 R /MediaBox [0 0 1190.551 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 7 0 R >>
 endobj
 9 0 obj
-<< /Length 28446 >>
+<< /Length 28559 >>
 stream
 1 J 1 j
 0.95 0.75 0.74 rg BT /F2 36.04 Tf 0.94 0.342 -0.342 0.94 202.181 347.319 Tm (TEST FIXTURE DATA - NOT FOR PRODUCTION) Tj ET
@@ -312,9 +314,10 @@ stream
 0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 160.157 Tm (1. All dimensions in millimetres. Dimensions are read from the resolved room model, not measured from this drawing.) Tj ET
 0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 148.252 Tm (2. Edge codes: F front, BK back, T top, BT bottom, L left, R right. Rows grouped by object.) Tj ET
 0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 136.346 Tm (3. Derived from design version dv_001; planning standard TEST_FIXTURE_PLANNING_STANDARD v0.0.1 \(TEST_FIXTURE\); 4 object\(s\).) Tj ET
-0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 124.441 Tm (4. TEST FIXTURE data in use: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; hardware dataset HETTICH_TEST_FIXTURE;) Tj ET
-0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 112.535 Tm (   planning standard TEST_FIXTURE_PLANNING_STANDARD. Values are synthetic.) Tj ET
-0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 100.63 Tm (5. 30 validation BLOCKER\(s\) outstanding: this drawing must not be used for production.) Tj ET
+0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 124.441 Tm (4. TEST FIXTURE data in use: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; edge band standard) Tj ET
+0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 112.535 Tm (   TEST_FIXTURE_EDGE_BAND_STANDARD; hardware dataset HETTICH_TEST_FIXTURE; planning standard TEST_FIXTURE_PLANNING_STANDARD.) Tj ET
+0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 100.63 Tm (   Values are synthetic.) Tj ET
+0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 88.724 Tm (5. 34 validation BLOCKER\(s\) outstanding: this drawing must not be used for production.) Tj ET
 0 0 0 rg BT /F2 12.958 Tf 1 0 0 1 56.693 765.354 Tm (ROOM PANEL SCHEDULE  KITCHEN) Tj ET
 0 0 0 RG 0.992 w [] 0 d 56.693 756.85 m 1020.472 756.85 l S
 0 0 0 RG 0.992 w [] 0 d 56.693 737.008 m 1020.472 737.008 l S
@@ -714,7 +717,7 @@ stream
 0 0 0 rg BT /F1 8.909 Tf 1 0 0 1 775.276 60.661 Tm (dv_001 \(DRAFT\)) Tj ET
 0 0 0 RG 0.51 w [] 0 d 651.969 56.693 m 1162.205 56.693 l S
 0 0 0 rg BT /F1 6.479 Tf 1 0 0 1 656.22 46.772 Tm (MODEL FINGERPRINT) Tj ET
-0 0 0 rg BT /F1 8.909 Tf 1 0 0 1 775.276 46.488 Tm (0ae96d596b740a) Tj ET
+0 0 0 rg BT /F1 8.909 Tf 1 0 0 1 775.276 46.488 Tm (034053d406e9ee) Tj ET
 0 0 0 RG 0.51 w [] 0 d 651.969 42.52 m 1162.205 42.52 l S
 0 0 0 rg BT /F1 6.479 Tf 1 0 0 1 656.22 32.598 Tm (DATA CLASSIFICATION) Tj ET
 0 0 0 rg BT /F1 8.909 Tf 1 0 0 1 775.276 32.315 Tm (TEST_FIXTURE) Tj ET
@@ -724,7 +727,7 @@ endobj
 << /Type /Page /Parent 2 0 R /MediaBox [0 0 1190.551 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 9 0 R >>
 endobj
 11 0 obj
-<< /Length 18137 >>
+<< /Length 18250 >>
 stream
 1 J 1 j
 0.95 0.75 0.74 rg BT /F2 36.04 Tf 0.94 0.342 -0.342 0.94 202.181 347.319 Tm (TEST FIXTURE DATA - NOT FOR PRODUCTION) Tj ET
@@ -739,9 +742,10 @@ stream
 0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 160.157 Tm (1. All dimensions in millimetres. Dimensions are read from the resolved room model, not measured from this drawing.) Tj ET
 0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 148.252 Tm (2. Edge codes: F front, BK back, T top, BT bottom, L left, R right. Rows grouped by object.) Tj ET
 0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 136.346 Tm (3. Derived from design version dv_001; planning standard TEST_FIXTURE_PLANNING_STANDARD v0.0.1 \(TEST_FIXTURE\); 4 object\(s\).) Tj ET
-0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 124.441 Tm (4. TEST FIXTURE data in use: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; hardware dataset HETTICH_TEST_FIXTURE;) Tj ET
-0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 112.535 Tm (   planning standard TEST_FIXTURE_PLANNING_STANDARD. Values are synthetic.) Tj ET
-0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 100.63 Tm (5. 30 validation BLOCKER\(s\) outstanding: this drawing must not be used for production.) Tj ET
+0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 124.441 Tm (4. TEST FIXTURE data in use: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; edge band standard) Tj ET
+0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 112.535 Tm (   TEST_FIXTURE_EDGE_BAND_STANDARD; hardware dataset HETTICH_TEST_FIXTURE; planning standard TEST_FIXTURE_PLANNING_STANDARD.) Tj ET
+0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 100.63 Tm (   Values are synthetic.) Tj ET
+0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 88.724 Tm (5. 34 validation BLOCKER\(s\) outstanding: this drawing must not be used for production.) Tj ET
 0 0 0 rg BT /F2 12.958 Tf 1 0 0 1 56.693 765.354 Tm (ROOM PANEL SCHEDULE  KITCHEN) Tj ET
 0 0 0 RG 0.992 w [] 0 d 56.693 756.85 m 1020.472 756.85 l S
 0 0 0 RG 0.992 w [] 0 d 56.693 737.008 m 1020.472 737.008 l S
@@ -985,7 +989,7 @@ stream
 0 0 0 rg BT /F1 8.909 Tf 1 0 0 1 775.276 60.661 Tm (dv_001 \(DRAFT\)) Tj ET
 0 0 0 RG 0.51 w [] 0 d 651.969 56.693 m 1162.205 56.693 l S
 0 0 0 rg BT /F1 6.479 Tf 1 0 0 1 656.22 46.772 Tm (MODEL FINGERPRINT) Tj ET
-0 0 0 rg BT /F1 8.909 Tf 1 0 0 1 775.276 46.488 Tm (0ae96d596b740a) Tj ET
+0 0 0 rg BT /F1 8.909 Tf 1 0 0 1 775.276 46.488 Tm (034053d406e9ee) Tj ET
 0 0 0 RG 0.51 w [] 0 d 651.969 42.52 m 1162.205 42.52 l S
 0 0 0 rg BT /F1 6.479 Tf 1 0 0 1 656.22 32.598 Tm (DATA CLASSIFICATION) Tj ET
 0 0 0 rg BT /F1 8.909 Tf 1 0 0 1 775.276 32.315 Tm (TEST_FIXTURE) Tj ET
@@ -995,7 +999,7 @@ endobj
 << /Type /Page /Parent 2 0 R /MediaBox [0 0 1190.551 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 11 0 R >>
 endobj
 13 0 obj
-<< /Title (KIT-WE-A, KIT-WE-D, KIT-RPS-001) /Producer (Lintel Design OS drawing-engine 0.1.0) /Subject (DRW:dv_001:room_001:WALL_INTERNAL_ELEVATION:A:KIT-WE-A:RA fp=0ae96d596b740a hash=0987dbbd09467d | DRW:dv_001:room_001:WALL_INTERNAL_ELEVATION:D:KIT-WE-D:RA fp=0ae96d596b740a hash=011f054d217bc3 | DRW:dv_001:room_001:ROOM_PANEL_SCHEDULE:KIT-RPS-001:RA fp=0ae96d596b740a hash=087dc79516bee4) >>
+<< /Title (KIT-WE-A, KIT-WE-D, KIT-RPS-001) /Producer (Lintel Design OS drawing-engine 0.1.0) /Subject (DRW:dv_001:room_001:WALL_INTERNAL_ELEVATION:A:KIT-WE-A:RA fp=034053d406e9ee hash=1c85763b91f7a5 | DRW:dv_001:room_001:WALL_INTERNAL_ELEVATION:D:KIT-WE-D:RA fp=034053d406e9ee hash=1b3bcd53093f88 | DRW:dv_001:room_001:ROOM_PANEL_SCHEDULE:KIT-RPS-001:RA fp=034053d406e9ee hash=0c5b1b25556436) >>
 endobj
 xref
 0 14
@@ -1005,16 +1009,16 @@ xref
 0000000135 00000 n 
 0000000232 00000 n 
 0000000334 00000 n 
-0000011675 00000 n 
-0000011819 00000 n 
-0000020689 00000 n 
-0000020833 00000 n 
-0000049332 00000 n 
-0000049477 00000 n 
-0000067668 00000 n 
-0000067814 00000 n 
+0000011788 00000 n 
+0000011932 00000 n 
+0000020915 00000 n 
+0000021059 00000 n 
+0000049671 00000 n 
+0000049816 00000 n 
+0000068120 00000 n 
+0000068266 00000 n 
 trailer
 << /Size 14 /Root 1 0 R /Info 13 0 R >>
 startxref
-68227
+68679
 %%EOF

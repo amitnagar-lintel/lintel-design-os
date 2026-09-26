@@ -32,28 +32,28 @@
       },
       {
         "code": "PRICING_DESIGN_BLOCKED",
-        "message": "OBJ-KIT-001: Production catalog/design not approved: 25 design BLOCKER(s) outstanding",
+        "message": "OBJ-KIT-001: Production catalog/design not approved: 26 design BLOCKER(s) outstanding",
         "path": "resolved.validation",
         "severity": "BLOCKER",
         "sourceObjectId": "obj_001"
       },
       {
         "code": "PRICING_DESIGN_BLOCKED",
-        "message": "OBJ-KIT-002: Production catalog/design not approved: 25 design BLOCKER(s) outstanding",
+        "message": "OBJ-KIT-002: Production catalog/design not approved: 26 design BLOCKER(s) outstanding",
         "path": "resolved.validation",
         "severity": "BLOCKER",
         "sourceObjectId": "obj_002"
       },
       {
         "code": "PRICING_DESIGN_BLOCKED",
-        "message": "OBJ-KIT-003: Production catalog/design not approved: 25 design BLOCKER(s) outstanding",
+        "message": "OBJ-KIT-003: Production catalog/design not approved: 26 design BLOCKER(s) outstanding",
         "path": "resolved.validation",
         "severity": "BLOCKER",
         "sourceObjectId": "obj_003"
       },
       {
         "code": "PRICING_DESIGN_BLOCKED",
-        "message": "OBJ-KIT-004: Production catalog/design not approved: 25 design BLOCKER(s) outstanding",
+        "message": "OBJ-KIT-004: Production catalog/design not approved: 26 design BLOCKER(s) outstanding",
         "path": "resolved.validation",
         "severity": "BLOCKER",
         "sourceObjectId": "obj_004"
@@ -398,7 +398,7 @@
       },
       {
         "code": "QUOTATION_ROOM_BLOCKED",
-        "message": "Room has 104 BLOCKER(s) outstanding",
+        "message": "Room has 108 BLOCKER(s) outstanding",
         "path": "room.validation",
         "severity": "BLOCKER"
       },

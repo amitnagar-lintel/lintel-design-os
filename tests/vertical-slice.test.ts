@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from "vitest";
 import type { CatalogSnapshot } from "@lintel/types";
-import { KIT_BASE_STANDARD, LINTEL_CATALOG, TEST_FIXTURE_CONSTRUCTION_STANDARD } from "@lintel/catalog-engine";
+import { KIT_BASE_STANDARD, LINTEL_CATALOG, TEST_FIXTURE_CONSTRUCTION_STANDARD, TEST_FIXTURE_EDGE_BAND_STANDARD } from "@lintel/catalog-engine";
 import { HETTICH_PRODUCTION_DATASET, HETTICH_TEST_FIXTURE_DATASET, createHettichAdapter } from "@lintel/hettich-engine";
 import { modelFingerprint, resolveCabinet } from "@lintel/design-engine";
 import { generateBom } from "@lintel/bom-engine";
@@ -174,7 +174,7 @@ describe("Test D — overlay → inset", () => {
   });
   it("blocks inset shutters that would collide with shelves (construction rule)", () => {
     const tight = { ...TEST_FIXTURE_CONSTRUCTION_STANDARD, variables: { ...TEST_FIXTURE_CONSTRUCTION_STANDARD.variables, SHELF_FRONT_SETBACK: 10 } };
-    const r = runSlice(referenceObject({ parameters: { frontType: "INSET" } }), tight, [createHettichAdapter(HETTICH_TEST_FIXTURE_DATASET)]);
+    const r = runSlice(referenceObject({ parameters: { frontType: "INSET" } }), tight, TEST_FIXTURE_EDGE_BAND_STANDARD, [createHettichAdapter(HETTICH_TEST_FIXTURE_DATASET)]);
     expect(r.resolved.validation.messages.find((m) => m.ruleId === "KBS_INSET_SHELF_CLEARS_SHUTTER")?.severity).toBe("BLOCKER");
   });
 });
@@ -194,7 +194,7 @@ describe("Test E — material change", () => {
     materials: [...LINTEL_CATALOG.materials, { ...LINTEL_CATALOG.materials[0]!, materialId: "TEST_BOARD_16", name: "test 16 mm board", thickness: 16, status: "TEST_FIXTURE", source: "test" }],
   };
   const run16 = (parameters: Record<string, string | number>) =>
-    resolveCabinet({ designVersion: DESIGN_VERSION, object: referenceObject({ parameters }), catalog: catalog16, standard: TEST_FIXTURE_CONSTRUCTION_STANDARD, adapters: [createHettichAdapter(HETTICH_TEST_FIXTURE_DATASET)] });
+    resolveCabinet({ designVersion: DESIGN_VERSION, object: referenceObject({ parameters }), catalog: catalog16, standard: TEST_FIXTURE_CONSTRUCTION_STANDARD, edgeBandStandard: TEST_FIXTURE_EDGE_BAND_STANDARD, adapters: [createHettichAdapter(HETTICH_TEST_FIXTURE_DATASET)] });
 
   it("different thickness without updating carcassThickness is blocked, not silently resized", () => {
     const r = run16({ material: "TEST_BOARD_16" });
@@ -237,7 +237,7 @@ describe("production configuration — nothing invented", () => {
     expect(codes(resolved)).toContain("EDGE_RULES_UNDEFINED");
   });
   it("never invents Hettich articles: with an approved-shape standard but no official data, hinges stay UNRESOLVED", () => {
-    const r = runSlice(referenceObject(), TEST_FIXTURE_CONSTRUCTION_STANDARD, [createHettichAdapter(HETTICH_PRODUCTION_DATASET)]);
+    const r = runSlice(referenceObject(), TEST_FIXTURE_CONSTRUCTION_STANDARD, TEST_FIXTURE_EDGE_BAND_STANDARD, [createHettichAdapter(HETTICH_PRODUCTION_DATASET)]);
     expect(r.resolved.hardwareResolutions.map((h) => h.status)).toEqual(["UNRESOLVED", "UNRESOLVED"]);
     expect(codes(r.resolved)).toContain("HARDWARE_DATA_UNAVAILABLE");
     const hwItems = r.bom.items.filter((i) => i.kind === "HARDWARE");

@@ -1,4 +1,4 @@
-import type { ConstructionStandard } from "@lintel/types";
+import type { ConstructionStandard, EdgeBandStandard } from "@lintel/types";
 
 /**
  * Lintel's production construction standard — NOT YET DEFINED.
@@ -27,6 +27,20 @@ export const LINTEL_CONSTRUCTION_STANDARD_DRAFT: ConstructionStandard = {
     FRONT_FINISHED_FACES: null,
     SHUTTER_BACK_GAP: null,
   },
+};
+
+/**
+ * Lintel's production edge-band standard — NOT YET DEFINED.
+ *
+ * Separate from the construction standard. No component type has edge rules yet, so the
+ * engine reports each one it needs as a BLOCKER. Lintel production must supply and approve them.
+ */
+export const LINTEL_EDGE_BAND_STANDARD_DRAFT: EdgeBandStandard = {
+  standardId: "LINTEL_EDGE_BAND_STANDARD",
+  version: "0.1.0",
+  status: "DRAFT",
+  description: "Lintel Space Atelier edge-band standard (to be defined by production).",
+  source: "Pending — Lintel production team",
   // Edge rules not yet defined for any component type.
-  edgeRuleSets: { CARCASS_STANDARD: {} },
+  ruleSets: { CARCASS_STANDARD: {} },
 };

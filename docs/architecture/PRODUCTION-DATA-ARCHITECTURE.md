@@ -13,7 +13,7 @@ tables, its own value registry and its own approver.
 |---|---|---|---|---|
 | **ConstructionStandard** | Numeric construction values: the original 11 variables plus SHUTTER_BACK_GAP (12). Shutter *reduction* and shutter *back gap* stay distinct concepts | `ConstructionStandard.variables` | 01 | DESIGN_HEAD, PRODUCTION |
 | **PlanningStandard** | Room planning values: MIN_WALL_CLEARANCE, MIN_CABINET_GAP, MAX_GAP_WITHOUT_FILLER, FILLER_THRESHOLD, MAX_RUN_LENGTH, SERVICE_VOID_REAR | `PlanningStandard` (M4) | 08 | DESIGN_HEAD, PRODUCTION |
-| **EdgeBandStandard** | Which edges of which component types are banded, and with which edge band item | **Gap:** today it lives inside `ConstructionStandard.edgeRuleSets`. M5 commit 0 splits it out with no behaviour change (D5) | 03 | DESIGN_HEAD, PRODUCTION |
+| **EdgeBandStandard** | Which edges of which component types are banded, and with which edge band item | `EdgeBandStandard` (M5 step 1; split out of `ConstructionStandard`, version recorded in every trace) | 03 | DESIGN_HEAD, PRODUCTION |
 | **ManufacturingStandard** | Cut-size allowances, machining, nesting and labelling rules | **Gap:** no type yet; intake doc only | 06 | DESIGN_HEAD, PRODUCTION |
 | **PricingStandard** | Pricing rules (manufacturing-cost formula, wastage, overhead, margin basis and %) and the rate card | `PricingRuleSet` + `RateCard` | 07 | FINANCE (authored by COSTING, who can never approve) |
 | **Finance / QuotationPolicy** | Tax rates, category → rate mapping, tax policy, rounding and discount policy (`NONE` only) | `QuotationPolicy` (M4) | 07 | FINANCE (authored by COSTING, who can never approve) |

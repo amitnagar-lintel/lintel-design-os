@@ -282,6 +282,11 @@
             "dataClassification": "TEST_FIXTURE",
             "designVersionId": "dv_001",
             "designVersionStatus": "DRAFT",
+            "edgeBandStandard": {
+              "id": "TEST_FIXTURE_EDGE_BAND_STANDARD",
+              "status": "TEST_FIXTURE",
+              "version": "0.0.1"
+            },
             "engineVersion": "0.1.0",
             "hardwareDatasets": [
               {
@@ -310,6 +315,7 @@
             },
             "testFixtureSources": [
               "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+              "edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD",
               "hardware dataset HETTICH_TEST_FIXTURE"
             ]
           }
@@ -592,6 +598,11 @@
             "dataClassification": "TEST_FIXTURE",
             "designVersionId": "dv_001",
             "designVersionStatus": "DRAFT",
+            "edgeBandStandard": {
+              "id": "TEST_FIXTURE_EDGE_BAND_STANDARD",
+              "status": "TEST_FIXTURE",
+              "version": "0.0.1"
+            },
             "engineVersion": "0.1.0",
             "hardwareDatasets": [
               {
@@ -620,6 +631,7 @@
             },
             "testFixtureSources": [
               "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+              "edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD",
               "hardware dataset HETTICH_TEST_FIXTURE"
             ]
           }
@@ -902,6 +914,11 @@
             "dataClassification": "TEST_FIXTURE",
             "designVersionId": "dv_001",
             "designVersionStatus": "DRAFT",
+            "edgeBandStandard": {
+              "id": "TEST_FIXTURE_EDGE_BAND_STANDARD",
+              "status": "TEST_FIXTURE",
+              "version": "0.0.1"
+            },
             "engineVersion": "0.1.0",
             "hardwareDatasets": [
               {
@@ -930,6 +947,7 @@
             },
             "testFixtureSources": [
               "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+              "edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD",
               "hardware dataset HETTICH_TEST_FIXTURE"
             ]
           }
@@ -1212,6 +1230,11 @@
             "dataClassification": "TEST_FIXTURE",
             "designVersionId": "dv_001",
             "designVersionStatus": "DRAFT",
+            "edgeBandStandard": {
+              "id": "TEST_FIXTURE_EDGE_BAND_STANDARD",
+              "status": "TEST_FIXTURE",
+              "version": "0.0.1"
+            },
             "engineVersion": "0.1.0",
             "hardwareDatasets": [
               {
@@ -1240,13 +1263,14 @@
             },
             "testFixtureSources": [
               "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+              "edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD",
               "hardware dataset HETTICH_TEST_FIXTURE"
             ]
           }
         }
       ],
       "roomBomId": "ROOMBOM:dv_001:room_001",
-      "roomFingerprint": "0ae96d596b740a",
+      "roomFingerprint": "034053d406e9ee",
       "totals": [
         {
           "description": "BOARD_BACK_6 board, net area",
@@ -1377,22 +1401,22 @@
         "engineVersion": "0.1.0",
         "objects": [
           {
-            "modelFingerprint": "0d8691345c4075",
+            "modelFingerprint": "00cd3107b27b23",
             "objectCode": "OBJ-KIT-001",
             "objectId": "obj_001"
           },
           {
-            "modelFingerprint": "1cbd5f676f1791",
+            "modelFingerprint": "101afbdd7103ad",
             "objectCode": "OBJ-KIT-002",
             "objectId": "obj_002"
           },
           {
-            "modelFingerprint": "00699dfb89f5a9",
+            "modelFingerprint": "11eb7538a03bec",
             "objectCode": "OBJ-KIT-003",
             "objectId": "obj_003"
           },
           {
-            "modelFingerprint": "0076805444297a",
+            "modelFingerprint": "0f7029d0d94387",
             "objectCode": "OBJ-KIT-004",
             "objectId": "obj_004"
           }
@@ -1407,6 +1431,7 @@
         "roomId": "room_001",
         "testFixtureSources": [
           "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+          "edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD",
           "hardware dataset HETTICH_TEST_FIXTURE",
           "planning standard TEST_FIXTURE_PLANNING_STANDARD"
         ]
@@ -1500,6 +1525,11 @@
             "dataClassification": "TEST_FIXTURE",
             "designVersionId": "dv_001",
             "designVersionStatus": "DRAFT",
+            "edgeBandStandard": {
+              "id": "TEST_FIXTURE_EDGE_BAND_STANDARD",
+              "status": "TEST_FIXTURE",
+              "version": "0.0.1"
+            },
             "engineVersion": "0.1.0",
             "hardwareDatasets": [
               {
@@ -1528,6 +1558,7 @@
             },
             "testFixtureSources": [
               "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+              "edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD",
               "hardware dataset HETTICH_TEST_FIXTURE"
             ]
           }
@@ -1556,6 +1587,11 @@
             "dataClassification": "TEST_FIXTURE",
             "designVersionId": "dv_001",
             "designVersionStatus": "DRAFT",
+            "edgeBandStandard": {
+              "id": "TEST_FIXTURE_EDGE_BAND_STANDARD",
+              "status": "TEST_FIXTURE",
+              "version": "0.0.1"
+            },
             "engineVersion": "0.1.0",
             "hardwareDatasets": [
               {
@@ -1584,6 +1620,7 @@
             },
             "testFixtureSources": [
               "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+              "edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD",
               "hardware dataset HETTICH_TEST_FIXTURE"
             ]
           }
@@ -1612,6 +1649,11 @@
             "dataClassification": "TEST_FIXTURE",
             "designVersionId": "dv_001",
             "designVersionStatus": "DRAFT",
+            "edgeBandStandard": {
+              "id": "TEST_FIXTURE_EDGE_BAND_STANDARD",
+              "status": "TEST_FIXTURE",
+              "version": "0.0.1"
+            },
             "engineVersion": "0.1.0",
             "hardwareDatasets": [
               {
@@ -1640,6 +1682,7 @@
             },
             "testFixtureSources": [
               "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+              "edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD",
               "hardware dataset HETTICH_TEST_FIXTURE"
             ]
           }
@@ -1668,6 +1711,11 @@
             "dataClassification": "TEST_FIXTURE",
             "designVersionId": "dv_001",
             "designVersionStatus": "DRAFT",
+            "edgeBandStandard": {
+              "id": "TEST_FIXTURE_EDGE_BAND_STANDARD",
+              "status": "TEST_FIXTURE",
+              "version": "0.0.1"
+            },
             "engineVersion": "0.1.0",
             "hardwareDatasets": [
               {
@@ -1696,6 +1744,7 @@
             },
             "testFixtureSources": [
               "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+              "edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD",
               "hardware dataset HETTICH_TEST_FIXTURE"
             ]
           }
@@ -1703,7 +1752,7 @@
       ],
       "roomBomId": "ROOMBOM:dv_001:room_001",
       "roomBoqId": "ROOMBOQ:dv_001:room_001",
-      "roomFingerprint": "0ae96d596b740a",
+      "roomFingerprint": "034053d406e9ee",
       "trace": {
         "catalogVersion": "2026.09.26-m1",
         "dataClassification": "TEST_FIXTURE",
@@ -1712,22 +1761,22 @@
         "engineVersion": "0.1.0",
         "objects": [
           {
-            "modelFingerprint": "0d8691345c4075",
+            "modelFingerprint": "00cd3107b27b23",
             "objectCode": "OBJ-KIT-001",
             "objectId": "obj_001"
           },
           {
-            "modelFingerprint": "1cbd5f676f1791",
+            "modelFingerprint": "101afbdd7103ad",
             "objectCode": "OBJ-KIT-002",
             "objectId": "obj_002"
           },
           {
-            "modelFingerprint": "00699dfb89f5a9",
+            "modelFingerprint": "11eb7538a03bec",
             "objectCode": "OBJ-KIT-003",
             "objectId": "obj_003"
           },
           {
-            "modelFingerprint": "0076805444297a",
+            "modelFingerprint": "0f7029d0d94387",
             "objectCode": "OBJ-KIT-004",
             "objectId": "obj_004"
           }
@@ -1742,6 +1791,7 @@
         "roomId": "room_001",
         "testFixtureSources": [
           "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+          "edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD",
           "hardware dataset HETTICH_TEST_FIXTURE",
           "planning standard TEST_FIXTURE_PLANNING_STANDARD"
         ]

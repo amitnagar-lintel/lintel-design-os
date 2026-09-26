@@ -1,5 +1,13 @@
 import type { DesignObject, ManufacturerAdapter, ParameterValue, PlanningStandard, RelationshipOverride, ResolvedRoom, Room, Transform } from "@lintel/types";
-import { LINTEL_CATALOG, LINTEL_CONSTRUCTION_STANDARD_DRAFT, LINTEL_PLANNING_STANDARD_DRAFT, TEST_FIXTURE_CONSTRUCTION_STANDARD, TEST_FIXTURE_PLANNING_STANDARD } from "@lintel/catalog-engine";
+import {
+  LINTEL_CATALOG,
+  LINTEL_CONSTRUCTION_STANDARD_DRAFT,
+  LINTEL_EDGE_BAND_STANDARD_DRAFT,
+  LINTEL_PLANNING_STANDARD_DRAFT,
+  TEST_FIXTURE_CONSTRUCTION_STANDARD,
+  TEST_FIXTURE_EDGE_BAND_STANDARD,
+  TEST_FIXTURE_PLANNING_STANDARD,
+} from "@lintel/catalog-engine";
 import { createHettichAdapter, HETTICH_PRODUCTION_DATASET, HETTICH_TEST_FIXTURE_DATASET } from "@lintel/hettich-engine";
 import { resolveRoom } from "@lintel/design-engine";
 import { DESIGN_VERSION } from "./scenario.js";
@@ -44,6 +52,7 @@ export function fixtureRoom(objects: readonly DesignObject[] = lLayout(), opts: 
     objects,
     catalog: LINTEL_CATALOG,
     standard: TEST_FIXTURE_CONSTRUCTION_STANDARD,
+    edgeBandStandard: TEST_FIXTURE_EDGE_BAND_STANDARD,
     planning: opts.planning ?? TEST_FIXTURE_PLANNING_STANDARD,
     adapters: opts.adapters ?? [createHettichAdapter(HETTICH_TEST_FIXTURE_DATASET)],
     ...(opts.overrides === undefined ? {} : { overrides: opts.overrides }),
@@ -57,6 +66,7 @@ export function productionRoom(objects: readonly DesignObject[] = lLayout()): Re
     objects,
     catalog: LINTEL_CATALOG,
     standard: LINTEL_CONSTRUCTION_STANDARD_DRAFT,
+    edgeBandStandard: LINTEL_EDGE_BAND_STANDARD_DRAFT,
     planning: LINTEL_PLANNING_STANDARD_DRAFT,
     adapters: [createHettichAdapter(HETTICH_PRODUCTION_DATASET)],
   });

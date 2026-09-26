@@ -1,6 +1,7 @@
 import type {
   CatalogSnapshot,
   ConstructionStandard,
+  EdgeBandStandard,
   DesignObject,
   DesignVersion,
   ManufacturerAdapter,
@@ -32,6 +33,7 @@ export interface ResolveRoomInput {
   readonly objects: readonly DesignObject[];
   readonly catalog: CatalogSnapshot;
   readonly standard: ConstructionStandard;
+  readonly edgeBandStandard: EdgeBandStandard;
   readonly planning: PlanningStandard;
   readonly adapters: readonly ManufacturerAdapter[];
   /** Explicit, versioned, audited overrides. Normal cabinets need none. */
@@ -95,7 +97,7 @@ export function resolveRoom(input: ResolveRoomInput): ResolvedRoom {
     if (o.roomId !== room.id || o.projectId !== room.projectId) {
       roomMsg("OBJECT_ROOM_MISMATCH", "BLOCKER", `${o.objectCode} belongs to room ${o.roomId} / project ${o.projectId}, not ${room.id} / ${room.projectId}`, { sourceObjectId: o.objectId });
     }
-    const resolved = resolveCabinet({ designVersion, object: o, catalog: input.catalog, standard: input.standard, adapters: input.adapters });
+    const resolved = resolveCabinet({ designVersion, object: o, catalog: input.catalog, standard: input.standard, edgeBandStandard: input.edgeBandStandard, adapters: input.adapters });
     cabinets.push(resolved);
     const turn = asQuarterTurn(o.transform.rotationY);
     if (turn === null || o.transform.rotationX !== 0 || o.transform.rotationZ !== 0) {

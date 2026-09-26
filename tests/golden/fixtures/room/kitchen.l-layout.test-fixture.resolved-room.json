@@ -681,6 +681,11 @@
           "dataClassification": "TEST_FIXTURE",
           "designVersionId": "dv_001",
           "designVersionStatus": "DRAFT",
+          "edgeBandStandard": {
+            "id": "TEST_FIXTURE_EDGE_BAND_STANDARD",
+            "status": "TEST_FIXTURE",
+            "version": "0.0.1"
+          },
           "engineVersion": "0.1.0",
           "hardwareDatasets": [
             {
@@ -709,13 +714,14 @@
           },
           "testFixtureSources": [
             "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+            "edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD",
             "hardware dataset HETTICH_TEST_FIXTURE"
           ]
         },
         "validation": {
           "canApprove": false,
           "counts": {
-            "BLOCKER": 7,
+            "BLOCKER": 8,
             "ERROR": 0,
             "INFO": 0,
             "WARNING": 7
@@ -725,6 +731,13 @@
               "code": "CONSTRUCTION_STANDARD_NOT_APPROVED",
               "message": "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD v0.0.2 is a TEST FIXTURE with synthetic values",
               "path": "construction_standard",
+              "severity": "BLOCKER",
+              "sourceObjectId": "obj_001"
+            },
+            {
+              "code": "EDGE_BAND_STANDARD_NOT_APPROVED",
+              "message": "edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD v0.0.1 is a TEST FIXTURE with synthetic values",
+              "path": "edge_band_standard",
               "severity": "BLOCKER",
               "sourceObjectId": "obj_001"
             },
@@ -765,7 +778,7 @@
             },
             {
               "code": "TEST_FIXTURE_DATA_IN_USE",
-              "message": "Result uses TEST_FIXTURE data and can never drive production: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; hardware dataset HETTICH_TEST_FIXTURE",
+              "message": "Result uses TEST_FIXTURE data and can never drive production: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD; hardware dataset HETTICH_TEST_FIXTURE",
               "severity": "BLOCKER",
               "sourceObjectId": "obj_001"
             },
@@ -1494,6 +1507,11 @@
           "dataClassification": "TEST_FIXTURE",
           "designVersionId": "dv_001",
           "designVersionStatus": "DRAFT",
+          "edgeBandStandard": {
+            "id": "TEST_FIXTURE_EDGE_BAND_STANDARD",
+            "status": "TEST_FIXTURE",
+            "version": "0.0.1"
+          },
           "engineVersion": "0.1.0",
           "hardwareDatasets": [
             {
@@ -1522,13 +1540,14 @@
           },
           "testFixtureSources": [
             "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+            "edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD",
             "hardware dataset HETTICH_TEST_FIXTURE"
           ]
         },
         "validation": {
           "canApprove": false,
           "counts": {
-            "BLOCKER": 7,
+            "BLOCKER": 8,
             "ERROR": 0,
             "INFO": 0,
             "WARNING": 7
@@ -1538,6 +1557,13 @@
               "code": "CONSTRUCTION_STANDARD_NOT_APPROVED",
               "message": "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD v0.0.2 is a TEST FIXTURE with synthetic values",
               "path": "construction_standard",
+              "severity": "BLOCKER",
+              "sourceObjectId": "obj_002"
+            },
+            {
+              "code": "EDGE_BAND_STANDARD_NOT_APPROVED",
+              "message": "edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD v0.0.1 is a TEST FIXTURE with synthetic values",
+              "path": "edge_band_standard",
               "severity": "BLOCKER",
               "sourceObjectId": "obj_002"
             },
@@ -1578,7 +1604,7 @@
             },
             {
               "code": "TEST_FIXTURE_DATA_IN_USE",
-              "message": "Result uses TEST_FIXTURE data and can never drive production: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; hardware dataset HETTICH_TEST_FIXTURE",
+              "message": "Result uses TEST_FIXTURE data and can never drive production: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD; hardware dataset HETTICH_TEST_FIXTURE",
               "severity": "BLOCKER",
               "sourceObjectId": "obj_002"
             },
@@ -2307,6 +2333,11 @@
           "dataClassification": "TEST_FIXTURE",
           "designVersionId": "dv_001",
           "designVersionStatus": "DRAFT",
+          "edgeBandStandard": {
+            "id": "TEST_FIXTURE_EDGE_BAND_STANDARD",
+            "status": "TEST_FIXTURE",
+            "version": "0.0.1"
+          },
           "engineVersion": "0.1.0",
           "hardwareDatasets": [
             {
@@ -2335,13 +2366,14 @@
           },
           "testFixtureSources": [
             "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+            "edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD",
             "hardware dataset HETTICH_TEST_FIXTURE"
           ]
         },
         "validation": {
           "canApprove": false,
           "counts": {
-            "BLOCKER": 7,
+            "BLOCKER": 8,
             "ERROR": 0,
             "INFO": 0,
             "WARNING": 7
@@ -2351,6 +2383,13 @@
               "code": "CONSTRUCTION_STANDARD_NOT_APPROVED",
               "message": "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD v0.0.2 is a TEST FIXTURE with synthetic values",
               "path": "construction_standard",
+              "severity": "BLOCKER",
+              "sourceObjectId": "obj_003"
+            },
+            {
+              "code": "EDGE_BAND_STANDARD_NOT_APPROVED",
+              "message": "edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD v0.0.1 is a TEST FIXTURE with synthetic values",
+              "path": "edge_band_standard",
               "severity": "BLOCKER",
               "sourceObjectId": "obj_003"
             },
@@ -2391,7 +2430,7 @@
             },
             {
               "code": "TEST_FIXTURE_DATA_IN_USE",
-              "message": "Result uses TEST_FIXTURE data and can never drive production: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; hardware dataset HETTICH_TEST_FIXTURE",
+              "message": "Result uses TEST_FIXTURE data and can never drive production: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD; hardware dataset HETTICH_TEST_FIXTURE",
               "severity": "BLOCKER",
               "sourceObjectId": "obj_003"
             },
@@ -3120,6 +3159,11 @@
           "dataClassification": "TEST_FIXTURE",
           "designVersionId": "dv_001",
           "designVersionStatus": "DRAFT",
+          "edgeBandStandard": {
+            "id": "TEST_FIXTURE_EDGE_BAND_STANDARD",
+            "status": "TEST_FIXTURE",
+            "version": "0.0.1"
+          },
           "engineVersion": "0.1.0",
           "hardwareDatasets": [
             {
@@ -3148,13 +3192,14 @@
           },
           "testFixtureSources": [
             "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+            "edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD",
             "hardware dataset HETTICH_TEST_FIXTURE"
           ]
         },
         "validation": {
           "canApprove": false,
           "counts": {
-            "BLOCKER": 7,
+            "BLOCKER": 8,
             "ERROR": 0,
             "INFO": 0,
             "WARNING": 7
@@ -3164,6 +3209,13 @@
               "code": "CONSTRUCTION_STANDARD_NOT_APPROVED",
               "message": "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD v0.0.2 is a TEST FIXTURE with synthetic values",
               "path": "construction_standard",
+              "severity": "BLOCKER",
+              "sourceObjectId": "obj_004"
+            },
+            {
+              "code": "EDGE_BAND_STANDARD_NOT_APPROVED",
+              "message": "edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD v0.0.1 is a TEST FIXTURE with synthetic values",
+              "path": "edge_band_standard",
               "severity": "BLOCKER",
               "sourceObjectId": "obj_004"
             },
@@ -3204,7 +3256,7 @@
             },
             {
               "code": "TEST_FIXTURE_DATA_IN_USE",
-              "message": "Result uses TEST_FIXTURE data and can never drive production: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; hardware dataset HETTICH_TEST_FIXTURE",
+              "message": "Result uses TEST_FIXTURE data and can never drive production: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD; hardware dataset HETTICH_TEST_FIXTURE",
               "severity": "BLOCKER",
               "sourceObjectId": "obj_004"
             },
@@ -4098,7 +4150,7 @@
       ],
       "width": 3200
     },
-    "roomFingerprint": "0ae96d596b740a",
+    "roomFingerprint": "034053d406e9ee",
     "runs": [
       {
         "end": 1950,
@@ -4131,22 +4183,22 @@
       "engineVersion": "0.1.0",
       "objects": [
         {
-          "modelFingerprint": "0d8691345c4075",
+          "modelFingerprint": "00cd3107b27b23",
           "objectCode": "OBJ-KIT-001",
           "objectId": "obj_001"
         },
         {
-          "modelFingerprint": "1cbd5f676f1791",
+          "modelFingerprint": "101afbdd7103ad",
           "objectCode": "OBJ-KIT-002",
           "objectId": "obj_002"
         },
         {
-          "modelFingerprint": "00699dfb89f5a9",
+          "modelFingerprint": "11eb7538a03bec",
           "objectCode": "OBJ-KIT-003",
           "objectId": "obj_003"
         },
         {
-          "modelFingerprint": "0076805444297a",
+          "modelFingerprint": "0f7029d0d94387",
           "objectCode": "OBJ-KIT-004",
           "objectId": "obj_004"
         }
@@ -4161,6 +4213,7 @@
       "roomId": "room_001",
       "testFixtureSources": [
         "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+        "edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD",
         "hardware dataset HETTICH_TEST_FIXTURE",
         "planning standard TEST_FIXTURE_PLANNING_STANDARD"
       ]
@@ -4168,7 +4221,7 @@
     "validation": {
       "canApprove": false,
       "counts": {
-        "BLOCKER": 30,
+        "BLOCKER": 34,
         "ERROR": 0,
         "INFO": 0,
         "WARNING": 28
@@ -4199,6 +4252,34 @@
           "code": "CONSTRUCTION_STANDARD_NOT_APPROVED",
           "message": "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD v0.0.2 is a TEST FIXTURE with synthetic values",
           "path": "construction_standard",
+          "severity": "BLOCKER",
+          "sourceObjectId": "obj_004"
+        },
+        {
+          "code": "EDGE_BAND_STANDARD_NOT_APPROVED",
+          "message": "edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD v0.0.1 is a TEST FIXTURE with synthetic values",
+          "path": "edge_band_standard",
+          "severity": "BLOCKER",
+          "sourceObjectId": "obj_001"
+        },
+        {
+          "code": "EDGE_BAND_STANDARD_NOT_APPROVED",
+          "message": "edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD v0.0.1 is a TEST FIXTURE with synthetic values",
+          "path": "edge_band_standard",
+          "severity": "BLOCKER",
+          "sourceObjectId": "obj_002"
+        },
+        {
+          "code": "EDGE_BAND_STANDARD_NOT_APPROVED",
+          "message": "edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD v0.0.1 is a TEST FIXTURE with synthetic values",
+          "path": "edge_band_standard",
+          "severity": "BLOCKER",
+          "sourceObjectId": "obj_003"
+        },
+        {
+          "code": "EDGE_BAND_STANDARD_NOT_APPROVED",
+          "message": "edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD v0.0.1 is a TEST FIXTURE with synthetic values",
+          "path": "edge_band_standard",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_004"
         },
@@ -4350,31 +4431,31 @@
         },
         {
           "code": "TEST_FIXTURE_DATA_IN_USE",
-          "message": "Result uses TEST_FIXTURE data and can never drive production: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; hardware dataset HETTICH_TEST_FIXTURE",
+          "message": "Result uses TEST_FIXTURE data and can never drive production: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD; hardware dataset HETTICH_TEST_FIXTURE",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_001"
         },
         {
           "code": "TEST_FIXTURE_DATA_IN_USE",
-          "message": "Result uses TEST_FIXTURE data and can never drive production: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; hardware dataset HETTICH_TEST_FIXTURE",
+          "message": "Result uses TEST_FIXTURE data and can never drive production: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD; hardware dataset HETTICH_TEST_FIXTURE",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_002"
         },
         {
           "code": "TEST_FIXTURE_DATA_IN_USE",
-          "message": "Result uses TEST_FIXTURE data and can never drive production: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; hardware dataset HETTICH_TEST_FIXTURE",
+          "message": "Result uses TEST_FIXTURE data and can never drive production: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD; hardware dataset HETTICH_TEST_FIXTURE",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_003"
         },
         {
           "code": "TEST_FIXTURE_DATA_IN_USE",
-          "message": "Result uses TEST_FIXTURE data and can never drive production: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; hardware dataset HETTICH_TEST_FIXTURE",
+          "message": "Result uses TEST_FIXTURE data and can never drive production: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD; hardware dataset HETTICH_TEST_FIXTURE",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_004"
         },
         {
           "code": "TEST_FIXTURE_DATA_IN_USE",
-          "message": "Room uses TEST_FIXTURE data and can never drive production: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; hardware dataset HETTICH_TEST_FIXTURE; planning standard TEST_FIXTURE_PLANNING_STANDARD",
+          "message": "Room uses TEST_FIXTURE data and can never drive production: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD; hardware dataset HETTICH_TEST_FIXTURE; planning standard TEST_FIXTURE_PLANNING_STANDARD",
           "path": "rooms.room_001",
           "severity": "BLOCKER"
         },

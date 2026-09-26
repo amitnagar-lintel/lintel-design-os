@@ -9,9 +9,60 @@ import type {
   ValidationMessage,
 } from "@lintel/types";
 import { evaluateBoolean, evaluateNumber } from "@lintel/rules-engine";
-import type { HettichArticle, HettichDataset } from "./model.js";
+import type { HettichArticle, HettichCalculationRule, HettichDataset } from "./model.js";
+import { toEngineArticle, validateFixtureDataset, validateProductionRecord, validateProductionRule } from "./validate.js";
 
 export const HETTICH = "HETTICH";
+
+/** The data the engine may actually use from a dataset, plus why anything was excluded. */
+export interface UsableHettichData {
+  readonly ref: HardwareDatasetRef;
+  readonly articles: readonly HettichArticle[];
+  readonly calculationRules: readonly HettichCalculationRule[];
+  /** Dataset-level problems (excluded records / rules, mislabelled fixtures). */
+  readonly messages: readonly ValidationMessage[];
+  readonly excludedRecords: number;
+}
+
+/**
+ * PRODUCTION: only records and rules that pass validation are usable.
+ * TEST_FIXTURE: articles used as-is but never authoritative.
+ */
+export function usableData(dataset: HettichDataset): UsableHettichData {
+  if (dataset.kind === "TEST_FIXTURE") {
+    return {
+      ref: { datasetId: dataset.datasetId, classification: "TEST_FIXTURE", manufacturer: HETTICH, sourceVersion: dataset.sourceVersion, authoritative: false },
+      articles: dataset.articles,
+      calculationRules: dataset.calculationRules,
+      messages: validateFixtureDataset(dataset),
+      excludedRecords: 0,
+    };
+  }
+  const messages: ValidationMessage[] = [];
+  const articles: HettichArticle[] = [];
+  let excluded = 0;
+  for (const r of dataset.records) {
+    const problems = validateProductionRecord(r);
+    if (problems.length === 0) articles.push(toEngineArticle(r));
+    else {
+      excluded++;
+      messages.push(...problems);
+    }
+  }
+  const calculationRules: HettichCalculationRule[] = [];
+  for (const rule of dataset.calculationRules) {
+    const problems = validateProductionRule(rule);
+    if (problems.length === 0) calculationRules.push(rule);
+    else messages.push(...problems);
+  }
+  return {
+    ref: { datasetId: dataset.datasetId, classification: "PRODUCTION", manufacturer: HETTICH, sourceVersion: dataset.sourceVersion, authoritative: true },
+    articles,
+    calculationRules,
+    messages,
+    excludedRecords: excluded,
+  };
+}
 
 export interface CompatibilityResult {
   readonly compatible: readonly HettichArticle[];
@@ -24,11 +75,11 @@ function compareArticles(a: HettichArticle, b: HettichArticle): number {
 }
 
 /** PRD §26: fitting situation → compatibility engine → valid articles (ranked). Pure. */
-export function findCompatibleArticles(dataset: HettichDataset, requirement: HardwareRequirement): CompatibilityResult {
+export function findCompatibleArticles(data: UsableHettichData, requirement: HardwareRequirement): CompatibilityResult {
   const s = requirement.fittingSituation;
   const rejected: Record<string, string> = {};
   const compatible: HettichArticle[] = [];
-  for (const a of dataset.articles) {
+  for (const a of data.articles) {
     if (a.category !== requirement.category) continue;
     if (a.application !== s.application) {
       rejected[a.articleNumber] = `application ${String(a.application)} ≠ ${s.application}`;
@@ -61,8 +112,8 @@ export function fittingScope(s: FittingSituation): Record<string, ScalarValue> {
 type QuantityOutcome = { readonly ok: true; readonly quantity: number; readonly ruleId: string } | { readonly ok: false; readonly reason: string };
 
 /** Quantity from the manufacturer calculation rule for the article family (PRD §27). */
-export function calculateQuantity(dataset: HettichDataset, article: HettichArticle, situation: FittingSituation): QuantityOutcome {
-  const rule = dataset.calculationRules.find((r) => r.family === article.family && r.category === article.category);
+export function calculateQuantity(data: UsableHettichData, article: HettichArticle, situation: FittingSituation): QuantityOutcome {
+  const rule = data.calculationRules.find((r) => r.family === article.family && r.category === article.category);
   if (rule === undefined) return { ok: false, reason: `no calculation rule for family ${article.family}` };
   const scope = fittingScope(situation);
   for (const band of rule.bands) {
@@ -91,11 +142,11 @@ function line(a: HettichArticle, quantity: number): ResolvedArticleLine {
   };
 }
 
-/** Resolve one requirement against a dataset. Pure and deterministic. */
-export function resolveWithDataset(dataset: HettichDataset, requirement: HardwareRequirement): HardwareResolution {
-  const ref: HardwareDatasetRef = { datasetId: dataset.datasetId, manufacturer: HETTICH, sourceVersion: dataset.sourceVersion, authoritative: dataset.authoritative };
+/** Resolve one requirement against usable dataset content. Pure and deterministic. */
+export function resolveWithData(data: UsableHettichData, requirement: HardwareRequirement): HardwareResolution {
+  const ref = data.ref;
   const ctx = { sourceObjectId: requirement.sourceObjectId, componentId: requirement.sourceComponentId };
-  const messages: ValidationMessage[] = [];
+  const messages: ValidationMessage[] = [...data.messages];
   const unresolved = (code: string, message: string, candidates: readonly string[] = []): HardwareResolution => ({
     requirementId: requirement.requirementId,
     manufacturer: HETTICH,
@@ -108,36 +159,40 @@ export function resolveWithDataset(dataset: HettichDataset, requirement: Hardwar
     messages: [...messages, { code, severity: "BLOCKER", message, ...ctx }],
   });
 
-  if (!dataset.authoritative) {
+  if (ref.classification === "TEST_FIXTURE") {
     messages.push({
       code: "HARDWARE_DATA_NOT_AUTHORITATIVE",
       severity: "BLOCKER",
-      message: `Hardware for ${requirement.requirementId} resolved from non-authoritative dataset ${dataset.datasetId}`,
+      message: `Hardware for ${requirement.requirementId} resolved from TEST_FIXTURE dataset ${ref.datasetId}`,
       ...ctx,
     });
   }
-  if (dataset.articles.length === 0) {
-    return unresolved("HARDWARE_DATA_UNAVAILABLE", `No Hettich article data loaded (dataset ${dataset.datasetId} ${dataset.sourceVersion}); ${requirement.category} for ${requirement.sourceComponentId} cannot be resolved`);
+  if (data.articles.length === 0) {
+    const excluded = data.excludedRecords > 0 ? `; ${data.excludedRecords} record(s) excluded as unverified` : "";
+    return unresolved(
+      "HARDWARE_DATA_UNAVAILABLE",
+      `No verified Hettich article data (dataset ${ref.datasetId} ${ref.sourceVersion}${excluded}); ${requirement.category} for ${requirement.sourceComponentId} cannot be resolved`,
+    );
   }
-  const { compatible } = findCompatibleArticles(dataset, requirement);
+  const { compatible } = findCompatibleArticles(data, requirement);
   const primary = compatible[0];
   const candidates = compatible.map((a) => a.articleNumber);
   if (primary === undefined) {
     return unresolved("HARDWARE_NO_COMPATIBLE_ARTICLE", `No compatible Hettich ${requirement.category} for ${requirement.sourceComponentId} (${requirement.fittingSituation.mounting}, door ${requirement.fittingSituation.doorThickness} mm)`);
   }
-  const qty = calculateQuantity(dataset, primary, requirement.fittingSituation);
+  const qty = calculateQuantity(data, primary, requirement.fittingSituation);
   if (!qty.ok) return unresolved("HARDWARE_QUANTITY_UNRESOLVED", `${primary.articleNumber}: ${qty.reason}`, candidates);
 
   const lines: ResolvedArticleLine[] = [line(primary, qty.quantity)];
   // compatibleArticles are alternatives in preference order; an empty list means none is required.
   if (primary.compatibleArticles.length > 0) {
     const accessory = primary.compatibleArticles
-      .map((n) => dataset.articles.find((a) => a.articleNumber === n))
+      .map((n) => data.articles.find((a) => a.articleNumber === n))
       .find((a) => a !== undefined);
     if (accessory === undefined) {
       return unresolved(
         "HARDWARE_ACCESSORY_MISSING",
-        `${primary.articleNumber} requires one of [${primary.compatibleArticles.join(", ")}], none of which is in dataset ${dataset.datasetId}`,
+        `${primary.articleNumber} requires one of [${primary.compatibleArticles.join(", ")}], none of which is in dataset ${ref.datasetId}`,
         candidates,
       );
     }
@@ -157,9 +212,10 @@ export function resolveWithDataset(dataset: HettichDataset, requirement: Hardwar
 }
 
 export function createHettichAdapter(dataset: HettichDataset): ManufacturerAdapter {
+  const data = usableData(dataset);
   return {
     manufacturer: HETTICH,
-    dataset: { datasetId: dataset.datasetId, manufacturer: HETTICH, sourceVersion: dataset.sourceVersion, authoritative: dataset.authoritative },
-    resolve: (requirement) => resolveWithDataset(dataset, requirement),
+    dataset: data.ref,
+    resolve: (requirement) => resolveWithData(data, requirement),
   };
 }

@@ -82,7 +82,7 @@ export function resolveHardware(requirements: readonly HardwareRequirement[], ad
       candidates: [],
       quantityRuleId: null,
       drillingPatternId: null,
-      dataset: { datasetId: "NONE", manufacturer: req.preferredManufacturer, sourceVersion: "none", authoritative: false },
+      dataset: { datasetId: "NONE", classification: "PRODUCTION", manufacturer: req.preferredManufacturer, sourceVersion: "none", authoritative: false },
       messages: [
         {
           code: "HARDWARE_ADAPTER_MISSING",

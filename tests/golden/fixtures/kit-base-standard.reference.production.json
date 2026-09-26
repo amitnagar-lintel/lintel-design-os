@@ -69,13 +69,15 @@
     ],
     "trace": {
       "catalogVersion": "2026.09.26-m1",
+      "dataClassification": "PRODUCTION",
       "designVersionId": "dv_001",
       "designVersionStatus": "DRAFT",
       "engineVersion": "0.1.0",
       "hardwareDatasets": [
         {
           "authoritative": true,
-          "datasetId": "HETTICH_OFFICIAL",
+          "classification": "PRODUCTION",
+          "datasetId": "HETTICH_PRODUCTION",
           "manufacturer": "HETTICH",
           "sourceVersion": "none-loaded"
         }
@@ -95,7 +97,8 @@
         "id": "LINTEL_CONSTRUCTION_STANDARD",
         "status": "DRAFT",
         "version": "0.1.0"
-      }
+      },
+      "testFixtureSources": []
     }
   },
   "boq": {
@@ -119,13 +122,15 @@
     ],
     "trace": {
       "catalogVersion": "2026.09.26-m1",
+      "dataClassification": "PRODUCTION",
       "designVersionId": "dv_001",
       "designVersionStatus": "DRAFT",
       "engineVersion": "0.1.0",
       "hardwareDatasets": [
         {
           "authoritative": true,
-          "datasetId": "HETTICH_OFFICIAL",
+          "classification": "PRODUCTION",
+          "datasetId": "HETTICH_PRODUCTION",
           "manufacturer": "HETTICH",
           "sourceVersion": "none-loaded"
         }
@@ -145,7 +150,8 @@
         "id": "LINTEL_CONSTRUCTION_STANDARD",
         "status": "DRAFT",
         "version": "0.1.0"
-      }
+      },
+      "testFixtureSources": []
     }
   },
   "description": "PRD §42 reference cabinet with the production configuration: Lintel construction standard (DRAFT, no values defined) and the official Hettich dataset slot (empty). Expected: only fully-defined components, every missing construction value reported, approval blocked.",
@@ -369,13 +375,15 @@
     },
     "trace": {
       "catalogVersion": "2026.09.26-m1",
+      "dataClassification": "PRODUCTION",
       "designVersionId": "dv_001",
       "designVersionStatus": "DRAFT",
       "engineVersion": "0.1.0",
       "hardwareDatasets": [
         {
           "authoritative": true,
-          "datasetId": "HETTICH_OFFICIAL",
+          "classification": "PRODUCTION",
+          "datasetId": "HETTICH_PRODUCTION",
           "manufacturer": "HETTICH",
           "sourceVersion": "none-loaded"
         }
@@ -395,7 +403,8 @@
         "id": "LINTEL_CONSTRUCTION_STANDARD",
         "status": "DRAFT",
         "version": "0.1.0"
-      }
+      },
+      "testFixtureSources": []
     },
     "validation": {
       "canApprove": false,

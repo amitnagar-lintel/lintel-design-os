@@ -29,6 +29,9 @@ importers:
       '@lintel/hettich-engine':
         specifier: workspace:*
         version: link:packages/hettich-engine
+      '@lintel/pricing-engine':
+        specifier: workspace:*
+        version: link:packages/pricing-engine
       '@lintel/rules-engine':
         specifier: workspace:*
         version: link:packages/rules-engine
@@ -101,6 +104,18 @@ importers:
 
   packages/hettich-engine:
     dependencies:
+      '@lintel/rules-engine':
+        specifier: workspace:*
+        version: link:../rules-engine
+      '@lintel/types':
+        specifier: workspace:*
+        version: link:../types
+
+  packages/pricing-engine:
+    dependencies:
+      '@lintel/design-engine':
+        specifier: workspace:*
+        version: link:../design-engine
       '@lintel/rules-engine':
         specifier: workspace:*
         version: link:../rules-engine

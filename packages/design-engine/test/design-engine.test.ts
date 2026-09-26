@@ -21,7 +21,7 @@ const obj = (over: Partial<DesignObject> = {}): DesignObject => ({
 /** Minimal adapter that always returns a single fixed line; manufacturer-agnostic test double. */
 const fakeAdapter: ManufacturerAdapter = {
   manufacturer: "HETTICH",
-  dataset: { datasetId: "FAKE", manufacturer: "HETTICH", sourceVersion: "t", authoritative: true },
+  dataset: { datasetId: "FAKE", classification: "PRODUCTION", manufacturer: "HETTICH", sourceVersion: "t", authoritative: true },
   resolve: (r: HardwareRequirement) => ({
     requirementId: r.requirementId,
     manufacturer: "HETTICH",
@@ -30,7 +30,7 @@ const fakeAdapter: ManufacturerAdapter = {
     candidates: [],
     quantityRuleId: null,
     drillingPatternId: null,
-    dataset: { datasetId: "FAKE", manufacturer: "HETTICH", sourceVersion: "t", authoritative: true },
+    dataset: { datasetId: "FAKE", classification: "PRODUCTION", manufacturer: "HETTICH", sourceVersion: "t", authoritative: true },
     messages: [],
   }),
 };

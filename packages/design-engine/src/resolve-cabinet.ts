@@ -57,8 +57,17 @@ export function resolveCabinet(input: ResolveCabinetInput): ResolvedCabinet {
   const productRef: VersionRef = product === undefined ? { id: object.productId, version: "unknown", status: "DRAFT" } : { id: product.productId, version: product.version, status: product.status };
   const recipeRef: VersionRef = recipe === undefined ? { id: product?.recipeId ?? "unknown", version: "unknown", status: "DRAFT" } : { id: recipe.recipeId, version: recipe.version, status: recipe.status };
 
+  // Every input that is test-fixture data (production safety rule: never silently substituted).
+  const fixtureSources = new Set<string>();
+  if (standard.status === "TEST_FIXTURE") fixtureSources.add(`construction standard ${standard.standardId}`);
+  for (const a of input.adapters) if (a.dataset.classification === "TEST_FIXTURE") fixtureSources.add(`hardware dataset ${a.dataset.datasetId}`);
+  if (productRef.status === "TEST_FIXTURE") fixtureSources.add(`product ${productRef.id}`);
+  if (recipeRef.status === "TEST_FIXTURE") fixtureSources.add(`recipe ${recipeRef.id}`);
+
   const trace = (): TraceInfo => ({
     engineVersion: ENGINE_VERSION,
+    dataClassification: fixtureSources.size > 0 ? "TEST_FIXTURE" : "PRODUCTION",
+    testFixtureSources: [...fixtureSources].sort(),
     designVersionId: designVersion.designVersionId,
     designVersionStatus: designVersion.status,
     objectId: src,
@@ -159,6 +168,7 @@ export function resolveCabinet(input: ResolveCabinetInput): ResolvedCabinet {
   const used = new Set<string>();
   for (const c of gen.components) {
     const mat = findMaterial(catalog, c.materialId);
+    if (mat?.status === "TEST_FIXTURE") fixtureSources.add(`material ${mat.materialId}`);
     if (mat !== undefined && mat.status !== "APPROVED") used.add(`material ${mat.materialId}`);
     const fin = c.finishId === null ? undefined : findFinish(catalog, c.finishId);
     if (fin !== undefined && fin.status !== "APPROVED") used.add(`finish ${fin.finishId}`);
@@ -169,6 +179,15 @@ export function resolveCabinet(input: ResolveCabinetInput): ResolvedCabinet {
   }
   for (const item of [...used].sort()) {
     messages.push({ code: "CATALOG_ITEM_NOT_APPROVED", severity: "WARNING", message: `Catalog ${item} is not yet verified (status DRAFT)`, sourceObjectId: src });
+  }
+
+  if (fixtureSources.size > 0) {
+    messages.push({
+      code: "TEST_FIXTURE_DATA_IN_USE",
+      severity: "BLOCKER",
+      message: `Result uses TEST_FIXTURE data and can never drive production: ${[...fixtureSources].sort().join("; ")}`,
+      sourceObjectId: src,
+    });
   }
 
   // 6. Hardware (PRD §26): requirements from context, resolution via adapters.

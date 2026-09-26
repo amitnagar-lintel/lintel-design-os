@@ -274,12 +274,14 @@
     ],
     "trace": {
       "catalogVersion": "2026.09.26-m1",
+      "dataClassification": "TEST_FIXTURE",
       "designVersionId": "dv_001",
       "designVersionStatus": "DRAFT",
       "engineVersion": "0.1.0",
       "hardwareDatasets": [
         {
           "authoritative": false,
+          "classification": "TEST_FIXTURE",
           "datasetId": "HETTICH_TEST_FIXTURE",
           "manufacturer": "HETTICH",
           "sourceVersion": "fixture-0.0.1"
@@ -300,7 +302,11 @@
         "id": "TEST_FIXTURE_CONSTRUCTION_STANDARD",
         "status": "TEST_FIXTURE",
         "version": "0.0.1"
-      }
+      },
+      "testFixtureSources": [
+        "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+        "hardware dataset HETTICH_TEST_FIXTURE"
+      ]
     }
   },
   "boq": {
@@ -324,12 +330,14 @@
     ],
     "trace": {
       "catalogVersion": "2026.09.26-m1",
+      "dataClassification": "TEST_FIXTURE",
       "designVersionId": "dv_001",
       "designVersionStatus": "DRAFT",
       "engineVersion": "0.1.0",
       "hardwareDatasets": [
         {
           "authoritative": false,
+          "classification": "TEST_FIXTURE",
           "datasetId": "HETTICH_TEST_FIXTURE",
           "manufacturer": "HETTICH",
           "sourceVersion": "fixture-0.0.1"
@@ -350,7 +358,11 @@
         "id": "TEST_FIXTURE_CONSTRUCTION_STANDARD",
         "status": "TEST_FIXTURE",
         "version": "0.0.1"
-      }
+      },
+      "testFixtureSources": [
+        "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+        "hardware dataset HETTICH_TEST_FIXTURE"
+      ]
     }
   },
   "description": "PRD §42 reference cabinet with TEST_FIXTURE construction values and TEST_FIXTURE Hettich data (synthetic, non-authoritative). Exercises the full pipeline; approval is always blocked.",
@@ -841,6 +853,7 @@
         ],
         "dataset": {
           "authoritative": false,
+          "classification": "TEST_FIXTURE",
           "datasetId": "HETTICH_TEST_FIXTURE",
           "manufacturer": "HETTICH",
           "sourceVersion": "fixture-0.0.1"
@@ -873,7 +886,7 @@
           {
             "code": "HARDWARE_DATA_NOT_AUTHORITATIVE",
             "componentId": "OBJ-KIT-001-SHT-L",
-            "message": "Hardware for OBJ-KIT-001-SHT-L-HINGE resolved from non-authoritative dataset HETTICH_TEST_FIXTURE",
+            "message": "Hardware for OBJ-KIT-001-SHT-L-HINGE resolved from TEST_FIXTURE dataset HETTICH_TEST_FIXTURE",
             "severity": "BLOCKER",
             "sourceObjectId": "obj_001"
           }
@@ -889,6 +902,7 @@
         ],
         "dataset": {
           "authoritative": false,
+          "classification": "TEST_FIXTURE",
           "datasetId": "HETTICH_TEST_FIXTURE",
           "manufacturer": "HETTICH",
           "sourceVersion": "fixture-0.0.1"
@@ -921,7 +935,7 @@
           {
             "code": "HARDWARE_DATA_NOT_AUTHORITATIVE",
             "componentId": "OBJ-KIT-001-SHT-R",
-            "message": "Hardware for OBJ-KIT-001-SHT-R-HINGE resolved from non-authoritative dataset HETTICH_TEST_FIXTURE",
+            "message": "Hardware for OBJ-KIT-001-SHT-R-HINGE resolved from TEST_FIXTURE dataset HETTICH_TEST_FIXTURE",
             "severity": "BLOCKER",
             "sourceObjectId": "obj_001"
           }
@@ -1027,12 +1041,14 @@
     },
     "trace": {
       "catalogVersion": "2026.09.26-m1",
+      "dataClassification": "TEST_FIXTURE",
       "designVersionId": "dv_001",
       "designVersionStatus": "DRAFT",
       "engineVersion": "0.1.0",
       "hardwareDatasets": [
         {
           "authoritative": false,
+          "classification": "TEST_FIXTURE",
           "datasetId": "HETTICH_TEST_FIXTURE",
           "manufacturer": "HETTICH",
           "sourceVersion": "fixture-0.0.1"
@@ -1053,12 +1069,16 @@
         "id": "TEST_FIXTURE_CONSTRUCTION_STANDARD",
         "status": "TEST_FIXTURE",
         "version": "0.0.1"
-      }
+      },
+      "testFixtureSources": [
+        "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+        "hardware dataset HETTICH_TEST_FIXTURE"
+      ]
     },
     "validation": {
       "canApprove": false,
       "counts": {
-        "BLOCKER": 6,
+        "BLOCKER": 7,
         "ERROR": 0,
         "INFO": 0,
         "WARNING": 7
@@ -1074,14 +1094,14 @@
         {
           "code": "HARDWARE_DATA_NOT_AUTHORITATIVE",
           "componentId": "OBJ-KIT-001-SHT-L",
-          "message": "Hardware for OBJ-KIT-001-SHT-L-HINGE resolved from non-authoritative dataset HETTICH_TEST_FIXTURE",
+          "message": "Hardware for OBJ-KIT-001-SHT-L-HINGE resolved from TEST_FIXTURE dataset HETTICH_TEST_FIXTURE",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_001"
         },
         {
           "code": "HARDWARE_DATA_NOT_AUTHORITATIVE",
           "componentId": "OBJ-KIT-001-SHT-R",
-          "message": "Hardware for OBJ-KIT-001-SHT-R-HINGE resolved from non-authoritative dataset HETTICH_TEST_FIXTURE",
+          "message": "Hardware for OBJ-KIT-001-SHT-R-HINGE resolved from TEST_FIXTURE dataset HETTICH_TEST_FIXTURE",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_001"
         },
@@ -1103,6 +1123,12 @@
           "code": "RECIPE_NOT_APPROVED",
           "message": "recipe KITCHEN_BASE_STANDARD_V1 v1.0.0 is a DRAFT and not verified for production",
           "path": "recipe",
+          "severity": "BLOCKER",
+          "sourceObjectId": "obj_001"
+        },
+        {
+          "code": "TEST_FIXTURE_DATA_IN_USE",
+          "message": "Result uses TEST_FIXTURE data and can never drive production: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; hardware dataset HETTICH_TEST_FIXTURE",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_001"
         },

@@ -12,7 +12,9 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { DesignObject } from "@lintel/types";
 import { stableStringify } from "@lintel/design-engine";
+import { LINTEL_PRODUCTION_PRICING_RULES, LINTEL_PRODUCTION_RATE_CARD } from "@lintel/pricing-engine";
 import { fixtureSlice, productionSlice, referenceObject } from "../support/scenario.js";
+import { price } from "../support/pricing.js";
 import type { SliceResult } from "../support/scenario.js";
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
@@ -58,5 +60,33 @@ describe.each(SCENARIOS)("golden: $file", ({ file, description, run }) => {
       parameters: Object.fromEntries(Object.entries(o.parameters).reverse()),
     };
     expect(snapshot(description, run(reordered))).toBe(actual);
+  });
+});
+
+const PRICING_SCENARIOS: readonly { file: string; description: string; run: () => unknown }[] = [
+  {
+    file: "kit-base-standard.reference.test-fixture.price.json",
+    description: "TEST_FIXTURE price snapshot of the reference cabinet: synthetic rates and rules, never a quotation.",
+    run: () => price(fixtureSlice()),
+  },
+  {
+    file: "kit-base-standard.reference.production.price.json",
+    description: "PRODUCTION pricing of the reference cabinet: must be UNAVAILABLE until the production catalog, construction standard, Hettich data, rate card and pricing rules are approved.",
+    run: () => price(productionSlice(), { mode: "PRODUCTION", rateCard: LINTEL_PRODUCTION_RATE_CARD, rules: LINTEL_PRODUCTION_PRICING_RULES }),
+  },
+];
+
+describe.each(PRICING_SCENARIOS)("golden pricing: $file", ({ file, description, run }) => {
+  const path = join(FIXTURES, file);
+  const actual = `${stableStringify({ description, result: run() }, 2)}\n`;
+
+  it("matches the committed fixture", () => {
+    if (UPDATE) writeFileSync(path, actual);
+    if (!existsSync(path)) throw new Error(`Golden fixture ${file} missing — run \`pnpm golden:update\` and review it.`);
+    expect(actual).toBe(readFileSync(path, "utf8"));
+  });
+
+  it("is deterministic across repeated runs", () => {
+    for (let n = 0; n < 5; n++) expect(`${stableStringify({ description, result: run() }, 2)}\n`).toBe(actual);
   });
 });

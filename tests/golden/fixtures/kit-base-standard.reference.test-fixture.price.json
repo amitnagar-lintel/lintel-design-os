@@ -1,0 +1,315 @@
+{
+  "description": "TEST_FIXTURE price snapshot of the reference cabinet: synthetic rates and rules, never a quotation.",
+  "result": {
+    "messages": [
+      {
+        "code": "PRICE_IS_TEST_FIXTURE",
+        "message": "TEST_FIXTURE price: synthetic rates, never a quotation",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_001"
+      }
+    ],
+    "snapshot": {
+      "bomId": "BOM:dv_001:obj_001",
+      "boqId": "BOQ:dv_001:obj_001",
+      "boqPrices": [
+        {
+          "amountExGst": 878416,
+          "boqItemId": "BOQ:dv_001:obj_001",
+          "quantity": 1,
+          "unitPriceExGst": 878416
+        }
+      ],
+      "classification": "TEST_FIXTURE",
+      "contentHash": "0f34736b314b6a",
+      "createdAt": "2026-09-26T00:00:00.000Z",
+      "currency": "INR",
+      "designBlockerCount": 7,
+      "lines": [
+        {
+          "amount": 16472,
+          "category": "MATERIAL",
+          "description": "BOARD_BACK_6 board",
+          "lineId": "PL:MATERIAL:BOARD:BOARD_BACK_6",
+          "quantity": 0.4118,
+          "rate": 400,
+          "sourceBomItemIds": [
+            "BOM:obj_001:BOARD:BOARD_BACK_6"
+          ],
+          "unit": "M2"
+        },
+        {
+          "amount": 152616,
+          "category": "MATERIAL",
+          "description": "BOARD_BWP_18 board",
+          "lineId": "PL:MATERIAL:BOARD:BOARD_BWP_18",
+          "quantity": 1.526156,
+          "rate": 1000,
+          "sourceBomItemIds": [
+            "BOM:obj_001:BOARD:BOARD_BWP_18"
+          ],
+          "unit": "M2"
+        },
+        {
+          "amount": 38331,
+          "category": "MATERIAL",
+          "description": "BOARD_HDHMR_18 board",
+          "lineId": "PL:MATERIAL:BOARD:BOARD_HDHMR_18",
+          "quantity": 0.425898,
+          "rate": 900,
+          "sourceBomItemIds": [
+            "BOM:obj_001:BOARD:BOARD_HDHMR_18"
+          ],
+          "unit": "M2"
+        },
+        {
+          "amount": 3756,
+          "category": "MATERIAL",
+          "description": "EDGE_ABS_0_8MM edge band",
+          "lineId": "PL:MATERIAL:EDGE:EDGE_ABS_0_8MM",
+          "quantity": 3.13,
+          "rate": 12,
+          "sourceBomItemIds": [
+            "BOM:obj_001:EDGE:EDGE_ABS_0_8MM"
+          ],
+          "unit": "M"
+        },
+        {
+          "amount": 12168,
+          "category": "MATERIAL",
+          "description": "EDGE_ABS_2MM edge band",
+          "lineId": "PL:MATERIAL:EDGE:EDGE_ABS_2MM",
+          "quantity": 4.056,
+          "rate": 30,
+          "sourceBomItemIds": [
+            "BOM:obj_001:EDGE:EDGE_ABS_2MM"
+          ],
+          "unit": "M"
+        },
+        {
+          "amount": 29813,
+          "category": "FINISH",
+          "description": "LAMINATE_WHITE finish",
+          "lineId": "PL:FINISH:LAMINATE_WHITE",
+          "quantity": 0.851796,
+          "rate": 350,
+          "sourceBomItemIds": [
+            "BOM:obj_001:FINISH:LAMINATE_WHITE"
+          ],
+          "unit": "M2"
+        },
+        {
+          "amount": 60000,
+          "category": "HARDWARE",
+          "description": "Fixture hinge, full overlay",
+          "lineId": "PL:HARDWARE:HETTICH:FIXTURE-HINGE-FO-A",
+          "quantity": 4,
+          "rate": 150,
+          "sourceBomItemIds": [
+            "BOM:obj_001:HW:HETTICH:FIXTURE-HINGE-FO-A"
+          ],
+          "unit": "NOS"
+        },
+        {
+          "amount": 16000,
+          "category": "HARDWARE",
+          "description": "Fixture mounting plate",
+          "lineId": "PL:HARDWARE:HETTICH:FIXTURE-PLATE-A",
+          "quantity": 4,
+          "rate": 40,
+          "sourceBomItemIds": [
+            "BOM:obj_001:HW:HETTICH:FIXTURE-PLATE-A"
+          ],
+          "unit": "NOS"
+        },
+        {
+          "amount": 177875,
+          "category": "MANUFACTURING",
+          "description": "Manufacturing (PANEL_COUNT * 120 + BOARD_AREA_M2 * 250 + EDGE_LENGTH_M * 15)",
+          "lineId": "PL:MANUFACTURING",
+          "quantity": 1,
+          "rate": null,
+          "sourceBomItemIds": [
+            "BOM:OBJ-KIT-001-SL",
+            "BOM:OBJ-KIT-001-SR",
+            "BOM:OBJ-KIT-001-BOT",
+            "BOM:OBJ-KIT-001-TSF",
+            "BOM:OBJ-KIT-001-TSB",
+            "BOM:OBJ-KIT-001-BCK",
+            "BOM:OBJ-KIT-001-SHF-01",
+            "BOM:OBJ-KIT-001-SHT-L",
+            "BOM:OBJ-KIT-001-SHT-R"
+          ],
+          "unit": "LUMP"
+        },
+        {
+          "amount": 20742,
+          "category": "WASTAGE",
+          "description": "Wastage on board (10%)",
+          "lineId": "PL:WASTAGE:BOARD",
+          "quantity": 207419,
+          "rate": 10,
+          "sourceBomItemIds": [],
+          "unit": "PAISE"
+        },
+        {
+          "amount": 796,
+          "category": "WASTAGE",
+          "description": "Wastage on edge band (5%)",
+          "lineId": "PL:WASTAGE:EDGE_BAND",
+          "quantity": 15924,
+          "rate": 5,
+          "sourceBomItemIds": [],
+          "unit": "PAISE"
+        },
+        {
+          "amount": 2385,
+          "category": "WASTAGE",
+          "description": "Wastage on finish (8%)",
+          "lineId": "PL:WASTAGE:FINISH",
+          "quantity": 29813,
+          "rate": 8,
+          "sourceBomItemIds": [],
+          "unit": "PAISE"
+        },
+        {
+          "amount": 66369,
+          "category": "OVERHEAD",
+          "description": "Overhead (12.5% of direct cost)",
+          "lineId": "PL:OVERHEAD",
+          "quantity": 530954,
+          "rate": 12.5,
+          "sourceBomItemIds": [],
+          "unit": "PAISE"
+        },
+        {
+          "amount": 281093,
+          "category": "MARGIN",
+          "description": "Margin (32% of selling price)",
+          "lineId": "PL:MARGIN",
+          "quantity": 597323,
+          "rate": 32,
+          "sourceBomItemIds": [],
+          "unit": "PAISE"
+        },
+        {
+          "amount": 158115,
+          "category": "GST",
+          "description": "GST (18%)",
+          "lineId": "PL:GST",
+          "quantity": 878416,
+          "rate": 18,
+          "sourceBomItemIds": [],
+          "unit": "PAISE"
+        }
+      ],
+      "modelFingerprint": "1fe687c0e5bf78",
+      "priceSnapshotId": "PRICE:dv_001:obj_001:TEST_FIXTURE_RATE_CARD@0.0.1:TEST_FIXTURE_PRICING_RULES@0.0.1",
+      "pricingRules": {
+        "classification": "TEST_FIXTURE",
+        "gstPercent": 18,
+        "manufacturingCost": "PANEL_COUNT * 120 + BOARD_AREA_M2 * 250 + EDGE_LENGTH_M * 15",
+        "marginBasis": "MARGIN_ON_PRICE",
+        "marginPercent": 32,
+        "overheadPercent": 12.5,
+        "ruleSetId": "TEST_FIXTURE_PRICING_RULES",
+        "source": "Test fixture (synthetic)",
+        "status": "TEST_FIXTURE",
+        "version": "0.0.1",
+        "wastagePercent": {
+          "board": 10,
+          "edgeBand": 5,
+          "finish": 8
+        }
+      },
+      "pricingRulesRef": {
+        "id": "TEST_FIXTURE_PRICING_RULES",
+        "status": "TEST_FIXTURE",
+        "version": "0.0.1"
+      },
+      "rateCard": {
+        "boardPerM2": {
+          "BOARD_BACK_6": 400,
+          "BOARD_BWP_18": 1000,
+          "BOARD_HDHMR_18": 900
+        },
+        "classification": "TEST_FIXTURE",
+        "currency": "INR",
+        "edgeBandPerM": {
+          "EDGE_ABS_0_8MM": 12,
+          "EDGE_ABS_2MM": 30
+        },
+        "effectiveFrom": null,
+        "finishPerM2": {
+          "LAMINATE_WHITE": 350
+        },
+        "hardwarePerUnit": {
+          "HETTICH:FIXTURE-HINGE-FO-A": 150,
+          "HETTICH:FIXTURE-HINGE-FO-B": 140,
+          "HETTICH:FIXTURE-HINGE-IN-A": 170,
+          "HETTICH:FIXTURE-PLATE-A": 40
+        },
+        "rateCardId": "TEST_FIXTURE_RATE_CARD",
+        "source": "Test fixture (synthetic)",
+        "status": "TEST_FIXTURE",
+        "version": "0.0.1"
+      },
+      "rateCardRef": {
+        "id": "TEST_FIXTURE_RATE_CARD",
+        "status": "TEST_FIXTURE",
+        "version": "0.0.1"
+      },
+      "totals": {
+        "directCost": 530954,
+        "finish": 29813,
+        "gst": 158115,
+        "hardware": 76000,
+        "manufacturing": 177875,
+        "margin": 281093,
+        "material": 223343,
+        "overhead": 66369,
+        "sellingPriceExGst": 878416,
+        "sellingPriceIncGst": 1036531,
+        "totalCost": 597323,
+        "wastage": 23923
+      },
+      "trace": {
+        "catalogVersion": "2026.09.26-m1",
+        "dataClassification": "TEST_FIXTURE",
+        "designVersionId": "dv_001",
+        "designVersionStatus": "DRAFT",
+        "engineVersion": "0.1.0",
+        "hardwareDatasets": [
+          {
+            "authoritative": false,
+            "classification": "TEST_FIXTURE",
+            "datasetId": "HETTICH_TEST_FIXTURE",
+            "manufacturer": "HETTICH",
+            "sourceVersion": "fixture-0.0.1"
+          }
+        ],
+        "objectId": "obj_001",
+        "product": {
+          "id": "KIT_BASE_STANDARD",
+          "status": "DRAFT",
+          "version": "1.0.0"
+        },
+        "recipe": {
+          "id": "KITCHEN_BASE_STANDARD_V1",
+          "status": "DRAFT",
+          "version": "1.0.0"
+        },
+        "standard": {
+          "id": "TEST_FIXTURE_CONSTRUCTION_STANDARD",
+          "status": "TEST_FIXTURE",
+          "version": "0.0.1"
+        },
+        "testFixtureSources": [
+          "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+          "hardware dataset HETTICH_TEST_FIXTURE"
+        ]
+      }
+    },
+    "status": "PRICED"
+  }
+}

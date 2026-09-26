@@ -15,6 +15,9 @@ source: `packages/catalog-engine/src/data/kit-base-standard.ts`.
 | material / backMaterial / shutterMaterial | T_CARCASS_MAT / T_BACK_MAT / T_FRONT (thickness) | BOARD_BWP_18 / BOARD_BACK_6 / BOARD_HDHMR_18 | catalog |
 | finish | — | LAMINATE_WHITE | catalog |
 
+> Detailed, per-value requirements: [`KIT_BASE_STANDARD_DATA_REQUIRED.md`](KIT_BASE_STANDARD_DATA_REQUIRED.md);
+> intake templates: [`production-data/`](production-data/).
+
 ## Construction values Lintel production must define (LINTEL_CONSTRUCTION_STANDARD)
 All are currently `null`. Until defined, dependent components are not generated (BLOCKER).
 

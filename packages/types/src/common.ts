@@ -18,6 +18,12 @@ export type DataStatus =
   | "APPROVED"
   | "RETIRED";
 
+/**
+ * Whether a data set may ever drive production. TEST_FIXTURE data is synthetic and
+ * must never be silently substituted for PRODUCTION data (production safety rule).
+ */
+export type DataClassification = "PRODUCTION" | "TEST_FIXTURE";
+
 /** Reference to a specific version of versioned data, carried for traceability (PRD §17). */
 export interface VersionRef {
   readonly id: string;

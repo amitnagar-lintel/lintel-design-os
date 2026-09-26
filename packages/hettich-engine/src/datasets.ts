@@ -1,18 +1,18 @@
-import type { HettichDataset } from "./model.js";
+import type { HettichProductionDataset } from "./model.js";
 
 /**
- * Slot for official/authorised Hettich data. Intentionally EMPTY in M1: article,
- * drilling and calculation data must be ingested from official sources (Hettich
- * eShop / CAD / Technical Assistant) with source + licence metadata — never typed
- * from memory. Until then every hinge requirement resolves as UNRESOLVED (BLOCKER).
+ * PRODUCTION Hettich dataset. Intentionally EMPTY: records must be captured from
+ * official sources (Hettich eShop / CAD / Technical Assistant / downloads / Plan) with
+ * every field of `HettichProductionRecord`, including source URL, source date and
+ * licence — never typed or inferred from memory. Intake template:
+ * docs/catalog/production-data/04-hardware-standards.md.
+ * Until records exist, every hinge requirement is UNRESOLVED (BLOCKER).
  */
-export const HETTICH_OFFICIAL_DATASET: HettichDataset = {
-  datasetId: "HETTICH_OFFICIAL",
+export const HETTICH_PRODUCTION_DATASET: HettichProductionDataset = {
+  kind: "PRODUCTION",
+  datasetId: "HETTICH_PRODUCTION",
   sourceVersion: "none-loaded",
-  authoritative: true,
-  retrievedAt: null,
-  notes: "No official Hettich data ingested yet.",
-  articles: [],
+  notes: "No source-verified Hettich records ingested yet.",
+  records: [],
   calculationRules: [],
-  drillingPatterns: [],
 };

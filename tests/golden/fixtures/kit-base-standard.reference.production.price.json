@@ -1,0 +1,87 @@
+{
+  "description": "PRODUCTION pricing of the reference cabinet: must be UNAVAILABLE until the production catalog, construction standard, Hettich data, rate card and pricing rules are approved.",
+  "result": {
+    "blockers": [
+      {
+        "code": "PRICING_BOM_INCOMPLETE",
+        "message": "BOM BOM:dv_001:obj_001 is incomplete (missing components or unresolved hardware); nothing is priced at zero",
+        "path": "bom",
+        "severity": "BLOCKER"
+      },
+      {
+        "code": "PRICING_DESIGN_BLOCKED",
+        "message": "Production catalog/design not approved: 24 design BLOCKER(s) outstanding",
+        "path": "resolved.validation",
+        "severity": "BLOCKER"
+      },
+      {
+        "code": "PRICING_RATE_CARD_NOT_APPROVED",
+        "message": "Rate card LINTEL_PRODUCTION_RATE_CARD v0.1.0 is DRAFT",
+        "path": "rateCard.status",
+        "severity": "BLOCKER"
+      },
+      {
+        "code": "PRICING_RATE_UNVERIFIED",
+        "message": "Rate for BOARD_BWP_18 is NULL / UNVERIFIED in LINTEL_PRODUCTION_RATE_CARD",
+        "path": "rateCard.boardPerM2.BOARD_BWP_18",
+        "severity": "BLOCKER"
+      },
+      {
+        "code": "PRICING_RULES_NOT_APPROVED",
+        "message": "Pricing rules LINTEL_PRODUCTION_PRICING_RULES v0.1.0 are DRAFT",
+        "path": "rules.status",
+        "severity": "BLOCKER"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "Pricing rule gstPercent is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.gstPercent",
+        "severity": "BLOCKER"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "Pricing rule manufacturingCost is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.manufacturingCost",
+        "severity": "BLOCKER"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "Pricing rule marginBasis is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.marginBasis",
+        "severity": "BLOCKER"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "Pricing rule marginPercent is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.marginPercent",
+        "severity": "BLOCKER"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "Pricing rule overheadPercent is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.overheadPercent",
+        "severity": "BLOCKER"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "Pricing rule wastagePercent.board is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.wastagePercent.board",
+        "severity": "BLOCKER"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "Pricing rule wastagePercent.edgeBand is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.wastagePercent.edgeBand",
+        "severity": "BLOCKER"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "Pricing rule wastagePercent.finish is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.wastagePercent.finish",
+        "severity": "BLOCKER"
+      }
+    ],
+    "classification": "PRODUCTION",
+    "status": "UNAVAILABLE"
+  }
+}

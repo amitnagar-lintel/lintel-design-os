@@ -7,7 +7,7 @@
 import { describe, expect, it } from "vitest";
 import type { CatalogSnapshot } from "@lintel/types";
 import { KIT_BASE_STANDARD, LINTEL_CATALOG, TEST_FIXTURE_CONSTRUCTION_STANDARD } from "@lintel/catalog-engine";
-import { HETTICH_OFFICIAL_DATASET, HETTICH_TEST_FIXTURE_DATASET, createHettichAdapter } from "@lintel/hettich-engine";
+import { HETTICH_PRODUCTION_DATASET, HETTICH_TEST_FIXTURE_DATASET, createHettichAdapter } from "@lintel/hettich-engine";
 import { modelFingerprint, resolveCabinet } from "@lintel/design-engine";
 import { generateBom } from "@lintel/bom-engine";
 import { generateBoq } from "@lintel/boq-engine";
@@ -236,7 +236,7 @@ describe("production configuration — nothing invented", () => {
     expect(codes(resolved)).toContain("EDGE_RULES_UNDEFINED");
   });
   it("never invents Hettich articles: with an approved-shape standard but no official data, hinges stay UNRESOLVED", () => {
-    const r = runSlice(referenceObject(), TEST_FIXTURE_CONSTRUCTION_STANDARD, [createHettichAdapter(HETTICH_OFFICIAL_DATASET)]);
+    const r = runSlice(referenceObject(), TEST_FIXTURE_CONSTRUCTION_STANDARD, [createHettichAdapter(HETTICH_PRODUCTION_DATASET)]);
     expect(r.resolved.hardwareResolutions.map((h) => h.status)).toEqual(["UNRESOLVED", "UNRESOLVED"]);
     expect(codes(r.resolved)).toContain("HARDWARE_DATA_UNAVAILABLE");
     const hwItems = r.bom.items.filter((i) => i.kind === "HARDWARE");

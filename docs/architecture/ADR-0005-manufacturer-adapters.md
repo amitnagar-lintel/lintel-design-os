@@ -16,5 +16,10 @@ Status: **Accepted** (2026-09-26)
 - Door weight is computed only when the catalog defines board density; otherwise it is `null` and any
   weight-based rule reports unresolved rather than guessing.
 
+## Amendment (M2)
+`HETTICH_OFFICIAL_DATASET` is renamed `HETTICH_PRODUCTION_DATASET` and now holds source-verified
+`HettichProductionRecord`s (validated field by field, see ADR-0006 and
+`docs/catalog/production-data/04-hardware-standards.md`). Dataset references carry a `classification`.
+
 ## Consequences
 Adding Blum/Grass/Hafele is a new adapter package; no change to the design engine.

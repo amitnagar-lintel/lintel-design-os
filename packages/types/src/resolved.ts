@@ -1,4 +1,4 @@
-import type { VersionRef } from "./common.js";
+import type { DataClassification, VersionRef } from "./common.js";
 import type { CabinetComponent, Box3 } from "./component.js";
 import type { DesignObject, DesignState, Transform } from "./design.js";
 import type { ScalarValue } from "./formula.js";
@@ -8,6 +8,10 @@ import type { ValidationResult } from "./validation.js";
 /** Carried by every derived artifact (PRD §17, §35). */
 export interface TraceInfo {
   readonly engineVersion: string;
+  /** TEST_FIXTURE when any input (standard, hardware dataset, catalog item) is test-fixture data. */
+  readonly dataClassification: DataClassification;
+  /** The inputs that made this trace TEST_FIXTURE (empty for PRODUCTION). */
+  readonly testFixtureSources: readonly string[];
   readonly designVersionId: string;
   readonly designVersionStatus: DesignState;
   readonly objectId: string;

@@ -8,14 +8,15 @@ manufacturing data are all derived from the same parametric model.
 - Engineering rules for Claude Code: [`CLAUDE.md`](CLAUDE.md)
 - Architecture decisions: [`docs/architecture/`](docs/architecture/)
 
-## Status — Milestone 1: deterministic parametric cabinet engine
+## Status — M1 (parametric cabinet engine) + M2 (pricing engine)
 
 `KIT_BASE_STANDARD` runs end-to-end as pure TypeScript (no UI, no database):
 
 ```text
 DesignObject ─► parameter resolver ─► formula engine ─► construction rules
      ─► component generator ─► geometry metadata ─► Hettich adapter (hardware)
-     ─► validation ─► BOM ─► BOQ            (all stamped with DesignVersion trace)
+     ─► validation ─► BOM ─► BOQ ─► pricing ─► immutable PriceSnapshot
+                                        (all stamped with DesignVersion trace)
 ```
 
 | Package | Responsibility |
@@ -28,14 +29,19 @@ DesignObject ─► parameter resolver ─► formula engine ─► construction
 | `@lintel/design-engine` | Pipeline orchestration: `resolveCabinet`, production guard, model fingerprint |
 | `@lintel/bom-engine` | Physical bill of materials (quantities only) |
 | `@lintel/boq-engine` | Commercial bill of quantities, linked to the BOM |
+| `@lintel/pricing-engine` | Exact (paise) pricing from versioned rate cards and rules → immutable, hash-sealed `PriceSnapshot` |
 
-Other PRD §8 folders (`apps/*`, `services/*`, `database/*`, `packages/{ui,pricing,drawing,manufacturing}-engine`)
+Other PRD §8 folders (`apps/*`, `services/*`, `database/*`, `packages/{ui,drawing-engine,manufacturing-engine}`)
 exist as documented placeholders.
 
-**Nothing is invented:** Lintel's construction standard and the official Hettich dataset are empty in M1,
-so the production configuration reports exactly which values are missing and blocks approval. A clearly
-labelled TEST_FIXTURE configuration exercises the full pipeline in tests. See ADR-0004 / ADR-0005 and
-[`docs/catalog/KIT_BASE_STANDARD.md`](docs/catalog/KIT_BASE_STANDARD.md).
+**Nothing is invented:** Lintel's construction standard, the PRODUCTION Hettich dataset and the production
+rate card / pricing rules are all empty (`NULL / UNVERIFIED`). The production configuration reports exactly
+which values are missing, blocks approval and returns production pricing as `UNAVAILABLE`. A clearly
+labelled TEST_FIXTURE configuration exercises the full pipeline in tests and can never reach production
+(ADR-0004, ADR-0005, ADR-0006).
+
+- What Lintel must supply: [`docs/catalog/KIT_BASE_STANDARD_DATA_REQUIRED.md`](docs/catalog/KIT_BASE_STANDARD_DATA_REQUIRED.md)
+- Intake templates: [`docs/catalog/production-data/`](docs/catalog/production-data/)
 
 ## Development
 

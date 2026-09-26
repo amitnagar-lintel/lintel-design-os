@@ -23,6 +23,7 @@
     "@lintel/design-engine": "workspace:*",
     "@lintel/geometry-engine": "workspace:*",
     "@lintel/hettich-engine": "workspace:*",
+    "@lintel/pricing-engine": "workspace:*",
     "@lintel/rules-engine": "workspace:*",
     "@lintel/types": "workspace:*",
     "@types/node": "^22.19.0",

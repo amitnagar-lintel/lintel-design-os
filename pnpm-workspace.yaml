@@ -1,6 +1,5 @@
 packages:
   - "packages/*"
   - "!packages/ui"
-  - "!packages/pricing-engine"
   - "!packages/drawing-engine"
   - "!packages/manufacturing-engine"

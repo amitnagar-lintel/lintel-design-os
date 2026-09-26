@@ -1,15 +1,14 @@
-import type { HettichDataset } from "../model.js";
+import type { HettichFixtureDataset } from "../model.js";
 
 /**
  * TEST FIXTURE — synthetic articles with obviously fake numbers ("FIXTURE-…").
  * Not Hettich data. Exercises compatibility, ranking and quantity mechanics only.
- * `authoritative: false` makes every resolution carry a BLOCKER.
+ * Classification TEST_FIXTURE makes every resolution carry a BLOCKER.
  */
-export const HETTICH_TEST_FIXTURE_DATASET: HettichDataset = {
+export const HETTICH_TEST_FIXTURE_DATASET: HettichFixtureDataset = {
+  kind: "TEST_FIXTURE",
   datasetId: "HETTICH_TEST_FIXTURE",
   sourceVersion: "fixture-0.0.1",
-  authoritative: false,
-  retrievedAt: null,
   notes: "Synthetic test data. Not Hettich data.",
   articles: [
     {
@@ -99,7 +98,8 @@ export const HETTICH_TEST_FIXTURE_DATASET: HettichDataset = {
         { when: "DOOR_HEIGHT <= 900", quantity: "2" },
         { when: "DOOR_HEIGHT <= 1600", quantity: "3" },
       ],
-      sourceUrl: null,
+      source: null,
+      verification: null,
       sourceVersion: "fixture-0.0.1",
     },
   ],

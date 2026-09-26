@@ -1,4 +1,4 @@
-import type { Millimetres } from "./common.js";
+import type { DataClassification, Millimetres } from "./common.js";
 import type { ComponentType } from "./component.js";
 import type { ValidationMessage } from "./validation.js";
 
@@ -47,6 +47,7 @@ export interface ResolvedArticleLine {
 
 export interface HardwareDatasetRef {
   readonly datasetId: string;
+  readonly classification: DataClassification;
   readonly manufacturer: string;
   readonly sourceVersion: string;
   /** Only authoritative (official/authorised) data may drive production (PRD §25). */

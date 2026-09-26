@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="420mm" height="297mm" viewBox="0 0 420 297" data-drawing-id="DRW:dv_001:obj_001:SIDE_SECTION:KIT-SS-001:RA" data-drawing-type="SIDE_SECTION" data-status="PRELIMINARY" data-design-version="dv_001" data-model-fingerprint="0a232b8cb5f292" data-classification="TEST_FIXTURE" data-content-hash="136836d1f6d6f8" data-sheet="1/1">
+<svg xmlns="http://www.w3.org/2000/svg" width="420mm" height="297mm" viewBox="0 0 420 297" data-drawing-id="DRW:dv_001:obj_001:SIDE_SECTION:KIT-SS-001:RA" data-drawing-type="SIDE_SECTION" data-status="PRELIMINARY" data-design-version="dv_001" data-model-fingerprint="06e958ce7781c0" data-classification="TEST_FIXTURE" data-content-hash="1394a1845b7f17" data-sheet="1/1">
 <title>KIT-SS-001 SIDE SECTION - OBJ-KIT-001 (PRELIMINARY)</title>
 <rect x="0" y="0" width="420" height="297" fill="#ffffff"/>
 <g id="WATERMARK" fill="#d9534f" stroke="#d9534f" opacity="0.25" font-family="Helvetica, Arial, sans-serif" stroke-linecap="round">
@@ -464,9 +464,10 @@
 <text stroke="none" x="14" y="253.1" font-size="2.857" text-anchor="start">   hatched. Dimensions are read from the resolved model.</text>
 <text stroke="none" x="14" y="257.3" font-size="2.857" text-anchor="start">3. Derived from design version dv_001; product KIT_BASE_STANDARD v1.0.0; recipe</text>
 <text stroke="none" x="14" y="261.5" font-size="2.857" text-anchor="start">   KITCHEN_BASE_STANDARD_V1 v1.1.0; standard TEST_FIXTURE_CONSTRUCTION_STANDARD v0.0.2 (TEST_FIXTURE).</text>
-<text stroke="none" x="14" y="265.7" font-size="2.857" text-anchor="start">4. TEST FIXTURE data in use: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; hardware</text>
-<text stroke="none" x="14" y="269.9" font-size="2.857" text-anchor="start">   dataset HETTICH_TEST_FIXTURE. Values are synthetic.</text>
-<text stroke="none" x="14" y="274.1" font-size="2.857" text-anchor="start">5. 7 validation BLOCKER(s) outstanding: this drawing must not be used for production.</text>
+<text stroke="none" x="14" y="265.7" font-size="2.857" text-anchor="start">4. TEST FIXTURE data in use: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; edge band</text>
+<text stroke="none" x="14" y="269.9" font-size="2.857" text-anchor="start">   standard TEST_FIXTURE_EDGE_BAND_STANDARD; hardware dataset HETTICH_TEST_FIXTURE. Values are</text>
+<text stroke="none" x="14" y="274.1" font-size="2.857" text-anchor="start">   synthetic.</text>
+<text stroke="none" x="14" y="278.3" font-size="2.857" text-anchor="start">5. 8 validation BLOCKER(s) outstanding: this drawing must not be used for production.</text>
 </g>
 <g id="TITLE_BLOCK" fill="#000000" stroke="#000000" font-family="Helvetica, Arial, sans-serif" stroke-linecap="round">
 <line fill="none" x1="230" y1="232" x2="410" y2="232" stroke-width="0.35"/>
@@ -502,7 +503,7 @@
 <text stroke="none" x="273.5" y="275.6" font-size="3.143" text-anchor="start">dv_001 (DRAFT)</text>
 <line fill="none" x1="230" y1="277" x2="410" y2="277" stroke-width="0.18"/>
 <text stroke="none" x="231.5" y="280.5" font-size="2.286" text-anchor="start">MODEL FINGERPRINT</text>
-<text stroke="none" x="273.5" y="280.6" font-size="3.143" text-anchor="start">0a232b8cb5f292</text>
+<text stroke="none" x="273.5" y="280.6" font-size="3.143" text-anchor="start">06e958ce7781c0</text>
 <line fill="none" x1="230" y1="282" x2="410" y2="282" stroke-width="0.18"/>
 <text stroke="none" x="231.5" y="285.5" font-size="2.286" text-anchor="start">DATA CLASSIFICATION</text>
 <text stroke="none" x="273.5" y="285.6" font-size="3.143" text-anchor="start">TEST_FIXTURE</text>

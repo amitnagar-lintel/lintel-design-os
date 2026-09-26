@@ -17,7 +17,8 @@ named person supplies them with a source and an approver signs them off.
 1. Provider fills the row: value, unit, source (document / drawing / supplier sheet / official URL), date.
 2. Approver reviews and signs (name, date).
 3. An engineer encodes the approved values as a **new version** of the relevant data set
-   (`ConstructionStandard`, catalog, `HettichProductionDataset`, `RateCard`, `PricingRuleSet`) with status `APPROVED`.
+   (`ConstructionStandard`, `EdgeBandStandard`, `PlanningStandard`, catalog, `HettichProductionDataset`, `RateCard`,
+   `PricingRuleSet`, `QuotationPolicy`) with status `APPROVED`.
 4. Golden fixtures are regenerated and the diff is reviewed. Old versions remain for traceability.
 
 Test-fixture values (`TEST_FIXTURE_*`) are synthetic, are never shown in these documents, and must never

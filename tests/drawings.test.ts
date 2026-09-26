@@ -89,7 +89,7 @@ describe("watermark (TEST_FIXTURE / blocked data)", () => {
     expect(renderSvg(d)).toContain(`<g id="WATERMARK"`);
   });
   it("marks production-classified but blocked drawings", () => {
-    expect(created(elevation(productionSlice().resolved)).watermark).toBe("BLOCKED DATA - NOT FOR PRODUCTION (25 BLOCKERS)");
+    expect(created(elevation(productionSlice().resolved)).watermark).toBe("BLOCKED DATA - NOT FOR PRODUCTION (26 BLOCKERS)");
   });
 });
 

@@ -1,5 +1,12 @@
-import type { BOM, BOQ, ConstructionStandard, DesignObject, DesignVersion, ManufacturerAdapter, ParameterValue, ResolvedCabinet } from "@lintel/types";
-import { KIT_BASE_STANDARD, LINTEL_CATALOG, LINTEL_CONSTRUCTION_STANDARD_DRAFT, TEST_FIXTURE_CONSTRUCTION_STANDARD } from "@lintel/catalog-engine";
+import type { BOM, BOQ, ConstructionStandard, EdgeBandStandard, DesignObject, DesignVersion, ManufacturerAdapter, ParameterValue, ResolvedCabinet } from "@lintel/types";
+import {
+  KIT_BASE_STANDARD,
+  LINTEL_CATALOG,
+  LINTEL_CONSTRUCTION_STANDARD_DRAFT,
+  LINTEL_EDGE_BAND_STANDARD_DRAFT,
+  TEST_FIXTURE_CONSTRUCTION_STANDARD,
+  TEST_FIXTURE_EDGE_BAND_STANDARD,
+} from "@lintel/catalog-engine";
 import { HETTICH_PRODUCTION_DATASET, HETTICH_TEST_FIXTURE_DATASET, createHettichAdapter } from "@lintel/hettich-engine";
 import { resolveCabinet } from "@lintel/design-engine";
 import { generateBom } from "@lintel/bom-engine";
@@ -45,17 +52,23 @@ export interface SliceResult {
   readonly boq: BOQ;
 }
 
-export function runSlice(object: DesignObject, standard: ConstructionStandard, adapters: readonly ManufacturerAdapter[], designVersion: DesignVersion = DESIGN_VERSION): SliceResult {
-  const resolved = resolveCabinet({ designVersion, object, catalog: LINTEL_CATALOG, standard, adapters });
+export function runSlice(
+  object: DesignObject,
+  standard: ConstructionStandard,
+  edgeBandStandard: EdgeBandStandard,
+  adapters: readonly ManufacturerAdapter[],
+  designVersion: DesignVersion = DESIGN_VERSION,
+): SliceResult {
+  const resolved = resolveCabinet({ designVersion, object, catalog: LINTEL_CATALOG, standard, edgeBandStandard, adapters });
   const bom = generateBom(resolved);
   const boq = generateBoq(resolved, KIT_BASE_STANDARD, bom);
   return { resolved, bom, boq };
 }
 
-/** Production configuration: Lintel DRAFT standard + (empty) PRODUCTION Hettich dataset. */
+/** Production configuration: Lintel DRAFT construction + edge band standards + (empty) PRODUCTION Hettich dataset. */
 export const productionSlice = (object: DesignObject = referenceObject()): SliceResult =>
-  runSlice(object, LINTEL_CONSTRUCTION_STANDARD_DRAFT, [createHettichAdapter(HETTICH_PRODUCTION_DATASET)]);
+  runSlice(object, LINTEL_CONSTRUCTION_STANDARD_DRAFT, LINTEL_EDGE_BAND_STANDARD_DRAFT, [createHettichAdapter(HETTICH_PRODUCTION_DATASET)]);
 
-/** Mechanics configuration: TEST_FIXTURE standard + TEST_FIXTURE Hettich data. */
+/** Mechanics configuration: TEST_FIXTURE construction + edge band standards + TEST_FIXTURE Hettich data. */
 export const fixtureSlice = (object: DesignObject = referenceObject()): SliceResult =>
-  runSlice(object, TEST_FIXTURE_CONSTRUCTION_STANDARD, [createHettichAdapter(HETTICH_TEST_FIXTURE_DATASET)]);
+  runSlice(object, TEST_FIXTURE_CONSTRUCTION_STANDARD, TEST_FIXTURE_EDGE_BAND_STANDARD, [createHettichAdapter(HETTICH_TEST_FIXTURE_DATASET)]);

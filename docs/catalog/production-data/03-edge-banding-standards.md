@@ -1,7 +1,9 @@
 # 03 — Edge-banding standards
 
-Data sets: catalog `edgeBands`; `LINTEL_CONSTRUCTION_STANDARD.edgeRuleSets.CARCASS_STANDARD`
-(currently empty — every component reports `EDGE_RULES_UNDEFINED`).
+Data sets: catalog `edgeBands`; the separate **`EdgeBandStandard`** `LINTEL_EDGE_BAND_STANDARD`
+(DRAFT, v0.1.0), rule set `CARCASS_STANDARD` (currently empty — every component reports `EDGE_RULES_UNDEFINED`,
+and the DRAFT status itself is an `EDGE_BAND_STANDARD_NOT_APPROVED` BLOCKER). Edge rules are **not** part of the
+`ConstructionStandard` (M5 step 1); the EdgeBandStandard version is recorded in every trace.
 
 ## Edge-band materials
 | Edge band | Field | Unit | Value | Status |

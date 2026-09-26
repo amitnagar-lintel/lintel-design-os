@@ -8,7 +8,7 @@ import type {
   VersionRef,
 } from "@lintel/types";
 import { buildValidationResult, evaluateFormulaSet, evaluateRules, FormulaError } from "@lintel/rules-engine";
-import { findEdgeBand, findFinish, findHardwareRuleSet, findMaterial, findProduct, findRecipe, validateStandard } from "@lintel/catalog-engine";
+import { findEdgeBand, findFinish, findHardwareRuleSet, findMaterial, findProduct, findRecipe, validateEdgeBandStandard, validateStandard } from "@lintel/catalog-engine";
 import { envelope, isSupportedTransform } from "@lintel/geometry-engine";
 import { generateComponents } from "./components.js";
 import { ENGINE_VERSION } from "./context.js";
@@ -44,7 +44,7 @@ function notApproved(kind: string, ref: VersionRef, sourceObjectId: string): Val
  * BOM and BOQ are derived from the result by their own engines.
  */
 export function resolveCabinet(input: ResolveCabinetInput): ResolvedCabinet {
-  const { object, catalog, standard, designVersion } = input;
+  const { object, catalog, standard, edgeBandStandard, designVersion } = input;
   const src = object.objectId;
   const messages: ValidationMessage[] = [];
   const add = (m: ValidationMessage | null): void => {
@@ -52,6 +52,7 @@ export function resolveCabinet(input: ResolveCabinetInput): ResolvedCabinet {
   };
 
   const standardRef: VersionRef = { id: standard.standardId, version: standard.version, status: standard.status };
+  const edgeBandStandardRef: VersionRef = { id: edgeBandStandard.standardId, version: edgeBandStandard.version, status: edgeBandStandard.status };
   const product = findProduct(catalog, object.productId);
   const recipe = product === undefined ? undefined : findRecipe(catalog, product.recipeId);
   const productRef: VersionRef = product === undefined ? { id: object.productId, version: "unknown", status: "DRAFT" } : { id: product.productId, version: product.version, status: product.status };
@@ -60,6 +61,7 @@ export function resolveCabinet(input: ResolveCabinetInput): ResolvedCabinet {
   // Every input that is test-fixture data (production safety rule: never silently substituted).
   const fixtureSources = new Set<string>();
   if (standard.status === "TEST_FIXTURE") fixtureSources.add(`construction standard ${standard.standardId}`);
+  if (edgeBandStandard.status === "TEST_FIXTURE") fixtureSources.add(`edge band standard ${edgeBandStandard.standardId}`);
   for (const a of input.adapters) if (a.dataset.classification === "TEST_FIXTURE") fixtureSources.add(`hardware dataset ${a.dataset.datasetId}`);
   if (productRef.status === "TEST_FIXTURE") fixtureSources.add(`product ${productRef.id}`);
   if (recipeRef.status === "TEST_FIXTURE") fixtureSources.add(`recipe ${recipeRef.id}`);
@@ -74,6 +76,7 @@ export function resolveCabinet(input: ResolveCabinetInput): ResolvedCabinet {
     product: productRef,
     recipe: recipeRef,
     standard: standardRef,
+    edgeBandStandard: edgeBandStandardRef,
     catalogVersion: catalog.catalogVersion,
     hardwareDatasets: input.adapters.map((a) => a.dataset),
   });
@@ -111,8 +114,10 @@ export function resolveCabinet(input: ResolveCabinetInput): ResolvedCabinet {
   add(notApproved("PRODUCT", productRef, src));
   add(notApproved("RECIPE", recipeRef, src));
   add(notApproved("CONSTRUCTION_STANDARD", standardRef, src));
+  add(notApproved("EDGE_BAND_STANDARD", edgeBandStandardRef, src));
   add(notApproved("HARDWARE_RULE_SET", { id: hardwareRuleSet.ruleSetId, version: hardwareRuleSet.version, status: hardwareRuleSet.status }, src));
-  for (const e of validateStandard(catalog, recipe, standard)) add({ ...e, sourceObjectId: src });
+  for (const e of validateStandard(recipe, standard)) add({ ...e, sourceObjectId: src });
+  for (const e of validateEdgeBandStandard(catalog, recipe, edgeBandStandard)) add({ ...e, sourceObjectId: src });
 
   // 1. Parameters.
   const params = resolveParameters(product, object, catalog);
@@ -149,7 +154,7 @@ export function resolveCabinet(input: ResolveCabinetInput): ResolvedCabinet {
   }
 
   // 5. Components + geometry metadata.
-  const gen = generateComponents({ objectId: src, objectCode: object.objectCode, recipe, standard, catalog, parameters: params.parameters, scope, rootCause });
+  const gen = generateComponents({ objectId: src, objectCode: object.objectCode, recipe, edgeBandStandard, catalog, parameters: params.parameters, scope, rootCause });
   messages.push(...gen.messages);
   gen.undefinedConstruction.forEach((k) => undefinedConstruction.add(k));
 

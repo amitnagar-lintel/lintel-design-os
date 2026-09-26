@@ -35,7 +35,7 @@ All are currently `null` (11 original + 1 additional). Until defined, dependent 
 | FRONT_FINISHED_FACES | Shutter faces receiving the finish (0–2) | finish BOM |
 | SHUTTER_BACK_GAP | Overlay shutter back face → carcass front face (additional parameter, see DATA_REQUIRED A1) | overlay shutter depth position |
 
-Also required: edge rules per component type (`edgeRuleSets.CARCASS_STANDARD`), material density
+Also required: edge rules per component type (the separate `EdgeBandStandard`, rule set `CARCASS_STANDARD`), material density
 (for door weight) and grain for HDHMR / back board, and approval of product, recipe and hinge rule set.
 
 ## Recipe assumptions (for production review)

@@ -277,6 +277,11 @@
       "dataClassification": "TEST_FIXTURE",
       "designVersionId": "dv_001",
       "designVersionStatus": "DRAFT",
+      "edgeBandStandard": {
+        "id": "TEST_FIXTURE_EDGE_BAND_STANDARD",
+        "status": "TEST_FIXTURE",
+        "version": "0.0.1"
+      },
       "engineVersion": "0.1.0",
       "hardwareDatasets": [
         {
@@ -305,6 +310,7 @@
       },
       "testFixtureSources": [
         "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+        "edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD",
         "hardware dataset HETTICH_TEST_FIXTURE"
       ]
     }
@@ -333,6 +339,11 @@
       "dataClassification": "TEST_FIXTURE",
       "designVersionId": "dv_001",
       "designVersionStatus": "DRAFT",
+      "edgeBandStandard": {
+        "id": "TEST_FIXTURE_EDGE_BAND_STANDARD",
+        "status": "TEST_FIXTURE",
+        "version": "0.0.1"
+      },
       "engineVersion": "0.1.0",
       "hardwareDatasets": [
         {
@@ -361,6 +372,7 @@
       },
       "testFixtureSources": [
         "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+        "edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD",
         "hardware dataset HETTICH_TEST_FIXTURE"
       ]
     }
@@ -1045,6 +1057,11 @@
       "dataClassification": "TEST_FIXTURE",
       "designVersionId": "dv_001",
       "designVersionStatus": "DRAFT",
+      "edgeBandStandard": {
+        "id": "TEST_FIXTURE_EDGE_BAND_STANDARD",
+        "status": "TEST_FIXTURE",
+        "version": "0.0.1"
+      },
       "engineVersion": "0.1.0",
       "hardwareDatasets": [
         {
@@ -1073,13 +1090,14 @@
       },
       "testFixtureSources": [
         "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+        "edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD",
         "hardware dataset HETTICH_TEST_FIXTURE"
       ]
     },
     "validation": {
       "canApprove": false,
       "counts": {
-        "BLOCKER": 7,
+        "BLOCKER": 8,
         "ERROR": 0,
         "INFO": 0,
         "WARNING": 7
@@ -1089,6 +1107,13 @@
           "code": "CONSTRUCTION_STANDARD_NOT_APPROVED",
           "message": "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD v0.0.2 is a TEST FIXTURE with synthetic values",
           "path": "construction_standard",
+          "severity": "BLOCKER",
+          "sourceObjectId": "obj_001"
+        },
+        {
+          "code": "EDGE_BAND_STANDARD_NOT_APPROVED",
+          "message": "edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD v0.0.1 is a TEST FIXTURE with synthetic values",
+          "path": "edge_band_standard",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_001"
         },
@@ -1129,7 +1154,7 @@
         },
         {
           "code": "TEST_FIXTURE_DATA_IN_USE",
-          "message": "Result uses TEST_FIXTURE data and can never drive production: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; hardware dataset HETTICH_TEST_FIXTURE",
+          "message": "Result uses TEST_FIXTURE data and can never drive production: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; edge band standard TEST_FIXTURE_EDGE_BAND_STANDARD; hardware dataset HETTICH_TEST_FIXTURE",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_001"
         },

@@ -4,7 +4,7 @@ import type {
   ComponentEdge,
   ComponentTemplate,
   ConstructionRecipe,
-  ConstructionStandard,
+  EdgeBandStandard,
   EdgeSide,
   GrainDirection,
   ResolvedParameters,
@@ -21,7 +21,7 @@ export interface ComponentGenerationContext {
   readonly objectId: string;
   readonly objectCode: string;
   readonly recipe: ConstructionRecipe;
-  readonly standard: ConstructionStandard;
+  readonly edgeBandStandard: EdgeBandStandard;
   readonly catalog: CatalogSnapshot;
   readonly parameters: ResolvedParameters;
   readonly scope: Readonly<Record<string, ScalarValue>>;
@@ -52,7 +52,7 @@ export function generateComponents(ctx: ComponentGenerationContext): ComponentGe
   const components: CabinetComponent[] = [];
   const undefinedConstruction = new Set<string>();
   const warnedGrain = new Set<string>();
-  const edgeSet = ctx.standard.edgeRuleSets[ctx.recipe.edgeRuleSetId];
+  const edgeSet = ctx.edgeBandStandard.ruleSets[ctx.recipe.edgeRuleSetId];
   const src = ctx.objectId;
 
   /** Report every failed field with the union of root causes (not just the first failure). */
@@ -160,14 +160,14 @@ export function generateComponents(ctx: ComponentGenerationContext): ComponentGe
         resolvedFinish = typeof finishId === "string" ? finishId : null;
       }
 
-      // Edges (PRD §20): from the standard's edge rules, never from code.
+      // Edges (PRD §20): from the EdgeBandStandard's rules, never from code.
       const rule = edgeSet?.[t.componentType];
       const edges: Partial<Record<EdgeSide, ComponentEdge>> = {};
       if (rule === undefined) {
         messages.push({
           code: "EDGE_RULES_UNDEFINED",
           severity: "BLOCKER",
-          message: `${id}: edge rules for ${t.componentType} are not defined in ${ctx.standard.standardId} (${ctx.recipe.edgeRuleSetId})`,
+          message: `${id}: edge rules for ${t.componentType} are not defined in ${ctx.edgeBandStandard.standardId} (${ctx.recipe.edgeRuleSetId})`,
           componentId: id,
           sourceObjectId: src,
         });

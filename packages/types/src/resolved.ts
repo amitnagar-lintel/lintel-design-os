@@ -8,7 +8,7 @@ import type { ValidationResult } from "./validation.js";
 /** Carried by every derived artifact (PRD §17, §35). */
 export interface TraceInfo {
   readonly engineVersion: string;
-  /** TEST_FIXTURE when any input (standard, hardware dataset, catalog item) is test-fixture data. */
+  /** TEST_FIXTURE when any input (standard, edge band standard, hardware dataset, catalog item) is test-fixture data. */
   readonly dataClassification: DataClassification;
   /** The inputs that made this trace TEST_FIXTURE (empty for PRODUCTION). */
   readonly testFixtureSources: readonly string[];
@@ -17,7 +17,10 @@ export interface TraceInfo {
   readonly objectId: string;
   readonly product: VersionRef;
   readonly recipe: VersionRef;
+  /** ConstructionStandard version. */
   readonly standard: VersionRef;
+  /** EdgeBandStandard version: a different edge standard makes derived artifacts stale. */
+  readonly edgeBandStandard: VersionRef;
   readonly catalogVersion: string;
   readonly hardwareDatasets: readonly HardwareDatasetRef[];
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { DesignObject, DesignVersion, HardwareRequirement, ManufacturerAdapter, ValidationResult } from "@lintel/types";
-import { KIT_BASE_STANDARD, KITCHEN_BASE_STANDARD_V1, LINTEL_CATALOG, TEST_FIXTURE_CONSTRUCTION_STANDARD } from "@lintel/catalog-engine";
+import { KIT_BASE_STANDARD, KITCHEN_BASE_STANDARD_V1, LINTEL_CATALOG, TEST_FIXTURE_CONSTRUCTION_STANDARD, TEST_FIXTURE_EDGE_BAND_STANDARD } from "@lintel/catalog-engine";
 import { assertProductionEligible, componentId, ProductionGuardError, resolveCabinet, resolveParameters } from "../src/index.js";
 
 const dv: DesignVersion = { designVersionId: "dv_t", designId: "d", projectId: "p", versionNumber: 1, status: "DRAFT" };
@@ -80,7 +80,7 @@ describe("componentId (PRD §17)", () => {
 
 describe("resolveCabinet guards", () => {
   const run = (o: DesignObject, adapters: readonly ManufacturerAdapter[] = [fakeAdapter], v: DesignVersion = dv) =>
-    resolveCabinet({ designVersion: v, object: o, catalog: LINTEL_CATALOG, standard: TEST_FIXTURE_CONSTRUCTION_STANDARD, adapters });
+    resolveCabinet({ designVersion: v, object: o, catalog: LINTEL_CATALOG, standard: TEST_FIXTURE_CONSTRUCTION_STANDARD, edgeBandStandard: TEST_FIXTURE_EDGE_BAND_STANDARD, adapters });
 
   it("reports a missing product without throwing", () => {
     const r = run(obj({ productId: "WARDROBE" }));
@@ -146,7 +146,7 @@ describe("stableStringify / modelFingerprint", () => {
   it("is stable for identical models and changes when the model changes", async () => {
     const { modelFingerprint } = await import("../src/index.js");
     const run = (width: number) =>
-      resolveCabinet({ designVersion: dv, object: obj({ dimensions: { width, height: 720, depth: 560 } }), catalog: LINTEL_CATALOG, standard: TEST_FIXTURE_CONSTRUCTION_STANDARD, adapters: [fakeAdapter] });
+      resolveCabinet({ designVersion: dv, object: obj({ dimensions: { width, height: 720, depth: 560 } }), catalog: LINTEL_CATALOG, standard: TEST_FIXTURE_CONSTRUCTION_STANDARD, edgeBandStandard: TEST_FIXTURE_EDGE_BAND_STANDARD, adapters: [fakeAdapter] });
     expect(modelFingerprint(run(600))).toBe(modelFingerprint(run(600)));
     expect(modelFingerprint(run(600))).not.toBe(modelFingerprint(run(750)));
     expect(modelFingerprint(run(600))).toMatch(/^[0-9a-f]{14}$/);

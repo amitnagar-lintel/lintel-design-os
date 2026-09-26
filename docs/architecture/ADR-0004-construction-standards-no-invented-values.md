@@ -15,6 +15,9 @@ rule rather than inventing a value. The PRD defines the reference cabinet (600 �
   `CONSTRUCTION_VARIABLE_UNDEFINED` BLOCKER (the list production must fill in: `docs/catalog/KIT_BASE_STANDARD.md`).
 - `TEST_FIXTURE_CONSTRUCTION_STANDARD` holds **synthetic** values to exercise mechanics in tests. Any
   standard not `APPROVED` produces a BLOCKER, so fixture values can never reach production.
+- Edge rules are **not** construction values: since M5 step 1 they live in the separate, versioned
+  `EdgeBandStandard` (`LINTEL_EDGE_BAND_STANDARD`, DRAFT, no rules; `TEST_FIXTURE_EDGE_BAND_STANDARD` for tests).
+  It follows the same rule: not `APPROVED` → BLOCKER; missing rules → `EDGE_RULES_UNDEFINED`. Its version is in every trace.
 - Product, recipe and hardware rule set status other than `APPROVED` also BLOCK approval; unverified
   materials/finishes/edge bands produce WARNINGs.
 

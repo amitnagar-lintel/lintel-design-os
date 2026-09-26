@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="420mm" height="297mm" viewBox="0 0 420 297" data-drawing-id="DRW:dv_001:room_001:WALL_INTERNAL_ELEVATION:A:KIT-WE-A:RA" data-drawing-type="WALL_INTERNAL_ELEVATION" data-status="PRELIMINARY" data-design-version="dv_001" data-model-fingerprint="1421ab7d38594e" data-classification="PRODUCTION" data-content-hash="0fa9121b3b1058" data-sheet="1/1" data-room-id="room_001" data-objects="obj_001,obj_002,obj_003">
+<svg xmlns="http://www.w3.org/2000/svg" width="420mm" height="297mm" viewBox="0 0 420 297" data-drawing-id="DRW:dv_001:room_001:WALL_INTERNAL_ELEVATION:A:KIT-WE-A:RA" data-drawing-type="WALL_INTERNAL_ELEVATION" data-status="PRELIMINARY" data-design-version="dv_001" data-model-fingerprint="0ec9126b15d87d" data-classification="PRODUCTION" data-content-hash="145eaf80c91688" data-sheet="1/1" data-room-id="room_001" data-objects="obj_001,obj_002,obj_003">
 <title>KIT-WE-A WALL A INTERNAL ELEVATION - KITCHEN (PRELIMINARY)</title>
 <rect x="0" y="0" width="420" height="297" fill="#ffffff"/>
 <g id="WATERMARK" fill="#d9534f" stroke="#d9534f" opacity="0.25" font-family="Helvetica, Arial, sans-serif" stroke-linecap="round">
-<text stroke="none" x="210" y="124" font-size="10.143" text-anchor="middle" font-weight="bold" transform="rotate(-20 210 124)">BLOCKED DATA - NOT FOR PRODUCTION (104 BLOCKERS)</text>
-<text stroke="none" x="210" y="15" font-size="4.286" text-anchor="middle" font-weight="bold">BLOCKED DATA - NOT FOR PRODUCTION (104 BLOCKERS)</text>
+<text stroke="none" x="210" y="124" font-size="10.143" text-anchor="middle" font-weight="bold" transform="rotate(-20 210 124)">BLOCKED DATA - NOT FOR PRODUCTION (108 BLOCKERS)</text>
+<text stroke="none" x="210" y="15" font-size="4.286" text-anchor="middle" font-weight="bold">BLOCKED DATA - NOT FOR PRODUCTION (108 BLOCKERS)</text>
 </g>
 <g id="BORDER" fill="#000000" stroke="#000000" font-family="Helvetica, Arial, sans-serif" stroke-linecap="round">
 <line fill="none" x1="10" y1="10" x2="410" y2="10" stroke-width="0.5"/>
@@ -99,7 +99,7 @@
 <text stroke="none" x="14" y="257.3" font-size="2.857" text-anchor="start">4. Adjacency: OBJ-KIT-001/OBJ-KIT-002 touching; OBJ-KIT-002/OBJ-KIT-003 touching.</text>
 <text stroke="none" x="14" y="261.5" font-size="2.857" text-anchor="start">5. Corner D/A: OBJ-KIT-004 + OBJ-KIT-001, gap 40.</text>
 <text stroke="none" x="14" y="265.7" font-size="2.857" text-anchor="start">6. Derived from design version dv_001; planning standard LINTEL_PLANNING_STANDARD v0.1.0 (DRAFT); 4 object(s).</text>
-<text stroke="none" x="14" y="269.9" font-size="2.857" text-anchor="start">7. 104 validation BLOCKER(s) outstanding: this drawing must not be used for production.</text>
+<text stroke="none" x="14" y="269.9" font-size="2.857" text-anchor="start">7. 108 validation BLOCKER(s) outstanding: this drawing must not be used for production.</text>
 </g>
 <g id="TITLE_BLOCK" fill="#000000" stroke="#000000" font-family="Helvetica, Arial, sans-serif" stroke-linecap="round">
 <line fill="none" x1="230" y1="232" x2="410" y2="232" stroke-width="0.35"/>
@@ -135,7 +135,7 @@
 <text stroke="none" x="273.5" y="275.6" font-size="3.143" text-anchor="start">dv_001 (DRAFT)</text>
 <line fill="none" x1="230" y1="277" x2="410" y2="277" stroke-width="0.18"/>
 <text stroke="none" x="231.5" y="280.5" font-size="2.286" text-anchor="start">MODEL FINGERPRINT</text>
-<text stroke="none" x="273.5" y="280.6" font-size="3.143" text-anchor="start">1421ab7d38594e</text>
+<text stroke="none" x="273.5" y="280.6" font-size="3.143" text-anchor="start">0ec9126b15d87d</text>
 <line fill="none" x1="230" y1="282" x2="410" y2="282" stroke-width="0.18"/>
 <text stroke="none" x="231.5" y="285.5" font-size="2.286" text-anchor="start">DATA CLASSIFICATION</text>
 <text stroke="none" x="273.5" y="285.6" font-size="3.143" text-anchor="start">PRODUCTION</text>

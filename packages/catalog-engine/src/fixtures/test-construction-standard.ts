@@ -27,16 +27,4 @@ export const TEST_FIXTURE_CONSTRUCTION_STANDARD: ConstructionStandard = {
     // Synthetic; deliberately different from the 2 mm industry benchmark so it cannot be mistaken for it.
     SHUTTER_BACK_GAP: 1,
   },
-  edgeRuleSets: {
-    CARCASS_STANDARD: {
-      SIDE_LEFT: { FRONT: "EDGE_ABS_0_8MM" },
-      SIDE_RIGHT: { FRONT: "EDGE_ABS_0_8MM" },
-      BOTTOM: { FRONT: "EDGE_ABS_0_8MM" },
-      TOP_SUPPORT_FRONT: { FRONT: "EDGE_ABS_0_8MM" },
-      TOP_SUPPORT_BACK: {},
-      BACK: {},
-      SHELF: { FRONT: "EDGE_ABS_0_8MM" },
-      SHUTTER: { TOP: "EDGE_ABS_2MM", BOTTOM: "EDGE_ABS_2MM", LEFT: "EDGE_ABS_2MM", RIGHT: "EDGE_ABS_2MM" },
-    },
-  },
 };

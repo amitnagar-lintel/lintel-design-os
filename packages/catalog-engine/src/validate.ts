@@ -1,4 +1,4 @@
-import type { CatalogSnapshot, ConstructionRecipe, ConstructionStandard, ProductDefinition, ValidationMessage } from "@lintel/types";
+import type { CatalogSnapshot, ConstructionRecipe, ConstructionStandard, EdgeBandStandard, ProductDefinition, ValidationMessage } from "@lintel/types";
 import { referencedVariables } from "@lintel/rules-engine";
 import { edgeLength, grainLiesInFace } from "@lintel/geometry-engine";
 import { findEdgeBand, findFinish, findHardwareRuleSet, findMaterial, findRecipe } from "./lookup.js";
@@ -149,23 +149,30 @@ export function validateCatalog(c: CatalogSnapshot): ValidationMessage[] {
   return out;
 }
 
-/** Checks a construction standard against a recipe: unknown keys, edge band references and edge sides. */
-export function validateStandard(c: CatalogSnapshot, recipe: ConstructionRecipe, s: ConstructionStandard): ValidationMessage[] {
+/** Checks a construction standard against a recipe: unknown variable keys. */
+export function validateStandard(recipe: ConstructionRecipe, s: ConstructionStandard): ValidationMessage[] {
   const out: ValidationMessage[] = [];
   const base = `standards.${s.standardId}`;
   const declared = new Set(recipe.constructionVariables.map((v) => v.key));
   for (const key of Object.keys(s.variables).sort()) {
     if (!declared.has(key)) out.push(error("STANDARD_UNKNOWN_VARIABLE", `Variable ${key} is not declared by recipe ${recipe.recipeId}`, `${base}.variables.${key}`));
   }
-  const set = s.edgeRuleSets[recipe.edgeRuleSetId];
+  return out;
+}
+
+/** Checks an edge-band standard against a recipe: the selected rule set, component types, edge sides and edge band references. */
+export function validateEdgeBandStandard(c: CatalogSnapshot, recipe: ConstructionRecipe, s: EdgeBandStandard): ValidationMessage[] {
+  const out: ValidationMessage[] = [];
+  const base = `edgeBandStandards.${s.standardId}`;
+  const set = s.ruleSets[recipe.edgeRuleSetId];
   if (set === undefined) {
-    out.push(error("STANDARD_MISSING_EDGE_RULE_SET", `Edge rule set ${recipe.edgeRuleSetId} missing`, `${base}.edgeRuleSets`));
+    out.push(error("STANDARD_MISSING_EDGE_RULE_SET", `Edge rule set ${recipe.edgeRuleSetId} missing from ${s.standardId}`, `${base}.ruleSets`));
     return out;
   }
   const planes = new Map(recipe.components.map((t) => [t.componentType, t.plane]));
   for (const [type, rule] of Object.entries(set)) {
     const plane = planes.get(type as never);
-    const path = `${base}.edgeRuleSets.${recipe.edgeRuleSetId}.${type}`;
+    const path = `${base}.ruleSets.${recipe.edgeRuleSetId}.${type}`;
     if (plane === undefined) {
       out.push(error("STANDARD_UNKNOWN_COMPONENT_TYPE", `Component type ${type} not in recipe`, path));
       continue;

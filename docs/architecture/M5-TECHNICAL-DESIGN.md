@@ -546,7 +546,7 @@ This is added to the §13 gate checklist.
 ## 10. Migration strategy
 
 - **Order of work:**
-  1. **M5 commit 0** is the EdgeBandStandard refactor (D5): no behaviour change, goldens byte-identical, production still blocked.
+  1. **M5 commit 0** is the EdgeBandStandard refactor (D5): no numerical or geometric change; the EdgeBandStandard version is added to the engine trace (approved), so goldens change only in trace, fingerprints/hashes and the added `EDGE_BAND_STANDARD_NOT_APPROVED` blocker; production still blocked.
   2. Only after that are migrations written, in `database/migrations/NNNN_*.sql`, and applied with the Supabase CLI.
      They are forward-only, and each ships a tested rollback script.
 - **Planned migration order:**
@@ -689,7 +689,7 @@ Only then is the canonical project chosen and the first `design_os` migration ap
 
 | # | Commit | Scope |
 |---|---|---|
-| 0 | `refactor(standards): EdgeBandStandard separate from ConstructionStandard` | Type and data split; goldens byte-identical; production still blocked |
+| 0 | `refactor(standards): EdgeBandStandard separate from ConstructionStandard` | Type and data split; EdgeBandStandard version in the trace; no numerical or geometric change; production still blocked |
 | 1 | `feat(persistence): envelope, mappers, SHA-256 content hash` + `feat(storage): FileStorageProvider` | Pure packages with unit tests |
 | 2 | `feat(db): design_os migrations + CI Postgres integration tests` | Local or CI only |
 | 3 | `feat(api): NestJS + Fastify + Zod; transitions; snapshot generation` | Local Postgres and memory storage |

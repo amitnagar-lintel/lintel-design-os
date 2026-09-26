@@ -5,9 +5,12 @@ import {
   KITCHEN_BASE_STANDARD_V1,
   LINTEL_CATALOG,
   LINTEL_CONSTRUCTION_STANDARD_DRAFT,
+  LINTEL_EDGE_BAND_STANDARD_DRAFT,
   TEST_FIXTURE_CONSTRUCTION_STANDARD,
+  TEST_FIXTURE_EDGE_BAND_STANDARD,
   findProduct,
   validateCatalog,
+  validateEdgeBandStandard,
   validateStandard,
 } from "../src/index.js";
 
@@ -78,23 +81,42 @@ describe("construction standards", () => {
     expect(Object.keys(LINTEL_CONSTRUCTION_STANDARD_DRAFT.variables).sort()).toEqual(KITCHEN_BASE_STANDARD_V1.constructionVariables.map((v) => v.key).sort());
   });
   it("both standards are consistent with the recipe", () => {
-    expect(validateStandard(LINTEL_CATALOG, KITCHEN_BASE_STANDARD_V1, LINTEL_CONSTRUCTION_STANDARD_DRAFT)).toEqual([]);
-    expect(validateStandard(LINTEL_CATALOG, KITCHEN_BASE_STANDARD_V1, TEST_FIXTURE_CONSTRUCTION_STANDARD)).toEqual([]);
+    expect(validateStandard(KITCHEN_BASE_STANDARD_V1, LINTEL_CONSTRUCTION_STANDARD_DRAFT)).toEqual([]);
+    expect(validateStandard(KITCHEN_BASE_STANDARD_V1, TEST_FIXTURE_CONSTRUCTION_STANDARD)).toEqual([]);
+  });
+  it("carries no edge rules: those belong to the separate EdgeBandStandard", () => {
+    for (const s of [LINTEL_CONSTRUCTION_STANDARD_DRAFT, TEST_FIXTURE_CONSTRUCTION_STANDARD]) expect(Object.keys(s).sort()).toEqual(["description", "source", "standardId", "status", "variables", "version"]);
   });
   it("the test fixture standard is labelled as such", () => {
     expect(TEST_FIXTURE_CONSTRUCTION_STANDARD.status).toBe("TEST_FIXTURE");
   });
+  it("detects variables the recipe does not declare", () => {
+    const bad = { ...TEST_FIXTURE_CONSTRUCTION_STANDARD, variables: { ...TEST_FIXTURE_CONSTRUCTION_STANDARD.variables, MAGIC: 5 } };
+    expect(validateStandard(KITCHEN_BASE_STANDARD_V1, bad).map((m) => m.code)).toEqual(["STANDARD_UNKNOWN_VARIABLE"]);
+  });
+});
+
+describe("edge band standards", () => {
+  it("the Lintel draft edge band standard defines no edge rules yet (nothing invented)", () => {
+    expect(LINTEL_EDGE_BAND_STANDARD_DRAFT.status).toBe("DRAFT");
+    expect(LINTEL_EDGE_BAND_STANDARD_DRAFT.ruleSets).toEqual({ [KITCHEN_BASE_STANDARD_V1.edgeRuleSetId]: {} });
+  });
+  it("the test fixture edge band standard is labelled as such and kept separate from production", () => {
+    expect(TEST_FIXTURE_EDGE_BAND_STANDARD.status).toBe("TEST_FIXTURE");
+    expect(TEST_FIXTURE_EDGE_BAND_STANDARD.standardId).not.toBe(LINTEL_EDGE_BAND_STANDARD_DRAFT.standardId);
+  });
+  it("both edge band standards are consistent with the recipe and catalog", () => {
+    expect(validateEdgeBandStandard(LINTEL_CATALOG, KITCHEN_BASE_STANDARD_V1, LINTEL_EDGE_BAND_STANDARD_DRAFT)).toEqual([]);
+    expect(validateEdgeBandStandard(LINTEL_CATALOG, KITCHEN_BASE_STANDARD_V1, TEST_FIXTURE_EDGE_BAND_STANDARD)).toEqual([]);
+  });
   it("detects invalid edge sides and unknown edge bands", () => {
-    const bad = {
-      ...TEST_FIXTURE_CONSTRUCTION_STANDARD,
-      edgeRuleSets: { CARCASS_STANDARD: { SIDE_LEFT: { LEFT: "EDGE_ABS_2MM" }, SHELF: { FRONT: "NOPE" } } },
-    };
-    const codes = validateStandard(LINTEL_CATALOG, KITCHEN_BASE_STANDARD_V1, bad).map((m) => m.code);
+    const bad = { ...TEST_FIXTURE_EDGE_BAND_STANDARD, ruleSets: { CARCASS_STANDARD: { SIDE_LEFT: { LEFT: "EDGE_ABS_2MM" }, SHELF: { FRONT: "NOPE" } } } };
+    const codes = validateEdgeBandStandard(LINTEL_CATALOG, KITCHEN_BASE_STANDARD_V1, bad).map((m) => m.code);
     expect(codes).toContain("STANDARD_INVALID_EDGE_SIDE");
     expect(codes).toContain("CATALOG_UNKNOWN_REFERENCE");
   });
-  it("detects variables the recipe does not declare", () => {
-    const bad = { ...TEST_FIXTURE_CONSTRUCTION_STANDARD, variables: { ...TEST_FIXTURE_CONSTRUCTION_STANDARD.variables, MAGIC: 5 } };
-    expect(validateStandard(LINTEL_CATALOG, KITCHEN_BASE_STANDARD_V1, bad).map((m) => m.code)).toEqual(["STANDARD_UNKNOWN_VARIABLE"]);
+  it("detects a missing rule set", () => {
+    const bad = { ...TEST_FIXTURE_EDGE_BAND_STANDARD, ruleSets: {} };
+    expect(validateEdgeBandStandard(LINTEL_CATALOG, KITCHEN_BASE_STANDARD_V1, bad).map((m) => m.code)).toEqual(["STANDARD_MISSING_EDGE_RULE_SET"]);
   });
 });

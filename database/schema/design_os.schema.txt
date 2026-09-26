@@ -311,6 +311,12 @@ column: drawing_issue.snapshot_id uuid NOT NULL
 column: drawing_issue.issued_by uuid NOT NULL
 column: drawing_issue.issued_at timestamp with time zone NOT NULL DEFAULT now()
 column: drawing_issue.reason text NOT NULL
+column: drawing_issue.project_id uuid NOT NULL
+column: drawing_issue.design_version_id uuid NOT NULL
+column: drawing_issue.drawing_number text NOT NULL
+column: drawing_issue.drawing_revision text NOT NULL
+column: drawing_issue.content_hash text NOT NULL
+column: drawing_issue.file_manifest_hash text NOT NULL
 column: drawing_snapshot.id uuid NOT NULL DEFAULT gen_random_uuid()
 column: drawing_snapshot.org_id uuid NOT NULL
 column: drawing_snapshot.kind design_os.snapshot_kind NOT NULL
@@ -1079,6 +1085,12 @@ column: quotation_issue.snapshot_id uuid NOT NULL
 column: quotation_issue.issued_by uuid NOT NULL
 column: quotation_issue.issued_at timestamp with time zone NOT NULL DEFAULT now()
 column: quotation_issue.reason text NOT NULL
+column: quotation_issue.project_id uuid NOT NULL
+column: quotation_issue.design_version_id uuid NOT NULL
+column: quotation_issue.revision_number integer NOT NULL
+column: quotation_issue.content_hash text NOT NULL
+column: quotation_issue.pricing_standard_version_id uuid NOT NULL
+column: quotation_issue.quotation_policy_version_id uuid NOT NULL
 column: quotation_policy.id uuid NOT NULL DEFAULT gen_random_uuid()
 column: quotation_policy.org_id uuid NOT NULL
 column: quotation_policy.code text NOT NULL
@@ -1506,8 +1518,13 @@ constraint: design_os.design_version design_version_superseded_by_fk FOREIGN KEY
 constraint: design_os.design_version design_version_superseded_iff CHECK (((status = 'SUPERSEDED'::design_os.record_lifecycle_status) = ((superseded_by IS NOT NULL) AND (superseded_at IS NOT NULL))))
 constraint: design_os.design_version design_version_version_number_check CHECK ((version_number >= 1))
 constraint: design_os.design_version design_version_version_number_unique UNIQUE (org_id, entity_id, version_number)
+constraint: design_os.drawing_issue drawing_issue_content_hash_check CHECK ((content_hash ~ '^sha256:[0-9a-f]{64}$'::text))
+constraint: design_os.drawing_issue drawing_issue_design_version_fk FOREIGN KEY (org_id, design_version_id) REFERENCES design_os.design_version(org_id, id)
+constraint: design_os.drawing_issue drawing_issue_file_manifest_hash_check CHECK ((file_manifest_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.drawing_issue drawing_issue_issued_by_fkey FOREIGN KEY (issued_by) REFERENCES design_os.app_user(id)
+constraint: design_os.drawing_issue drawing_issue_number_revision_unique UNIQUE (org_id, project_id, drawing_number, drawing_revision)
 constraint: design_os.drawing_issue drawing_issue_pkey PRIMARY KEY (snapshot_id)
+constraint: design_os.drawing_issue drawing_issue_project_fk FOREIGN KEY (org_id, project_id) REFERENCES design_os.project(org_id, id)
 constraint: design_os.drawing_issue drawing_issue_reason_check CHECK ((btrim(reason) <> ''::text))
 constraint: design_os.drawing_issue drawing_issue_snapshot_fk FOREIGN KEY (org_id, snapshot_id) REFERENCES design_os.drawing_snapshot(org_id, id)
 constraint: design_os.drawing_snapshot check_drawing_manifest TRIGGER DEFERRABLE INITIALLY DEFERRED
@@ -2189,9 +2206,14 @@ constraint: design_os.project_member project_member_pkey PRIMARY KEY (project_id
 constraint: design_os.project_member project_member_project_fk FOREIGN KEY (org_id, project_id) REFERENCES design_os.project(org_id, id)
 constraint: design_os.project_member project_member_role_fkey FOREIGN KEY (role) REFERENCES design_os.role(code)
 constraint: design_os.project_member project_member_user_id_fkey FOREIGN KEY (user_id) REFERENCES design_os.app_user(id)
+constraint: design_os.quotation_issue quotation_issue_content_hash_check CHECK ((content_hash ~ '^sha256:[0-9a-f]{64}$'::text))
+constraint: design_os.quotation_issue quotation_issue_design_version_fk FOREIGN KEY (org_id, design_version_id) REFERENCES design_os.design_version(org_id, id)
 constraint: design_os.quotation_issue quotation_issue_issued_by_fkey FOREIGN KEY (issued_by) REFERENCES design_os.app_user(id)
 constraint: design_os.quotation_issue quotation_issue_pkey PRIMARY KEY (snapshot_id)
+constraint: design_os.quotation_issue quotation_issue_project_fk FOREIGN KEY (org_id, project_id) REFERENCES design_os.project(org_id, id)
 constraint: design_os.quotation_issue quotation_issue_reason_check CHECK ((btrim(reason) <> ''::text))
+constraint: design_os.quotation_issue quotation_issue_revision_number_check CHECK ((revision_number >= 1))
+constraint: design_os.quotation_issue quotation_issue_revision_unique UNIQUE (org_id, design_version_id, revision_number)
 constraint: design_os.quotation_issue quotation_issue_snapshot_fk FOREIGN KEY (org_id, snapshot_id) REFERENCES design_os.quotation_snapshot(org_id, id)
 constraint: design_os.quotation_policy quotation_policy_code_unique UNIQUE (org_id, code)
 constraint: design_os.quotation_policy quotation_policy_org_id_fkey FOREIGN KEY (org_id) REFERENCES design_os.organization(id)
@@ -2419,6 +2441,7 @@ index: CREATE UNIQUE INDEX design_version_org_entity_id_unique ON design_os.desi
 index: CREATE UNIQUE INDEX design_version_org_id_unique ON design_os.design_version USING btree (org_id, id)
 index: CREATE UNIQUE INDEX design_version_pkey ON design_os.design_version USING btree (id)
 index: CREATE UNIQUE INDEX design_version_version_number_unique ON design_os.design_version USING btree (org_id, entity_id, version_number)
+index: CREATE UNIQUE INDEX drawing_issue_number_revision_unique ON design_os.drawing_issue USING btree (org_id, project_id, drawing_number, drawing_revision)
 index: CREATE UNIQUE INDEX drawing_issue_pkey ON design_os.drawing_issue USING btree (snapshot_id)
 index: CREATE UNIQUE INDEX drawing_snapshot_file_pkey ON design_os.drawing_snapshot_file USING btree (snapshot_id, sequence)
 index: CREATE UNIQUE INDEX drawing_snapshot_file_unique ON design_os.drawing_snapshot_file USING btree (snapshot_id, format, sheet_index) NULLS NOT DISTINCT
@@ -2577,6 +2600,7 @@ index: CREATE UNIQUE INDEX project_member_pkey ON design_os.project_member USING
 index: CREATE UNIQUE INDEX project_org_id_unique ON design_os.project USING btree (org_id, id)
 index: CREATE UNIQUE INDEX project_pkey ON design_os.project USING btree (id)
 index: CREATE UNIQUE INDEX quotation_issue_pkey ON design_os.quotation_issue USING btree (snapshot_id)
+index: CREATE UNIQUE INDEX quotation_issue_revision_unique ON design_os.quotation_issue USING btree (org_id, design_version_id, revision_number)
 index: CREATE UNIQUE INDEX quotation_policy_code_unique ON design_os.quotation_policy USING btree (org_id, code)
 index: CREATE UNIQUE INDEX quotation_policy_org_id_unique ON design_os.quotation_policy USING btree (org_id, id)
 index: CREATE UNIQUE INDEX quotation_policy_pkey ON design_os.quotation_policy USING btree (id)
@@ -2800,7 +2824,7 @@ function: bump_input_revision() -> trigger SECURITY DEFINER search_path=design_o
 function: can_access_project(p_project uuid) -> boolean SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=d5ccb73fb532950fa57f3c23c0d265ac
 function: check_drawing_manifest() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=79ef07c9500d32a3cf62a77a38cbd039
 function: check_idempotency_completed() -> trigger SECURITY DEFINER search_path=pg_catalog, pg_temp owner=design_os_owner src=875de1c9e46e8d69138c77e6342d7267
-function: check_issue() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=9baf6c36b1f458ae1ceb37bc6c3c8336
+function: check_issue() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=6909bd62fa9313081599df103850ac7e
 function: check_output_run_referenced() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=eecbe7504741a62021bac8cbd52f65ca
 function: check_snapshot_file() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=b6806bca395dbf8d4173b5497a6928cb
 function: check_snapshot_provenance() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=75f4abedc5dcb600e80af61a936c79b9
@@ -3029,7 +3053,7 @@ policy: design_version dv_insert INSERT design_os_api USING - CHECK (design_os.c
 policy: design_version dv_read SELECT design_os_api USING (design_os.is_internal() AND design_os.can_access_project(project_id)) CHECK -
 policy: design_version dv_update UPDATE design_os_api USING (design_os.can_access_project(project_id) AND design_os.has_permission('design_version.author'::text)) CHECK design_os.can_access_project(project_id)
 policy: drawing_issue issue_insert INSERT design_os_api USING - CHECK ((org_id = design_os.current_org_id()) AND design_os.is_internal() AND design_os.has_permission('drawing.issue'::text) AND (issued_by = design_os.current_user_id()))
-policy: drawing_issue issue_read SELECT design_os_api USING ((org_id = design_os.current_org_id()) AND (design_os.is_internal() OR design_os.has_permission('output.read.issued'::text))) CHECK -
+policy: drawing_issue issue_read SELECT design_os_api USING ((org_id = design_os.current_org_id()) AND (design_os.is_internal() OR (design_os.has_permission('output.read.issued'::text) AND design_os.can_access_project(project_id)))) CHECK -
 policy: drawing_snapshot snapshot_insert INSERT design_os_api USING - CHECK (design_os.is_internal() AND design_os.can_access_project(design_os.design_version_project(design_version_id)) AND design_os.has_permission('output.generate.engineering'::text) AND (created_by = design_os.current_user_id()))
 policy: drawing_snapshot snapshot_read SELECT design_os_api USING (design_os.is_internal() AND design_os.can_access_project(design_os.design_version_project(design_version_id)) AND design_os.has_permission('output.read.production'::text)) CHECK -
 policy: drawing_snapshot snapshot_read_issued SELECT design_os_api USING (design_os.is_issued((kind)::text, id) AND design_os.can_access_project(design_os.design_version_project(design_version_id)) AND design_os.has_permission('output.read.issued'::text)) CHECK -
@@ -3239,7 +3263,7 @@ policy: project_member member_delete DELETE design_os_api USING (design_os.is_in
 policy: project_member member_insert INSERT design_os_api USING - CHECK (design_os.is_internal() AND design_os.can_access_project(project_id) AND design_os.has_permission('project_members.assign'::text) AND (granted_by = design_os.current_user_id()))
 policy: project_member member_read SELECT design_os_api USING ((design_os.is_internal() AND design_os.can_access_project(project_id)) OR ((org_id = design_os.current_org_id()) AND (user_id = design_os.current_user_id()))) CHECK -
 policy: quotation_issue issue_insert INSERT design_os_api USING - CHECK ((org_id = design_os.current_org_id()) AND design_os.is_internal() AND design_os.has_permission('quotation.issue'::text) AND (issued_by = design_os.current_user_id()))
-policy: quotation_issue issue_read SELECT design_os_api USING ((org_id = design_os.current_org_id()) AND (design_os.is_internal() OR design_os.has_permission('output.read.issued'::text))) CHECK -
+policy: quotation_issue issue_read SELECT design_os_api USING ((org_id = design_os.current_org_id()) AND (design_os.is_internal() OR (design_os.has_permission('output.read.issued'::text) AND design_os.can_access_project(project_id)))) CHECK -
 policy: quotation_policy ref_delete DELETE design_os_api USING ((org_id = design_os.current_org_id()) AND design_os.has_permission('quotation_policy.author'::text)) CHECK -
 policy: quotation_policy ref_insert INSERT design_os_api USING - CHECK ((org_id = design_os.current_org_id()) AND design_os.has_permission('quotation_policy.author'::text))
 policy: quotation_policy ref_read SELECT design_os_api USING ((org_id = design_os.current_org_id()) AND design_os.is_internal() AND design_os.has_permission('reference.read'::text)) CHECK -

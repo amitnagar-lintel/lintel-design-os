@@ -52,4 +52,4 @@ No hosted Supabase configuration exists yet. The API runs against local / CI Pos
 - **Against PostgreSQL 17** (`pnpm test:db`): `test/db` — auth and org context, database/RLS context propagation, error mapping and registry parity, ETags, idempotency, pagination.
   - The foundation tests use test-only probe routes (`test/support/probe.module.ts`) that are never part of the application.
   - The core design domain tests (`projects`, `rooms-designs`, `design-versions`) drive the real endpoints end to end.
-  - The output tests (`outputs`, `output-staleness`, `drawings`) drive generation, reuse, staleness, drawings, files, signed URLs and the outputs graph end to end.
+  - The output tests (`outputs`, `output-staleness`, `drawings`, `issues`) drive generation, reuse, staleness, drawings, files, signed URLs, the outputs graph, issue / finalization and client visibility end to end.

@@ -8,11 +8,11 @@ import { loadMigrations } from "./support/migrate.js";
 import { schemaSnapshot } from "./support/schema-snapshot.js";
 
 const SNAPSHOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "database", "schema", "design_os.schema.txt");
-const EXPECTED = ["0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008", "0009", "0010", "0011", "0012", "0013", "0014", "0015", "0016", "0017"];
+const EXPECTED = ["0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008", "0009", "0010", "0011", "0012", "0013", "0014", "0015", "0016", "0017", "0018"];
 
-describe("migrations 0001 → 0017", () => {
+describe("migrations 0001 → 0018", () => {
   const report = inject("migrationReport");
-  it("are exactly 0001 … 0017, each with a rollback", () => {
+  it("are exactly 0001 … 0018, each with a rollback", () => {
     expect(loadMigrations().map((m) => m.version)).toEqual(EXPECTED);
     expect(report.migrations).toEqual(EXPECTED);
   });
@@ -43,7 +43,7 @@ describe("migrations 0001 → 0017", () => {
     expect(await count("SELECT count(*) AS n FROM design_os.planning_variable")).toBe(6);
     expect(await count("SELECT count(*) AS n FROM design_os.manufacturing_variable")).toBe(0);
     expect(await count("SELECT count(*) AS n FROM design_os.role")).toBe(10);
-    expect(await count("SELECT count(*) AS n FROM design_os.error_code")).toBe(32);
+    expect(await count("SELECT count(*) AS n FROM design_os.error_code")).toBe(33);
     // Nothing but schema registries holds rows after migrating: no organizations, versions, values or content.
     const registries = new Set(["versioned_table", "role", "permission", "default_role_permission", "construction_variable", "planning_variable", "manufacturing_variable", "error_code", "output_purpose_rule", "output_engine", "output_file_format"]);
     const tables = (await client.query<{ t: string }>("SELECT tablename AS t FROM pg_tables WHERE schemaname = 'design_os'")).rows.map((r) => r.t).filter((t) => !registries.has(t));

@@ -21,7 +21,7 @@ const DETAIL_KEYS: Partial<Readonly<Record<ProblemCode, readonly string[]>>> = {
   RECORD_LOCKED: ["status"],
   RECORD_IMMUTABLE: ["status"],
   PROVENANCE_MISMATCH: ["problems", "purpose", "blockerCount"],
-  ISSUE_PRECONDITIONS_FAILED: ["status", "blockerCount", "purpose"],
+  ISSUE_PRECONDITIONS_FAILED: ["status", "blockerCount", "purpose", "problems"],
   PRODUCTION_GUARD_FAILED: ["problems", "purpose", "blockerCount"],
   OUTPUT_PURPOSE_NOT_ALLOWED: ["problems", "purpose", "blockerCount"],
   SOURCE_SNAPSHOT_INCOMPATIBLE: ["source"],

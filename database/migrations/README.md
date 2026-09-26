@@ -22,6 +22,7 @@
 | 0015 | product_catalog_object_guard | Every design object's exact product version stays a member of its DesignVersion's pinned product catalog version: refused when the pin changes or when catalog membership changes (LD019) |
 | 0016 | engine_build_provenance | validation_run.engine_build: the immutable engine build identity (Git commit SHA / build revision) required on every new run; record_validation_run() takes it |
 | 0017 | output_provenance | Output model: engineering-only design versions (commercial / manufacturing versions chosen per output); validation-run purposes APPROVAL / OUTPUT_GENERATION; DB-computed dependency content hashes; per-engine snapshot provenance, sources, natural identity; one-to-many sealed drawing files; FOR_REVIEW from SUPERSEDED; issuing a quotation locks its commercial versions |
+| 0018 | issue_finalization | Issue records as complete decision records (project, design version, revision, content hash, exact commercial versions / file manifest), derived and verified by `check_issue`; issue requires LOCKED design, current inputs and dependency content, 0 BLOCKERs in output and evidence; LD027 ALREADY_ISSUED; unique quotation revision / drawing number + revision; CLIENT reads issue records of own projects only |
 
 Rules:
 

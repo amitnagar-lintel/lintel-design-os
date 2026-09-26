@@ -2959,6 +2959,149 @@
         "x-lintel-identity": "INTERNAL"
       }
     },
+    "/api/v1/drawing-snapshots/{snapshotId}/issue": {
+      "get": {
+        "operationId": "Issues_drawingIssue",
+        "summary": "The issue record of a drawing snapshot",
+        "tags": [
+          "Issues"
+        ],
+        "parameters": [
+          {
+            "name": "snapshotId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "X-Org",
+            "in": "header",
+            "required": false,
+            "description": "The organization to act in (required when the caller belongs to several)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DrawingIssueResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "RFC 9457 problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-lintel-access": {
+          "kind": "authenticated"
+        },
+        "x-lintel-identity": "INTERNAL"
+      },
+      "post": {
+        "operationId": "Issues_issueDrawing",
+        "summary": "Issue a FOR_PRODUCTION drawing of a LOCKED design (its exact sealed file manifest)",
+        "tags": [
+          "Issues"
+        ],
+        "parameters": [
+          {
+            "name": "snapshotId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "X-Org",
+            "in": "header",
+            "required": false,
+            "description": "The organization to act in (required when the caller belongs to several)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[!-~]{16,128}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DrawingIssueRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DrawingIssueResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "RFC 9457 problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-lintel-access": {
+          "actions": [
+            "drawing.issue"
+          ]
+        },
+        "x-lintel-identity": "INTERNAL"
+      }
+    },
     "/api/v1/drawing-snapshots/{snapshotId}/staleness": {
       "get": {
         "operationId": "Outputs_stalenessDrawing",
@@ -4194,6 +4337,149 @@
         "x-lintel-access": {
           "actions": [
             "output.read.cost"
+          ]
+        },
+        "x-lintel-identity": "INTERNAL"
+      }
+    },
+    "/api/v1/quotation-snapshots/{snapshotId}/issue": {
+      "get": {
+        "operationId": "Issues_quotationIssue",
+        "summary": "The issue record of a quotation snapshot",
+        "tags": [
+          "Issues"
+        ],
+        "parameters": [
+          {
+            "name": "snapshotId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "X-Org",
+            "in": "header",
+            "required": false,
+            "description": "The organization to act in (required when the caller belongs to several)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuotationIssueResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "RFC 9457 problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-lintel-access": {
+          "kind": "authenticated"
+        },
+        "x-lintel-identity": "INTERNAL"
+      },
+      "post": {
+        "operationId": "Issues_issueQuotation",
+        "summary": "Issue a FOR_PRODUCTION quotation of a LOCKED design (locks its exact commercial versions)",
+        "tags": [
+          "Issues"
+        ],
+        "parameters": [
+          {
+            "name": "snapshotId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "X-Org",
+            "in": "header",
+            "required": false,
+            "description": "The organization to act in (required when the caller belongs to several)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[!-~]{16,128}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuotationIssueRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuotationIssueResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "RFC 9457 problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-lintel-access": {
+          "actions": [
+            "quotation.issue"
           ]
         },
         "x-lintel-identity": "INTERNAL"
@@ -5527,6 +5813,77 @@
           }
         ]
       },
+      "DrawingIssueRequest": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "expectedContentHash": {
+            "$ref": "#/components/schemas/Sha256HashInput"
+          }
+        },
+        "required": [
+          "reason",
+          "expectedContentHash"
+        ],
+        "additionalProperties": false
+      },
+      "DrawingIssueResponse": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "DRAWING"
+          },
+          "snapshotId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "projectId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "designVersionId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "contentHash": {
+            "$ref": "#/components/schemas/Sha256Hash"
+          },
+          "issuedBy": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "issuedAt": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "drawingNumber": {
+            "type": "string"
+          },
+          "drawingRevision": {
+            "type": "string"
+          },
+          "fileManifestHash": {
+            "$ref": "#/components/schemas/Sha256Hash"
+          }
+        },
+        "required": [
+          "kind",
+          "snapshotId",
+          "projectId",
+          "designVersionId",
+          "contentHash",
+          "issuedBy",
+          "issuedAt",
+          "reason",
+          "drawingNumber",
+          "drawingRevision",
+          "fileManifestHash"
+        ],
+        "additionalProperties": false
+      },
       "Engine": {
         "type": "object",
         "properties": {
@@ -6820,6 +7177,7 @@
           "code": {
             "type": "string",
             "enum": [
+              "ALREADY_ISSUED",
               "APPROVAL_PRECONDITIONS_FAILED",
               "AUTH_REQUIRED",
               "CHECKSUM_MISMATCH",
@@ -7123,6 +7481,87 @@
           }
         },
         "required": [
+          "pricingStandardVersionId",
+          "quotationPolicyVersionId"
+        ],
+        "additionalProperties": false
+      },
+      "QuotationIssueRequest": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "expectedContentHash": {
+            "$ref": "#/components/schemas/Sha256HashInput"
+          },
+          "pricingStandardVersionId": {
+            "$ref": "#/components/schemas/UuidInput"
+          },
+          "quotationPolicyVersionId": {
+            "$ref": "#/components/schemas/UuidInput"
+          }
+        },
+        "required": [
+          "reason",
+          "expectedContentHash",
+          "pricingStandardVersionId",
+          "quotationPolicyVersionId"
+        ],
+        "additionalProperties": false
+      },
+      "QuotationIssueResponse": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "QUOTATION"
+          },
+          "snapshotId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "projectId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "designVersionId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "contentHash": {
+            "$ref": "#/components/schemas/Sha256Hash"
+          },
+          "issuedBy": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "issuedAt": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "revisionNumber": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "pricingStandardVersionId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "quotationPolicyVersionId": {
+            "$ref": "#/components/schemas/Uuid"
+          }
+        },
+        "required": [
+          "kind",
+          "snapshotId",
+          "projectId",
+          "designVersionId",
+          "contentHash",
+          "issuedBy",
+          "issuedAt",
+          "reason",
+          "revisionNumber",
           "pricingStandardVersionId",
           "quotationPolicyVersionId"
         ],
@@ -7665,6 +8104,33 @@
             ],
             "additionalProperties": false
           },
+          "issue": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "issuedBy": {
+                    "$ref": "#/components/schemas/Uuid"
+                  },
+                  "issuedAt": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "issuedBy",
+                  "issuedAt",
+                  "reason"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "staleness": {
             "$ref": "#/components/schemas/Staleness"
           },
@@ -8024,6 +8490,33 @@
               "files"
             ],
             "additionalProperties": false
+          },
+          "issue": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "issuedBy": {
+                    "$ref": "#/components/schemas/Uuid"
+                  },
+                  "issuedAt": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "issuedBy",
+                  "issuedAt",
+                  "reason"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "staleness": {
             "$ref": "#/components/schemas/Staleness"

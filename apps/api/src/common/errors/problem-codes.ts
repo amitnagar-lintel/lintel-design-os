@@ -26,6 +26,7 @@ export const PROBLEM_CODES = {
   RECORD_IMMUTABLE: { status: 409, title: "The record is immutable" },
   PROVENANCE_MISMATCH: { status: 409, title: "The output provenance does not match the design version" },
   ISSUE_PRECONDITIONS_FAILED: { status: 409, title: "Issue preconditions failed" },
+  ALREADY_ISSUED: { status: 409, title: "Already issued; issues are immutable" },
   PRODUCTION_GUARD_FAILED: { status: 409, title: "Production output requires an approved or locked design version" },
   OUTPUT_PURPOSE_NOT_ALLOWED: { status: 409, title: "The output purpose is not allowed here" },
   SOURCE_SNAPSHOT_INCOMPATIBLE: { status: 409, title: "An upstream output is for other inputs or versions" },
@@ -81,6 +82,7 @@ export const DATABASE_ERROR_CODES: Readonly<Record<string, ProblemCode>> = {
   LD024: "OUTPUT_PURPOSE_NOT_ALLOWED",
   LD025: "SOURCE_SNAPSHOT_INCOMPATIBLE",
   LD026: "SOURCE_PURPOSE_INSUFFICIENT",
+  LD027: "ALREADY_ISSUED",
 };
 
 /** Internal integrity guards: never explained to API callers. */

@@ -123,6 +123,17 @@ export default tseslint.config(
       }] }],
     },
   },
+  // ---------------------------------------------------------------- pilot UI (apps/web): a view over /api/v1
+  {
+    // The UI talks to the API only: no engines (no duplicated BOM / BOQ / pricing logic), no persistence, no database, no server framework.
+    files: ["apps/web/**/*.ts", "apps/web/**/*.tsx"],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: [{
+        group: ["pg", "pg-*", "postgres", "@nestjs/*", "@lintel/*", "**/apps/api/**", "**/packages/**", "@aws-sdk/*", "aws-sdk"],
+        message: "The pilot UI is a view over /api/v1: every calculation comes from the API's engines; it imports no engine, persistence, storage or database code.",
+      }] }],
+    },
+  },
   {
     // Tests may assert presence with `!` after explicit lookups.
     files: ["**/test/**/*.ts", "tests/**/*.ts"],
@@ -131,5 +142,11 @@ export default tseslint.config(
   {
     files: ["eslint.config.js"],
     ...tseslint.configs.disableTypeChecked,
+  },
+  {
+    // The browser walkthrough of the pilot UI (plain Node ESM, run by hand against `pnpm pilot:demo`).
+    files: ["apps/web/e2e/**/*.mjs"],
+    ...tseslint.configs.disableTypeChecked,
+    languageOptions: { parserOptions: { projectService: false }, globals: { process: "readonly", Buffer: "readonly", console: "readonly", fetch: "readonly" } },
   },
 );

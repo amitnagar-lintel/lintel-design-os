@@ -19,7 +19,9 @@
 
 Rules:
 
-- **Local / CI PostgreSQL 17 only** until the Mumbai cut-over gate (M5 §13) is satisfied.
+- **Local / CI PostgreSQL 17 only** until the Mumbai cut-over gate (M5 §13) is satisfied. Gate item 9 is the hosted Supabase compatibility
+  check: ownership / role model, the `auth.users` REFERENCES grant, SECURITY DEFINER behaviour, RLS behaviour, extensions / functions, and
+  migration permissions.
 - Never apply these to a hosted Supabase project yet. Never edit schema in a dashboard.
 - Test with `DATABASE_URL=postgresql://… pnpm test:db`. This runs up → down → up, the drift check, and the integration tests.
 - After an intentional schema change, run `pnpm db:schema:update` and commit `database/schema/design_os.schema.txt`.

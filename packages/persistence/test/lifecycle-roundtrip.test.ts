@@ -202,7 +202,7 @@ describe("design versions keep their exact lifecycle", () => {
       dataClassification: "PRODUCTION",
       contentHash: contentHash("design content"),
     };
-    const record = { envelope, projectId: "project_001", basedOnVersionId: null, roomRevisionId: "rr_1", pins, authoredEngineVersion: "0.1.0", inputHash: contentHash("inputs") };
+    const record = { envelope, projectId: "project_001", basedOnVersionId: null, roomRevisionId: "rr_1", pins, authoredEngineVersion: "0.1.0", inputHash: contentHash("inputs"), inputRevision: 1 };
     const row = designVersionToRow(record, CTX);
     expect(row.status).toBe(status);
     expect(designVersionFromRow(row)).toEqual(record);

@@ -5,10 +5,12 @@ import {
   assembleCatalogSnapshot,
   buildSnapshotProvenance,
   buildSnapshotRecord,
+  buildValidationRun,
   contentHash,
   designInputHash,
   MappingError,
   provenanceMismatches,
+  recordValidationRunArgs,
   snapshotFromRow,
   snapshotToRow,
   TestFixturePersistenceError,
@@ -138,5 +140,26 @@ describe("catalog assembly from pinned per-domain catalog versions", () => {
   });
   it("reports unapproved releases", () => {
     expect(assembleCatalogSnapshot(releases("DRAFT")).problems).toEqual(["material catalog version mcr_1 is DRAFT"]);
+  });
+});
+
+describe("validation runs (trust boundary)", () => {
+  const validation = (blockers: number, fixture = false) => ({
+    messages: [
+      ...Array.from({ length: blockers }, (_, i) => ({ code: `B${i}`, severity: "BLOCKER" as const, message: "blocked" })),
+      ...(fixture ? [{ code: "TEST_FIXTURE_DATA_IN_USE", severity: "BLOCKER" as const, message: "fixture" }] : []),
+    ],
+    counts: { INFO: 0, WARNING: 0, ERROR: 0, BLOCKER: blockers + (fixture ? 1 : 0) },
+    canApprove: blockers === 0 && !fixture,
+  });
+  it("carries the engine's own counts and a SHA-256 of the result, tied to the exact inputs", () => {
+    const r = buildValidationRun({ designVersionId: "dv_1", inputHash: INPUT, engineVersion: "0.1.0", engineHash: "0d8691345c4075", validation: validation(2) });
+    expect(r).toMatchObject({ designVersionId: "dv_1", inputHash: INPUT, engineVersion: "0.1.0", engineHash: "0d8691345c4075", blockerCount: 2, warningCount: 0 });
+    expect(r.contentHash).toBe(contentHash({ messages: validation(2).messages, counts: validation(2).counts }));
+    expect(recordValidationRunArgs(r)).toEqual(["dv_1", INPUT, "0.1.0", "0d8691345c4075", 2, 0, JSON.stringify(validation(2).messages), r.contentHash]);
+  });
+  it("requires engine metadata and refuses results produced from TEST_FIXTURE inputs", () => {
+    expect(() => buildValidationRun({ designVersionId: "dv_1", inputHash: INPUT, engineVersion: " ", engineHash: "x", validation: validation(0) })).toThrow(MappingError);
+    expect(() => buildValidationRun({ designVersionId: "dv_1", inputHash: INPUT, engineVersion: "0.1.0", engineHash: "x", validation: validation(0, true) })).toThrow(TestFixturePersistenceError);
   });
 });

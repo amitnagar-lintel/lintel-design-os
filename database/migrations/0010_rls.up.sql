@@ -157,9 +157,7 @@ BEGIN
 END $$;
 
 CREATE POLICY run_read ON design_os.validation_run FOR SELECT TO design_os_api USING (design_os.is_internal() AND design_os.can_access_project(design_os.design_version_project(design_version_id)));
-CREATE POLICY run_insert ON design_os.validation_run FOR INSERT TO design_os_api
-  WITH CHECK (design_os.can_access_project(design_os.design_version_project(design_version_id)) AND ran_by = design_os.current_user_id()
-              AND (design_os.has_permission('output.generate.engineering') OR design_os.has_permission('design_version.author')));
+-- No insert policy: validation runs are created only through design_os.record_validation_run() (SECURITY DEFINER).
 
 -- ---------------------------------------------------------------- snapshots, issues and files
 

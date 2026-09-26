@@ -5,12 +5,14 @@ import { actAs, attempt, one, tx } from "./support/db.js";
 import type { Dependencies, World } from "./support/world.js";
 import {
   approve,
+  catalogVersion,
   constructionStandard,
   createWorld,
   dependencies,
   designVersion,
   hashOf,
   hettichDataset,
+  materialItem,
   PIN_SUBJECT,
   planningStandard,
   pricingStandard,
@@ -232,6 +234,49 @@ describe("automatic locking (D1)", () => {
       const after = await one<{ status: string; locked_by: string; locked_at: string }>(c, "SELECT status, locked_by, locked_at FROM design_os.hettich_dataset_version WHERE id = $1", [hettich]);
       expect(after).toEqual({ status: "LOCKED", ...before });
       expect((await one<{ n: number }>(c, "SELECT count(*)::int AS n FROM design_os.approval_decision WHERE subject_id = $1 AND action = 'LOCK'", [hettich])).n).toBe(1);
+    });
+  });
+  it("locks EXACTLY the pinned dependency set: every LOCKED version in the organization is the design or one of its exact dependencies", async () => {
+    await tx(async (c) => {
+      const w = await createWorld(c);
+      const deps = await dependencies(c, w);
+      const unrelated = await constructionStandard(c, w, { complete: true, code: "UNRELATED_CONSTRUCTION_STANDARD" });
+      await approve(c, w, "construction_standard", unrelated);
+      await planningStandard(c, w, { complete: true, entityId: await entityOf(c, "planning_standard_version", deps.pins.planning_standard_version_id), versionNumber: 2 });
+      const dv = await lockedDesign(c, w, deps);
+      const expected = new Set([...lockedSet(deps).map(([, id]) => id), dv]);
+      const locked = new Set<string>();
+      await actAs(c, null);
+      for (const { t } of (await c.query<{ t: string }>("SELECT version_table::text AS t FROM design_os.versioned_table")).rows) {
+        for (const { id } of (await c.query<{ id: string }>(`SELECT id FROM ${t} WHERE org_id = $1 AND status = 'LOCKED'`, [w.org])).rows) locked.add(id);
+      }
+      expect([...locked].sort()).toEqual([...expected].sort());
+    });
+  });
+  it("a newer APPROVED catalog version is neither locked nor substituted for the pinned one", async () => {
+    await tx(async (c) => {
+      const w = await createWorld(c);
+      const deps = await dependencies(c, w);
+      const d = await designVersion(c, w, deps);
+      await submitDesign(c, w, d.designVersionId);
+      await approveDesign(c, w, d.designVersionId);
+      const material = deps.items.material;
+      const edgeBand = deps.items.edgeBand;
+      if (material === undefined || edgeBand === undefined) throw new Error("fixture");
+      const pinned = deps.pins.material_catalog_version_id;
+      const newerItem = await materialItem(c, w, { entityId: material.entityId, versionNumber: 2 });
+      await approve(c, w, "material", newerItem.versionId);
+      const newerCatalog = await catalogVersion(c, w, "material", [["material", material.entityId, newerItem.versionId], ["edge_band", edgeBand.entityId, edgeBand.versionId]],
+        { entityId: await entityOf(c, "material_catalog_version", pinned), versionNumber: 2 });
+      await approve(c, w, "material_catalog", newerCatalog);
+      await transition(c, w, "SALES", "design", d.designVersionId, "LOCK", "quotation issued");
+      expect((await one<{ p: string }>(c, "SELECT material_catalog_version_id AS p FROM design_os.design_version WHERE id = $1", [d.designVersionId])).p).toBe(pinned);
+      expect(await statusOf(c, "material_catalog", pinned)).toBe("SUPERSEDED");
+      expect(await statusOf(c, "material_catalog", newerCatalog)).toBe("APPROVED");
+      expect(await statusOf(c, "material", material.versionId)).toBe("SUPERSEDED");
+      expect(await statusOf(c, "material", newerItem.versionId)).toBe("APPROVED");
+      // The pinned catalog's other exact member is locked because the design depends on it.
+      expect(await statusOf(c, "edge_band", edgeBand.versionId)).toBe("LOCKED");
     });
   });
   it("locking requires an APPROVED design version", async () => {

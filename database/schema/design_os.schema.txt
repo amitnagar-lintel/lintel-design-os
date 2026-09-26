@@ -265,6 +265,7 @@ column: design_version.product_catalog_version_id uuid NOT NULL
 column: design_version.hettich_dataset_version_id uuid NOT NULL
 column: design_version.authored_engine_version text NOT NULL
 column: design_version.input_hash text NOT NULL
+column: design_version.input_revision integer NOT NULL DEFAULT 1
 column: design_version.version_number integer NOT NULL
 column: design_version.version_label text
 column: design_version.status design_os.record_lifecycle_status NOT NULL DEFAULT 'DRAFT'::design_os.record_lifecycle_status
@@ -1114,16 +1115,19 @@ column: tax_rate_mapping.version_id uuid NOT NULL
 column: tax_rate_mapping.product_category text NOT NULL
 column: tax_rate_mapping.rate_code text
 column: validation_run.id uuid NOT NULL DEFAULT gen_random_uuid()
+column: validation_run.seq bigint NOT NULL
 column: validation_run.org_id uuid NOT NULL
 column: validation_run.design_version_id uuid NOT NULL
 column: validation_run.input_hash text NOT NULL
+column: validation_run.input_revision integer NOT NULL
 column: validation_run.engine_version text NOT NULL
+column: validation_run.engine_hash text NOT NULL
+column: validation_run.content_hash text NOT NULL
 column: validation_run.blocker_count integer NOT NULL
 column: validation_run.warning_count integer NOT NULL
 column: validation_run.messages jsonb NOT NULL
-column: validation_run.result_hash text NOT NULL
-column: validation_run.ran_by uuid NOT NULL
-column: validation_run.ran_at timestamp with time zone NOT NULL DEFAULT now()
+column: validation_run.created_by uuid NOT NULL
+column: validation_run.created_at timestamp with time zone NOT NULL DEFAULT now()
 column: versioned_table.subject_type text NOT NULL
 column: versioned_table.version_table regclass NOT NULL
 column: versioned_table.entity_table regclass NOT NULL
@@ -1336,6 +1340,7 @@ constraint: design_os.design_version design_version_finish_fk FOREIGN KEY (org_i
 constraint: design_os.design_version design_version_hardware_fk FOREIGN KEY (org_id, hardware_catalog_version_id) REFERENCES design_os.hardware_catalog_version(org_id, id)
 constraint: design_os.design_version design_version_hettich_fk FOREIGN KEY (org_id, hettich_dataset_version_id) REFERENCES design_os.hettich_dataset_version(org_id, id)
 constraint: design_os.design_version design_version_input_hash_check CHECK ((input_hash ~ '^sha256:[0-9a-f]{64}$'::text))
+constraint: design_os.design_version design_version_input_revision_check CHECK ((input_revision >= 1))
 constraint: design_os.design_version design_version_locked_by_fkey FOREIGN KEY (locked_by) REFERENCES design_os.app_user(id)
 constraint: design_os.design_version design_version_locked_iff CHECK ((((locked_by IS NULL) = (locked_at IS NULL)) AND ((status <> 'LOCKED'::design_os.record_lifecycle_status) OR (locked_by IS NOT NULL)) AND ((status <> ALL (ARRAY['DRAFT'::design_os.record_lifecycle_status, 'IN_REVIEW'::design_os.record_lifecycle_status, 'APPROVED'::design_os.record_lifecycle_status])) OR (locked_by IS NULL))))
 constraint: design_os.design_version design_version_manufacturing_fk FOREIGN KEY (org_id, manufacturing_standard_version_id) REFERENCES design_os.manufacturing_standard_version(org_id, id)
@@ -2079,11 +2084,16 @@ constraint: design_os.tax_rate_mapping tax_rate_mapping_pkey PRIMARY KEY (versio
 constraint: design_os.tax_rate_mapping tax_rate_mapping_rate_fk FOREIGN KEY (version_id, rate_code) REFERENCES design_os.tax_rate(version_id, rate_code)
 constraint: design_os.tax_rate_mapping tax_rate_mapping_version_fk FOREIGN KEY (org_id, version_id) REFERENCES design_os.quotation_policy_version(org_id, id)
 constraint: design_os.validation_run validation_run_blocker_count_check CHECK ((blocker_count >= 0))
+constraint: design_os.validation_run validation_run_content_hash_check CHECK ((content_hash ~ '^sha256:[0-9a-f]{64}$'::text))
+constraint: design_os.validation_run validation_run_created_by_fkey FOREIGN KEY (created_by) REFERENCES design_os.app_user(id)
+constraint: design_os.validation_run validation_run_engine_hash_check CHECK ((btrim(engine_hash) <> ''::text))
+constraint: design_os.validation_run validation_run_engine_version_check CHECK ((btrim(engine_version) <> ''::text))
 constraint: design_os.validation_run validation_run_input_hash_check CHECK ((input_hash ~ '^sha256:[0-9a-f]{64}$'::text))
+constraint: design_os.validation_run validation_run_input_revision_check CHECK ((input_revision >= 1))
 constraint: design_os.validation_run validation_run_messages_check CHECK ((jsonb_typeof(messages) = 'array'::text))
+constraint: design_os.validation_run validation_run_no_test_fixture CHECK ((NOT jsonb_path_exists(messages, '$.**?(@ == "TEST_FIXTURE" || @ == "TEST_FIXTURE_DATA_IN_USE")'::jsonpath)))
 constraint: design_os.validation_run validation_run_pkey PRIMARY KEY (id)
-constraint: design_os.validation_run validation_run_ran_by_fkey FOREIGN KEY (ran_by) REFERENCES design_os.app_user(id)
-constraint: design_os.validation_run validation_run_result_hash_check CHECK ((result_hash ~ '^sha256:[0-9a-f]{64}$'::text))
+constraint: design_os.validation_run validation_run_seq_key UNIQUE (seq)
 constraint: design_os.validation_run validation_run_version_fk FOREIGN KEY (org_id, design_version_id) REFERENCES design_os.design_version(org_id, id)
 constraint: design_os.validation_run validation_run_warning_count_check CHECK ((warning_count >= 0))
 constraint: design_os.versioned_table versioned_table_approve_fk FOREIGN KEY (approve_action) REFERENCES design_os.permission(action)
@@ -2091,7 +2101,7 @@ constraint: design_os.versioned_table versioned_table_author_fk FOREIGN KEY (aut
 constraint: design_os.versioned_table versioned_table_pkey PRIMARY KEY (subject_type)
 constraint: design_os.versioned_table versioned_table_version_table_key UNIQUE (version_table)
 index: CREATE INDEX audit_log_chain ON design_os.audit_log USING btree (org_id, id)
-index: CREATE INDEX validation_run_lookup ON design_os.validation_run USING btree (design_version_id, input_hash, ran_at DESC)
+index: CREATE INDEX validation_run_lookup ON design_os.validation_run USING btree (design_version_id, input_hash, input_revision, seq DESC)
 index: CREATE UNIQUE INDEX app_user_email_unique ON design_os.app_user USING btree (lower(email))
 index: CREATE UNIQUE INDEX app_user_pkey ON design_os.app_user USING btree (id)
 index: CREATE UNIQUE INDEX appliance_catalog_code_unique ON design_os.appliance_catalog USING btree (org_id, code)
@@ -2318,6 +2328,7 @@ index: CREATE UNIQUE INDEX room_revision_pkey ON design_os.room_revision USING b
 index: CREATE UNIQUE INDEX tax_rate_mapping_pkey ON design_os.tax_rate_mapping USING btree (version_id, product_category)
 index: CREATE UNIQUE INDEX tax_rate_pkey ON design_os.tax_rate USING btree (version_id, rate_code)
 index: CREATE UNIQUE INDEX validation_run_pkey ON design_os.validation_run USING btree (id)
+index: CREATE UNIQUE INDEX validation_run_seq_key ON design_os.validation_run USING btree (seq)
 index: CREATE UNIQUE INDEX versioned_table_pkey ON design_os.versioned_table USING btree (subject_type)
 index: CREATE UNIQUE INDEX versioned_table_version_table_key ON design_os.versioned_table USING btree (version_table)
 trigger: CREATE TRIGGER audit_row AFTER INSERT OR DELETE OR UPDATE ON design_os.app_user FOR EACH ROW EXECUTE FUNCTION design_os.audit_row()
@@ -2407,6 +2418,8 @@ trigger: CREATE TRIGGER audit_row AFTER INSERT OR DELETE OR UPDATE ON design_os.
 trigger: CREATE TRIGGER audit_row AFTER INSERT OR DELETE OR UPDATE ON design_os.tax_rate FOR EACH ROW EXECUTE FUNCTION design_os.audit_row()
 trigger: CREATE TRIGGER audit_row AFTER INSERT OR DELETE OR UPDATE ON design_os.tax_rate_mapping FOR EACH ROW EXECUTE FUNCTION design_os.audit_row()
 trigger: CREATE TRIGGER audit_row AFTER INSERT OR DELETE OR UPDATE ON design_os.validation_run FOR EACH ROW EXECUTE FUNCTION design_os.audit_row()
+trigger: CREATE TRIGGER bump_input_revision AFTER INSERT OR DELETE OR UPDATE ON design_os.design_object FOR EACH ROW EXECUTE FUNCTION design_os.bump_input_revision()
+trigger: CREATE TRIGGER bump_input_revision AFTER INSERT OR DELETE OR UPDATE ON design_os.relationship_override FOR EACH ROW EXECUTE FUNCTION design_os.bump_input_revision()
 trigger: CREATE TRIGGER check_issue BEFORE INSERT ON design_os.drawing_issue FOR EACH ROW EXECUTE FUNCTION design_os.check_issue('drawing_snapshot')
 trigger: CREATE TRIGGER check_issue BEFORE INSERT ON design_os.quotation_issue FOR EACH ROW EXECUTE FUNCTION design_os.check_issue('quotation_snapshot')
 trigger: CREATE TRIGGER check_snapshot_provenance BEFORE INSERT ON design_os.bom_snapshot FOR EACH ROW EXECUTE FUNCTION design_os.check_snapshot_provenance()
@@ -2480,11 +2493,13 @@ trigger: CREATE TRIGGER guard_version_row BEFORE INSERT OR DELETE OR UPDATE ON d
 trigger: CREATE TRIGGER guard_version_row BEFORE INSERT OR DELETE OR UPDATE ON design_os.product_version FOR EACH ROW EXECUTE FUNCTION design_os.guard_version_row()
 trigger: CREATE TRIGGER guard_version_row BEFORE INSERT OR DELETE OR UPDATE ON design_os.quotation_policy_version FOR EACH ROW EXECUTE FUNCTION design_os.guard_version_row()
 trigger: CREATE TRIGGER guard_version_row BEFORE INSERT OR DELETE OR UPDATE ON design_os.recipe_version FOR EACH ROW EXECUTE FUNCTION design_os.guard_version_row()
+trigger: CREATE TRIGGER maintain_input_revision BEFORE INSERT OR UPDATE ON design_os.design_version FOR EACH ROW EXECUTE FUNCTION design_os.maintain_input_revision()
 trigger: CREATE TRIGGER seed_org_permissions AFTER INSERT ON design_os.organization FOR EACH ROW EXECUTE FUNCTION design_os.seed_org_permissions()
-function: approval_problems(p_subject_type text, p_id uuid, p_org uuid) -> text[] owner=design_os_owner src=d01ad0233e395eb42829349b55c0dc9a
+function: approval_problems(p_subject_type text, p_id uuid, p_org uuid) -> text[] owner=design_os_owner src=58e5d648159a14d51b4163b6e4e1092b
 function: audit_canonical(p_org uuid, p_at timestamp with time zone, p_actor uuid, p_action text, p_table text, p_row text, p_old jsonb, p_new jsonb, p_reason text, p_request text) -> text owner=design_os_owner src=110dffb1a7d3b029b9d582058e9a4ed6
 function: audit_chain_hash(p_prev text, p_canonical text) -> text owner=design_os_owner src=1dc12ca77292286f3273c509a7629339
 function: audit_row() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=902eaf060ff0e3b2d8ab4599822d2e8d
+function: bump_input_revision() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=6dd7dc4b9ec9b7379ece0b4e5ed1940e
 function: can_access_project(p_project uuid) -> boolean SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=d5ccb73fb532950fa57f3c23c0d265ac
 function: check_issue() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=b70a838c3f1072478754a2f4680f9c4d
 function: check_snapshot_provenance() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=1c33a9d9de86d5c8b9d82a5506b70613
@@ -2516,12 +2531,15 @@ function: install_insert_only(p_table regclass) -> void owner=design_os_owner sr
 function: install_version_envelope(p_subject_type text, p_version regclass, p_entity regclass, p_author text, p_approve text) -> void owner=design_os_owner src=8161a8a03f57727c23652ad3f90d8815
 function: is_internal() -> boolean SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=a92ccafecbb329429c88d2cde91110b4
 function: is_issued(p_kind text, p_snapshot uuid) -> boolean SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=fb68857d6de6d252a324730397fa8b48
+function: is_official_hettich_url(p_url text) -> boolean owner=design_os_owner src=bcf1722ba67f2eaeb4ab1e5f14bd99a1
 function: lifecycle_columns() -> text[] owner=design_os_owner src=d2bb83af218260d9a3e2d507964aa88c
 function: lock_cascade(p_subject_type text, p_id uuid, p_org uuid, p_actor uuid, p_reason text) -> void owner=design_os_owner src=4d1bdc30ad947c1954b477a550ef3d5e
+function: maintain_input_revision() -> trigger owner=design_os_owner src=def61d0142b34ea796340cbafa2060fb
 function: record_decision(p_org uuid, p_subject_type text, p_id uuid, p_action text, p_actor uuid, p_reason text, p_prev design_os.record_lifecycle_status, p_new design_os.record_lifecycle_status, p_hash text, p_request uuid) -> void owner=design_os_owner src=e5a66bb9c859daa3e0911043b62c3505
+function: record_validation_run(p_design_version_id uuid, p_input_hash text, p_engine_version text, p_engine_hash text, p_blocker_count integer, p_warning_count integer, p_messages jsonb, p_content_hash text) -> uuid SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=f4a0bb11f540dc14448a2093022ee98d
 function: room_project(p_room uuid) -> uuid SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=2fc701b3a69dc86e4e0ac5f50fee93d2
 function: seed_org_permissions() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=f6c845acde51f7abe9a6c090d6ae546b
-function: transition(p_subject_type text, p_id uuid, p_action text, p_reason text, p_expected_content_hash text) -> design_os.record_lifecycle_status SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=235322fd8496014631f6257aca655a2a
+function: transition(p_subject_type text, p_id uuid, p_action text, p_reason text, p_expected_content_hash text) -> design_os.record_lifecycle_status SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=0fe3056776371e583a84fe2343f23620
 function: unaudited_tables() -> text[] owner=design_os_owner src=567f88bb198740e61b9cc3d37fd6ba99
 function: verify_audit_chain(p_org uuid) -> TABLE(ok boolean, checked bigint, first_bad_id bigint) SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=73aa89afa4bc59f748a0fb20fb4fdfa0
 function: version_dependencies(p_subject_type text, p_id uuid, p_org uuid) -> TABLE(dep_subject_type text, dep_version_id uuid, name text, required boolean) owner=design_os_owner src=7fa01d72c8605be2094ef15d3154f648
@@ -2935,7 +2953,6 @@ policy: tax_rate_mapping ref_delete DELETE design_os_api USING ((org_id = design
 policy: tax_rate_mapping ref_insert INSERT design_os_api USING - CHECK ((org_id = design_os.current_org_id()) AND design_os.has_permission('quotation_policy.author'::text))
 policy: tax_rate_mapping ref_read SELECT design_os_api USING ((org_id = design_os.current_org_id()) AND design_os.is_internal() AND design_os.has_permission('reference.read'::text)) CHECK -
 policy: tax_rate_mapping ref_update UPDATE design_os_api USING ((org_id = design_os.current_org_id()) AND design_os.has_permission('quotation_policy.author'::text)) CHECK ((org_id = design_os.current_org_id()) AND design_os.has_permission('quotation_policy.author'::text))
-policy: validation_run run_insert INSERT design_os_api USING - CHECK (design_os.can_access_project(design_os.design_version_project(design_version_id)) AND (ran_by = design_os.current_user_id()) AND (design_os.has_permission('output.generate.engineering'::text) OR design_os.has_permission('design_version.author'::text)))
 policy: validation_run run_read SELECT design_os_api USING (design_os.is_internal() AND design_os.can_access_project(design_os.design_version_project(design_version_id))) CHECK -
 policy: versioned_table registry_read SELECT design_os_api USING true CHECK -
 grant: design_os_api app_user SELECT
@@ -3231,7 +3248,6 @@ grant: design_os_api tax_rate_mapping DELETE
 grant: design_os_api tax_rate_mapping INSERT
 grant: design_os_api tax_rate_mapping SELECT
 grant: design_os_api tax_rate_mapping UPDATE
-grant: design_os_api validation_run INSERT
 grant: design_os_api validation_run SELECT
 grant: design_os_api versioned_table SELECT
 column_grant: design_os_api appliance.code UPDATE
@@ -3707,6 +3723,7 @@ routine_grant: design_os_api has_permission EXECUTE
 routine_grant: design_os_api is_internal EXECUTE
 routine_grant: design_os_api is_issued EXECUTE
 routine_grant: design_os_api lifecycle_columns EXECUTE
+routine_grant: design_os_api record_validation_run EXECUTE
 routine_grant: design_os_api room_project EXECUTE
 routine_grant: design_os_api transition EXECUTE
 registry: appliance design_os.appliance_version design_os.appliance appliance_catalog.author appliance_catalog.approve

@@ -2,12 +2,11 @@
  * Test world for database tests: an organization with one user per role, a second tenant, and builders that
  * write versioned records through the @lintel/persistence mappers (the same rows the API will write).
  *
- * Approval requires complete, sourced values. Where a test needs an APPROVED standard, the builders use
- * clearly labelled SYNTHETIC values that exist only inside a rolled-back test transaction. They are not
- * Lintel values, are never committed, and are never used outside tests/db.
+ * By default builders write the real production drafts (NULL / UNVERIFIED values, empty edge rules, no Hettich
+ * records). Only when a test opts in with `complete: true` do they use the clearly labelled synthetic values from
+ * ./synthetic.ts, which exist only inside a rolled-back test transaction.
  */
 import { randomUUID } from "node:crypto";
-import type { ConstructionStandard, PlanningStandard, PricingRuleSet, QuotationPolicy, RateCard } from "@lintel/types";
 import {
   KIT_BASE_STANDARD,
   KITCHEN_BASE_STANDARD_V1,
@@ -18,8 +17,9 @@ import {
 } from "@lintel/catalog-engine";
 import { HETTICH_PRODUCTION_DATASET } from "@lintel/hettich-engine";
 import { LINTEL_PRODUCTION_PRICING_RULES, LINTEL_PRODUCTION_QUOTATION_POLICY, LINTEL_PRODUCTION_RATE_CARD } from "@lintel/pricing-engine";
-import type { RecordLifecycleStatus, ValueProvenance, VersionMeta } from "@lintel/persistence";
+import type { RecordLifecycleStatus, VersionMeta } from "@lintel/persistence";
 import {
+  buildValidationRun,
   constructionStandardToRows,
   contentHash,
   edgeBandStandardToRows,
@@ -33,11 +33,20 @@ import {
   productToRow,
   quotationPolicyToRows,
   recipeToRow,
+  recordValidationRunArgs,
 } from "@lintel/persistence";
 import type { Actor, Tx } from "./db.js";
 import { actAs, insertRow, one } from "./db.js";
-
-export const SYNTHETIC_SOURCE = "DB TEST ONLY — synthetic value inside a rolled-back transaction; not a Lintel value";
+import {
+  syntheticConstruction,
+  syntheticEdgeRules,
+  syntheticHettichDataset,
+  syntheticPlanning,
+  syntheticPricingRules,
+  syntheticProvenance,
+  syntheticQuotationPolicy,
+  syntheticRateCard,
+} from "./synthetic.js";
 
 export type Role = "ADMIN" | "DESIGNER" | "DESIGN_HEAD" | "SALES" | "COSTING" | "FINANCE" | "PROCUREMENT" | "PRODUCTION" | "SITE_ENGINEER" | "CLIENT";
 export const ROLES: readonly Role[] = ["ADMIN", "DESIGNER", "DESIGN_HEAD", "SALES", "COSTING", "FINANCE", "PROCUREMENT", "PRODUCTION", "SITE_ENGINEER", "CLIENT"];
@@ -156,13 +165,10 @@ export async function approve(c: Tx, w: World, subject: string, id: string): Pro
 
 /* ------------------------------------------------------------ standards */
 
-const syntheticValues = (codes: readonly string[]): Record<string, ValueProvenance> =>
-  Object.fromEntries(codes.map((k) => [k, { unit: "MM", source: SYNTHETIC_SOURCE, evidenceRef: null, note: "synthetic" }]));
-
 export interface VersionOpts {
   readonly entityId?: string;
   readonly versionNumber?: number;
-  /** Fill every value with a synthetic number so the version can be approved (tests only). */
+  /** Opt in to the synthetic values of ./synthetic.ts so the version can be approved (tests only). */
   readonly complete?: boolean;
   /** A different entity code (for a second entity of the same domain in one organization). */
   readonly code?: string;
@@ -170,10 +176,8 @@ export interface VersionOpts {
 
 export async function constructionStandard(c: Tx, w: World, o: VersionOpts = {}): Promise<string> {
   const m = meta(w, "PRODUCTION", { ...(o.entityId === undefined ? {} : { entityId: o.entityId }), versionNumber: o.versionNumber ?? 1 });
-  const s: ConstructionStandard = o.complete === true
-    ? { ...LINTEL_CONSTRUCTION_STANDARD_DRAFT, variables: Object.fromEntries(Object.keys(LINTEL_CONSTRUCTION_STANDARD_DRAFT.variables).map((k) => [k, 1])) }
-    : LINTEL_CONSTRUCTION_STANDARD_DRAFT;
-  const rows = constructionStandardToRows(o.code === undefined ? s : { ...s, standardId: o.code }, m, { orgId: w.org }, o.complete === true ? syntheticValues(Object.keys(s.variables)) : {});
+  const s = o.complete === true ? syntheticConstruction(LINTEL_CONSTRUCTION_STANDARD_DRAFT) : LINTEL_CONSTRUCTION_STANDARD_DRAFT;
+  const rows = constructionStandardToRows(o.code === undefined ? s : { ...s, standardId: o.code }, m, { orgId: w.org }, o.complete === true ? syntheticProvenance(Object.keys(s.variables)) : {});
   await entity(c, "construction_standard", w.org, m.entityId, rows.version.entity_code);
   await insertRow(c, "construction_standard_version", strip(rows.version));
   for (const v of rows.values) await insertRow(c, "construction_standard_value", v);
@@ -182,10 +186,8 @@ export async function constructionStandard(c: Tx, w: World, o: VersionOpts = {})
 
 export async function planningStandard(c: Tx, w: World, o: VersionOpts = {}): Promise<string> {
   const m = meta(w, "PRODUCTION", { ...(o.entityId === undefined ? {} : { entityId: o.entityId }), versionNumber: o.versionNumber ?? 1 });
-  const s: PlanningStandard = o.complete === true
-    ? { ...LINTEL_PLANNING_STANDARD_DRAFT, variables: Object.fromEntries(Object.keys(LINTEL_PLANNING_STANDARD_DRAFT.variables).map((k) => [k, 1])) }
-    : LINTEL_PLANNING_STANDARD_DRAFT;
-  const rows = planningStandardToRows(o.code === undefined ? s : { ...s, standardId: o.code }, m, { orgId: w.org }, o.complete === true ? syntheticValues(Object.keys(s.variables)) : {});
+  const s = o.complete === true ? syntheticPlanning(LINTEL_PLANNING_STANDARD_DRAFT) : LINTEL_PLANNING_STANDARD_DRAFT;
+  const rows = planningStandardToRows(o.code === undefined ? s : { ...s, standardId: o.code }, m, { orgId: w.org }, o.complete === true ? syntheticProvenance(Object.keys(s.variables)) : {});
   await entity(c, "planning_standard", w.org, m.entityId, rows.version.entity_code);
   await insertRow(c, "planning_standard_version", strip(rows.version));
   for (const v of rows.values) await insertRow(c, "planning_standard_value", v);
@@ -194,7 +196,10 @@ export async function planningStandard(c: Tx, w: World, o: VersionOpts = {}): Pr
 
 export async function edgeBandStandard(c: Tx, w: World, o: VersionOpts = {}): Promise<string> {
   const m = meta(w, "PRODUCTION", { ...(o.entityId === undefined ? {} : { entityId: o.entityId }), versionNumber: o.versionNumber ?? 1 });
-  const rows = edgeBandStandardToRows(LINTEL_EDGE_BAND_STANDARD_DRAFT, m, { orgId: w.org });
+  const band = LINTEL_CATALOG.edgeBands[0];
+  if (band === undefined) throw new Error("no edge band");
+  const s = o.complete === true ? syntheticEdgeRules(LINTEL_EDGE_BAND_STANDARD_DRAFT, band.edgeBandId) : LINTEL_EDGE_BAND_STANDARD_DRAFT;
+  const rows = edgeBandStandardToRows(s, m, { orgId: w.org });
   await entity(c, "edge_band_standard", w.org, m.entityId, rows.version.entity_code);
   await insertRow(c, "edge_band_standard_version", strip(rows.version));
   for (const s of rows.ruleSets) await insertRow(c, "edge_band_rule_set", s);
@@ -215,12 +220,8 @@ export async function manufacturingStandard(c: Tx, w: World, o: VersionOpts = {}
 
 export async function pricingStandard(c: Tx, w: World, o: VersionOpts = {}): Promise<string> {
   const m = meta(w, "COSTING", { ...(o.entityId === undefined ? {} : { entityId: o.entityId }), versionNumber: o.versionNumber ?? 1 });
-  const rateCard: RateCard = o.complete === true
-    ? { ...LINTEL_PRODUCTION_RATE_CARD, source: SYNTHETIC_SOURCE, boardPerM2: { BOARD_X: 1 }, edgeBandPerM: {}, finishPerM2: {}, hardwarePerUnit: {} }
-    : LINTEL_PRODUCTION_RATE_CARD;
-  const rules: PricingRuleSet = o.complete === true
-    ? { ...LINTEL_PRODUCTION_PRICING_RULES, source: SYNTHETIC_SOURCE, manufacturingCost: "0", wastagePercent: { board: 1, edgeBand: 1, finish: 1 }, overheadPercent: 1, marginBasis: "MARKUP_ON_COST", marginPercent: 1, gstPercent: 1 }
-    : LINTEL_PRODUCTION_PRICING_RULES;
+  const rateCard = o.complete === true ? syntheticRateCard(LINTEL_PRODUCTION_RATE_CARD) : LINTEL_PRODUCTION_RATE_CARD;
+  const rules = o.complete === true ? syntheticPricingRules(LINTEL_PRODUCTION_PRICING_RULES) : LINTEL_PRODUCTION_PRICING_RULES;
   const rows = pricingStandardToRows("LINTEL_PRICING_STANDARD", { rateCard, rules }, m, { orgId: w.org });
   await entity(c, "pricing_standard", w.org, m.entityId, rows.version.entity_code);
   await insertRow(c, "pricing_standard_version", strip(rows.version));
@@ -230,10 +231,7 @@ export async function pricingStandard(c: Tx, w: World, o: VersionOpts = {}): Pro
 
 export async function quotationPolicy(c: Tx, w: World, o: VersionOpts = {}): Promise<string> {
   const m = meta(w, "COSTING", { ...(o.entityId === undefined ? {} : { entityId: o.entityId }), versionNumber: o.versionNumber ?? 1 });
-  const p: QuotationPolicy = o.complete === true
-    ? { ...LINTEL_PRODUCTION_QUOTATION_POLICY, source: SYNTHETIC_SOURCE, taxRates: { RATE_X: 1 }, taxRateByProductCategory: { KITCHEN_BASE: "RATE_X" }, taxPolicy: "PER_RATE_GROUP",
-        rounding: { tax: { mode: "HALF_UP", incrementPaise: 1 }, grandTotal: { mode: "HALF_UP", incrementPaise: 100 } }, discountPolicy: { mode: "NONE" } }
-    : LINTEL_PRODUCTION_QUOTATION_POLICY;
+  const p = o.complete === true ? syntheticQuotationPolicy(LINTEL_PRODUCTION_QUOTATION_POLICY) : LINTEL_PRODUCTION_QUOTATION_POLICY;
   const rows = quotationPolicyToRows(p, m, { orgId: w.org });
   await entity(c, "quotation_policy", w.org, m.entityId, rows.version.entity_code);
   await insertRow(c, "quotation_policy_version", strip(rows.version));
@@ -316,11 +314,14 @@ export async function recipeAndProduct(c: Tx, w: World): Promise<{ recipe: Item;
   return { recipe: { entityId: rm.entityId, versionId: rm.versionId }, product: { entityId: pm.entityId, versionId: pm.versionId } };
 }
 
-export async function hettichDataset(c: Tx, w: World, o: VersionOpts = {}): Promise<string> {
+export async function hettichDataset(c: Tx, w: World, o: VersionOpts & { readonly hettich?: Parameters<typeof syntheticHettichDataset>[1] } = {}): Promise<string> {
   const m = meta(w, "PROCUREMENT", { ...(o.entityId === undefined ? {} : { entityId: o.entityId }), versionNumber: o.versionNumber ?? 1 });
-  const rows = hettichDatasetToRows(HETTICH_PRODUCTION_DATASET, m, { orgId: w.org }, "Hettich intake (no verified records yet)");
+  const dataset = o.complete === true ? syntheticHettichDataset(HETTICH_PRODUCTION_DATASET, o.hettich ?? {}) : HETTICH_PRODUCTION_DATASET;
+  const rows = hettichDatasetToRows(dataset, m, { orgId: w.org }, "Hettich intake");
   await entity(c, "hettich_dataset", w.org, m.entityId, rows.version.entity_code);
   await insertRow(c, "hettich_dataset_version", strip(rows.version));
+  for (const a of rows.articles) await insertRow(c, "hettich_article", a);
+  for (const r of rows.calculationRules) await insertRow(c, "hettich_calculation_rule", r);
   return m.versionId;
 }
 
@@ -361,8 +362,13 @@ export interface Dependencies {
   readonly items: Readonly<Record<string, Item>>;
 }
 
-/** Every dependency version (all 12 pins), each APPROVED via the transition function unless `approveAll` is false. */
-export async function dependencies(c: Tx, w: World, opts: { readonly approveAll?: boolean } = {}): Promise<Dependencies> {
+/**
+ * Every required dependency version, each APPROVED via the transition function unless `approveAll` is false.
+ * Optional pins: manufacturing and appliance stay NULL (ManufacturingStandard cannot be approved yet; there is no
+ * appliance data); pricing / quotation policy are NULL unless `commercial` asks for DRAFT production drafts or
+ * approved synthetic versions.
+ */
+export async function dependencies(c: Tx, w: World, opts: { readonly approveAll?: boolean; readonly commercial?: "none" | "draft" | "approved" } = {}): Promise<Dependencies> {
   const doApprove = opts.approveAll !== false;
   const material = await materialItem(c, w);
   const edgeBand = await edgeBandItem(c, w);
@@ -377,23 +383,25 @@ export async function dependencies(c: Tx, w: World, opts: { readonly approveAll?
     await approve(c, w, "construction_recipe", recipe.versionId);
     await approve(c, w, "product", product.versionId);
   }
+  const commercial = opts.commercial ?? "none";
   const pins: Pins = {
     construction_standard_version_id: await constructionStandard(c, w, { complete: true }),
     planning_standard_version_id: await planningStandard(c, w, { complete: true }),
-    edge_band_standard_version_id: await edgeBandStandard(c, w),
-    manufacturing_standard_version_id: await manufacturingStandard(c, w),
-    pricing_standard_version_id: await pricingStandard(c, w, { complete: true }),
-    quotation_policy_version_id: await quotationPolicy(c, w, { complete: true }),
+    edge_band_standard_version_id: await edgeBandStandard(c, w, { complete: true }),
+    manufacturing_standard_version_id: null,
+    pricing_standard_version_id: commercial === "none" ? null : await pricingStandard(c, w, { complete: commercial === "approved" }),
+    quotation_policy_version_id: commercial === "none" ? null : await quotationPolicy(c, w, { complete: commercial === "approved" }),
     material_catalog_version_id: await catalogVersion(c, w, "material", [["material", material.entityId, material.versionId], ["edge_band", edgeBand.entityId, edgeBand.versionId]]),
     finish_catalog_version_id: await catalogVersion(c, w, "finish", [["finish", finish.entityId, finish.versionId]]),
     hardware_catalog_version_id: await catalogVersion(c, w, "hardware", [["hardware_rule_set", rules.entityId, rules.versionId]]),
-    appliance_catalog_version_id: await catalogVersion(c, w, "appliance", []),
+    appliance_catalog_version_id: null,
     product_catalog_version_id: await catalogVersion(c, w, "product", [["product", product.entityId, product.versionId]]),
-    hettich_dataset_version_id: await hettichDataset(c, w),
+    hettich_dataset_version_id: await hettichDataset(c, w, { complete: true }),
   };
   if (doApprove) for (const [col, subject] of Object.entries(PIN_SUBJECT)) {
     const id = pins[col as keyof Pins];
-    if (id !== null) await approve(c, w, subject, id);
+    const draftCommercial = commercial === "draft" && (subject === "pricing_standard" || subject === "quotation_policy");
+    if (id !== null && !draftCommercial) await approve(c, w, subject, id);
   }
   return { pins, items: { material, edgeBand, finish, rules, recipe, product } };
 }
@@ -420,9 +428,10 @@ export async function project(c: Tx, w: World): Promise<{ projectId: string; cli
   return { projectId, clientId };
 }
 
-export async function designVersion(c: Tx, w: World, deps: Dependencies, o: { readonly blockers?: number; readonly withObject?: boolean } = {}): Promise<DesignFixture> {
+export async function designVersion(c: Tx, w: World, deps: Dependencies, o: { readonly blockers?: number; readonly withObject?: boolean; readonly withRun?: boolean } = {}): Promise<DesignFixture> {
   const { projectId, clientId } = await project(c, w);
   await actAs(c, null);
+  await c.query("INSERT INTO design_os.project_member (org_id, project_id, user_id, role, granted_by) VALUES ($1, $2, $3, 'DESIGNER', $4)", [w.org, projectId, w.users.DESIGNER, w.users.DESIGN_HEAD]);
   const roomId = (await one<{ id: string }>(c, "INSERT INTO design_os.room (org_id, project_id, name, room_type) VALUES ($1, $2, 'Kitchen', 'KITCHEN') RETURNING id", [w.org, projectId])).id;
   const revisionId = (await one<{ id: string }>(c,
     "INSERT INTO design_os.room_revision (org_id, room_id, revision_number, length_mm, width_mm, height_mm, wall_thickness_mm, source, surveyed_by, surveyed_at, content_hash) VALUES ($1, $2, 1, 4200, 3200, 3000, 150, 'site survey', $3, now(), $4) RETURNING id",
@@ -442,15 +451,32 @@ export async function designVersion(c: Tx, w: World, deps: Dependencies, o: { re
       product_version_id: product.versionId, x_mm: 0, y_mm: 0, z_mm: 0, rotation_y: 0, width_mm: 600, height_mm: 720, depth_mm: 560, parameters: { frontType: "OVERLAY" }, status: "DRAFT",
     });
   }
-  await validationRun(c, w, designVersionId, inputHash, o.blockers ?? 0);
+  if (o.withRun !== false) await validationRun(c, w, designVersionId, inputHash, o.blockers ?? 0);
   return { projectId, roomId, revisionId, designId, designVersionId, inputHash, clientId };
 }
 
-/** An engine validation run as the API would record it (the blocker count comes from the engine, not SQL). */
-export async function validationRun(c: Tx, w: World, designVersionId: string, inputHash: string, blockers: number): Promise<void> {
-  await actAs(c, null);
-  await insertRow(c, "validation_run", {
-    org_id: w.org, design_version_id: designVersionId, input_hash: inputHash, engine_version: "0.1.0", blocker_count: blockers, warning_count: 0,
-    messages: [], result_hash: contentHash({ blockers }), ran_by: w.users.DESIGNER,
+/**
+ * An engine validation run recorded through the only write path, design_os.record_validation_run(), as the
+ * API would do after running the TypeScript engine. The blocker count stands for the engine's result.
+ */
+export async function validationRun(c: Tx, w: World, designVersionId: string, inputHash: string, blockers: number, role: Role = "DESIGNER"): Promise<string> {
+  const run = buildValidationRun({
+    designVersionId,
+    inputHash: inputHash as `sha256:${string}`,
+    engineVersion: "0.1.0",
+    engineHash: "engine-fingerprint",
+    validation: { messages: Array.from({ length: blockers }, (_, i) => ({ code: `ENGINE_BLOCKER_${i}`, severity: "BLOCKER" as const, message: "engine result" })), counts: { INFO: 0, WARNING: 0, ERROR: 0, BLOCKER: blockers }, canApprove: blockers === 0 },
   });
+  await actAs(c, w.actor(role), { apiRole: true });
+  const id = (await one<{ id: string }>(c, "SELECT design_os.record_validation_run($1, $2, $3, $4, $5, $6, $7::jsonb, $8) AS id", [...recordValidationRunArgs(run)])).id;
+  await actAs(c, null);
+  return id;
+}
+
+/** Pin a (necessarily DRAFT) ManufacturingStandard version on a DRAFT design version; returns its id. */
+export async function insertManufacturingPin(c: Tx, w: World, designVersionId: string): Promise<string> {
+  const id = await manufacturingStandard(c, w);
+  await actAs(c, null);
+  await c.query("UPDATE design_os.design_version SET manufacturing_standard_version_id = $2 WHERE id = $1", [designVersionId, id]);
+  return id;
 }

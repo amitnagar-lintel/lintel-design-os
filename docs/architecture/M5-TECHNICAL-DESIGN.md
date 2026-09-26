@@ -671,6 +671,14 @@ Current state (ops REGION-01):
 6. The ops migration recovery (`chore/recover-applied-migrations`) is merged.
 7. **The Supabase Pro production project is confirmed.**
 8. Before the CLIENT route is enabled: the ops `@lintelspace.com` restriction and the ops RLS helpers are verified to give CLIENT identities no ops access (§9.1).
+9. **Hosted Supabase compatibility of the `design_os` migrations** is verified on a non-production copy before the first hosted apply.
+   The migrations are implemented and tested on plain PostgreSQL 17 only; nothing is redesigned before this check. It covers:
+   - **ownership / role model:** `design_os_owner` owns every object and `design_os_api` is the API role. Checks: `CREATE ROLE`, `GRANT design_os_owner TO CURRENT_USER` and `SET ROLE` all work under Supabase's non-superuser `postgres` role;
+   - the **`auth.users` REFERENCES grant:** `GRANT SELECT, REFERENCES ON auth.users TO design_os_owner` needs a grantor with that privilege (the table is owned by `supabase_auth_admin`);
+   - **SECURITY DEFINER behaviour:** `transition()`, `record_validation_run()`, audit and integrity triggers run as `design_os_owner` with a fixed `search_path`;
+   - **RLS behaviour:** owner bypass inside definer functions; policies for `design_os_api` through the Supavisor transaction pooler with per-transaction `request.jwt.claims`;
+   - **extensions / functions:** no extension is required (`gen_random_uuid`, `sha256`, `jsonb_path_exists` are core PostgreSQL). Also confirm the schema is not in PostgREST's exposed schemas and nothing is granted to `anon` / `authenticated` / `service_role`;
+   - **migration permissions:** the migration role can run each file in a transaction, and the rollbacks and drift check behave as in CI.
 
 Only then is the canonical project chosen and the first `design_os` migration applied to it.
 
@@ -710,9 +718,11 @@ No hosted Supabase work and no UI work is included.
 | Supersession | `superseded_by` is a composite FK `(org_id, entity_id, superseded_by) → same table (org_id, entity_id, id)`: only a version of the same entity, same tenant, same domain; never itself |
 | Release immutability | Catalog-version membership is frozen once the catalog version leaves DRAFT; a newer catalog version is a new row; pins are editable only while the design version is DRAFT |
 | Automatic locking | `transition(LOCK)` locks the design version and, recursively and tenant-scoped, every exact pinned version, catalog member version and product recipe version. APPROVED → LOCKED; LOCKED and SUPERSEDED stay as they are |
-| Approval preconditions | Required pins set; every dependency APPROVED or LOCKED (SUPERSEDED never satisfies); a zero-BLOCKER engine validation run for the current `input_hash`; standards complete and sourced; Hettich records source-verified |
+| Approval preconditions | Required pins set; every dependency APPROVED or LOCKED (SUPERSEDED never satisfies); the latest engine validation run for the current `input_hash` **and** `input_revision` has 0 BLOCKERs; domain-specific completeness (below) |
+| Reference-data completeness (no structurally empty approvals) | **Construction / Planning:** a sourced, non-NULL value for every registry code. **EdgeBandStandard:** at least one edge rule; every rule set defines at least one component type; every banded edge references an edge band with an APPROVED or LOCKED version. **Hettich dataset:** at least one article. Each article: article number (not `FIXTURE-`), category, official https hettich.com source URL, ISO source date, cleared licence (OFFICIAL_PUBLIC / AUTHORISED), verified by / at. Each calculation rule is source-verified. Every hinge family has a calculation rule. **ManufacturingStandard:** not approvable while its variable registry is empty (no codes are invented), so a design pinning one cannot be approved. **PricingStandard / QuotationPolicy:** at least one rate / tax rate / mapping, and no NULL rule or policy field. They stay unapprovable while production values are absent. **Catalog versions:** at least one exact item version |
+| Validation-run trust boundary | The TypeScript engine alone produces validation results and BLOCKERs; SQL never recalculates them. Runs are created only via `design_os.record_validation_run()` (no direct INSERT grant). It stamps `created_by` / `created_at` and the design version's `input_revision`, and requires `input_hash` to equal the design version's current one. Each run is immutable and carries `engine_version`, `engine_hash`, a SHA-256 `content_hash` and `blocker_count`. The database bumps `input_revision` on any object, override, pin or input-hash change, so an old run can never be reused for changed inputs |
 | Snapshot provenance | Six insert-only tables; a trigger requires the design version's exact lifecycle status, content hash, input hash and every pin; FOR_PRODUCTION requires APPROVED/LOCKED and 0 BLOCKERs; no `TEST_FIXTURE` value anywhere in a payload (CHECK) |
-| Enforcement tests | `tests/db/*` (CI `db` job, PostgreSQL 17 service): migrations up → down → up, schema drift snapshot `database/schema/design_os.schema.txt`, RLS / tenant isolation, transitions and lock cascade, provenance, lifecycle round trips, audit chain |
+| Enforcement tests | `tests/db/*` (CI `db` job, PostgreSQL 17 service): migrations up → down → up, schema drift snapshot `database/schema/design_os.schema.txt`, RLS / tenant isolation, transitions and exact lock cascade, completeness, validation-run boundary, provenance, lifecycle round trips, audit chain. The teardown proves no row persists. `tests/synthetic-data-isolation.test.ts` proves synthetic test values exist only under `tests/db` and are never seeded |
 
 ## 16. Technical backlog (required future work)
 

@@ -75,7 +75,11 @@ CREATE TABLE design_os.design_version (
   product_catalog_version_id uuid NOT NULL,
   hettich_dataset_version_id uuid NOT NULL,
   authored_engine_version text NOT NULL,
+  -- Hash of the inputs (room survey, objects, overrides, pins), computed by @lintel/persistence (TypeScript), never by SQL.
   input_hash text NOT NULL CHECK (input_hash ~ '^sha256:[0-9a-f]{64}$'),
+  -- Maintained by the database only: bumped whenever an input row, pin or the input hash changes, so a validation
+  -- run can never be reused for changed inputs even if a caller failed to recompute input_hash.
+  input_revision integer NOT NULL DEFAULT 1 CHECK (input_revision >= 1),
   CONSTRAINT design_version_project_fk FOREIGN KEY (org_id, entity_id, project_id) REFERENCES design_os.design (org_id, id, project_id),
   CONSTRAINT design_version_room_revision_fk FOREIGN KEY (org_id, room_revision_id) REFERENCES design_os.room_revision (org_id, id),
   CONSTRAINT design_version_construction_fk FOREIGN KEY (org_id, construction_standard_version_id) REFERENCES design_os.construction_standard_version (org_id, id),
@@ -172,20 +176,100 @@ CREATE TABLE design_os.relationship_override (
 );
 SELECT design_os.install_draft_guard('design_os.relationship_override', 'design_os.design_version', 'design_version_id');
 
--- Engine validation runs (the approval proof): insert-only, valid only for the input_hash they were made for.
+-- ---------------------------------------------------------------- input revision (integrity bookkeeping, no calculation)
+
+CREATE FUNCTION design_os.maintain_input_revision() RETURNS trigger
+  LANGUAGE plpgsql
+  AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    NEW.input_revision := 1;
+  ELSIF (NEW.room_revision_id, NEW.construction_standard_version_id, NEW.planning_standard_version_id, NEW.edge_band_standard_version_id,
+         NEW.manufacturing_standard_version_id, NEW.pricing_standard_version_id, NEW.quotation_policy_version_id, NEW.material_catalog_version_id,
+         NEW.finish_catalog_version_id, NEW.hardware_catalog_version_id, NEW.appliance_catalog_version_id, NEW.product_catalog_version_id,
+         NEW.hettich_dataset_version_id, NEW.input_hash)
+     IS DISTINCT FROM
+        (OLD.room_revision_id, OLD.construction_standard_version_id, OLD.planning_standard_version_id, OLD.edge_band_standard_version_id,
+         OLD.manufacturing_standard_version_id, OLD.pricing_standard_version_id, OLD.quotation_policy_version_id, OLD.material_catalog_version_id,
+         OLD.finish_catalog_version_id, OLD.hardware_catalog_version_id, OLD.appliance_catalog_version_id, OLD.product_catalog_version_id,
+         OLD.hettich_dataset_version_id, OLD.input_hash) THEN
+    NEW.input_revision := OLD.input_revision + 1;
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER maintain_input_revision BEFORE INSERT OR UPDATE ON design_os.design_version FOR EACH ROW EXECUTE FUNCTION design_os.maintain_input_revision();
+
+-- Any change to an object or override is an input change of its design version.
+CREATE FUNCTION design_os.bump_input_revision() RETURNS trigger
+  LANGUAGE plpgsql
+  AS $$
+BEGIN
+  UPDATE design_os.design_version SET input_revision = input_revision + 1
+  WHERE id = (to_jsonb(CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END) ->> 'design_version_id')::uuid;
+  RETURN NULL;
+END $$;
+CREATE TRIGGER bump_input_revision AFTER INSERT OR UPDATE OR DELETE ON design_os.design_object FOR EACH ROW EXECUTE FUNCTION design_os.bump_input_revision();
+CREATE TRIGGER bump_input_revision AFTER INSERT OR UPDATE OR DELETE ON design_os.relationship_override FOR EACH ROW EXECUTE FUNCTION design_os.bump_input_revision();
+
+-- ---------------------------------------------------------------- engine validation runs (the approval proof)
+
+-- The TypeScript engine is the authority for validation and BLOCKERs; the database only stores its result,
+-- immutably, tied to the exact inputs it was produced for. Rows are created only through
+-- design_os.record_validation_run() (no direct INSERT grant): created_by / created_at are stamped by the database.
 CREATE TABLE design_os.validation_run (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- Strict recording order ("latest run" is never ambiguous, even within one transaction).
+  seq bigint GENERATED ALWAYS AS IDENTITY UNIQUE,
   org_id uuid NOT NULL,
   design_version_id uuid NOT NULL,
   input_hash text NOT NULL CHECK (input_hash ~ '^sha256:[0-9a-f]{64}$'),
-  engine_version text NOT NULL,
+  input_revision integer NOT NULL CHECK (input_revision >= 1),
+  engine_version text NOT NULL CHECK (btrim(engine_version) <> ''),
+  -- The engine's own fingerprint of the validated model (e.g. the room fingerprint).
+  engine_hash text NOT NULL CHECK (btrim(engine_hash) <> ''),
+  -- SHA-256 of the validation result, computed by @lintel/persistence.
+  content_hash text NOT NULL CHECK (content_hash ~ '^sha256:[0-9a-f]{64}$'),
   blocker_count integer NOT NULL CHECK (blocker_count >= 0),
   warning_count integer NOT NULL CHECK (warning_count >= 0),
   messages jsonb NOT NULL CHECK (jsonb_typeof(messages) = 'array'),
-  result_hash text NOT NULL CHECK (result_hash ~ '^sha256:[0-9a-f]{64}$'),
-  ran_by uuid NOT NULL REFERENCES design_os.app_user (id),
-  ran_at timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT validation_run_version_fk FOREIGN KEY (org_id, design_version_id) REFERENCES design_os.design_version (org_id, id)
+  created_by uuid NOT NULL REFERENCES design_os.app_user (id),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT validation_run_version_fk FOREIGN KEY (org_id, design_version_id) REFERENCES design_os.design_version (org_id, id),
+  CONSTRAINT validation_run_no_test_fixture CHECK (NOT jsonb_path_exists(messages, 'lax $.** ? (@ == "TEST_FIXTURE" || @ == "TEST_FIXTURE_DATA_IN_USE")'))
 );
-CREATE INDEX validation_run_lookup ON design_os.validation_run (design_version_id, input_hash, ran_at DESC);
+CREATE INDEX validation_run_lookup ON design_os.validation_run (design_version_id, input_hash, input_revision, seq DESC);
 SELECT design_os.install_insert_only('design_os.validation_run');
+
+-- The only write path for validation runs (the engineering / API execution path).
+CREATE FUNCTION design_os.record_validation_run(p_design_version_id uuid, p_input_hash text, p_engine_version text, p_engine_hash text,
+                                                p_blocker_count integer, p_warning_count integer, p_messages jsonb, p_content_hash text)
+  RETURNS uuid
+  LANGUAGE plpgsql SECURITY DEFINER SET search_path = design_os, pg_temp
+  AS $$
+DECLARE
+  actor uuid := design_os.current_user_id();
+  org uuid := design_os.current_org_id();
+  dv design_os.design_version%ROWTYPE;
+  run_id uuid;
+BEGIN
+  IF actor IS NULL OR org IS NULL OR NOT design_os.is_internal() THEN
+    RAISE EXCEPTION 'record_validation_run: an authenticated internal member of the organization is required' USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  IF NOT (design_os.has_permission('output.generate.engineering') OR design_os.has_permission('design_version.author')) THEN
+    RAISE EXCEPTION 'record_validation_run: missing permission to record engine validation runs' USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  SELECT * INTO dv FROM design_os.design_version WHERE id = p_design_version_id AND org_id = org FOR SHARE;
+  IF NOT FOUND OR NOT design_os.can_access_project(dv.project_id) THEN
+    RAISE EXCEPTION 'record_validation_run: design version % not found', p_design_version_id USING ERRCODE = 'no_data_found';
+  END IF;
+  IF dv.status NOT IN ('DRAFT', 'IN_REVIEW') THEN
+    RAISE EXCEPTION 'record_validation_run: design version is %; runs are recorded only for DRAFT or IN_REVIEW versions', dv.status USING ERRCODE = 'check_violation';
+  END IF;
+  IF p_input_hash IS DISTINCT FROM dv.input_hash THEN
+    RAISE EXCEPTION 'record_validation_run: the run is for different inputs than the design version''s current input_hash' USING ERRCODE = 'check_violation';
+  END IF;
+  INSERT INTO design_os.validation_run (org_id, design_version_id, input_hash, input_revision, engine_version, engine_hash, content_hash, blocker_count, warning_count, messages, created_by, created_at)
+  VALUES (org, dv.id, dv.input_hash, dv.input_revision, p_engine_version, p_engine_hash, p_content_hash, p_blocker_count, p_warning_count, p_messages, actor, now())
+  RETURNING id INTO run_id;
+  RETURN run_id;
+END $$;

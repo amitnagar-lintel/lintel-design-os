@@ -27,7 +27,10 @@ declare module "vitest" {
 
 const TEST_DB = "design_os_test";
 
-export default async function setup(project: TestProject): Promise<void> {
+/** Registries and seeded grants: the only tables allowed to hold rows when the suite ends. */
+const SCHEMA_TABLES = new Set(["versioned_table", "role", "permission", "default_role_permission", "construction_variable", "planning_variable", "manufacturing_variable"]);
+
+export default async function setup(project: TestProject): Promise<() => Promise<void>> {
   const admin = process.env.DATABASE_URL;
   if (admin === undefined || admin === "") throw new Error("DATABASE_URL (admin connection to a LOCAL/CI PostgreSQL 17) is required for tests/db");
   if (/supabase\.(co|com)/i.test(admin)) throw new Error("tests/db must never run against a hosted Supabase project");
@@ -64,4 +67,22 @@ export default async function setup(project: TestProject): Promise<void> {
   } finally {
     await client.end();
   }
+
+  // Teardown: every test ran in a rolled-back transaction, so no data (synthetic or otherwise) may persist.
+  return async () => {
+    const check = new pg.Client({ connectionString: url.toString() });
+    await check.connect();
+    try {
+      const tables = (await check.query<{ t: string }>("SELECT tablename AS t FROM pg_tables WHERE schemaname = 'design_os' ORDER BY 1")).rows.map((r) => r.t);
+      const left: string[] = [];
+      for (const t of tables) {
+        if (SCHEMA_TABLES.has(t)) continue;
+        const n = Number((await check.query<{ n: string }>(`SELECT count(*)::text AS n FROM design_os.${t}`)).rows[0]?.n ?? 0);
+        if (n > 0) left.push(`${t}: ${n}`);
+      }
+      if (left.length > 0) throw new Error(`database tests left persistent rows behind: ${left.join(", ")}`);
+    } finally {
+      await check.end();
+    }
+  };
 }

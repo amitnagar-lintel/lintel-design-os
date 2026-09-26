@@ -89,6 +89,11 @@ BEGIN
   END IF;
 END $$;
 
+-- https URL on hettich.com or a subdomain (mirrors the Hettich engine's official-source rule; a state check, not a calculation).
+CREATE FUNCTION design_os.is_official_hettich_url(p_url text) RETURNS boolean
+  LANGUAGE sql IMMUTABLE
+  AS $$ SELECT coalesce(p_url ~* '^https://([a-z0-9-]+\.)*hettich\.com(:[0-9]+)?([/?#]|$)', false) $$;
+
 -- Why a version cannot be approved yet (empty = no integrity objection). Lookups only.
 CREATE FUNCTION design_os.approval_problems(p_subject_type text, p_id uuid, p_org uuid) RETURNS text[]
   LANGUAGE plpgsql STABLE
@@ -115,8 +120,11 @@ BEGIN
   END LOOP;
 
   IF p_subject_type = 'design' THEN
+    -- Only the latest immutable engine run for exactly the current inputs (input_hash AND database input_revision) counts.
     SELECT * INTO dv FROM design_os.design_version WHERE id = p_id AND org_id = p_org;
-    SELECT * INTO run FROM design_os.validation_run WHERE design_version_id = p_id AND org_id = p_org AND input_hash = dv.input_hash ORDER BY ran_at DESC, id DESC LIMIT 1;
+    SELECT * INTO run FROM design_os.validation_run
+      WHERE design_version_id = p_id AND org_id = p_org AND input_hash = dv.input_hash AND input_revision = dv.input_revision
+      ORDER BY seq DESC LIMIT 1;
     IF NOT FOUND THEN out := out || 'no engine validation run exists for the current inputs'::text;
     ELSIF run.blocker_count > 0 THEN out := out || format('engine validation has %s BLOCKER(s)', run.blocker_count);
     END IF;
@@ -131,25 +139,68 @@ BEGIN
     out := out || ARRAY(SELECT format('planning value %s is NULL / UNVERIFIED or has no source', v.variable_code) FROM design_os.planning_standard_value v
                         WHERE v.version_id = p_id AND (v.value IS NULL OR v.source IS NULL) ORDER BY v.variable_code);
   ELSIF p_subject_type = 'manufacturing_standard' THEN
+    -- Not approvable (and therefore not usable for approved designs) until its variable/value model is defined.
+    IF NOT EXISTS (SELECT 1 FROM design_os.manufacturing_variable) THEN
+      out := out || 'ManufacturingStandard has no defined variable model yet; it cannot be approved until its variables are defined'::text;
+    END IF;
     out := out || ARRAY(SELECT format('manufacturing value %s is missing', c.code) FROM design_os.manufacturing_variable c
                         WHERE NOT EXISTS (SELECT 1 FROM design_os.manufacturing_standard_value v WHERE v.version_id = p_id AND v.variable_code = c.code) ORDER BY c.code);
     out := out || ARRAY(SELECT format('manufacturing value %s is NULL / UNVERIFIED or has no source', v.variable_code) FROM design_os.manufacturing_standard_value v
                         WHERE v.version_id = p_id AND (v.value IS NULL OR v.source IS NULL) ORDER BY v.variable_code);
+  ELSIF p_subject_type = 'edge_band_standard' THEN
+    -- At least one rule set; every rule set defines at least one component type (an empty rule set = rules not yet defined);
+    -- every banded edge references an edge band that has an APPROVED or LOCKED version.
+    IF NOT EXISTS (SELECT 1 FROM design_os.edge_band_rule r WHERE r.version_id = p_id) THEN
+      out := out || 'EdgeBandStandard has no edge rules'::text;
+    END IF;
+    out := out || ARRAY(SELECT format('edge rule set %s has no edge rules', rs.rule_set_code) FROM design_os.edge_band_rule_set rs
+                        WHERE rs.version_id = p_id AND NOT EXISTS (SELECT 1 FROM design_os.edge_band_rule r WHERE r.version_id = p_id AND r.rule_set_code = rs.rule_set_code)
+                        ORDER BY rs.rule_set_code);
+    out := out || ARRAY(SELECT DISTINCT format('edge band %s has no APPROVED or LOCKED version', r.edge_band_id) FROM design_os.edge_band_rule r
+                        WHERE r.version_id = p_id AND r.edge_band_id IS NOT NULL AND NOT EXISTS (
+                          SELECT 1 FROM design_os.edge_band e JOIN design_os.edge_band_version v ON v.entity_id = e.id AND v.org_id = e.org_id
+                          WHERE e.org_id = p_org AND e.code = r.edge_band_id AND v.status IN ('APPROVED', 'LOCKED')));
   ELSIF p_subject_type = 'pricing_standard' THEN
     IF EXISTS (SELECT 1 FROM design_os.pricing_standard_version p WHERE p.id = p_id AND (p.manufacturing_cost_formula IS NULL OR p.wastage_board_pct IS NULL OR p.wastage_edge_band_pct IS NULL
         OR p.wastage_finish_pct IS NULL OR p.overhead_pct IS NULL OR p.margin_basis IS NULL OR p.margin_pct IS NULL OR p.gst_pct IS NULL)) THEN
       out := out || 'pricing rules contain NULL / UNVERIFIED values'::text;
     END IF;
+    IF NOT EXISTS (SELECT 1 FROM design_os.rate_card_line l WHERE l.version_id = p_id) THEN out := out || 'rate card has no rates'::text; END IF;
     out := out || ARRAY(SELECT format('rate %s %s is NULL / UNVERIFIED', l.measure, l.item_key) FROM design_os.rate_card_line l WHERE l.version_id = p_id AND l.rate_paise IS NULL ORDER BY l.measure, l.item_key);
   ELSIF p_subject_type = 'quotation_policy' THEN
     IF EXISTS (SELECT 1 FROM design_os.quotation_policy_version q WHERE q.id = p_id AND (q.tax_policy IS NULL OR q.tax_rounding_mode IS NULL OR q.grand_total_rounding_mode IS NULL OR q.discount_mode IS NULL)) THEN
       out := out || 'quotation policy contains NULL / UNVERIFIED fields'::text;
     END IF;
+    IF NOT EXISTS (SELECT 1 FROM design_os.tax_rate t WHERE t.version_id = p_id) THEN out := out || 'quotation policy has no tax rates'::text; END IF;
+    IF NOT EXISTS (SELECT 1 FROM design_os.tax_rate_mapping m WHERE m.version_id = p_id) THEN out := out || 'quotation policy maps no product category to a tax rate'::text; END IF;
     out := out || ARRAY(SELECT format('tax rate %s is NULL / UNVERIFIED', t.rate_code) FROM design_os.tax_rate t WHERE t.version_id = p_id AND t.percent IS NULL ORDER BY t.rate_code);
     out := out || ARRAY(SELECT format('tax mapping for %s is NULL / UNVERIFIED', m.product_category) FROM design_os.tax_rate_mapping m WHERE m.version_id = p_id AND m.rate_code IS NULL ORDER BY m.product_category);
   ELSIF p_subject_type = 'hettich_dataset' THEN
+    -- Source-verification STATE of the records (the full record validation stays in the TypeScript Hettich engine).
+    IF NOT EXISTS (SELECT 1 FROM design_os.hettich_article a WHERE a.version_id = p_id) THEN
+      out := out || 'Hettich dataset has no articles'::text;
+    END IF;
     out := out || ARRAY(SELECT format('Hettich record %s is not source-verified', a.record_code) FROM design_os.hettich_article a
-                        WHERE a.version_id = p_id AND (a.article_number IS NULL OR a.verified_by IS NULL OR a.verified_at IS NULL OR a.source_ref ->> 'url' IS NULL) ORDER BY a.record_code);
+                        WHERE a.version_id = p_id AND (btrim(coalesce(a.article_number, '')) = '' OR a.category IS NULL
+                          OR NOT design_os.is_official_hettich_url(a.source_ref ->> 'url') OR coalesce(a.source_ref ->> 'sourceDate', '') !~ '^\d{4}-\d{2}-\d{2}$'
+                          OR a.verified_by IS NULL OR a.verified_at IS NULL)
+                        ORDER BY a.record_code);
+    out := out || ARRAY(SELECT format('Hettich record %s is a fixture article', a.record_code) FROM design_os.hettich_article a
+                        WHERE a.version_id = p_id AND a.article_number LIKE 'FIXTURE-%' ORDER BY a.record_code);
+    out := out || ARRAY(SELECT format('Hettich record %s licence is %s', a.record_code, a.licence_status) FROM design_os.hettich_article a
+                        WHERE a.version_id = p_id AND a.licence_status NOT IN ('OFFICIAL_PUBLIC', 'AUTHORISED') ORDER BY a.record_code);
+    out := out || ARRAY(SELECT format('Hettich calculation rule %s is not source-verified', r.rule_code) FROM design_os.hettich_calculation_rule r
+                        WHERE r.version_id = p_id AND (NOT design_os.is_official_hettich_url(r.source_ref ->> 'url')
+                          OR r.verification ->> 'verifiedBy' IS NULL OR r.verification ->> 'verifiedAt' IS NULL)
+                        ORDER BY r.rule_code);
+    out := out || ARRAY(SELECT DISTINCT format('Hettich hinge family %s has no calculation rule', a.product_family) FROM design_os.hettich_article a
+                        WHERE a.version_id = p_id AND a.category = 'HINGE' AND NOT EXISTS (
+                          SELECT 1 FROM design_os.hettich_calculation_rule r WHERE r.version_id = p_id AND r.category = 'HINGE' AND r.family = a.product_family));
+  ELSIF p_subject_type IN ('material_catalog', 'finish_catalog', 'hardware_catalog', 'appliance_catalog', 'product_catalog') THEN
+    -- A catalog version must list at least one exact item version of its domain.
+    IF NOT EXISTS (SELECT 1 FROM design_os.version_dependencies(p_subject_type, p_id, p_org)) THEN
+      out := out || format('%s version has no items', p_subject_type);
+    END IF;
   END IF;
   RETURN out;
 END $$;
@@ -236,7 +287,8 @@ BEGIN
     IF prev <> 'DRAFT' THEN RAISE EXCEPTION 'transition: SUBMIT is allowed only from DRAFT (is %)', prev USING ERRCODE = 'check_violation'; END IF;
     IF NOT design_os.has_permission(reg.author_action) THEN RAISE EXCEPTION 'transition: missing permission %', reg.author_action USING ERRCODE = 'insufficient_privilege'; END IF;
     IF p_subject_type = 'design' AND NOT EXISTS (
-        SELECT 1 FROM design_os.validation_run v WHERE v.design_version_id = p_id AND v.org_id = org AND v.input_hash = r ->> 'input_hash') THEN
+        SELECT 1 FROM design_os.validation_run v WHERE v.design_version_id = p_id AND v.org_id = org
+          AND v.input_hash = r ->> 'input_hash' AND v.input_revision = (r ->> 'input_revision')::int) THEN
       RAISE EXCEPTION 'transition: SUBMIT requires an engine validation run for the current inputs' USING ERRCODE = 'check_violation';
     END IF;
     nxt := 'IN_REVIEW';

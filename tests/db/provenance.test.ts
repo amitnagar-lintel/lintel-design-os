@@ -43,7 +43,7 @@ describe("every snapshot records exact provenance", () => {
   it.each((["BOM", "BOQ", "PRICING", "QUOTATION", "DRAWING"] as const).map((k) => [k]))("%s: exact pins, input hash, engine version, content hash and design lifecycle", async (kind) => {
     await tx(async (c) => {
       const w = await createWorld(c);
-      const d = await designVersion(c, w, await dependencies(c, w));
+      const d = await designVersion(c, w, await dependencies(c, w, { commercial: "draft" }));
       const { record, row } = await snapshotFor(c, w, d, kind);
       await insertRow(c, TABLE[kind], row);
       const stored = await one<SnapshotRow & { purpose: string; created_at: string }>(c, `SELECT * FROM design_os.${TABLE[kind]} WHERE id = $1`, [record.snapshotId]);
@@ -60,7 +60,7 @@ describe("every snapshot records exact provenance", () => {
   it("a snapshot whose provenance differs from the design version is rejected", async () => {
     await tx(async (c) => {
       const w = await createWorld(c);
-      const deps = await dependencies(c, w);
+      const deps = await dependencies(c, w, { commercial: "draft" });
       const d = await designVersion(c, w, deps);
       const { row } = await snapshotFor(c, w, d, "BOM");
       const cases: [Partial<SnapshotRow>, string][] = [
@@ -145,7 +145,7 @@ describe("FOR_PRODUCTION and issuing", () => {
   it("issuing a quotation requires a LOCKED design version and a snapshot of the locked content", async () => {
     await tx(async (c) => {
       const w = await createWorld(c);
-      const d = await designVersion(c, w, await dependencies(c, w));
+      const d = await designVersion(c, w, await dependencies(c, w, { commercial: "approved" }));
       await approvedDesign(c, w, d);
       const q = await snapshotFor(c, w, d, "QUOTATION");
       await insertRow(c, "quotation_snapshot", q.row);

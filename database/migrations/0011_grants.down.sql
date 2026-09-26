@@ -8,7 +8,7 @@ DO $$
 DECLARE
   f text;
 BEGIN
-  FOREACH f IN ARRAY ARRAY['guard_draft_content()', 'guard_membership_identity()', 'guard_client_contact_identity()', 'guard_project_member()', 'guard_product_recipe()',
+  FOREACH f IN ARRAY ARRAY['bump_input_revision()', 'guard_draft_content()', 'guard_membership_identity()', 'guard_client_contact_identity()', 'guard_project_member()', 'guard_product_recipe()',
                            'guard_design_version_room()', 'guard_design_object_product()', 'check_snapshot_provenance()', 'check_issue()', 'seed_org_permissions()'] LOOP
     EXECUTE format('ALTER FUNCTION design_os.%s SECURITY INVOKER RESET search_path', f);
   END LOOP;

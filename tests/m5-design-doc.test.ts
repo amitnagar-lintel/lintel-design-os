@@ -82,3 +82,18 @@ describe("PRODUCTION-DATA-ARCHITECTURE.md", () => {
     for (const f of ENVELOPE) expect(dataArch).toContain(`\`${f}\``);
   });
 });
+
+describe("M5 step 3 safeguards are documented", () => {
+  it("lists the hosted Supabase compatibility checks on the Mumbai gate", () => {
+    for (const item of ["ownership / role model", "`auth.users` REFERENCES grant", "SECURITY DEFINER behaviour", "RLS behaviour", "extensions / functions", "migration permissions"]) {
+      expect(design).toContain(item);
+    }
+  });
+  it("records the validation-run trust boundary and the no-empty-approval rules", () => {
+    expect(design).toContain("Validation-run trust boundary");
+    expect(design).toContain("SQL never recalculates them");
+    expect(design).toContain("EdgeBandStandard:** at least one edge rule");
+    expect(design).toContain("Hettich dataset:** at least one article");
+    expect(design).toContain("ManufacturingStandard:** not approvable while its variable registry is empty");
+  });
+});

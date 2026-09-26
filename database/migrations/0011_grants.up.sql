@@ -8,7 +8,7 @@ DO $$
 DECLARE
   f text;
 BEGIN
-  FOREACH f IN ARRAY ARRAY['guard_draft_content()', 'guard_membership_identity()', 'guard_client_contact_identity()', 'guard_project_member()', 'guard_product_recipe()',
+  FOREACH f IN ARRAY ARRAY['bump_input_revision()', 'guard_draft_content()', 'guard_membership_identity()', 'guard_client_contact_identity()', 'guard_project_member()', 'guard_product_recipe()',
                            'guard_design_version_room()', 'guard_design_object_product()', 'check_snapshot_provenance()', 'check_issue()', 'seed_org_permissions()'] LOOP
     EXECUTE format('ALTER FUNCTION design_os.%s SECURITY DEFINER SET search_path = design_os, pg_temp', f);
   END LOOP;
@@ -40,11 +40,13 @@ DECLARE
   t text;
   cols text;
   read_only text[] := ARRAY['versioned_table', 'role', 'permission', 'default_role_permission', 'construction_variable', 'planning_variable', 'manufacturing_variable',
-                            'organization', 'app_user', 'approval_request', 'approval_decision', 'audit_log'];
-  insert_only text[] := ARRAY['room_revision', 'validation_run', 'file_object', 'bom_snapshot', 'boq_snapshot', 'pricing_snapshot', 'quotation_snapshot', 'drawing_snapshot',
+                            'organization', 'app_user', 'approval_request', 'approval_decision', 'audit_log',
+                            -- written only through design_os.record_validation_run()
+                            'validation_run'];
+  insert_only text[] := ARRAY['room_revision', 'file_object', 'bom_snapshot', 'boq_snapshot', 'pricing_snapshot', 'quotation_snapshot', 'drawing_snapshot',
                               'manufacturing_document_snapshot', 'quotation_issue', 'drawing_issue', 'drawing_snapshot_file', 'manufacturing_document_snapshot_file'];
   version_tables text[] := ARRAY(SELECT split_part(version_table::text, '.', 2) FROM design_os.versioned_table);
-  frozen_columns text[] := design_os.lifecycle_columns() || ARRAY['id', 'org_id', 'entity_id', 'version_number', 'created_by', 'created_at', 'row_version', 'data_classification'];
+  frozen_columns text[] := design_os.lifecycle_columns() || ARRAY['id', 'org_id', 'entity_id', 'version_number', 'created_by', 'created_at', 'row_version', 'data_classification', 'input_revision'];
 BEGIN
   FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'design_os' ORDER BY tablename LOOP
     IF t = ANY (read_only) THEN
@@ -69,5 +71,6 @@ GRANT EXECUTE ON FUNCTION
   design_os.claims(), design_os.current_user_id(), design_os.current_org_id(), design_os.is_internal(), design_os.has_permission(text),
   design_os.can_access_project(uuid), design_os.design_version_project(uuid), design_os.room_project(uuid), design_os.is_issued(text, uuid),
   design_os.client_can_read_file(uuid), design_os.lifecycle_columns(), design_os.client_allowed_actions(), design_os.finance_approval_actions(),
-  design_os.transition(text, uuid, text, text, text)
+  design_os.transition(text, uuid, text, text, text),
+  design_os.record_validation_run(uuid, text, text, text, integer, integer, jsonb, text)
 TO design_os_api;

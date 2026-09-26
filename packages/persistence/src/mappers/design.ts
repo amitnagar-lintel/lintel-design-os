@@ -105,6 +105,8 @@ export interface DesignVersionRow extends EnvelopeRow {
   readonly product_catalog_version_id: string;
   readonly authored_engine_version: string;
   readonly input_hash: Sha256;
+  /** Maintained by the database (bumped on any input change); never set by callers. */
+  readonly input_revision: number;
 }
 
 export interface DesignVersionRecord {
@@ -116,6 +118,8 @@ export interface DesignVersionRecord {
   readonly pins: DesignVersionPins;
   readonly authoredEngineVersion: string;
   readonly inputHash: Sha256;
+  /** Database-maintained input revision; a validation run is valid only for the same hash AND revision. */
+  readonly inputRevision: number;
 }
 
 export function pinsToColumns(p: DesignVersionPins) {
@@ -162,6 +166,7 @@ export function designVersionToRow(d: DesignVersionRecord, ctx: MapContext): Des
     ...pinsToColumns(d.pins),
     authored_engine_version: d.authoredEngineVersion,
     input_hash: d.inputHash,
+    input_revision: d.inputRevision,
   };
 }
 
@@ -174,6 +179,7 @@ export function designVersionFromRow(r: DesignVersionRow): DesignVersionRecord {
     pins: pinsFromColumns(r),
     authoredEngineVersion: r.authored_engine_version,
     inputHash: r.input_hash,
+    inputRevision: r.input_revision,
   };
 }
 

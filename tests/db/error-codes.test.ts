@@ -5,7 +5,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import type { DesignVersionRow, SnapshotKind } from "@lintel/persistence";
+import type { DesignVersionRow, OutputPurpose, SnapshotKind } from "@lintel/persistence";
 import { buildSnapshotProvenance, buildSnapshotRecord, contentHash, designVersionFromRow, snapshotToRow } from "@lintel/persistence";
 import type { Tx } from "./support/db.js";
 import { actAs, attemptDb, insertRow, one, tx } from "./support/db.js";
@@ -34,11 +34,11 @@ function tr(c: Tx, w: World, role: Parameters<World["actor"]>[0], subject: strin
   return run(c, w, role, "SELECT design_os.transition($1, $2, $3, $4, $5)", [subject, id, action, reason, hash]);
 }
 
-async function snapshotRow(c: Tx, w: World, d: DesignFixture, kind: SnapshotKind, blockers = 0): Promise<Record<string, unknown>> {
+async function snapshotRow(c: Tx, w: World, d: DesignFixture, kind: SnapshotKind, blockers = 0, purpose: OutputPurpose = "PRELIMINARY"): Promise<Record<string, unknown>> {
   await actAs(c, null);
   const dv = designVersionFromRow(await one<DesignVersionRow>(c, "SELECT * FROM design_os.design_version WHERE id = $1", [d.designVersionId]));
   const provenance = buildSnapshotProvenance(kind, { versionId: dv.envelope.versionId, status: dv.envelope.status, contentHash: dv.envelope.contentHash }, dv.pins, "0.1.0+test");
-  const record = buildSnapshotRecord({ snapshotId: randomUUID(), kind, provenance, inputHash: dv.inputHash, payload: { items: [] }, blockerCount: blockers, createdBy: w.users.DESIGNER, createdAt: "2026-09-26T10:00:00.000Z" });
+  const record = buildSnapshotRecord({ snapshotId: randomUUID(), kind, purpose, provenance, inputHash: dv.inputHash, payload: { items: [] }, blockerCount: blockers, createdBy: w.users.DESIGNER, createdAt: "2026-09-26T10:00:00.000Z" });
   return { ...snapshotToRow(record, { orgId: w.org }) };
 }
 
@@ -69,7 +69,7 @@ describe("every RAISE in design_os carries a registered LD SQLSTATE", () => {
     await tx(async (c) => {
       await actAs(c, null);
       const rows = (await c.query<{ sqlstate: string; code: string; http_status: number; api_facing: boolean }>("SELECT sqlstate, code, http_status, api_facing FROM design_os.error_code ORDER BY sqlstate")).rows;
-      expect(rows.length).toBe(28);
+      expect(rows.length).toBe(29);
       for (const r of rows) {
         if (r.sqlstate < "LD900") expect([r.code, r.api_facing, r.http_status >= 400 && r.http_status < 500]).toEqual([r.code, true, true]);
         else expect([r.code, r.api_facing, r.http_status]).toEqual([r.code, false, 500]);
@@ -81,7 +81,7 @@ describe("every RAISE in design_os carries a registered LD SQLSTATE", () => {
     await tx(async (c) => {
       const w = await createWorld(c);
       await actAs(c, w.actor("ADMIN"), { apiRole: true });
-      expect((await c.query("SELECT count(*) FROM design_os.error_code")).rows).toEqual([{ count: 28 }]);
+      expect((await c.query("SELECT count(*) FROM design_os.error_code")).rows).toEqual([{ count: 29 }]);
       expect((await sqlstate(c, () => c.query("INSERT INTO design_os.error_code VALUES ('LD099', 'X', 400, true, 'x')"))).code).toBe("42501");
       await actAs(c, null);
       expect((await sqlstate(c, () => c.query("UPDATE design_os.error_code SET http_status = 418 WHERE sqlstate = 'LD001'"))).code).toBe("LD015");
@@ -199,21 +199,23 @@ describe("each API-facing LD code is produced by its real database path", () => 
       expect((await sqlstate(c, () => c.query("UPDATE design_os.validation_run SET blocker_count = 0 WHERE design_version_id = $1", [d.designVersionId]))).code).toBe("LD015");
     });
   });
-  it("snapshots and issues: LD005, LD011, LD016, LD017, LD021", async () => {
+  it("snapshots and issues: LD005, LD011, LD016, LD017, LD021, LD024", async () => {
     await tx(async (c) => {
       const w = await createWorld(c);
       const d = await designVersion(c, w, await dependencies(c, w));
       const draft = await snapshotRow(c, w, d, "DRAWING");
       expect((await sqlstate(c, () => insertRow(c, "drawing_snapshot", { ...draft, input_hash: contentHash("other inputs") }))).code).toBe("LD016");
       expect((await sqlstate(c, () => insertRow(c, "drawing_snapshot", { ...draft, purpose: "FOR_PRODUCTION" }))).code).toBe("LD021");
+      expect((await sqlstate(c, () => insertRow(c, "drawing_snapshot", { ...draft, purpose: "FOR_REVIEW" }))).code).toBe("LD024");
       expect((await sqlstate(c, () => insertRow(c, "drawing_snapshot", { ...draft, design_version_id: randomUUID() }))).code).toBe("LD005");
       await approveDesign(c, w, d);
       const blocked = await snapshotRow(c, w, d, "DRAWING", 3);
       const b = await sqlstate(c, () => insertRow(c, "drawing_snapshot", { ...blocked, purpose: "FOR_PRODUCTION" }));
       expect(b).toMatchObject({ code: "LD011", detail: { blockerCount: 3 } });
-      const ok = await snapshotRow(c, w, d, "DRAWING");
+      const ok = await snapshotRow(c, w, d, "DRAWING", 0, "FOR_PRODUCTION");
       await insertRow(c, "drawing_snapshot", ok);
-      expect((await sqlstate(c, () => insertRow(c, "drawing_issue", { org_id: w.org, snapshot_id: ok.id, issued_by: w.users.DESIGN_HEAD, reason: "issued" }))).code).toBe("LD017");
+      // FOR_PRODUCTION, but the design version is APPROVED, not LOCKED.
+      expect((await sqlstate(c, () => insertRow(c, "drawing_issue", { org_id: w.org, snapshot_id: ok.id, issued_by: w.users.DESIGN_HEAD, reason: "issued" }))).detail).toEqual({ status: "APPROVED", blockerCount: 0 });
     });
   });
   it("memberships and references: LD018, LD019", async () => {

@@ -16,8 +16,8 @@
 | 0009 | audit | Append-only SHA-256 hash-chained audit log |
 | 0010 | rls | Row-level security, default deny, per-family policies |
 | 0011 | grants | Least-privilege grants; nothing for anon / authenticated / service_role |
-| 0012 | error_codes | SQLSTATE class `LD` on every `RAISE`, `design_os.error_code` registry, coded approval problems (`approval_problem_items`); logic and messages unchanged |
-| 0013 | idempotency_context | `current_memberships()` (own ACTIVE org ids from `auth.uid()`), `idempotency_record` with `UNIQUE (org_id, scope, idempotency_key)`, `claim_idempotency()` / `complete_idempotency()` |
+| 0012 | error_codes_output_purpose | SQLSTATE class `LD` on every `RAISE`, `design_os.error_code` registry, coded approval problems (`approval_problem_items`); output purposes PRELIMINARY / FOR_REVIEW / FOR_PRODUCTION per snapshot kind (`output_purpose_rule`), only FOR_PRODUCTION can be issued |
+| 0013 | idempotency_context | `current_memberships()` (own ACTIVE org ids from `auth.uid()`), `current_org_id()` with the same ACTIVE-organization rule (INACTIVE status added), `idempotency_record` with `UNIQUE (org_id, scope, idempotency_key)`, `claim_idempotency()` / `complete_idempotency()` |
 
 Rules:
 

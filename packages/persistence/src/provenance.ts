@@ -5,6 +5,8 @@ import type { Sha256 } from "./hash.js";
 import { contentHash } from "./hash.js";
 import type { MapContext } from "./mappers/common.js";
 import type { DesignVersionPins } from "./mappers/design.js";
+import type { OutputPurpose } from "./output-purpose.js";
+import { outputPurposeProblems } from "./output-purpose.js";
 
 export type SnapshotKind = "BOM" | "BOQ" | "PRICING" | "QUOTATION" | "DRAWING" | "MANUFACTURING_DOCUMENT";
 
@@ -84,6 +86,8 @@ export function provenanceMismatches(p: SnapshotProvenance, designVersion: Desig
 export interface SnapshotRecord {
   readonly snapshotId: string;
   readonly kind: SnapshotKind;
+  /** PRELIMINARY, FOR_REVIEW or FOR_PRODUCTION; fixed for the snapshot's lifetime (see output-purpose.ts). */
+  readonly purpose: OutputPurpose;
   readonly provenance: SnapshotProvenance;
   readonly inputHash: Sha256;
   readonly contentHash: Sha256;
@@ -98,11 +102,13 @@ export interface SnapshotRecord {
 
 /**
  * Seal an engine output for storage. TEST_FIXTURE outputs are refused (requirement E);
- * the content hash is computed here, never accepted from a caller.
+ * the content hash is computed here, never accepted from a caller. The output purpose must be
+ * allowed for the kind and the design version's lifecycle state (FOR_PRODUCTION also needs 0 BLOCKERs).
  */
 export function buildSnapshotRecord(input: {
   readonly snapshotId: string;
   readonly kind: SnapshotKind;
+  readonly purpose: OutputPurpose;
   readonly provenance: SnapshotProvenance;
   readonly inputHash: Sha256;
   readonly payload: unknown;
@@ -112,6 +118,8 @@ export function buildSnapshotRecord(input: {
 }): SnapshotRecord {
   assertNoTestFixture(`${input.kind} snapshot ${input.snapshotId}`, input.payload);
   if (!Number.isInteger(input.blockerCount) || input.blockerCount < 0) throw new MappingError("blockerCount must be a non-negative integer");
+  const purposeProblems = outputPurposeProblems(input.kind, input.purpose, input.provenance.designVersionStatus, input.blockerCount);
+  if (purposeProblems.length > 0) throw new MappingError(`${input.kind} ${input.purpose} output refused: ${purposeProblems.map((p) => `${p.code}: ${p.message}`).join("; ")}`);
   const p = input.payload;
   const engineHash = p !== null && typeof p === "object" && typeof (p as { contentHash?: unknown }).contentHash === "string" ? (p as { contentHash: string }).contentHash : null;
   return { ...input, contentHash: contentHash(input.payload), engineHash, dataClassification: "PRODUCTION" };
@@ -126,6 +134,7 @@ export interface SnapshotRow {
   readonly id: string;
   readonly org_id: string;
   readonly kind: SnapshotKind;
+  readonly purpose: OutputPurpose;
   readonly design_version_id: string;
   readonly design_version_status: RecordLifecycleStatus;
   readonly design_version_content_hash: Sha256;
@@ -158,6 +167,7 @@ export function snapshotToRow(r: SnapshotRecord, ctx: MapContext): SnapshotRow {
     id: r.snapshotId,
     org_id: ctx.orgId,
     kind: r.kind,
+    purpose: r.purpose,
     design_version_id: p.designVersionId,
     design_version_status: p.designVersionStatus,
     design_version_content_hash: p.designVersionContentHash,
@@ -189,6 +199,7 @@ export function snapshotFromRow(row: SnapshotRow): SnapshotRecord {
   return {
     snapshotId: row.id,
     kind: row.kind,
+    purpose: row.purpose,
     provenance: {
       designVersionId: row.design_version_id,
       designVersionStatus: row.design_version_status,

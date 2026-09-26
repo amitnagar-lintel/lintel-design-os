@@ -804,6 +804,13 @@ column: organization.name text NOT NULL
 column: organization.status text NOT NULL DEFAULT 'ACTIVE'::text
 column: organization.parent_org_id uuid
 column: organization.created_at timestamp with time zone NOT NULL DEFAULT now()
+column: output_purpose_rule.kind design_os.snapshot_kind NOT NULL
+column: output_purpose_rule.purpose text NOT NULL
+column: output_purpose_rule.design_statuses design_os.record_lifecycle_status[] NOT NULL
+column: output_purpose_rule.requires_zero_blockers boolean NOT NULL
+column: output_purpose_rule.qualifies_for_issue boolean NOT NULL
+column: output_purpose_rule.qualifies_for_release boolean NOT NULL
+column: output_purpose_rule.description text NOT NULL
 column: permission.action text NOT NULL
 column: permission.description text NOT NULL
 column: planning_standard.id uuid NOT NULL DEFAULT gen_random_uuid()
@@ -1249,7 +1256,8 @@ constraint: design_os.bom_snapshot bom_snapshot_pkey PRIMARY KEY (id)
 constraint: design_os.bom_snapshot bom_snapshot_planning_fk FOREIGN KEY (org_id, planning_standard_version_id) REFERENCES design_os.planning_standard_version(org_id, id)
 constraint: design_os.bom_snapshot bom_snapshot_pricing_fk FOREIGN KEY (org_id, pricing_standard_version_id) REFERENCES design_os.pricing_standard_version(org_id, id)
 constraint: design_os.bom_snapshot bom_snapshot_product_fk FOREIGN KEY (org_id, product_catalog_version_id) REFERENCES design_os.product_catalog_version(org_id, id)
-constraint: design_os.bom_snapshot bom_snapshot_purpose_check CHECK ((purpose = ANY (ARRAY['PRELIMINARY'::text, 'FOR_PRODUCTION'::text])))
+constraint: design_os.bom_snapshot bom_snapshot_purpose_check CHECK ((purpose = ANY (ARRAY['PRELIMINARY'::text, 'FOR_REVIEW'::text, 'FOR_PRODUCTION'::text])))
+constraint: design_os.bom_snapshot bom_snapshot_purpose_rule_fk FOREIGN KEY (kind, purpose) REFERENCES design_os.output_purpose_rule(kind, purpose)
 constraint: design_os.bom_snapshot bom_snapshot_quotation_policy_fk FOREIGN KEY (org_id, quotation_policy_version_id) REFERENCES design_os.quotation_policy_version(org_id, id)
 constraint: design_os.boq_snapshot boq_snapshot_appliance_fk FOREIGN KEY (org_id, appliance_catalog_version_id) REFERENCES design_os.appliance_catalog_version(org_id, id)
 constraint: design_os.boq_snapshot boq_snapshot_blocker_count_check CHECK ((blocker_count >= 0))
@@ -1275,7 +1283,8 @@ constraint: design_os.boq_snapshot boq_snapshot_pkey PRIMARY KEY (id)
 constraint: design_os.boq_snapshot boq_snapshot_planning_fk FOREIGN KEY (org_id, planning_standard_version_id) REFERENCES design_os.planning_standard_version(org_id, id)
 constraint: design_os.boq_snapshot boq_snapshot_pricing_fk FOREIGN KEY (org_id, pricing_standard_version_id) REFERENCES design_os.pricing_standard_version(org_id, id)
 constraint: design_os.boq_snapshot boq_snapshot_product_fk FOREIGN KEY (org_id, product_catalog_version_id) REFERENCES design_os.product_catalog_version(org_id, id)
-constraint: design_os.boq_snapshot boq_snapshot_purpose_check CHECK ((purpose = ANY (ARRAY['PRELIMINARY'::text, 'FOR_PRODUCTION'::text])))
+constraint: design_os.boq_snapshot boq_snapshot_purpose_check CHECK ((purpose = ANY (ARRAY['PRELIMINARY'::text, 'FOR_REVIEW'::text, 'FOR_PRODUCTION'::text])))
+constraint: design_os.boq_snapshot boq_snapshot_purpose_rule_fk FOREIGN KEY (kind, purpose) REFERENCES design_os.output_purpose_rule(kind, purpose)
 constraint: design_os.boq_snapshot boq_snapshot_quotation_policy_fk FOREIGN KEY (org_id, quotation_policy_version_id) REFERENCES design_os.quotation_policy_version(org_id, id)
 constraint: design_os.client client_code_unique UNIQUE (org_id, client_code)
 constraint: design_os.client client_org_id_fkey FOREIGN KEY (org_id) REFERENCES design_os.organization(id)
@@ -1412,7 +1421,8 @@ constraint: design_os.drawing_snapshot drawing_snapshot_pkey PRIMARY KEY (id)
 constraint: design_os.drawing_snapshot drawing_snapshot_planning_fk FOREIGN KEY (org_id, planning_standard_version_id) REFERENCES design_os.planning_standard_version(org_id, id)
 constraint: design_os.drawing_snapshot drawing_snapshot_pricing_fk FOREIGN KEY (org_id, pricing_standard_version_id) REFERENCES design_os.pricing_standard_version(org_id, id)
 constraint: design_os.drawing_snapshot drawing_snapshot_product_fk FOREIGN KEY (org_id, product_catalog_version_id) REFERENCES design_os.product_catalog_version(org_id, id)
-constraint: design_os.drawing_snapshot drawing_snapshot_purpose_check CHECK ((purpose = ANY (ARRAY['PRELIMINARY'::text, 'FOR_PRODUCTION'::text])))
+constraint: design_os.drawing_snapshot drawing_snapshot_purpose_check CHECK ((purpose = ANY (ARRAY['PRELIMINARY'::text, 'FOR_REVIEW'::text, 'FOR_PRODUCTION'::text])))
+constraint: design_os.drawing_snapshot drawing_snapshot_purpose_rule_fk FOREIGN KEY (kind, purpose) REFERENCES design_os.output_purpose_rule(kind, purpose)
 constraint: design_os.drawing_snapshot drawing_snapshot_quotation_policy_fk FOREIGN KEY (org_id, quotation_policy_version_id) REFERENCES design_os.quotation_policy_version(org_id, id)
 constraint: design_os.drawing_snapshot_file drawing_snapshot_file_file_fk FOREIGN KEY (org_id, file_object_id) REFERENCES design_os.file_object(org_id, id)
 constraint: design_os.drawing_snapshot_file drawing_snapshot_file_format_check CHECK ((format = ANY (ARRAY['SVG'::text, 'PDF'::text])))
@@ -1721,7 +1731,8 @@ constraint: design_os.manufacturing_document_snapshot manufacturing_document_sna
 constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_planning_fk FOREIGN KEY (org_id, planning_standard_version_id) REFERENCES design_os.planning_standard_version(org_id, id)
 constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_pricing_fk FOREIGN KEY (org_id, pricing_standard_version_id) REFERENCES design_os.pricing_standard_version(org_id, id)
 constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_product_fk FOREIGN KEY (org_id, product_catalog_version_id) REFERENCES design_os.product_catalog_version(org_id, id)
-constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_purpose_check CHECK ((purpose = ANY (ARRAY['PRELIMINARY'::text, 'FOR_PRODUCTION'::text])))
+constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_purpose_check CHECK ((purpose = ANY (ARRAY['PRELIMINARY'::text, 'FOR_REVIEW'::text, 'FOR_PRODUCTION'::text])))
+constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_purpose_rule_fk FOREIGN KEY (kind, purpose) REFERENCES design_os.output_purpose_rule(kind, purpose)
 constraint: design_os.manufacturing_document_snapshot manufacturing_document_snapshot_quotation_policy_fk FOREIGN KEY (org_id, quotation_policy_version_id) REFERENCES design_os.quotation_policy_version(org_id, id)
 constraint: design_os.manufacturing_document_snapshot_file manufacturing_document_file_file_fk FOREIGN KEY (org_id, file_object_id) REFERENCES design_os.file_object(org_id, id)
 constraint: design_os.manufacturing_document_snapshot_file manufacturing_document_file_snapshot_fk FOREIGN KEY (org_id, snapshot_id) REFERENCES design_os.manufacturing_document_snapshot(org_id, id)
@@ -1829,7 +1840,15 @@ constraint: design_os.org_membership org_membership_user_id_fkey FOREIGN KEY (us
 constraint: design_os.organization organization_code_key UNIQUE (code)
 constraint: design_os.organization organization_parent_org_id_fkey FOREIGN KEY (parent_org_id) REFERENCES design_os.organization(id)
 constraint: design_os.organization organization_pkey PRIMARY KEY (id)
-constraint: design_os.organization organization_status_check CHECK ((status = ANY (ARRAY['ACTIVE'::text, 'SUSPENDED'::text])))
+constraint: design_os.organization organization_status_check CHECK ((status = ANY (ARRAY['ACTIVE'::text, 'SUSPENDED'::text, 'INACTIVE'::text])))
+constraint: design_os.output_purpose_rule output_purpose_rule_design_statuses_check CHECK ((cardinality(design_statuses) > 0))
+constraint: design_os.output_purpose_rule output_purpose_rule_issue_kinds CHECK (((NOT qualifies_for_issue) OR (kind = ANY (ARRAY['QUOTATION'::design_os.snapshot_kind, 'DRAWING'::design_os.snapshot_kind]))))
+constraint: design_os.output_purpose_rule output_purpose_rule_only_production_qualifies CHECK (((purpose = 'FOR_PRODUCTION'::text) OR (NOT (qualifies_for_issue OR qualifies_for_release))))
+constraint: design_os.output_purpose_rule output_purpose_rule_pkey PRIMARY KEY (kind, purpose)
+constraint: design_os.output_purpose_rule output_purpose_rule_production_guard CHECK (((purpose <> 'FOR_PRODUCTION'::text) OR (requires_zero_blockers AND (design_statuses <@ ARRAY['APPROVED'::design_os.record_lifecycle_status, 'LOCKED'::design_os.record_lifecycle_status]))))
+constraint: design_os.output_purpose_rule output_purpose_rule_purpose_check CHECK ((purpose = ANY (ARRAY['PRELIMINARY'::text, 'FOR_REVIEW'::text, 'FOR_PRODUCTION'::text])))
+constraint: design_os.output_purpose_rule output_purpose_rule_release_kinds CHECK (((NOT qualifies_for_release) OR (kind = 'MANUFACTURING_DOCUMENT'::design_os.snapshot_kind)))
+constraint: design_os.output_purpose_rule output_purpose_rule_review_states CHECK (((purpose <> 'FOR_REVIEW'::text) OR (design_statuses <@ ARRAY['IN_REVIEW'::design_os.record_lifecycle_status, 'APPROVED'::design_os.record_lifecycle_status, 'LOCKED'::design_os.record_lifecycle_status])))
 constraint: design_os.permission permission_pkey PRIMARY KEY (action)
 constraint: design_os.planning_standard planning_standard_code_unique UNIQUE (org_id, code)
 constraint: design_os.planning_standard planning_standard_org_id_fkey FOREIGN KEY (org_id) REFERENCES design_os.organization(id)
@@ -1885,7 +1904,8 @@ constraint: design_os.pricing_snapshot pricing_snapshot_pkey PRIMARY KEY (id)
 constraint: design_os.pricing_snapshot pricing_snapshot_planning_fk FOREIGN KEY (org_id, planning_standard_version_id) REFERENCES design_os.planning_standard_version(org_id, id)
 constraint: design_os.pricing_snapshot pricing_snapshot_pricing_fk FOREIGN KEY (org_id, pricing_standard_version_id) REFERENCES design_os.pricing_standard_version(org_id, id)
 constraint: design_os.pricing_snapshot pricing_snapshot_product_fk FOREIGN KEY (org_id, product_catalog_version_id) REFERENCES design_os.product_catalog_version(org_id, id)
-constraint: design_os.pricing_snapshot pricing_snapshot_purpose_check CHECK ((purpose = ANY (ARRAY['PRELIMINARY'::text, 'FOR_PRODUCTION'::text])))
+constraint: design_os.pricing_snapshot pricing_snapshot_purpose_check CHECK ((purpose = ANY (ARRAY['PRELIMINARY'::text, 'FOR_REVIEW'::text, 'FOR_PRODUCTION'::text])))
+constraint: design_os.pricing_snapshot pricing_snapshot_purpose_rule_fk FOREIGN KEY (kind, purpose) REFERENCES design_os.output_purpose_rule(kind, purpose)
 constraint: design_os.pricing_snapshot pricing_snapshot_quotation_policy_fk FOREIGN KEY (org_id, quotation_policy_version_id) REFERENCES design_os.quotation_policy_version(org_id, id)
 constraint: design_os.pricing_standard pricing_standard_code_unique UNIQUE (org_id, code)
 constraint: design_os.pricing_standard pricing_standard_org_id_fkey FOREIGN KEY (org_id) REFERENCES design_os.organization(id)
@@ -2056,7 +2076,8 @@ constraint: design_os.quotation_snapshot quotation_snapshot_pkey PRIMARY KEY (id
 constraint: design_os.quotation_snapshot quotation_snapshot_planning_fk FOREIGN KEY (org_id, planning_standard_version_id) REFERENCES design_os.planning_standard_version(org_id, id)
 constraint: design_os.quotation_snapshot quotation_snapshot_pricing_fk FOREIGN KEY (org_id, pricing_standard_version_id) REFERENCES design_os.pricing_standard_version(org_id, id)
 constraint: design_os.quotation_snapshot quotation_snapshot_product_fk FOREIGN KEY (org_id, product_catalog_version_id) REFERENCES design_os.product_catalog_version(org_id, id)
-constraint: design_os.quotation_snapshot quotation_snapshot_purpose_check CHECK ((purpose = ANY (ARRAY['PRELIMINARY'::text, 'FOR_PRODUCTION'::text])))
+constraint: design_os.quotation_snapshot quotation_snapshot_purpose_check CHECK ((purpose = ANY (ARRAY['PRELIMINARY'::text, 'FOR_REVIEW'::text, 'FOR_PRODUCTION'::text])))
+constraint: design_os.quotation_snapshot quotation_snapshot_purpose_rule_fk FOREIGN KEY (kind, purpose) REFERENCES design_os.output_purpose_rule(kind, purpose)
 constraint: design_os.quotation_snapshot quotation_snapshot_quotation_policy_fk FOREIGN KEY (org_id, quotation_policy_version_id) REFERENCES design_os.quotation_policy_version(org_id, id)
 constraint: design_os.quotation_snapshot quotation_snapshot_revision_number_check CHECK ((revision_number >= 1))
 constraint: design_os.rate_card_line rate_card_line_measure_check CHECK ((measure = ANY (ARRAY['BOARD_M2'::text, 'EDGE_M'::text, 'FINISH_M2'::text, 'HARDWARE_UNIT'::text])))
@@ -2309,6 +2330,7 @@ index: CREATE UNIQUE INDEX material_version_version_number_unique ON design_os.m
 index: CREATE UNIQUE INDEX org_membership_pkey ON design_os.org_membership USING btree (org_id, user_id, role)
 index: CREATE UNIQUE INDEX organization_code_key ON design_os.organization USING btree (code)
 index: CREATE UNIQUE INDEX organization_pkey ON design_os.organization USING btree (id)
+index: CREATE UNIQUE INDEX output_purpose_rule_pkey ON design_os.output_purpose_rule USING btree (kind, purpose)
 index: CREATE UNIQUE INDEX permission_pkey ON design_os.permission USING btree (action)
 index: CREATE UNIQUE INDEX planning_standard_code_unique ON design_os.planning_standard USING btree (org_id, code)
 index: CREATE UNIQUE INDEX planning_standard_org_id_unique ON design_os.planning_standard USING btree (org_id, id)
@@ -2487,6 +2509,7 @@ trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.err
 trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.file_object FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
 trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.manufacturing_document_snapshot FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
 trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.manufacturing_document_snapshot_file FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
+trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.output_purpose_rule FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
 trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.pricing_snapshot FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
 trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.quotation_issue FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
 trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.quotation_snapshot FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
@@ -2553,8 +2576,8 @@ function: audit_row() -> trigger SECURITY DEFINER search_path=design_os, pg_temp
 function: bump_input_revision() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=6dd7dc4b9ec9b7379ece0b4e5ed1940e
 function: can_access_project(p_project uuid) -> boolean SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=d5ccb73fb532950fa57f3c23c0d265ac
 function: check_idempotency_completed() -> trigger SECURITY DEFINER search_path=pg_catalog, pg_temp owner=design_os_owner src=875de1c9e46e8d69138c77e6342d7267
-function: check_issue() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=f27f42d77c1960a3ecb5c83b89fff60a
-function: check_snapshot_provenance() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=bf3297e93bb148e0539fc7e6fee308db
+function: check_issue() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=9baf6c36b1f458ae1ceb37bc6c3c8336
+function: check_snapshot_provenance() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=5d67b8b85ea2919ad368f2c4c1cbe38b
 function: claim_idempotency(p_scope text, p_idempotency_key text, p_request_hash text, p_ttl interval) -> TABLE(outcome text, record_id uuid, response_status smallint, response_body jsonb, resource_type text, resource_id uuid) SECURITY DEFINER search_path=pg_catalog, pg_temp,lock_timeout=5s owner=design_os_owner src=db21810df6d86458ee3dd15a3ecbadaa
 function: claims() -> jsonb owner=design_os_owner src=31cad67d90d968f9aead02cac268c52c
 function: client_allowed_actions() -> text[] owner=design_os_owner src=93e330c956139ad417309bff62bcbaea
@@ -2565,7 +2588,7 @@ function: create_catalog_version_table(p_domain text) -> void owner=design_os_ow
 function: create_entity_table(p_name text) -> void owner=design_os_owner src=cf6232eba644481d8982f09a48b1b360
 function: create_snapshot_table(p_name text, p_kind design_os.snapshot_kind) -> void owner=design_os_owner src=61275082d540d0e68dd485dbf76a38ff
 function: current_memberships() -> TABLE(org_id uuid) SECURITY DEFINER search_path=pg_catalog, pg_temp owner=design_os_owner src=c3fa20b747d4b792369e44401cb6424d
-function: current_org_id() -> uuid SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=31141e1fdcdd5924c3fe03e74fccba97
+function: current_org_id() -> uuid SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=e16dd340255900740fd41d07da5cc971
 function: current_user_id() -> uuid owner=design_os_owner src=146d8b484b1175a77c42a5109db6a017
 function: design_version_project(p_design_version uuid) -> uuid SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=590ea98bfa2a8ffd784faca591ff3967
 function: finance_approval_actions() -> text[] owner=design_os_owner src=8160933d9dd69f29529ed3f4f0a0bc87
@@ -2596,7 +2619,7 @@ function: record_validation_run(p_design_version_id uuid, p_input_hash text, p_e
 function: room_project(p_room uuid) -> uuid SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=2fc701b3a69dc86e4e0ac5f50fee93d2
 function: seed_org_permissions() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=f6c845acde51f7abe9a6c090d6ae546b
 function: transition(p_subject_type text, p_id uuid, p_action text, p_reason text, p_expected_content_hash text) -> design_os.record_lifecycle_status SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=f56ab141e932485c35d1b2f52b42d1db
-function: unaudited_tables() -> text[] owner=design_os_owner src=b4f3fddf47112dbc13f732fc09052de4
+function: unaudited_tables() -> text[] owner=design_os_owner src=3afa3d856016f81ce3381bc58f298f10
 function: verify_audit_chain(p_org uuid) -> TABLE(ok boolean, checked bigint, first_bad_id bigint) SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=73aa89afa4bc59f748a0fb20fb4fdfa0
 function: version_dependencies(p_subject_type text, p_id uuid, p_org uuid) -> TABLE(dep_subject_type text, dep_version_id uuid, name text, required boolean) owner=design_os_owner src=7fa01d72c8605be2094ef15d3154f648
 function: version_status(p_subject_type text, p_id uuid, p_org uuid) -> design_os.record_lifecycle_status owner=design_os_owner src=b17b69a50ed7061b90deb6fe27f186b0
@@ -2671,6 +2694,7 @@ table: material_catalog_version_material owner=design_os_owner rls=true
 table: material_version owner=design_os_owner rls=true
 table: org_membership owner=design_os_owner rls=true
 table: organization owner=design_os_owner rls=true
+table: output_purpose_rule owner=design_os_owner rls=true
 table: permission owner=design_os_owner rls=true
 table: planning_standard owner=design_os_owner rls=true
 table: planning_standard_value owner=design_os_owner rls=true
@@ -2921,6 +2945,7 @@ policy: org_membership membership_insert INSERT design_os_api USING - CHECK ((or
 policy: org_membership membership_read SELECT design_os_api USING ((org_id = design_os.current_org_id()) AND (design_os.is_internal() OR (user_id = design_os.current_user_id()))) CHECK -
 policy: org_membership membership_update UPDATE design_os_api USING ((org_id = design_os.current_org_id()) AND design_os.has_permission('org.members.manage'::text)) CHECK ((org_id = design_os.current_org_id()) AND design_os.has_permission('org.members.manage'::text))
 policy: organization own_org SELECT design_os_api USING (id = design_os.current_org_id()) CHECK -
+policy: output_purpose_rule registry_read SELECT design_os_api USING true CHECK -
 policy: permission registry_read SELECT design_os_api USING true CHECK -
 policy: planning_standard ref_delete DELETE design_os_api USING ((org_id = design_os.current_org_id()) AND design_os.has_permission('planning_standard.author'::text)) CHECK -
 policy: planning_standard ref_insert INSERT design_os_api USING - CHECK ((org_id = design_os.current_org_id()) AND design_os.has_permission('planning_standard.author'::text))
@@ -3222,6 +3247,7 @@ grant: design_os_api org_membership INSERT
 grant: design_os_api org_membership SELECT
 grant: design_os_api org_membership UPDATE
 grant: design_os_api organization SELECT
+grant: design_os_api output_purpose_rule SELECT
 grant: design_os_api permission SELECT
 grant: design_os_api planning_standard DELETE
 grant: design_os_api planning_standard INSERT

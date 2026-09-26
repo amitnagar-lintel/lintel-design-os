@@ -31,7 +31,7 @@ const TEST_DB = "design_os_test";
 const RACE_DB = "design_os_race";
 
 /** Registries and seeded grants: the only tables allowed to hold rows when the suite ends. */
-const SCHEMA_TABLES = new Set(["versioned_table", "role", "permission", "default_role_permission", "construction_variable", "planning_variable", "manufacturing_variable", "error_code"]);
+const SCHEMA_TABLES = new Set(["versioned_table", "role", "permission", "default_role_permission", "construction_variable", "planning_variable", "manufacturing_variable", "error_code", "output_purpose_rule"]);
 
 export default async function setup(project: TestProject): Promise<() => Promise<void>> {
   const admin = process.env.DATABASE_URL;

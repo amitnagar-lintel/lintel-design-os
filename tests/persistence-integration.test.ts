@@ -112,14 +112,14 @@ describe("snapshots", () => {
   it("a PRODUCTION room BOM (blocked) can be sealed with full provenance", () => {
     const room = productionRoom();
     const bom = generateRoomBom(room);
-    const rec = buildSnapshotRecord({ snapshotId: "snap_1", kind: "BOM", provenance: buildSnapshotProvenance("BOM", { versionId: "dv_001", status: "DRAFT", contentHash: contentHash("dv") }, PINS, room.trace.engineVersion), inputHash: contentHash("inputs"), payload: bom, blockerCount: room.validation.counts.BLOCKER, createdBy: "u", createdAt: T0 });
+    const rec = buildSnapshotRecord({ snapshotId: "snap_1", kind: "BOM", purpose: "PRELIMINARY", provenance: buildSnapshotProvenance("BOM", { versionId: "dv_001", status: "DRAFT", contentHash: contentHash("dv") }, PINS, room.trace.engineVersion), inputHash: contentHash("inputs"), payload: bom, blockerCount: room.validation.counts.BLOCKER, createdBy: "u", createdAt: T0 });
     expect(rec.contentHash).toBe(contentHash(bom));
     expect(rec.provenance.edgeBandStandardVersionId).toBe("ebv_1");
   });
   it("a TEST_FIXTURE room BOM is refused", () => {
     const bom = generateRoomBom(fixtureRoom());
     expect(() =>
-      buildSnapshotRecord({ snapshotId: "snap_2", kind: "BOM", provenance: buildSnapshotProvenance("BOM", { versionId: "dv_001", status: "DRAFT", contentHash: contentHash("dv") }, PINS, "0.1.0"), inputHash: contentHash("inputs"), payload: bom, blockerCount: 1, createdBy: "u", createdAt: T0 }),
+      buildSnapshotRecord({ snapshotId: "snap_2", kind: "BOM", purpose: "PRELIMINARY", provenance: buildSnapshotProvenance("BOM", { versionId: "dv_001", status: "DRAFT", contentHash: contentHash("dv") }, PINS, "0.1.0"), inputHash: contentHash("inputs"), payload: bom, blockerCount: 1, createdBy: "u", createdAt: T0 }),
     ).toThrow(TestFixturePersistenceError);
   });
 });

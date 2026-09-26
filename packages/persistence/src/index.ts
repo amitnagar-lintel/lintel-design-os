@@ -25,5 +25,7 @@ export type { AssembledCatalog, CatalogVersionRef, PinnedCatalogReleases } from 
 export { assembleCatalogSnapshot } from "./catalog-assembly.js";
 export type { DesignVersionRef, SnapshotKind, SnapshotProvenance, SnapshotRecord, SnapshotRow } from "./provenance.js";
 export { buildSnapshotProvenance, buildSnapshotRecord, provenanceMismatches, snapshotFromRow, snapshotToRow, verifySnapshotRecord } from "./provenance.js";
+export type { OutputPurpose, OutputPurposeProblem, OutputPurposeProblemCode, OutputPurposeRule } from "./output-purpose.js";
+export { OUTPUT_PURPOSE_RULES, OUTPUT_PURPOSES, outputPurposeProblems, outputPurposeRule, purposeChangeDecision, qualifiesForIssue, qualifiesForRelease } from "./output-purpose.js";
 export type { ValidationRunRecord } from "./validation-run.js";
 export { buildValidationRun, recordValidationRunArgs } from "./validation-run.js";

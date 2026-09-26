@@ -6,7 +6,7 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import type { Tx } from "./support/db.js";
-import { actAs, one, tx } from "./support/db.js";
+import { actAs, attemptDb, one, tx } from "./support/db.js";
 import { createUser, createWorld } from "./support/world.js";
 
 async function memberships(c: Tx, sub: string | null, orgClaim: string | null = null): Promise<string[]> {
@@ -102,6 +102,82 @@ describe("current_memberships() definition and privileges", () => {
         SELECT count(*)::int AS n FROM pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
         WHERE p.oid = 'design_os.current_memberships()'::regprocedure AND a.grantee = 0`);
       expect(publicGrant.n).toBe(0);
+    });
+  });
+});
+
+/** current_org_id() as the API's org context sees it: claims {sub, org_id}, API role. */
+async function orgContext(c: Tx, sub: string, org: string): Promise<string | null> {
+  await actAs(c, { userId: sub, orgId: org }, { apiRole: true });
+  const r = await one<{ o: string | null }>(c, "SELECT design_os.current_org_id() AS o");
+  await c.query("RESET ROLE");
+  return r.o;
+}
+
+describe("current_org_id() applies exactly the same organization-status rule as current_memberships()", () => {
+  it("active org → allowed; suspended org, inactive org and revoked membership → rejected", async () => {
+    await tx(async (c) => {
+      const a = await createWorld(c);
+      const u = a.users.DESIGNER;
+      expect(await orgContext(c, u, a.org)).toBe(a.org);
+      await actAs(c, null);
+      await c.query("UPDATE design_os.organization SET status = 'SUSPENDED' WHERE id = $1", [a.org]);
+      expect(await orgContext(c, u, a.org)).toBeNull();
+      await actAs(c, null);
+      await c.query("UPDATE design_os.organization SET status = 'INACTIVE' WHERE id = $1", [a.org]);
+      expect(await orgContext(c, u, a.org)).toBeNull();
+      await actAs(c, null);
+      await c.query("UPDATE design_os.organization SET status = 'ACTIVE' WHERE id = $1", [a.org]);
+      expect(await orgContext(c, u, a.org)).toBe(a.org);
+      await actAs(c, null);
+      await c.query("UPDATE design_os.org_membership SET status = 'REVOKED' WHERE org_id = $1 AND user_id = $2", [a.org, u]);
+      expect(await orgContext(c, u, a.org)).toBeNull();
+    });
+  });
+  it("a non-ACTIVE organization yields no org context, so definer functions refuse it (LD002)", async () => {
+    await tx(async (c) => {
+      const a = await createWorld(c);
+      await actAs(c, null);
+      await c.query("UPDATE design_os.organization SET status = 'SUSPENDED' WHERE id = $1", [a.org]);
+      await actAs(c, a.actor("DESIGNER"), { apiRole: true });
+      const err = await attemptDb(c, () => c.query("SELECT design_os.transition('design', gen_random_uuid(), 'SUBMIT', 'r', NULL)"));
+      expect(err?.code).toBe("LD002");
+    });
+  });
+  it("the two functions can never disagree: every membership × user × organization status combination", async () => {
+    await tx(async (c) => {
+      const a = await createWorld(c);
+      const u = a.users.SALES;
+      let checked = 0;
+      for (const org of ["ACTIVE", "SUSPENDED", "INACTIVE"]) for (const member of ["ACTIVE", "REVOKED"]) for (const user of ["ACTIVE", "DISABLED"]) {
+        await actAs(c, null);
+        await c.query("UPDATE design_os.organization SET status = $2 WHERE id = $1", [a.org, org]);
+        await c.query("UPDATE design_os.org_membership SET status = $3 WHERE org_id = $1 AND user_id = $2", [a.org, u, member]);
+        await c.query("UPDATE design_os.app_user SET status = $2 WHERE id = $1", [u, user]);
+        const listed = (await memberships(c, u)).includes(a.org);
+        const context = (await orgContext(c, u, a.org)) === a.org;
+        const expected = org === "ACTIVE" && member === "ACTIVE" && user === "ACTIVE";
+        expect({ org, member, user, listed, context }).toEqual({ org, member, user, listed: expected, context: expected });
+        checked++;
+      }
+      expect(checked).toBe(12);
+    });
+  });
+  it("both functions read the same identity claim (auth.uid() = current_user_id())", async () => {
+    await tx(async (c) => {
+      const a = await createWorld(c);
+      // Same claims as the API sets; read directly (the API role itself has no access to the auth schema).
+      await actAs(c, a.actor("DESIGNER"));
+      const r = await one<{ uid: string; cu: string }>(c, "SELECT auth.uid()::text AS uid, design_os.current_user_id()::text AS cu");
+      expect(r).toEqual({ uid: a.users.DESIGNER, cu: a.users.DESIGNER });
+    });
+  });
+  it("organizations accept only ACTIVE, SUSPENDED and INACTIVE", async () => {
+    await tx(async (c) => {
+      const a = await createWorld(c);
+      await actAs(c, null);
+      const err = await attemptDb(c, () => c.query("UPDATE design_os.organization SET status = 'ARCHIVED' WHERE id = $1", [a.org]));
+      expect([err?.code, err?.constraint]).toEqual(["23514", "organization_status_check"]);
     });
   });
 });

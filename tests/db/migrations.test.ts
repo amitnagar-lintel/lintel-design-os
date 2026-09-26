@@ -43,9 +43,9 @@ describe("migrations 0001 → 0013", () => {
     expect(await count("SELECT count(*) AS n FROM design_os.planning_variable")).toBe(6);
     expect(await count("SELECT count(*) AS n FROM design_os.manufacturing_variable")).toBe(0);
     expect(await count("SELECT count(*) AS n FROM design_os.role")).toBe(10);
-    expect(await count("SELECT count(*) AS n FROM design_os.error_code")).toBe(28);
+    expect(await count("SELECT count(*) AS n FROM design_os.error_code")).toBe(29);
     // Nothing but schema registries holds rows after migrating: no organizations, versions, values or content.
-    const registries = new Set(["versioned_table", "role", "permission", "default_role_permission", "construction_variable", "planning_variable", "manufacturing_variable", "error_code"]);
+    const registries = new Set(["versioned_table", "role", "permission", "default_role_permission", "construction_variable", "planning_variable", "manufacturing_variable", "error_code", "output_purpose_rule"]);
     const tables = (await client.query<{ t: string }>("SELECT tablename AS t FROM pg_tables WHERE schemaname = 'design_os'")).rows.map((r) => r.t).filter((t) => !registries.has(t));
     expect(tables.length).toBeGreaterThan(80);
     for (const t of tables) expect([t, await count(`SELECT count(*) AS n FROM design_os.${t}`)]).toEqual([t, 0]);

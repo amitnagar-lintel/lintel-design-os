@@ -109,7 +109,7 @@ controller ──► service ──► engines (@lintel/*-engine, pure)
 - `current_memberships()` (migration 0013) is the one new helper this step needs. `org_membership` RLS reads only the current org's rows, so the API cannot list an identity's memberships without first choosing an org.
   - It is SECURITY DEFINER with `SET search_path = pg_catalog, pg_temp`.
   - Identity comes **only from `auth.uid()`**. It takes no parameters, so there is no user id to pass in.
-  - It returns **only `org_id`**, for the caller's own ACTIVE memberships whose user and organization are also ACTIVE. It returns nothing for revoked memberships, disabled users, suspended orgs or other users, and an `org_id` claim or `X-Org` cannot widen the result.
+  - It returns **only `org_id`**, for the caller's own ACTIVE memberships whose user and organization are also ACTIVE. `current_org_id()` applies exactly the same rule (0013): a SUSPENDED or INACTIVE organization, a REVOKED membership or a DISABLED user never yields an org context. A matrix test proves the two functions never disagree. It returns nothing for revoked memberships, disabled users, suspended orgs or other users, and an `org_id` claim or `X-Org` cannot widen the result.
   - EXECUTE is revoked from PUBLIC, anon, authenticated and service_role, and granted to `design_os_api` only.
   - Tests cover cross-user and cross-tenant leakage, each exclusion, the definition and the privileges.
 - **The client never supplies an org, role, permission or user id in the body.** Any such field is rejected by the Zod schema (`.strict()`).
@@ -383,6 +383,7 @@ The `SQLSTATE` column lists the database code (§5.3) where the database can rai
 | `RECORD_IMMUTABLE` | 409 | LD015 | update/delete of an insert-only record or deletion of a version |
 | `PROVENANCE_MISMATCH` | 409 | LD016 | `check_snapshot_provenance` rejects the snapshot; `context.problems[]` |
 | `PRODUCTION_GUARD_FAILED` | 409 | LD021 | FOR_PRODUCTION output for a design version that is not APPROVED or LOCKED |
+| `OUTPUT_PURPOSE_NOT_ALLOWED` | 409 | LD024 | the output purpose is not allowed for the snapshot kind or the design lifecycle state (e.g. FOR_REVIEW from DRAFT) |
 | `ISSUE_PRECONDITIONS_FAILED` | 409 | LD017 | `check_issue`: design not LOCKED, BLOCKERs, snapshot not of the locked content; release guards (§8) |
 | `MEMBERSHIP_RULE_VIOLATION` | 409 | LD018 | role ↔ identity-kind rules, contact ↔ CLIENT identity, project member ↔ client contact |
 | `INVALID_REFERENCE` | 422 | LD019, 23503 | referenced row missing or in another org (composite tenant FK), recipe/room-revision/product-catalog membership rules, rows moved between versions |
@@ -552,18 +553,33 @@ If-Match: W/"<versionId>:<row_version>"
 
 `GET /design-versions/{id}/manufacturing-release` returns the derived status and the qualifying snapshot id. Failures return `ISSUE_PRECONDITIONS_FAILED` or `VALIDATION_BLOCKERS`.
 
-**What V1 may produce.**
+**Output purposes (migration 0012, `design_os.output_purpose_rule`, mirrored by `@lintel/persistence` `OUTPUT_PURPOSE_RULES`).** The rules are explicit for every snapshot kind:
 
-- Manufacturing documents with `purpose = PRELIMINARY`, and FOR_REVIEW once that purpose exists (see the open item below).
-- A FOR_PRODUCTION manufacturing document stays blocked until:
+| Purpose | Design lifecycle state | BLOCKERs | Issue | Release |
+|---|---|---|---|---|
+| PRELIMINARY | any (DRAFT … SUPERSEDED) | shown | never | never |
+| FOR_REVIEW (engineering / client review) | IN_REVIEW, APPROVED, LOCKED | shown | never | never |
+| FOR_PRODUCTION | APPROVED, LOCKED | must be 0, plus all production guards | quotations and drawings (once the design is LOCKED) | manufacturing documents only |
+
+- **FOR_REVIEW never qualifies as FOR_PRODUCTION.** Snapshots are insert-only, so a purpose can never be changed: every change is refused with `RECORD_IMMUTABLE`. A different purpose is always a new snapshot that meets its own rule.
+- **`check_issue` accepts only issue-qualifying (FOR_PRODUCTION) snapshots.** PRELIMINARY and FOR_REVIEW outputs return `ISSUE_PRECONDITIONS_FAILED`.
+- **Registry CHECK constraints guarantee the rules can never drift:**
+  - PRELIMINARY and FOR_REVIEW can never qualify for issue or release;
+  - FOR_PRODUCTION always needs APPROVED or LOCKED and 0 BLOCKERs;
+  - FOR_REVIEW is limited to IN_REVIEW, APPROVED or LOCKED.
+- A purpose outside the design state's rule returns `OUTPUT_PURPOSE_NOT_ALLOWED` (LD024); a FOR_PRODUCTION guard failure returns `PRODUCTION_GUARD_FAILED` / `VALIDATION_BLOCKERS`.
+
+**What V1 may produce for manufacturing.**
+
+- PRELIMINARY manufacturing documents.
+- FOR_REVIEW manufacturing documents, from an IN_REVIEW design.
+- FOR_PRODUCTION stays blocked until:
   - a valid APPROVED or LOCKED ManufacturingStandard exists;
   - the design is LOCKED;
   - every required dependency is APPROVED or LOCKED;
   - there are zero BLOCKERs;
   - all production guards pass.
 - ManufacturingStandard is **not** weakened to make release available.
-
-**Open item (needs a decision, not built): the `FOR_REVIEW` purpose.** Snapshot `purpose` is currently `PRELIMINARY | FOR_PRODUCTION` (migration 0007). Adding `FOR_REVIEW` is a schema change for a later reviewed migration. It needs two decisions: which kinds get it, and its guard (for example, design version IN_REVIEW, APPROVED or LOCKED, never usable for issue or release).
 
 **Consequence in V1:** the manufacturing variable registry is empty, so no ManufacturingStandard version can be approved (`completeness.test.ts`). No design version can therefore pin an approved manufacturing standard, and **no manufacturing release is possible until ManufacturingStandard is production-ready.** This is intended. A test asserts the release endpoint refuses, and a formal release entity arrives with the production workflow.
 

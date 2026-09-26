@@ -4,7 +4,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import type { DesignVersionRow, SnapshotKind, SnapshotRecord, SnapshotRow } from "@lintel/persistence";
+import type { DesignVersionRow, OutputPurpose, SnapshotKind, SnapshotRecord, SnapshotRow } from "@lintel/persistence";
 import { buildSnapshotProvenance, buildSnapshotRecord, contentHash, designVersionFromRow, snapshotFromRow, snapshotToRow } from "@lintel/persistence";
 import type { Tx } from "./support/db.js";
 import { actAs, attempt, insertRow, one, tx } from "./support/db.js";
@@ -26,11 +26,11 @@ const TABLE: Readonly<Record<SnapshotKind, string>> = {
 };
 const PAYLOAD = { trace: { dataClassification: "PRODUCTION", testFixtureSources: [] }, items: [{ qty: 2 }] };
 
-async function snapshotFor(c: Tx, w: World, d: DesignFixture, kind: SnapshotKind, blockers = 0, payload: unknown = PAYLOAD): Promise<{ record: SnapshotRecord; row: SnapshotRow }> {
+async function snapshotFor(c: Tx, w: World, d: DesignFixture, kind: SnapshotKind, blockers = 0, payload: unknown = PAYLOAD, purpose: OutputPurpose = "PRELIMINARY"): Promise<{ record: SnapshotRecord; row: SnapshotRow }> {
   await actAs(c, null);
   const dv = designVersionFromRow(await one<DesignVersionRow>(c, "SELECT * FROM design_os.design_version WHERE id = $1", [d.designVersionId]));
   const provenance = buildSnapshotProvenance(kind, { versionId: dv.envelope.versionId, status: dv.envelope.status, contentHash: dv.envelope.contentHash }, dv.pins, "0.1.0+test");
-  const record = buildSnapshotRecord({ snapshotId: randomUUID(), kind, provenance, inputHash: dv.inputHash, payload, blockerCount: blockers, createdBy: w.users.DESIGNER, createdAt: "2026-09-26T10:00:00.000Z" });
+  const record = buildSnapshotRecord({ snapshotId: randomUUID(), kind, purpose, provenance, inputHash: dv.inputHash, payload, blockerCount: blockers, createdBy: w.users.DESIGNER, createdAt: "2026-09-26T10:00:00.000Z" });
   return { record, row: snapshotToRow(record, { orgId: w.org }) };
 }
 
@@ -46,10 +46,9 @@ describe("every snapshot records exact provenance", () => {
       const d = await designVersion(c, w, await dependencies(c, w, { commercial: "draft" }));
       const { record, row } = await snapshotFor(c, w, d, kind);
       await insertRow(c, TABLE[kind], row);
-      const stored = await one<SnapshotRow & { purpose: string; created_at: string }>(c, `SELECT * FROM design_os.${TABLE[kind]} WHERE id = $1`, [record.snapshotId]);
-      const rest: Record<string, unknown> = { ...stored };
-      delete rest.purpose;
-      const back = snapshotFromRow(rest as unknown as SnapshotRow);
+      const stored = await one<SnapshotRow>(c, `SELECT * FROM design_os.${TABLE[kind]} WHERE id = $1`, [record.snapshotId]);
+      const back = snapshotFromRow(stored);
+      expect(back.purpose).toBe("PRELIMINARY");
       expect(back.provenance).toEqual(record.provenance);
       expect(back.contentHash).toBe(contentHash(PAYLOAD));
       expect(back.inputHash).toBe(d.inputHash);
@@ -142,12 +141,12 @@ describe("FOR_PRODUCTION and issuing", () => {
       await insertRow(c, "drawing_snapshot", { ...ok.row, purpose: "FOR_PRODUCTION" });
     });
   });
-  it("issuing a quotation requires a LOCKED design version and a snapshot of the locked content", async () => {
+  it("issuing a quotation requires a FOR_PRODUCTION snapshot, a LOCKED design version and a snapshot of the locked content", async () => {
     await tx(async (c) => {
       const w = await createWorld(c);
       const d = await designVersion(c, w, await dependencies(c, w, { commercial: "approved" }));
       await approvedDesign(c, w, d);
-      const q = await snapshotFor(c, w, d, "QUOTATION");
+      const q = await snapshotFor(c, w, d, "QUOTATION", 0, PAYLOAD, "FOR_PRODUCTION");
       await insertRow(c, "quotation_snapshot", q.row);
       const issue = { org_id: w.org, snapshot_id: q.row.id, issued_by: w.users.SALES, reason: "sent to client" };
       expect((await attempt(c, () => insertRow(c, "quotation_issue", issue)))?.message).toContain("issuing requires a LOCKED design version");

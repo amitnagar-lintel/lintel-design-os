@@ -31,8 +31,8 @@ const migrations = all.filter((p) => rel(p).startsWith("database/migrations/") &
 const ALLOWED_INSERT_TARGETS = new Set([
   "role", "permission", "default_role_permission", "construction_variable", "planning_variable", "versioned_table",
   "role_permission", "approval_request", "approval_decision", "audit_log", "validation_run",
-  // 0012 error-code registry; 0013 idempotency claims (written only at runtime by design_os.claim_idempotency()).
-  "error_code", "idempotency_record",
+  // 0012 error-code and output-purpose registries; 0013 idempotency claims (written only at runtime by design_os.claim_idempotency()).
+  "error_code", "output_purpose_rule", "idempotency_record",
 ]);
 
 describe("synthetic database-test data stays isolated", () => {

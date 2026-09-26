@@ -3,7 +3,10 @@
 -- 1. design_os.current_memberships(): the caller's own ACTIVE memberships, derived only from auth.uid(), so the
 --    API can verify that an X-Org header names one of them BEFORE it establishes an org context. X-Org never
 --    establishes authorization by itself; design_os.current_org_id() re-verifies the chosen org afterwards.
--- 2. design_os.idempotency_record + claim/complete functions: an operation with an Idempotency-Key executes at
+-- 2. design_os.current_org_id() now applies exactly the same organization-status rule as current_memberships(): only an
+--    ACTIVE organization (not SUSPENDED, not INACTIVE) with an ACTIVE membership of an ACTIVE user yields an org context.
+--    The security model is unchanged (SECURITY DEFINER, fixed search_path, claims-based identity, membership check).
+-- 3. design_os.idempotency_record + claim/complete functions: an operation with an Idempotency-Key executes at
 --    most once per (org, scope, key). Uniqueness is enforced by the database. The claim and the operation's
 --    effect commit or roll back together, and a claim can only commit once it is COMPLETED.
 SET LOCAL ROLE design_os_owner;
@@ -26,6 +29,23 @@ CREATE FUNCTION design_os.current_memberships() RETURNS TABLE (org_id uuid)
   $$;
 REVOKE ALL ON FUNCTION design_os.current_memberships() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION design_os.current_memberships() TO design_os_api;
+
+-- ---------------------------------------------------------------- current_org_id(): same org-status semantics
+
+-- INACTIVE: an organization that is no longer operating (distinct from a temporary SUSPENDED). Neither yields access.
+ALTER TABLE design_os.organization DROP CONSTRAINT organization_status_check;
+ALTER TABLE design_os.organization ADD CONSTRAINT organization_status_check CHECK (status IN ('ACTIVE', 'SUSPENDED', 'INACTIVE'));
+
+CREATE OR REPLACE FUNCTION design_os.current_org_id() RETURNS uuid
+  LANGUAGE sql STABLE SECURITY DEFINER SET search_path = design_os, pg_temp
+  AS $$
+    SELECT m.org_id FROM design_os.org_membership m
+      JOIN design_os.app_user u ON u.id = m.user_id
+      JOIN design_os.organization o ON o.id = m.org_id
+    WHERE m.user_id = design_os.current_user_id() AND m.org_id = nullif(design_os.claims() ->> 'org_id', '')::uuid
+      AND m.status = 'ACTIVE' AND u.status = 'ACTIVE' AND o.status = 'ACTIVE'
+    LIMIT 1
+  $$;
 
 -- ---------------------------------------------------------------- idempotency
 
@@ -202,4 +222,4 @@ END $$;
 -- Operational records are not audited: the operation they protect is (its own rows are hash-chained in audit_log).
 CREATE OR REPLACE FUNCTION design_os.unaudited_tables() RETURNS text[]
   LANGUAGE sql IMMUTABLE
-  AS $$ SELECT ARRAY['audit_log', 'versioned_table', 'role', 'permission', 'default_role_permission', 'construction_variable', 'planning_variable', 'manufacturing_variable', 'error_code', 'idempotency_record'] $$;
+  AS $$ SELECT ARRAY['audit_log', 'versioned_table', 'role', 'permission', 'default_role_permission', 'construction_variable', 'planning_variable', 'manufacturing_variable', 'error_code', 'output_purpose_rule', 'idempotency_record'] $$;

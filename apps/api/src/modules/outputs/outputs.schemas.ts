@@ -90,6 +90,8 @@ export const SnapshotEnvelope = z.strictObject({
     drawingType: DrawingType, scope: z.enum(["ROOM", "OBJECT"]), wallId: z.enum(["A", "B", "C", "D"]).nullable(), objectLineageId: z.string().nullable(), cutXMm: z.number().nullable(),
     drawingNumber: z.string(), drawingRevision: z.string(), fileManifestHash: Sha256Hash, files: z.array(SnapshotFileResponse),
   }).optional(),
+  /** Quotations and drawings: the immutable issue record, or null while not issued. */
+  issue: z.strictObject({ issuedBy: Uuid, issuedAt: z.string(), reason: z.string() }).nullable().optional(),
   staleness: Staleness,
   createdBy: Uuid,
   createdAt: z.string(),
@@ -129,3 +131,30 @@ export const DetailedStaleness = Staleness.extend({
   /** Engine comparators on the current model (compareRoomTrace / checkQuotationStaleness). */
   model: z.strictObject({ stale: z.boolean(), reasons: z.array(z.string()), changedObjectIds: z.array(z.string()) }),
 });
+
+/* ------------------------------------------------------------ issue (M5 Step 7 checkpoint 4) */
+
+/**
+ * Issue requests confirm exactly what is being issued: the snapshot's content hash (and, for a quotation, the exact
+ * PricingStandard and QuotationPolicy versions it was priced with). The database refuses any mismatch; it derives
+ * every other column of the issue record from the snapshot itself.
+ */
+export const QuotationIssueRequest = z.strictObject({
+  reason: z.string().trim().min(1).max(2000),
+  expectedContentHash: Sha256Hash,
+  pricingStandardVersionId: Uuid,
+  quotationPolicyVersionId: Uuid,
+});
+export type QuotationIssueRequest = z.infer<typeof QuotationIssueRequest>;
+export const DrawingIssueRequest = z.strictObject({ reason: z.string().trim().min(1).max(2000), expectedContentHash: Sha256Hash });
+export type DrawingIssueRequest = z.infer<typeof DrawingIssueRequest>;
+
+const IssueBase = { snapshotId: Uuid, projectId: Uuid, designVersionId: Uuid, contentHash: Sha256Hash, issuedBy: Uuid, issuedAt: z.string(), reason: z.string() };
+export const QuotationIssueResponse = z.strictObject({
+  kind: z.literal("QUOTATION"), ...IssueBase, revisionNumber: z.number().int(), pricingStandardVersionId: Uuid, quotationPolicyVersionId: Uuid,
+});
+export const DrawingIssueResponse = z.strictObject({
+  kind: z.literal("DRAWING"), ...IssueBase, drawingNumber: z.string(), drawingRevision: z.string(), fileManifestHash: Sha256Hash,
+});
+export type QuotationIssueResponse = z.infer<typeof QuotationIssueResponse>;
+export type DrawingIssueResponse = z.infer<typeof DrawingIssueResponse>;

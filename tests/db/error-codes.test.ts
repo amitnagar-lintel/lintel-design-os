@@ -67,7 +67,7 @@ describe("every RAISE in design_os carries a registered LD SQLSTATE", () => {
     await tx(async (c) => {
       await actAs(c, null);
       const rows = (await c.query<{ sqlstate: string; code: string; http_status: number; api_facing: boolean }>("SELECT sqlstate, code, http_status, api_facing FROM design_os.error_code ORDER BY sqlstate")).rows;
-      expect(rows.length).toBe(32);
+      expect(rows.length).toBe(33);
       for (const r of rows) {
         if (r.sqlstate < "LD900") expect([r.code, r.api_facing, r.http_status >= 400 && r.http_status < 500]).toEqual([r.code, true, true]);
         else expect([r.code, r.api_facing, r.http_status]).toEqual([r.code, false, 500]);
@@ -79,7 +79,7 @@ describe("every RAISE in design_os carries a registered LD SQLSTATE", () => {
     await tx(async (c) => {
       const w = await createWorld(c);
       await actAs(c, w.actor("ADMIN"), { apiRole: true });
-      expect((await c.query("SELECT count(*) FROM design_os.error_code")).rows).toEqual([{ count: 32 }]);
+      expect((await c.query("SELECT count(*) FROM design_os.error_code")).rows).toEqual([{ count: 33 }]);
       expect((await sqlstate(c, () => c.query("INSERT INTO design_os.error_code VALUES ('LD099', 'X', 400, true, 'x')"))).code).toBe("42501");
       await actAs(c, null);
       expect((await sqlstate(c, () => c.query("UPDATE design_os.error_code SET http_status = 418 WHERE sqlstate = 'LD001'"))).code).toBe("LD015");
@@ -198,7 +198,7 @@ describe("each API-facing LD code is produced by its real database path", () => 
       expect((await sqlstate(c, () => c.query("UPDATE design_os.validation_run SET blocker_count = 0 WHERE design_version_id = $1", [d.designVersionId]))).code).toBe("LD015");
     });
   });
-  it("snapshots and issues: LD005, LD011, LD016, LD017, LD021, LD024", async () => {
+  it("snapshots and issues: LD005, LD011, LD016, LD017, LD021, LD024, LD027", async () => {
     await tx(async (c) => {
       const w = await createWorld(c);
       const d = await designVersion(c, w, await dependencies(c, w));
@@ -215,6 +215,11 @@ describe("each API-facing LD code is produced by its real database path", () => 
       await insertRow(c, "drawing_snapshot", ok);
       // FOR_PRODUCTION, but the design version is APPROVED, not LOCKED.
       expect((await sqlstate(c, () => insertRow(c, "drawing_issue", { org_id: w.org, snapshot_id: ok.id, issued_by: w.users.DESIGN_HEAD, reason: "issued" }))).detail).toEqual({ status: "APPROVED", blockerCount: 0 });
+      // Issued once; a second issue of the same snapshot is ALREADY_ISSUED.
+      await transition(c, w, "SALES", "design", d.designVersionId, "LOCK", "locked");
+      await actAs(c, null);
+      await insertRow(c, "drawing_issue", { org_id: w.org, snapshot_id: ok.id, issued_by: w.users.DESIGN_HEAD, reason: "issued" });
+      expect((await sqlstate(c, () => insertRow(c, "drawing_issue", { org_id: w.org, snapshot_id: ok.id, issued_by: w.users.DESIGN_HEAD, reason: "again" }))).code).toBe("LD027");
     });
   });
   it("memberships and references: LD018, LD019", async () => {

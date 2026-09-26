@@ -54,7 +54,10 @@ describe("OpenAPI document", () => {
     for (const path of ["/api/v1/design-versions/{versionId}/outputs", "/api/v1/drawing-snapshots/{snapshotId}/files", "/api/v1/drawing-snapshots/{snapshotId}/staleness"]) {
       expect([path, Object.keys(doc.paths[path] ?? {})]).toEqual([path, ["get"]]);
     }
-    // Deferred endpoints are absent (plan §15): no manufacturing, no issue yet.
-    expect(Object.keys(doc.paths).filter((p) => /manufacturing|\/issue/.test(p))).toEqual([]);
+    // Issue (checkpoint 4) is documented; manufacturing stays deferred and absent (OD-S6-1).
+    expect(Object.keys(doc.paths).filter((p) => p.endsWith("/issue")).sort()).toEqual(["/api/v1/drawing-snapshots/{snapshotId}/issue", "/api/v1/quotation-snapshots/{snapshotId}/issue"]);
+    expect(op("post", "/api/v1/quotation-snapshots/{snapshotId}/issue")["x-lintel-access"]).toEqual({ actions: ["quotation.issue"] });
+    expect(op("post", "/api/v1/drawing-snapshots/{snapshotId}/issue")["x-lintel-access"]).toEqual({ actions: ["drawing.issue"] });
+    expect(Object.keys(doc.paths).filter((p) => /manufacturing/.test(p))).toEqual([]);
   });
 });

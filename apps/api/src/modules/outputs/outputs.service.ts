@@ -22,6 +22,7 @@ import type { EngineManifest } from "../../infrastructure/engines/engine-manifes
 import { designVersionsRepository } from "../../infrastructure/persistence/design-versions.repository.js";
 import type { DrawingFileLinkRow } from "../../infrastructure/persistence/files.repository.js";
 import { filesRepository } from "../../infrastructure/persistence/files.repository.js";
+import { issuesRepository } from "../../infrastructure/persistence/issues.repository.js";
 import type { SigningStorageProvider } from "../../infrastructure/storage/file-storage.js";
 import { outputsRepository } from "../../infrastructure/persistence/outputs.repository.js";
 import { pinsOf } from "../design-versions/design-content.js";
@@ -262,6 +263,12 @@ export class OutputsService {
     };
   }
 
+  /** The immutable issue record of a quotation / drawing snapshot (null while not issued). */
+  private async issueOf(tx: Tx, kind: "QUOTATION" | "DRAWING", snapshotId: string): Promise<{ issuedBy: string; issuedAt: string; reason: string } | null> {
+    const r = kind === "QUOTATION" ? await issuesRepository.quotation(tx, snapshotId) : await issuesRepository.drawing(tx, snapshotId);
+    return r === null ? null : { issuedBy: r.issued_by, issuedAt: iso(r.issued_at), reason: r.reason };
+  }
+
   /* ------------------------------------------------------------ mapping */
 
   private staleness(tx: Tx): StalenessCalculator {
@@ -304,6 +311,7 @@ export class OutputsService {
       qualifiesForRelease: qualifiesForRelease(kind, row.purpose),
       ...(row.revision_number === undefined ? {} : { revisionNumber: row.revision_number }),
       ...(kind === "DRAWING" ? { drawing: await this.drawingOf(tx, row) } : {}),
+      ...(kind === "QUOTATION" || kind === "DRAWING" ? { issue: await this.issueOf(tx, kind, row.id) } : {}),
       staleness: await staleness.of(row),
       createdBy: row.created_by,
       createdAt: iso(row.created_at),

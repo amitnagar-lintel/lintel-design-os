@@ -12,7 +12,7 @@ import type {
 } from "@lintel/types";
 import { deepFreeze, hash53, stableStringify } from "@lintel/types";
 import { assertProductionEligible, modelFingerprint, ProductionGuardError } from "@lintel/design-engine";
-import { layoutElevation } from "./elevation.js";
+import { layoutElevation, layoutFrontView } from "./elevation.js";
 import { layoutSideSection } from "./section.js";
 import { layoutSchedulePage, ROWS_PER_SHEET, scheduleRows } from "./schedule.js";
 import { A3, frame, notes, titleBlock, watermark } from "./sheet.js";
@@ -47,11 +47,13 @@ const TITLES: Readonly<Record<DrawingType, string>> = {
   FRONT_ELEVATION: "FRONT ELEVATION",
   PANEL_SCHEDULE: "PANEL SCHEDULE",
   SIDE_SECTION: "SIDE SECTION",
+  CABINET_INTERNAL_ELEVATION: "CABINET INTERNAL ELEVATION",
 };
 
 const NOTE_BY_TYPE: Readonly<Record<DrawingType, string>> = {
   FRONT_ELEVATION: "Front view; hidden edges dashed. Dimensions are read from the resolved model, not measured from this drawing.",
   PANEL_SCHEDULE: "Edge codes: F front, BK back, T top, BT bottom, L left, R right.",
+  CABINET_INTERNAL_ELEVATION: "Front view with fronts removed to show internal construction; hidden edges dashed. Dimensions are read from the resolved model.",
   SIDE_SECTION: "Section viewed from the left (back on the left, front on the right); cut panels heavy and hatched. Dimensions are read from the resolved model.",
 };
 
@@ -117,6 +119,10 @@ function build(type: DrawingType, input: CreateDrawingInput): DrawingResult {
     const layout = layoutElevation(resolved.components, resolved.object.objectCode);
     pages = [layout.primitives];
     scale = layout.scale;
+  } else if (type === "CABINET_INTERNAL_ELEVATION") {
+    const layout = layoutFrontView(resolved.components, resolved.object.objectCode, { caption: "CABINET INTERNAL ELEVATION (FRONTS REMOVED)", exclude: ["SHUTTER", "DRAWER_FRONT"], labelTypes: ["SHELF", "BACK"] });
+    pages = [layout.primitives];
+    scale = layout.scale;
   } else if (type === "SIDE_SECTION") {
     const layout = layoutSideSection(resolved.components, resolved.object.objectCode, input.cutX);
     pages = [layout.primitives];
@@ -176,6 +182,11 @@ export function createFrontElevation(input: CreateDrawingInput): DrawingResult {
 /** PRD §33 Side Section of one resolved cabinet. Pure. */
 export function createSideSection(input: CreateDrawingInput): DrawingResult {
   return build("SIDE_SECTION", input);
+}
+
+/** Cabinet Internal Elevation (detail): the cabinet with fronts removed. Pure. */
+export function createCabinetInternalElevation(input: CreateDrawingInput): DrawingResult {
+  return build("CABINET_INTERNAL_ELEVATION", input);
 }
 
 /** PRD §33 Panel Schedule of one resolved cabinet. Pure. */

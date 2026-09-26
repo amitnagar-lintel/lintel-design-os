@@ -32,4 +32,5 @@ be copied into production data.
 | 04 | [hardware-standards](04-hardware-standards.md) | Source-verified Hettich records, calculation rules, hinge mapping |
 | 05 | [dimensional-limits](05-dimensional-limits.md) | Product limits |
 | 06 | [manufacturing-standards](06-manufacturing-standards.md) | Cut-size, machining, nesting, labelling |
-| 07 | [pricing-standards](07-pricing-standards.md) | Production rate card and pricing rules |
+| 07 | [pricing-standards](07-pricing-standards.md) | Production rate card, pricing rules, quotation / tax policy |
+| 08 | [planning-standards](08-planning-standards.md) | Room planning values (clearances, gaps, fillers, run length) and relationship overrides |

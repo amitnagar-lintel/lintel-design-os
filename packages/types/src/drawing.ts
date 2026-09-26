@@ -1,9 +1,10 @@
 import type { DataClassification } from "./common.js";
 import type { DesignState } from "./design.js";
 import type { TraceInfo } from "./resolved.js";
+import type { RoomTrace, WallId } from "./room.js";
 
 /** PRD §33 V1 drawing types implemented so far. */
-export type DrawingType = "FRONT_ELEVATION" | "PANEL_SCHEDULE" | "SIDE_SECTION";
+export type DrawingType = "FRONT_ELEVATION" | "PANEL_SCHEDULE" | "SIDE_SECTION" | "CABINET_INTERNAL_ELEVATION";
 
 /** Issue status. FOR_PRODUCTION is only reachable through the production guard. */
 export type DrawingStatus = "PRELIMINARY" | "FOR_REVIEW" | "FOR_PRODUCTION";
@@ -82,4 +83,31 @@ export interface Drawing {
 export interface DrawingStaleness {
   readonly stale: boolean;
   readonly reasons: readonly string[];
+}
+
+/** Room-level drawings (M4). */
+export type RoomDrawingType = "WALL_INTERNAL_ELEVATION" | "ROOM_PANEL_SCHEDULE";
+
+export interface RoomDrawing {
+  readonly drawingId: string;
+  readonly type: RoomDrawingType;
+  /** Wall shown (WALL_INTERNAL_ELEVATION), otherwise null. */
+  readonly wallId: WallId | null;
+  readonly titleBlock: TitleBlock;
+  readonly status: DrawingStatus;
+  readonly watermark: string | null;
+  readonly trace: RoomTrace;
+  /** Room fingerprint (also shown in the title block). */
+  readonly modelFingerprint: string;
+  /** Objects shown on the drawing. */
+  readonly objectIds: readonly string[];
+  readonly notes: readonly string[];
+  readonly sheets: readonly DrawingSheet[];
+  readonly contentHash: string;
+}
+
+export interface RoomDrawingStaleness {
+  readonly stale: boolean;
+  readonly reasons: readonly string[];
+  readonly changedObjectIds: readonly string[];
 }

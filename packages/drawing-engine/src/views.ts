@@ -20,6 +20,14 @@ export const FRONT_VIEW: ViewSpec = { name: "FRONT", right: "+X", up: "+Y", towa
 /** Section looking from the left towards +X: cabinet back on the left, front on the right. */
 export const SECTION_VIEW_FROM_LEFT: ViewSpec = { name: "SECTION_FROM_LEFT", right: "+Z", up: "+Y", toward: "-X" };
 
+/** Inside the room facing each wall: right = the wall's left → right direction, toward = into the room. */
+export const WALL_VIEWS: Readonly<Record<"A" | "B" | "C" | "D", ViewSpec>> = {
+  A: { name: "WALL_A", right: "+X", up: "+Y", toward: "+Z" },
+  B: { name: "WALL_B", right: "+Z", up: "+Y", toward: "-X" },
+  C: { name: "WALL_C", right: "-X", up: "+Y", toward: "-Z" },
+  D: { name: "WALL_D", right: "-Z", up: "+Y", toward: "+X" },
+};
+
 const r6 = (v: number): number => {
   const r = Math.round(v * 1e6) / 1e6;
   return r === 0 ? 0 : r;

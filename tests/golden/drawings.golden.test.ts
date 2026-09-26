@@ -6,7 +6,9 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { createSideSection, renderPdf, renderSvg } from "@lintel/drawing-engine";
+import { createCabinetInternalElevation, createSideSection, renderPdf, renderSvg } from "@lintel/drawing-engine";
+import { fixtureRoom, productionRoom } from "../support/room.js";
+import { createdRoom, roomSchedule, wallElevation } from "../support/room-drawing.js";
 import { DESIGN_VERSION, fixtureSlice, productionSlice, referenceObject } from "../support/scenario.js";
 import { created, elevation, METADATA, schedule } from "../support/drawing.js";
 
@@ -24,6 +26,19 @@ const CASES: readonly { file: string; render: () => string }[] = [
   { file: "kit-base-standard.test-fixture.side-section.svg", render: () => renderSvg(sideSection(fixtureSlice().resolved)) },
   { file: "kit-base-standard.test-fixture.inset.side-section.svg", render: () => renderSvg(sideSection(fixtureSlice(referenceObject({ parameters: { frontType: "INSET" } })).resolved)) },
   { file: "kit-base-standard.production.side-section.svg", render: () => renderSvg(sideSection(productionSlice().resolved)) },
+  {
+    file: "kit-base-standard.test-fixture.cabinet-internal-elevation.svg",
+    render: () => renderSvg(created(createCabinetInternalElevation({ resolved: fixtureSlice().resolved, designVersion: DESIGN_VERSION, metadata: { ...METADATA, drawingNumber: "KIT-CI-001" } }))),
+  },
+  { file: "kitchen.l-layout.test-fixture.wall-a-internal-elevation.svg", render: () => renderSvg(createdRoom(wallElevation(fixtureRoom(), "A"))) },
+  { file: "kitchen.l-layout.test-fixture.wall-d-internal-elevation.svg", render: () => renderSvg(createdRoom(wallElevation(fixtureRoom(), "D"))) },
+  { file: "kitchen.l-layout.test-fixture.room-panel-schedule.sheet-1.svg", render: () => renderSvg(createdRoom(roomSchedule(fixtureRoom())), 0) },
+  { file: "kitchen.l-layout.test-fixture.room-panel-schedule.sheet-2.svg", render: () => renderSvg(createdRoom(roomSchedule(fixtureRoom())), 1) },
+  { file: "kitchen.l-layout.production.wall-a-internal-elevation.svg", render: () => renderSvg(createdRoom(wallElevation(productionRoom(), "A"))) },
+  {
+    file: "kitchen.l-layout.test-fixture.room-drawings.pdf",
+    render: () => renderPdf([createdRoom(wallElevation(fixtureRoom(), "A")), createdRoom(wallElevation(fixtureRoom(), "D")), createdRoom(roomSchedule(fixtureRoom()))]),
+  },
   {
     file: "kit-base-standard.test-fixture.drawings.pdf",
     render: () => renderPdf([created(elevation(fixtureSlice().resolved)), created(schedule(fixtureSlice().resolved))]),

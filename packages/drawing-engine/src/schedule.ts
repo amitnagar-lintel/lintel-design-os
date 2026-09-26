@@ -26,6 +26,8 @@ export const ROWS_PER_SHEET = Math.floor((DRAWING_AREA.y1 - TOP) / ROW_H) - 1;
 
 export interface ScheduleRow {
   readonly cells: readonly string[];
+  /** Group header row (rendered bold). */
+  readonly group?: boolean;
 }
 
 function edgesText(c: CabinetComponent, edgesUndefined: boolean): string {
@@ -95,7 +97,7 @@ export function layoutSchedulePage(rows: readonly ScheduleRow[], pageTitle: stri
   };
   cellText(SCHEDULE_COLUMNS.map((c) => c.title), 0, true);
   rows.forEach((row, i) => {
-    cellText(row.cells, i + 1, false);
+    cellText(row.cells, i + 1, row.group === true);
   });
   return out;
 }

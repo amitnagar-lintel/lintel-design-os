@@ -16,6 +16,7 @@ import type {
 } from "@lintel/types";
 import { deepFreeze, hash53, stableStringify } from "@lintel/types";
 import { buildValidationResult } from "@lintel/rules-engine";
+import { compareRoomTrace } from "@lintel/design-engine";
 import { percentToBasisPoints, toSafeNumber } from "./money.js";
 import { priceCabinet } from "./price.js";
 import { isValidRoundingRule, roundRational } from "./rounding.js";
@@ -212,27 +213,5 @@ export function verifyQuotation(q: QuotationSnapshot): boolean {
 
 /** Stale when the room model changed; reports exactly which objects changed, were added or removed. */
 export function checkQuotationStaleness(q: QuotationSnapshot, current: ResolvedRoom): QuotationStaleness {
-  const reasons: string[] = [];
-  const changed: string[] = [];
-  if (q.trace.designVersionId !== current.trace.designVersionId) reasons.push(`Design version changed: quotation ${q.trace.designVersionId}, current ${current.trace.designVersionId}`);
-  const before = new Map(q.trace.objects.map((o) => [o.objectId, o]));
-  const after = new Map(current.trace.objects.map((o) => [o.objectId, o]));
-  for (const [id, o] of after) {
-    const b = before.get(id);
-    if (b === undefined) {
-      reasons.push(`Object added: ${o.objectCode}`);
-      changed.push(id);
-    } else if (b.modelFingerprint !== o.modelFingerprint) {
-      reasons.push(`Object changed: ${o.objectCode}`);
-      changed.push(id);
-    }
-  }
-  for (const [id, o] of before) {
-    if (!after.has(id)) {
-      reasons.push(`Object removed: ${o.objectCode}`);
-      changed.push(id);
-    }
-  }
-  if (reasons.length === 0 && q.roomFingerprint !== current.roomFingerprint) reasons.push("Room layout changed (placement, planning standard or overrides)");
-  return { stale: reasons.length > 0, reasons, changedObjectIds: changed.sort() };
+  return compareRoomTrace(q.trace, q.roomFingerprint, current);
 }

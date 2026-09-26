@@ -53,12 +53,20 @@ export function layoutFrontView(all: readonly CabinetComponent[], objectCode: st
   const annotated = components
     .filter((c) => chainTypes.includes(c.componentType) || labelTypes.includes(c.componentType))
     .sort((p, q) => p.geometry.local.min.x - q.geometry.local.min.x || p.geometry.local.min.y - q.geometry.local.min.y);
+  // Deterministic label de-collision: move a label down until it clears earlier ones.
+  const placed: { x: number; y: number }[] = [];
+  const clear = (x: number, y: number): number => {
+    let yy = y;
+    while (placed.some((p) => Math.abs(p.x - x) < 24 && Math.abs(p.y - yy) < 9)) yy += 9;
+    placed.push({ x, y: yy });
+    return yy;
+  };
   for (const f of annotated) {
     const { min } = f.geometry.local;
     if (chainTypes.includes(f.componentType)) dim.h(min.x, min.x + f.dimensions.width, b.y1, -8, f.dimensions.width);
     if (labelTypes.includes(f.componentType)) {
       const cx = vp.sx(min.x + f.geometry.local.size.x / 2);
-      const cy = vp.sy(min.y + f.geometry.local.size.y / 2);
+      const cy = clear(cx, vp.sy(min.y + f.geometry.local.size.y / 2));
       out.push(text("ANNOTATION", cx, cy, shortId(f.componentId, objectCode), 3, { anchor: "middle", bold: true }));
       out.push(text("ANNOTATION", cx, cy + 4.5, `${fmt(f.dimensions.width)} x ${fmt(f.dimensions.height)} x ${fmt(f.dimensions.thickness)}`, 2.2, { anchor: "middle" }));
     }

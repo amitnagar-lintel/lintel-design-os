@@ -9,3 +9,5 @@ export { assertProductionEligible, ProductionGuardError } from "./guard.js";
 export { modelFingerprint, stableStringify } from "./fingerprint.js";
 export { resolveRoom, ROOM_ENGINE_VERSION } from "./room.js";
 export type { ResolveRoomInput } from "./room.js";
+export { compareRoomTrace } from "./room-staleness.js";
+export type { RoomChange } from "./room-staleness.js";

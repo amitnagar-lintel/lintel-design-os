@@ -2,7 +2,7 @@
  * Minimal, dependency-free PDF 1.4 writer for drawing sheets: vector lines and standard
  * Helvetica text. Output is ASCII and fully deterministic (no clock, fixed metadata).
  */
-import type { Drawing, DrawingLayer, DrawingPrimitive } from "@lintel/types";
+import type { Drawing, DrawingLayer, DrawingPrimitive, RoomDrawing } from "@lintel/types";
 import { coord } from "./format.js";
 import { CAP_TO_FONT, DASH_MM, LAYER_ORDER, STROKE_MM } from "./svg.js";
 import { DRAWING_ENGINE_VERSION } from "./version.js";
@@ -65,7 +65,7 @@ function content(primitives: readonly DrawingPrimitive[], pageHeightMm: number):
 }
 
 /** Render one or more drawings (all sheets) into a single PDF. Returns the file as an ASCII string. */
-export function renderPdf(drawings: readonly Drawing[]): string {
+export function renderPdf(drawings: readonly (Drawing | RoomDrawing)[]): string {
   const objects: string[] = [];
   const add = (body: string): number => {
     objects.push(body);

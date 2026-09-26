@@ -128,3 +128,15 @@ describe("KIT_BASE_STANDARD_BENCHMARK_V1.md", () => {
     for (const b of bodies) expect(row(b, "Lintel production value")).toBe("NULL / UNVERIFIED (unchanged)");
   });
 });
+
+describe("08-planning-standards.md", () => {
+  it("lists every planning variable individually and the Lintel draft keeps them NULL", async () => {
+    const { PLANNING_VARIABLES, LINTEL_PLANNING_STANDARD_DRAFT } = await import("@lintel/catalog-engine");
+    const doc = read("production-data/08-planning-standards.md");
+    for (const v of PLANNING_VARIABLES) {
+      expect(doc).toMatch(new RegExp(`\\| P\\d+ \\| ${v.key} \\|`));
+      expect(LINTEL_PLANNING_STANDARD_DRAFT.variables[v.key]).toBeNull();
+    }
+    expect(Object.keys(LINTEL_PLANNING_STANDARD_DRAFT.variables).sort()).toEqual(PLANNING_VARIABLES.map((v) => v.key).sort());
+  });
+});

@@ -1,10 +1,15 @@
-# M5 Step 6: Output Architecture and API Contract (review-only plan, revision 3)
+# M5 Step 6: Output Architecture and API Contract (review-only plan, revision 4)
 
-**Status:** revision 3. It adds three things to revisions 1 and 2:
+**Status:** revision 4. Revision 3 added three things to revisions 1 and 2:
 
 - **OD-S6-9** is resolved: the dependency-closure engine fingerprint.
 - **Correction 1:** commercial dependencies are decoupled from the design version.
 - **Correction 2:** validation runs get a purpose (APPROVAL or OUTPUT_GENERATION).
+
+Revision 4 adds two final clarifications:
+
+- **Clarification A:** one shared, immutable `OutputExecutionContext` per request (§7.2).
+- **Clarification B:** output rules for SUPERSEDED designs (§11).
 
 **Nothing here is implemented.** There is:
 
@@ -62,6 +67,8 @@
 | **OD-S6-9** | **The fingerprint is a dependency-closure fingerprint (§6).** It covers the engine's semantic version, the source files of the engine and of every internal package it reaches, and the locked versions of external dependencies. The human-readable commit/build is recorded **separately**. The repository as a whole is never hashed. |
 | **Correction 1** | **Commercial dependencies are chosen when an output is generated, never pinned on the design version (§4).** The design version's PricingStandard and QuotationPolicy pins are **removed** from the design version. Commercial provenance lives only on Pricing and Quotation snapshots. The ManufacturingStandard pin follows the same rule (§3.3). |
 | **Correction 2** | **Validation runs have a purpose: `APPROVAL` or `OUTPUT_GENERATION` (§5).** Output generation records its own immutable OUTPUT_GENERATION run, for any design status, and never mutates the design. |
+| **Clarification A** | **Every generation request builds exactly one immutable `OutputExecutionContext` (§7.2).** The room and model are resolved **once**. That same context is validated and used for the requested output and any upstream outputs generated in the request. The OUTPUT_GENERATION run and the snapshots are persisted atomically in one transaction. Validation and output never come from two independently rebuilt contexts, and there is no second room resolution. |
+| **Clarification B** | **SUPERSEDED designs support only PRELIMINARY and FOR_REVIEW outputs, for reproduction or review (§11).** FOR_PRODUCTION, quotation issue, drawing issue and manufacturing release are forbidden. APPROVED and LOCKED designs keep every applicable purpose under the production guards. DRAFT and IN_REVIEW follow the existing matrix. |
 | Dependency rule | **A downstream output uses an exact immutable upstream snapshot.** The server verifies its provenance and content hash and never re-runs the upstream output engine. If the upstream is stale or incompatible, a new one is generated first (§7). |
 
 ---
@@ -236,9 +243,11 @@ Pricing B + QuotationPolicy P3   → Quotation Q2         (BOM, BOQ, drawings an
 
 ### 5.2 How output generation validates
 
-1. Every output engine resolves the room with `resolveRoom` for its own calculation, and that resolution yields `room.validation`.
-2. The server records (or reuses, by natural identity) an **OUTPUT_GENERATION** run from **that same resolution**. There is no second engine run. The validation fingerprint is the `validation` engine's (§6).
-3. The snapshot references the run (`validation_run_id`). The run is evidence, not an input: the snapshot's payload is computed from the engine inputs, never from the run.
+1. The request builds one `OutputExecutionContext` (§7.2), which resolves the room **once**.
+2. The OUTPUT_GENERATION run is recorded, or reused by natural identity, from `context.resolved.validation`, the validation of **that exact context**. There is no second room resolution. The run carries the `validation` engine's fingerprint (§6).
+3. The requested output, and any upstream output generated in the same request, are computed from the **same** `context.resolved`.
+4. The snapshot references the run (`validation_run_id`). The run is evidence, not an input: the snapshot's payload is computed from the context, never from the run.
+5. The run and the snapshots are written in **one transaction**. Either all of them are committed or none is.
 
 **Gating:**
 
@@ -255,7 +264,10 @@ For FOR_PRODUCTION, the design was approved on an APPROVAL run, possibly from an
 - For FOR_PRODUCTION, the run must have `blocker_count = 0`.
 - An APPROVAL run can never be referenced by a snapshot.
 - An OUTPUT_GENERATION run can never satisfy SUBMIT or APPROVE.
-- `record_validation_run` takes `p_purpose`. APPROVAL keeps the DRAFT / IN_REVIEW rule. OUTPUT_GENERATION accepts any status and requires the output-generation permissions.
+- `record_validation_run` takes `p_purpose`.
+  - APPROVAL keeps the DRAFT / IN_REVIEW rule.
+  - OUTPUT_GENERATION accepts any status and requires the output-generation permissions. For a SUPERSEDED design, the snapshot rules of §11 still decide which outputs can use the run: only PRELIMINARY and FOR_REVIEW.
+- **A newly inserted OUTPUT_GENERATION run must be referenced by at least one snapshot inserted in the same transaction.** A deferred constraint trigger checks this at commit, so a run is never recorded as a side effect. A run that was *reused* by natural identity is already referenced.
 
 ---
 
@@ -358,22 +370,80 @@ An existing upstream snapshot `U` of kind `K` is compatible with a request for d
 
 Conditions 1–7 are `K`'s **natural identity** (§9), so at most one `U` matches. The lookup is by unique key and never sorts.
 
-### 7.2 Generation (one REPEATABLE READ transaction)
+### 7.2 Generation: one `OutputExecutionContext` in one REPEATABLE READ transaction
+
+#### 7.2.1 The context
+
+The context is built once per request and deep-frozen. It is the only input to the validation record and to every engine call in the request.
+
+```ts
+interface OutputExecutionContext {
+  readonly orgId: string;
+  readonly actor: string;                              // user id; permissions checked before and by RLS
+  readonly createdAt: string;                          // transaction timestamp (UTC ISO), passed to engines that need it
+  readonly designVersion: { id; status; contentHash; inputHash; inputRevision };   // exact row as read under FOR SHARE
+  readonly engineering: {                              // exact engineering inputs
+    readonly roomRevision; readonly objects; readonly overrides;                  // rows as read
+    readonly pins: EngineeringPins;                    // the 9 exact version ids
+    readonly dependencyHashes: Record<EngineeringPin, Sha256>;  readonly dependencySetHash: Sha256;
+    readonly engineInputs: ResolveRoomInput;           // mapped once by @lintel/persistence (standards, catalog, Hettich adapter, …)
+  };
+  readonly commercial: null | {                        // Pricing / Quotation requests only
+    readonly pricingStandard: { versionId; status; dependencyHash; data: { rateCard; rules } };
+    readonly quotationPolicy?: { versionId; status; dependencyHash; data: QuotationPolicy };
+    readonly commercialInputHash: Sha256;
+  };
+  readonly resolved: ResolvedRoom;                     // resolveRoom(engineering.engineInputs), computed exactly once
+  readonly engines: Record<EngineName, EngineIdentity>;// name, version, build, fingerprint, closure: from the loaded manifest
+}
+```
+
+**Building it** (`buildOutputExecutionContext`):
+
+1. Lock the design version row `FOR SHARE`.
+2. Read the exact rows: the room revision, objects, overrides, and the 9 pinned versions with their child rows. For Pricing and Quotation, also read the chosen commercial versions with their child rows, after checking they belong to the organization (`422 COMMERCIAL_VERSION_NOT_FOUND` otherwise).
+3. Map the rows with `@lintel/persistence`.
+4. Recompute the engineering `input_hash` from the loaded rows. It must equal `DV.input_hash`, or the request fails with `409 VALIDATION_INPUT_MISMATCH`, as validation does today.
+5. Compute the dependency and commercial hashes.
+6. Call `resolveRoom` **once**.
+7. Take the engine identities from the manifest loaded at startup.
+8. Freeze the result.
+
+**Rules:**
+
+- **Nothing re-reads or re-resolves after the context is built.** Every consumer receives the context object:
+  - the validation record;
+  - the BOM, BOQ, pricing, quotation and drawing engines;
+  - cabinet drawings, which use `context.resolved.cabinets`.
+- **The context itself is never stored.** What it contained is recorded on the run and the snapshots: hashes, pins, commercial versions and engine identities.
+
+#### 7.2.2 The flow
 
 ```
 generate(D, DV, P, C):
-  lock DV FOR SHARE; read input_hash/input_revision, engineering pins, dependency hashes (engineering + C)
-  resolved := resolveRoom(engineering inputs)                              -- once per request
-  run := findOrRecord OUTPUT_GENERATION validation run (resolved.validation, validation fingerprint)
-  if P = FOR_PRODUCTION and run.blockers > 0 → 409 VALIDATION_BLOCKERS (nothing persisted except the run)
+  BEGIN REPEATABLE READ
+  ctx := buildOutputExecutionContext(DV, C)                          -- exact inputs → one resolution (§7.2.1)
+  purposeAllowed(D, P, ctx.designVersion.status)                     -- §11 matrix, including SUPERSEDED
+  run := findOrRecord OUTPUT_GENERATION run from ctx.resolved.validation + ctx.engines.validation
+  if P = FOR_PRODUCTION and run.blockerCount > 0 → ROLLBACK; 409 VALIDATION_BLOCKERS
   for each upstream kind K of D (BOM → BOQ → Pricing), in order:
-      U := natural-identity lookup(K, DV, P, C, current hashes, currentFingerprint(K), sources)
-      if none: U := produce(K, resolved, run, …) and insert                -- caller must hold K's generate permission (§14)
-      input_K := deserialize(U.payload) via the Zod payload schema; verify U.content_hash
-  result := D's engine(resolved, input_BOM/BOQ/Pricing, commercial data C)
-  UNAVAILABLE → 200 { status: "UNAVAILABLE", blockers, dependencies } (not persisted; created upstreams remain valid)
-  existing natural identity → 200 { reused: true }; else insert D (sources, run, provenance) → 201
+      U := natural-identity lookup(K, ctx, P, sources)                -- exact identity, never "latest"
+      if none: U := produce(K, ctx, run, inputs from earlier U's)     -- same ctx, same run; caller needs K's permission (§14)
+      else:    input_K := deserialize(U.payload) via the Zod payload schema; verify U.content_hash
+  result := D's engine(ctx.resolved, inputs from upstream U's, ctx.commercial)
+  UNAVAILABLE → if upstream snapshots were created in this request: COMMIT them with the run that they reference
+                (valid engineering outputs of the same ctx); otherwise ROLLBACK (nothing new is persisted);
+                200 { status: "UNAVAILABLE", blockers, dependencies } -- D itself is never persisted (OD-S6-5)
+  if D's natural identity exists → COMMIT; 200 { reused: true }
+  insert D (validation_run_id = run.id, sources, provenance from ctx) → COMMIT; 201
+  any error (engine refusal, trigger, permission, conflict) → ROLLBACK: no run, no snapshot
 ```
+
+**Atomicity:**
+
+- The run, the upstream snapshots created in the request and the requested snapshot commit together, or none of them does.
+- An UNAVAILABLE result commits only what is valid on its own: upstream engineering snapshots created in the request, together with the run they reference, all from the same context. If none was created, nothing is committed. It never commits a Pricing or Quotation snapshot, and never a run without a referencing snapshot.
+- A reused upstream snapshot was produced by an earlier request from its own context. Its compatibility is established by natural identity: the same inputs, dependency hashes and engine fingerprint. It is never re-derived.
 
 - **Upstream output engines are never re-run to verify a snapshot.** The stored payload is used after its content hash is verified.
 - **The engines assert the fingerprint links themselves:** `generateRoomBoq` requires the BOM's `roomFingerprint` to equal the room's, and `priceRoom` and `quoteRoom` check their traces. A mismatch means an incompatible source and returns `409 SOURCE_SNAPSHOT_INCOMPATIBLE`.
@@ -534,13 +604,39 @@ isCurrent(S) → { stale, reasons[], advisories }
 
 ---
 
-## 11. Purpose and lifecycle rules (unchanged principles; commercial gates moved)
+## 11. Purpose and lifecycle rules (commercial gates moved; SUPERSEDED clarified)
 
-| Purpose | Design status | OUTPUT_GENERATION run | Output BLOCKERs | Commercial versions | Sources |
+### 11.1 Design status × purpose
+
+| Design status | PRELIMINARY | FOR_REVIEW | FOR_PRODUCTION | Quotation / drawing issue | Manufacturing release (future) |
 |---|---|---|---|---|---|
-| PRELIMINARY | any | recorded; BLOCKERs allowed | allowed (shown and watermarked) | any status (the engine gates) | any purpose |
-| FOR_REVIEW | IN_REVIEW, APPROVED, LOCKED | recorded; BLOCKERs allowed | allowed | any status (the engine gates) | FOR_REVIEW or FOR_PRODUCTION |
-| FOR_PRODUCTION | APPROVED or LOCKED | **0 BLOCKERs** | **0**; a BOM must be complete | **APPROVED or LOCKED** | FOR_PRODUCTION |
+| DRAFT | ✓ | ✗ | ✗ | ✗ | ✗ |
+| IN_REVIEW | ✓ | ✓ | ✗ | ✗ | ✗ |
+| APPROVED | ✓ | ✓ | ✓ (production guards) | ✗ until LOCKED (issue LOCKs it, Step 4 §8) | ✗ until LOCKED |
+| LOCKED | ✓ | ✓ | ✓ (production guards) | ✓ (`check_issue`) | ✓ (future guards, §12.6) |
+| **SUPERSEDED** | **✓ (reproduction / review)** | **✓ (reproduction / review)** | **✗** | **✗** | **✗** |
+
+- **OUTPUT_GENERATION runs may be recorded for a SUPERSEDED design,** but only as part of a PRELIMINARY or FOR_REVIEW generation. The purpose check (§7.2.2) runs before anything is recorded.
+- **A FOR_PRODUCTION request on a SUPERSEDED design** is refused with `PRODUCTION_GUARD_FAILED` (LD021). Nothing is persisted, including the run.
+- **Issuing a snapshot of a SUPERSEDED design is refused by `check_issue`** (`ISSUE_PRECONDITIONS_FAILED`, LD017). `check_issue` requires the design's **current** status to be LOCKED, which also covers a FOR_PRODUCTION snapshot generated before the design was superseded.
+- **Issues already made while the design was LOCKED stay valid.** They are historical records; supersession never alters them.
+- **Manufacturing release** requires LOCKED (future), so SUPERSEDED is refused.
+- **Snapshots of a SUPERSEDED design** keep the `designSuperseded` advisory (§10); they are historically valid, not stale.
+
+**Registry change needed (0017):**
+
+- The approved rule table today (0012) allows FOR_REVIEW only for `{IN_REVIEW, APPROVED, LOCKED}`, and the CHECK `output_purpose_rule_review_states` enforces that subset.
+- To allow FOR_REVIEW for SUPERSEDED designs, 0017 extends the six FOR_REVIEW rows to `{IN_REVIEW, APPROVED, LOCKED, SUPERSEDED}` and widens that CHECK to the same set.
+- `@lintel/persistence` `OUTPUT_PURPOSE_RULES` changes with it, and the existing parity test keeps them identical.
+- PRELIMINARY already includes SUPERSEDED. FOR_PRODUCTION stays `{APPROVED, LOCKED}` under the CHECK `output_purpose_rule_production_guard`.
+
+### 11.2 Gates per purpose
+
+| Purpose | OUTPUT_GENERATION run | Output BLOCKERs | Commercial versions | Sources |
+|---|---|---|---|---|
+| PRELIMINARY | recorded; BLOCKERs allowed | allowed (shown and watermarked) | any status (the engine gates) | any purpose |
+| FOR_REVIEW | recorded; BLOCKERs allowed | allowed | any status (the engine gates) | FOR_REVIEW or FOR_PRODUCTION |
+| FOR_PRODUCTION | **0 BLOCKERs** | **0**; a BOM must be complete | **APPROVED or LOCKED** | FOR_PRODUCTION |
 
 **Further rules:**
 
@@ -843,13 +939,14 @@ A compile-time equality assertion against the engine type fails the typecheck on
 
 **Migration 0017:**
 
+- **Output purpose registry (Clarification B):** FOR_REVIEW rows extended to `{IN_REVIEW, APPROVED, LOCKED, SUPERSEDED}`; the CHECK `output_purpose_rule_review_states` widened to match; `OUTPUT_PURPOSE_RULES` updated in step with the parity test.
 - **Design version:**
   - drop `pricing_standard_version_id`, `quotation_policy_version_id` and `manufacturing_standard_version_id` from `design_version`, with their FKs;
   - update `maintain_input_revision`, the approval pin check, `lock_cascade` and `check_snapshot_provenance`.
 - **Validation runs:**
   - `validation_run.purpose`, `dependency_set_hash`, `engine_name`, `engine_fingerprint` (replacing `engine_hash`) and `engine_closure`;
   - the OUTPUT_GENERATION partial unique index;
-  - `record_validation_run(p_purpose, …)` with the §5 rules;
+  - `record_validation_run(p_purpose, …)` with the §5 rules, plus the deferred "new run is referenced" constraint trigger;
   - SUBMIT and APPROVE restricted to APPROVAL runs.
 - **Snapshots:**
   - the §8 columns: engine, validation link, dependency hashes, `commercial_input_hash`, counts, `output_complete`;

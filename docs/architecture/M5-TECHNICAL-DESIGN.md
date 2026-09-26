@@ -1,6 +1,6 @@
 # M5 Technical Design: Persistence, Versioning and Approval Workflow
 
-Status: **DESIGN APPROVED WITH DECISIONS, revision 2** (2026-09-26). Implementation is **not started** and waits for
+Status: **APPROVED, revision 3 (final)** (2026-09-26), including decisions D1–D10. Implementation is **not started** and waits for
 approval of this revision (the M5 design PR).
 
 - No migrations are written, no hosted Supabase project is touched, and no canonical project is chosen.
@@ -17,10 +17,12 @@ approval of this revision (the M5 design PR).
 | D1 | Standards and catalogs lifecycle | Same lifecycle as DesignVersions: DRAFT → IN_REVIEW → APPROVED → LOCKED → SUPERSEDED. A version referenced by a LOCKED DesignVersion or an issued production output becomes LOCKED. Approved historical versions are never mutated; any change creates a new version. DesignVersions pin exact versions, and historical designs never re-point |
 | D2 | CHANGES_REQUIRED | Not a persisted status. A `REQUEST_CHANGES` decision moves IN_REVIEW → DRAFT and records requestedBy, requestedAt, reason and previous status in approval and audit history. Content is editable again only once it is DRAFT |
 | D3 | API framework | **NestJS + FastifyAdapter + Zod (Standard Schema) validation.** Controller → request schema validation → application service → domain engine → persistence. Engines stay independent of NestJS |
-| D4 | Roles | Explicit Design OS roles, never inherited from ops: ADMIN, DESIGNER, DESIGN_HEAD, SALES, COSTING, PROCUREMENT, PRODUCTION, SITE_ENGINEER, CLIENT. Permissions are action-based and enforced at both the API and database (RLS) levels |
+| D4 | Roles | Explicit Design OS roles, never inherited from ops: ADMIN, DESIGNER, DESIGN_HEAD, SALES, COSTING, FINANCE, PROCUREMENT, PRODUCTION, SITE_ENGINEER, CLIENT (FINANCE added by D9). Permissions are action-based and enforced at both the API and database (RLS) levels |
 | D5 | EdgeBandStandard | Edge rules move out of ConstructionStandard into a dedicated `EdgeBandStandard` **before** the schema is written, with no behaviour change. There is no generic Standard table |
 | D6 | Supabase capacity | **Supabase Pro** is the production baseline (not Team) with a `design_os` schema, RLS, automated backups, and object storage behind a `FileStorageProvider` abstraction. No production snapshots or PDFs are stored until the Mumbai cut-over is completed and the Pro production project is confirmed |
 | D7 | Links to lintel-os-ops | Text references only (`opsProjectRef`, `opsLeadRef`, `opsClientRef`). No cross-database foreign keys and no synchronisation; Design OS is independent |
+| D9 | FINANCE role | A dedicated FINANCE role approves PricingStandard, Finance/QuotationPolicy, production quotation policies and finance-related commercial configuration. ADMIN keeps administrative authority but does not perform normal finance approvals. COSTING authors pricing but **can never approve** it. D8 still applies |
+| D10 | Client authentication | A separate passwordless CLIENT sign-in route (email OTP or magic link) accepts external email addresses; internal users keep the internal route. CLIENT access is strictly project-scoped through explicit org membership, client-contact identity and project membership. A project ID alone grants nothing, and clients can never create organizations or assign themselves to projects |
 | D8 | Approver ≠ submitter | Mandatory for every production approval, with no override. `approverUserId === submittedByUserId` is rejected by the domain/service layer **and** by the database |
 
 The added requirements are covered as follows:
@@ -68,6 +70,8 @@ erDiagram
   ROLE ||--o{ ROLE_PERMISSION : "allows actions"
   ORGANIZATION ||--o{ CLIENT : owns
   CLIENT ||--o{ PROJECT : commissions
+  CLIENT ||--o{ CLIENT_CONTACT : "identified by"
+  CLIENT_CONTACT |o--o| APP_USER : "signs in as"
   PROJECT ||--o{ PROJECT_MEMBER : grants
   PROJECT ||--o{ ROOM : contains
   ROOM ||--o{ ROOM_REVISION : "surveyed as"
@@ -121,7 +125,7 @@ The Hettich dataset version is itself the release unit for Hettich data.
 
 | Family | Tables | Mutability |
 |---|---|---|
-| Tenancy and access | organization, app_user, role, role_permission, org_membership, client, project, project_member | Ordinary rows, audited |
+| Tenancy and access | organization, app_user, role, role_permission, org_membership, client, client_contact, project, project_member | Ordinary rows, audited |
 | Versioned reference data | 6 standards, 6 catalog domains, per-domain catalog releases, Hettich datasets | Entity row plus immutable version rows |
 | Design and outputs | room, room_revision, design, design_version, design_object, relationship_override, validation_run, 6 snapshot tables, file_object | Versions are frozen once out of DRAFT; snapshots and files are insert-only |
 | Cross-cutting | approval_request, approval_decision, audit_log | Insert-only |
@@ -170,14 +174,15 @@ every version table, and the same check inside the transition function (§4).
 | Table | Columns |
 |---|---|
 | `organization` | id, code, name, status, `parent_org_id` (reserved for corporate → branch → franchise; unused in V1) |
-| `app_user` | id (= `auth.users.id`), email, display_name, status |
-| `role` | code: ADMIN, DESIGNER, DESIGN_HEAD, SALES, COSTING, PROCUREMENT, PRODUCTION, SITE_ENGINEER, CLIENT |
+| `app_user` | id (= `auth.users.id`), email, display_name, `identity_kind` (`INTERNAL` or `CLIENT`, fixed at creation), status |
+| `role` | code: ADMIN, DESIGNER, DESIGN_HEAD, SALES, COSTING, FINANCE, PROCUREMENT, PRODUCTION, SITE_ENGINEER, CLIENT |
 | `permission` | action code, e.g. `design_version.approve` (§9) |
-| `role_permission` | org_id, role, action. The per-org grant table is seeded with the defaults in §9, and changes are audited |
-| `org_membership` | org_id, user_id, role, status, granted_by, granted_at; unique (org_id, user_id, role) |
+| `role_permission` | org_id, role, action. The per-org grant table is seeded with the defaults in §9, and changes are audited. **Hard constraints** (CHECK): finance approval actions (`pricing_standard.approve`, `quotation_policy.approve`, `commercial_config.approve`) can be granted **only to FINANCE**; no approval, member-management or project-assignment action can ever be granted to CLIENT |
+| `org_membership` | org_id, user_id, role, status, granted_by, granted_at; unique (org_id, user_id, role). A trigger requires `identity_kind = 'CLIENT'` for the CLIENT role and `'INTERNAL'` for every other role, so one identity can never hold both |
 | `client` | org_id, client_code, name, contact jsonb (minimal PII), **`ops_client_ref` text**, **`ops_lead_ref` text** |
 | `project` | org_id, client_id, project_code (unique per org), name, site_address jsonb, status, currency `INR`, unit_system `MM`, **`ops_project_ref` text** |
-| `project_member` | org_id, project_id, user_id, role. Scopes project-level access, and is **required** for CLIENT and SITE_ENGINEER |
+| `client_contact` | org_id, client_id, email (citext), display_name, user_id (nullable until first sign-in), status (`INVITED`, `ACTIVE` or `REVOKED`), invited_by, invited_at. Unique (org_id, email). Created only by internal staff |
+| `project_member` | org_id, project_id, user_id, role, client_contact_id (required when role = CLIENT), granted_by. Scopes project-level access and is **required** for CLIENT and SITE_ENGINEER. A trigger requires a CLIENT row's `client_contact.client_id` to equal `project.client_id`, and the contact to be ACTIVE |
 
 The `ops_*_ref` columns are informational text only. There is no foreign key and no synchronisation (D7).
 
@@ -414,7 +419,7 @@ packages/storage/                  FileStorageProvider interface + in-memory pro
 | Module | Routes (`/api/v1`) |
 |---|---|
 | me / org | `GET /me`, `GET/POST /org/members`, `GET/PUT /org/role-permissions` |
-| clients, projects | `/clients`, `/projects`, `/projects/{id}/members` |
+| clients, projects | `/clients`, `/clients/{id}/contacts` (invite, revoke; internal only), `/projects`, `/projects/{id}/members` (assign; internal only) |
 | rooms | `/projects/{id}/rooms`, `/rooms/{id}`, `/rooms/{id}/revisions` |
 | designs | `/rooms/{id}/designs`, `/designs/{id}`, `/designs/{id}/versions` (POST body names `basedOn`) |
 | design-versions | `/design-versions/{id}` (PATCH pins, DRAFT only), `/objects`, `/overrides`, `POST /validate` |
@@ -440,47 +445,90 @@ Conventions:
 changing them is itself an audited, reasoned action. Every check is `has_permission(action)` combined with scope and state
 (§9.2); code never checks a role name.
 
-| Action group | ADMIN | DESIGNER | DESIGN_HEAD | SALES | COSTING | PROCUREMENT | PRODUCTION | SITE_ENGINEER | CLIENT |
-|---|---|---|---|---|---|---|---|---|---|
-| members / role-permissions manage | ✓ | | | | | | | | |
-| client, project write | ✓ | | ✓ | ✓ | | | | | |
-| room revision (survey) write | | ✓ | ✓ | | | | | ✓ | |
-| design_version edit / submit | | ✓ | ✓ | | | | | | |
-| design_version approve / request changes | | | ✓ | | | | | | |
-| BOM / BOQ / drawing generate | | ✓ | ✓ | | ✓ | | | | |
-| pricing / quotation generate | | | | | ✓ | | | | |
-| quotation issue | | | | ✓ | | | | | |
-| release to manufacturing | | | | | | | ✓ | | |
-| Construction / Planning standard author | | | ✓ | | | | ✓ | | |
-| Construction / Planning standard approve | | | ✓ | | | | ✓ | | |
-| EdgeBand / Manufacturing standard author | | | | | | | ✓ | | |
-| EdgeBand / Manufacturing standard approve | | | ✓ | | | | ✓ | | |
-| Pricing standard author | | | | | ✓ | | | | |
-| Pricing standard, Quotation policy approve | ✓ | | | | | | | | |
-| Quotation policy author | | | | | ✓ | | | | |
-| Material / Finish / Appliance catalog author | | | ✓ | | | ✓ | | | |
-| Material / Finish / Appliance catalog approve | | | ✓ | | | | ✓ | | |
-| Hardware / Hettich author | | | | | | ✓ | ✓ | | |
-| Hardware / Hettich approve | | | ✓ | | | | ✓ | | |
-| read internal cost breakdown | ✓ | | ✓ | | ✓ | ✓ | | | |
-| read BOM / production drawings | ✓ | ✓ | ✓ | | ✓ | ✓ | ✓ | ✓ | |
-| read issued quotation / issued drawings | ✓ | ✓ | ✓ | ✓ | ✓ | | ✓ | ✓ | ✓ (own projects) |
-| audit read | ✓ | | ✓ | | | | | | |
+| Action group | ADMIN | DESIGNER | DESIGN_HEAD | SALES | COSTING | FINANCE | PROCUREMENT | PRODUCTION | SITE_ENGINEER | CLIENT |
+|---|---|---|---|---|---|---|---|---|---|---|
+| members / role-permissions manage | ✓ | | | | | | | | | |
+| client, client contact, project write | ✓ | | ✓ | ✓ | | | | | | |
+| project members assign (incl. CLIENT) | ✓ | | ✓ | ✓ | | | | | | |
+| room revision (survey) write | | ✓ | ✓ | | | | | | ✓ | |
+| design_version edit / submit | | ✓ | ✓ | | | | | | | |
+| design_version approve / request changes | | | ✓ | | | | | | | |
+| BOM / BOQ / drawing generate | | ✓ | ✓ | | ✓ | | | | | |
+| pricing / quotation generate | | | | | ✓ | | | | | |
+| quotation issue | | | | ✓ | | | | | | |
+| release to manufacturing | | | | | | | | ✓ | | |
+| Construction / Planning standard author | | | ✓ | | | | | ✓ | | |
+| Construction / Planning standard approve | | | ✓ | | | | | ✓ | | |
+| EdgeBand / Manufacturing standard author | | | | | | | | ✓ | | |
+| EdgeBand / Manufacturing standard approve | | | ✓ | | | | | ✓ | | |
+| Pricing standard author | | | | | ✓ | | | | | |
+| **Pricing standard approve** | | | | | | ✓ | | | | |
+| Quotation policy author | | | | | ✓ | | | | | |
+| **Quotation policy approve** (incl. production quotation policies) | | | | | | ✓ | | | | |
+| **Finance-related commercial configuration approve** | | | | | | ✓ | | | | |
+| Material / Finish / Appliance catalog author | | | ✓ | | | | ✓ | | | |
+| Material / Finish / Appliance catalog approve | | | ✓ | | | | | ✓ | | |
+| Hardware / Hettich author | | | | | | | ✓ | ✓ | | |
+| Hardware / Hettich approve | | | ✓ | | | | | ✓ | | |
+| read internal cost breakdown | ✓ | | ✓ | | ✓ | ✓ | ✓ | | | |
+| read BOM / production drawings | ✓ | ✓ | ✓ | | ✓ | | ✓ | ✓ | ✓ | |
+| read issued quotation / issued drawings | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | | ✓ | ✓ | ✓ (own projects) |
+| audit read | ✓ | | ✓ | | | ✓ | | | | |
+
+Finance-related commercial configuration covers tax rates and mappings, rounding rules, discount modes and any future
+payment-term or commercial-margin configuration.
+
+- **FINANCE (D9)** is the only role that performs finance approvals. The database CHECK on `role_permission` enforces
+  this, so it cannot be granted to ADMIN or COSTING through data.
+- **ADMIN** keeps administrative authority: members, role grants and audit access. It does not perform normal finance approvals.
+- **COSTING** authors pricing standards and quotation policies but can never approve them.
+- D8 still applies on top: whoever approves must not be the submitter.
 
 These defaults can be changed in `role_permission` data without code changes. Where the same role can both author and
 approve (for example PRODUCTION on manufacturing standards), D8 still requires a **different person** to approve.
 
-### 9.1 CLIENT role
+### 9.1 CLIENT role and client authentication (D10)
 
-- CLIENT is always project-scoped, through `project_member`.
-- It sees only issued quotations and issued drawings, and never cost breakdowns, drafts or audit history.
-- The current Supabase sign-in is limited to `@lintelspace.com` addresses. CLIENT accounts therefore need a separate,
-  approved sign-in route before the role is activated. The role and its permissions exist in V1 but are unused until then.
+**Two sign-in routes, one identity store (Supabase Auth):**
+
+| Route | Who | Method | Restriction |
+|---|---|---|---|
+| Internal | Lintel staff | Existing company/internal sign-in | `@lintelspace.com` still required; produces `identity_kind = INTERNAL` |
+| Client | External client contacts | **Passwordless email OTP** (magic link is equivalent and allowed) | Any email domain, but **only for emails already invited as an ACTIVE `client_contact`**. Sign-up is disabled on this route (`shouldCreateUser: false`, or pre-created by an invite). Produces `identity_kind = CLIENT` |
+
+**How a client gets access:** only internal staff can grant it.
+
+1. Staff with `client.write` create a `client_contact` (email) under the project's client.
+2. Staff with `project_members.assign` add that contact to a specific project as CLIENT.
+3. The client receives an OTP or magic link and signs in. The first successful sign-in links `client_contact.user_id` to the auth user.
+4. Revoking the contact, or the project membership, removes access immediately. Sessions are short-lived and checked against the membership on every request.
+
+**What a CLIENT can never do:**
+
+- Access a project by supplying its ID. Every project read is `can_access_project(project_id)`, which for CLIENT
+  requires an active `project_member` row whose contact belongs to that project's client. An unknown or unassigned
+  project returns 404, so its existence is not revealed.
+- Create an organization. Organizations are created only by platform administration; no API route exists for clients
+  and RLS denies the insert.
+- Assign themselves or anyone else to a project. The assignment action cannot be granted to CLIENT (the CHECK in §2.2),
+  and `project_member` inserts are denied by RLS unless the actor holds `project_members.assign`.
+- See drafts, internal cost breakdowns, BOM, production drawings, approvals or audit history.
+
+**Visible to a CLIENT:** issued quotations and issued drawings of their own projects, delivered through short-lived signed URLs.
+
+**Implementation note for the gate.** Clients will live in the same Supabase Auth instance as ops staff. Before the
+CLIENT route is enabled on the hosted project, it must be verified that:
+
+- the ops `@lintelspace.com` restriction is not bypassed for ops sign-in;
+- ops RLS helpers (`is_lintel_staff()`, `can_write()`) grant nothing to a CLIENT identity, because a client has no ops `profiles` row.
+
+This is added to the §13 gate checklist.
 
 ### 9.2 Enforcement at two levels
 
 1. **API.** The NestJS permission guard applies the action permission. The application service then checks:
-   - scope: org membership, plus `project_member` for project-scoped roles and always for CLIENT and SITE_ENGINEER;
+   - identity: `identity_kind` matches the route and role (CLIENT identities hold only the CLIENT role);
+   - scope: org membership, plus `project_member` for project-scoped roles and always for CLIENT and SITE_ENGINEER (for CLIENT, also the client-contact ↔ project-client match);
    - state: DRAFT-only edits;
    - D8: approver ≠ submitter.
 2. **Database (RLS).**
@@ -617,6 +665,7 @@ Current state (ops REGION-01):
 5. The Seoul pause decision is recorded.
 6. The ops migration recovery (`chore/recover-applied-migrations`) is merged.
 7. **The Supabase Pro production project is confirmed.**
+8. Before the CLIENT route is enabled: the ops `@lintelspace.com` restriction and the ops RLS helpers are verified to give CLIENT identities no ops access (§9.1).
 
 Only then is the canonical project chosen and the first `design_os` migration applied to it.
 
@@ -648,8 +697,7 @@ Only then is the canonical project chosen and the first `design_os` migration ap
 
 No hosted Supabase work and no UI work is included.
 
-## 16. Open items for confirmation
+## 16. Open items
 
-1. **Default permission grants (§9).** The ADMIN approval of PricingStandard and QuotationPolicy stands in for a finance
-   approver, because no finance role was listed.
-2. **CLIENT sign-in route (§9.1).** The role is defined but inactive until this is approved.
+None. The FINANCE role (D9) and client authentication (D10) are resolved.
+Production Supabase remains blocked until the §13 gate is satisfied.

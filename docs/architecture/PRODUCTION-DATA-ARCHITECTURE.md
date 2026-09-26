@@ -1,6 +1,6 @@
 # Production Data Architecture
 
-Status: **APPROVED with the M5 technical design (decisions D1–D8)**, revision 2 (2026-09-26). This document describes structure only.
+Status: **APPROVED with the M5 technical design (decisions D1–D10)**, revision 3 (2026-09-26). This document describes structure only.
 Every production value remains `NULL / UNVERIFIED` until it is supplied with a source and approved
 (see [production-data intake](../catalog/production-data/README.md)).
 
@@ -15,8 +15,8 @@ tables, its own value registry and its own approver.
 | **PlanningStandard** | Room planning values: MIN_WALL_CLEARANCE, MIN_CABINET_GAP, MAX_GAP_WITHOUT_FILLER, FILLER_THRESHOLD, MAX_RUN_LENGTH, SERVICE_VOID_REAR | `PlanningStandard` (M4) | 08 | DESIGN_HEAD, PRODUCTION |
 | **EdgeBandStandard** | Which edges of which component types are banded, and with which edge band item | **Gap:** today it lives inside `ConstructionStandard.edgeRuleSets`. M5 commit 0 splits it out with no behaviour change (D5) | 03 | DESIGN_HEAD, PRODUCTION |
 | **ManufacturingStandard** | Cut-size allowances, machining, nesting and labelling rules | **Gap:** no type yet; intake doc only | 06 | DESIGN_HEAD, PRODUCTION |
-| **PricingStandard** | Pricing rules (manufacturing-cost formula, wastage, overhead, margin basis and %) and the rate card | `PricingRuleSet` + `RateCard` | 07 | ADMIN (standing in for a finance approver; to confirm) |
-| **Finance / QuotationPolicy** | Tax rates, category → rate mapping, tax policy, rounding and discount policy (`NONE` only) | `QuotationPolicy` (M4) | 07 | ADMIN (standing in for a finance approver; to confirm) |
+| **PricingStandard** | Pricing rules (manufacturing-cost formula, wastage, overhead, margin basis and %) and the rate card | `PricingRuleSet` + `RateCard` | 07 | FINANCE (authored by COSTING, who can never approve) |
+| **Finance / QuotationPolicy** | Tax rates, category → rate mapping, tax policy, rounding and discount policy (`NONE` only) | `QuotationPolicy` (M4) | 07 | FINANCE (authored by COSTING, who can never approve) |
 
 ## Rule 2: materials and hardware are catalog domains, not standards
 

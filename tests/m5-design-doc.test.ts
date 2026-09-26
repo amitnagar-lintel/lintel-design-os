@@ -10,7 +10,7 @@ const design = readFileSync(join(ARCH, "M5-TECHNICAL-DESIGN.md"), "utf8");
 const dataArch = readFileSync(join(ARCH, "PRODUCTION-DATA-ARCHITECTURE.md"), "utf8");
 
 const STANDARDS = ["construction_standard", "planning_standard", "edge_band_standard", "manufacturing_standard", "pricing_standard", "quotation_policy"];
-const ROLES = ["ADMIN", "DESIGNER", "DESIGN_HEAD", "SALES", "COSTING", "PROCUREMENT", "PRODUCTION", "SITE_ENGINEER", "CLIENT"];
+const ROLES = ["ADMIN", "DESIGNER", "DESIGN_HEAD", "SALES", "COSTING", "FINANCE", "PROCUREMENT", "PRODUCTION", "SITE_ENGINEER", "CLIENT"];
 const ENVELOPE = ["entityId", "versionId", "versionNumber", "status", "source", "createdBy", "createdAt", "approvedBy", "approvedAt", "effectiveFrom", "supersededBy", "contentHash"];
 
 describe("M5-TECHNICAL-DESIGN.md", () => {
@@ -32,6 +32,26 @@ describe("M5-TECHNICAL-DESIGN.md", () => {
   });
   it("records the full version identity envelope", () => {
     for (const f of ENVELOPE) expect(design).toContain(`\`${f}\``);
+  });
+  it("gives finance approvals to FINANCE only, never to ADMIN or COSTING (D9)", () => {
+    const header = design.split("\n").find((l) => l.startsWith("| Action group |")) ?? "";
+    const cols = header.split("|").map((c) => c.trim()).filter(Boolean);
+    const rows = design.split("\n").filter((l) => /^\| \*\*(Pricing standard approve|Quotation policy approve|Finance-related commercial configuration approve)/.test(l));
+    expect(rows).toHaveLength(3);
+    for (const row of rows) {
+      const cells = row.split("|").slice(1, -1).map((c) => c.trim());
+      const granted = cols.filter((_, i) => i > 0 && cells[i] !== "");
+      expect(granted).toEqual(["FINANCE"]);
+    }
+    expect(design).toContain("can be granted **only to FINANCE**");
+  });
+  it("uses a separate passwordless, project-scoped client sign-in route (D10)", () => {
+    expect(design).toContain("**Passwordless email OTP**");
+    expect(design).toContain("Access a project by supplying its ID");
+    expect(design).toContain("Create an organization");
+    expect(design).toContain("Assign themselves or anyone else to a project");
+    expect(design).toContain("client_contact.client_id` to equal `project.client_id`");
+    expect(design).not.toContain("inactive until this is approved");
   });
   it("records complete snapshot provenance, including all six snapshot kinds", () => {
     for (const t of ["bom_snapshot", "boq_snapshot", "pricing_snapshot", "quotation_snapshot", "drawing_snapshot", "manufacturing_document_snapshot"]) expect(design).toContain(`\`${t}\``);

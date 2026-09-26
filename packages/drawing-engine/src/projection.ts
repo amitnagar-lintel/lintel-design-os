@@ -4,6 +4,7 @@
  * no rendering library (CLAUDE.md: never couple rendering to business calculations).
  */
 import type { CabinetComponent } from "@lintel/types";
+import { FRONT_VIEW, projectBox } from "./views.js";
 
 export interface Rect2 {
   readonly id: string;
@@ -24,16 +25,10 @@ export interface Segment {
 }
 
 const EPS = 1e-6;
-const r6 = (v: number): number => {
-  const r = Math.round(v * 1e6) / 1e6;
-  return r === 0 ? 0 : r;
-};
 
+/** Front-view rectangles of cabinet components (see views.ts for other views). */
 export function frontRects(components: readonly CabinetComponent[]): Rect2[] {
-  return components.map((c) => {
-    const { min, size } = c.geometry.local;
-    return { id: c.componentId, x0: r6(min.x), x1: r6(min.x + size.x), y0: r6(min.y), y1: r6(min.y + size.y), z: r6(min.z + size.z) };
-  });
+  return components.map((c) => projectBox(c.componentId, c.geometry.local, FRONT_VIEW));
 }
 
 type Interval = readonly [number, number];

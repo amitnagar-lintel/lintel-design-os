@@ -3,7 +3,7 @@ import type { DesignState } from "./design.js";
 import type { TraceInfo } from "./resolved.js";
 
 /** PRD §33 V1 drawing types implemented so far. */
-export type DrawingType = "FRONT_ELEVATION" | "PANEL_SCHEDULE";
+export type DrawingType = "FRONT_ELEVATION" | "PANEL_SCHEDULE" | "SIDE_SECTION";
 
 /** Issue status. FOR_PRODUCTION is only reachable through the production guard. */
 export type DrawingStatus = "PRELIMINARY" | "FOR_REVIEW" | "FOR_PRODUCTION";

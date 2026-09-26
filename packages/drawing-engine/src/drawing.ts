@@ -13,6 +13,7 @@ import type {
 import { deepFreeze, hash53, stableStringify } from "@lintel/types";
 import { assertProductionEligible, modelFingerprint, ProductionGuardError } from "@lintel/design-engine";
 import { layoutElevation } from "./elevation.js";
+import { layoutSideSection } from "./section.js";
 import { layoutSchedulePage, ROWS_PER_SHEET, scheduleRows } from "./schedule.js";
 import { A3, frame, notes, titleBlock, watermark } from "./sheet.js";
 
@@ -36,11 +37,23 @@ export interface CreateDrawingInput {
   readonly designVersion: DesignVersion;
   readonly metadata: DrawingMetadataInput;
   readonly requestedStatus?: DrawingStatus;
+  /** SIDE_SECTION only: cut position along the cabinet width (default: centre of the leftmost front). */
+  readonly cutX?: number;
 }
 
 export type DrawingResult = { readonly status: "CREATED"; readonly drawing: Drawing } | { readonly status: "REFUSED"; readonly blockers: readonly ValidationMessage[] };
 
-const TITLES: Readonly<Record<DrawingType, string>> = { FRONT_ELEVATION: "FRONT ELEVATION", PANEL_SCHEDULE: "PANEL SCHEDULE" };
+const TITLES: Readonly<Record<DrawingType, string>> = {
+  FRONT_ELEVATION: "FRONT ELEVATION",
+  PANEL_SCHEDULE: "PANEL SCHEDULE",
+  SIDE_SECTION: "SIDE SECTION",
+};
+
+const NOTE_BY_TYPE: Readonly<Record<DrawingType, string>> = {
+  FRONT_ELEVATION: "Front view; hidden edges dashed. Dimensions are read from the resolved model, not measured from this drawing.",
+  PANEL_SCHEDULE: "Edge codes: F front, BK back, T top, BT bottom, L left, R right.",
+  SIDE_SECTION: "Section viewed from the left (back on the left, front on the right); cut panels heavy and hatched. Dimensions are read from the resolved model.",
+};
 
 const refuse = (code: string, message: string): ValidationMessage => ({ code, severity: "BLOCKER", message });
 
@@ -79,7 +92,7 @@ function watermarkFor(resolved: ResolvedCabinet): string | null {
 function drawingNotes(resolved: ResolvedCabinet, type: DrawingType): string[] {
   const n: string[] = [
     "All dimensions in millimetres. Panel sizes are finished sizes (cut-size allowances are applied in manufacturing).",
-    type === "FRONT_ELEVATION" ? "Front view; hidden edges dashed. Dimensions are read from the resolved model, not measured from this drawing." : "Edge codes: F front, BK back, T top, BT bottom, L left, R right.",
+    NOTE_BY_TYPE[type],
     `Derived from design version ${resolved.trace.designVersionId}; product ${resolved.trace.product.id} v${resolved.trace.product.version}; recipe ${resolved.trace.recipe.id} v${resolved.trace.recipe.version}; standard ${resolved.trace.standard.id} v${resolved.trace.standard.version} (${resolved.trace.standard.status}).`,
   ];
   if (resolved.trace.dataClassification === "TEST_FIXTURE") n.push(`TEST FIXTURE data in use: ${resolved.trace.testFixtureSources.join("; ")}. Values are synthetic.`);
@@ -102,6 +115,10 @@ function build(type: DrawingType, input: CreateDrawingInput): DrawingResult {
   let scale: string;
   if (type === "FRONT_ELEVATION") {
     const layout = layoutElevation(resolved.components, resolved.object.objectCode);
+    pages = [layout.primitives];
+    scale = layout.scale;
+  } else if (type === "SIDE_SECTION") {
+    const layout = layoutSideSection(resolved.components, resolved.object.objectCode, input.cutX);
     pages = [layout.primitives];
     scale = layout.scale;
   } else {
@@ -154,6 +171,11 @@ function build(type: DrawingType, input: CreateDrawingInput): DrawingResult {
 /** PRD §33 Front Elevation of one resolved cabinet. Pure. */
 export function createFrontElevation(input: CreateDrawingInput): DrawingResult {
   return build("FRONT_ELEVATION", input);
+}
+
+/** PRD §33 Side Section of one resolved cabinet. Pure. */
+export function createSideSection(input: CreateDrawingInput): DrawingResult {
+  return build("SIDE_SECTION", input);
 }
 
 /** PRD §33 Panel Schedule of one resolved cabinet. Pure. */

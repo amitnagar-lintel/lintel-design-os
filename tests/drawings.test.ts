@@ -1,9 +1,11 @@
 /** M3 execution drawings: Front Elevation + Panel Schedule (PRD §33–34). TEST_FIXTURE data only. */
 import { describe, expect, it } from "vitest";
 import type { ResolvedCabinet } from "@lintel/types";
-import { checkDrawingStaleness, renderPdf, renderSvg, ROWS_PER_SHEET, verifyDrawing } from "@lintel/drawing-engine";
+import { checkDrawingStaleness, createSideSection, renderPdf, renderSvg, ROWS_PER_SHEET, verifyDrawing } from "@lintel/drawing-engine";
 import { DESIGN_VERSION, fixtureSlice, productionSlice, referenceObject } from "./support/scenario.js";
-import { created, elevation, schedule } from "./support/drawing.js";
+import { created, elevation, METADATA, schedule } from "./support/drawing.js";
+
+const METADATA_SS = { ...METADATA, drawingNumber: "KIT-SS-001" };
 
 const texts = (d: ReturnType<typeof created>, sheet = 0): string[] => (d.sheets[sheet]?.primitives ?? []).flatMap((p) => (p.kind === "text" ? [p.text] : []));
 
@@ -180,5 +182,31 @@ describe("PDF export", () => {
       const start = (m.index) + m[0].length;
       expect(pdf.slice(start + Number(m[1]), start + Number(m[1]) + 10)).toBe("\nendstream");
     }
+  });
+});
+
+describe("side section (M4)", () => {
+  const section = (resolved: ResolvedCabinet, cutX?: number) =>
+    createSideSection({ resolved, designVersion: DESIGN_VERSION, metadata: { ...METADATA_SS }, ...(cutX === undefined ? {} : { cutX }) });
+  it("cuts through the leftmost front by default and hatches the cut panels", () => {
+    const d = created(section(fixtureSlice().resolved));
+    expect(texts(d)).toEqual(expect.arrayContaining(["SIDE SECTION A-A  OBJ-KIT-001  CUT AT X = 150  SCALE 1:5", "720", "560", "579", "1", "18", "TSF", "TSB", "SHF-01", "BOT"]));
+    expect((d.sheets[0]?.primitives ?? []).filter((p) => p.kind === "line" && p.weight === "THICK" && p.layer === "VISIBLE").length).toBeGreaterThanOrEqual(4 * 6);
+    expect(d.titleBlock.drawingTitle).toBe("SIDE SECTION - OBJ-KIT-001");
+  });
+  it("shows the shutter back gap only when it exists (overlay), not for inset fronts", () => {
+    const inset = created(section(fixtureSlice(referenceObject({ parameters: { frontType: "INSET" } })).resolved));
+    expect(texts(inset)).not.toContain("1");
+    expect(texts(inset).filter((t) => t === "560")).toHaveLength(1);
+  });
+  it("honours an explicit cut position", () => {
+    expect(texts(created(section(fixtureSlice().resolved, 450)))).toContain("SIDE SECTION A-A  OBJ-KIT-001  CUT AT X = 450  SCALE 1:5");
+  });
+  it("keeps the production guard, watermark and staleness", () => {
+    const r = section(fixtureSlice().resolved);
+    expect(created(r).watermark).toBe("TEST FIXTURE DATA - NOT FOR PRODUCTION");
+    const refused = createSideSection({ resolved: productionSlice().resolved, designVersion: DESIGN_VERSION, metadata: METADATA_SS, requestedStatus: "FOR_PRODUCTION" });
+    expect(refused.status).toBe("REFUSED");
+    expect(checkDrawingStaleness(created(r), fixtureSlice(referenceObject({ dimensions: { depth: 580 } })).resolved).stale).toBe(true);
   });
 });

@@ -1,0 +1,415 @@
+{
+  "description": "PRODUCTION quotation: UNAVAILABLE until construction, planning, Hettich, pricing and finance data are approved.",
+  "result": {
+    "blockers": [
+      {
+        "code": "PRICING_BOM_INCOMPLETE",
+        "message": "OBJ-KIT-001: BOM BOM:dv_001:obj_001 is incomplete (missing components or unresolved hardware); nothing is priced at zero",
+        "path": "bom",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_001"
+      },
+      {
+        "code": "PRICING_BOM_INCOMPLETE",
+        "message": "OBJ-KIT-002: BOM BOM:dv_001:obj_002 is incomplete (missing components or unresolved hardware); nothing is priced at zero",
+        "path": "bom",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_002"
+      },
+      {
+        "code": "PRICING_BOM_INCOMPLETE",
+        "message": "OBJ-KIT-003: BOM BOM:dv_001:obj_003 is incomplete (missing components or unresolved hardware); nothing is priced at zero",
+        "path": "bom",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_003"
+      },
+      {
+        "code": "PRICING_BOM_INCOMPLETE",
+        "message": "OBJ-KIT-004: BOM BOM:dv_001:obj_004 is incomplete (missing components or unresolved hardware); nothing is priced at zero",
+        "path": "bom",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_004"
+      },
+      {
+        "code": "PRICING_DESIGN_BLOCKED",
+        "message": "OBJ-KIT-001: Production catalog/design not approved: 25 design BLOCKER(s) outstanding",
+        "path": "resolved.validation",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_001"
+      },
+      {
+        "code": "PRICING_DESIGN_BLOCKED",
+        "message": "OBJ-KIT-002: Production catalog/design not approved: 25 design BLOCKER(s) outstanding",
+        "path": "resolved.validation",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_002"
+      },
+      {
+        "code": "PRICING_DESIGN_BLOCKED",
+        "message": "OBJ-KIT-003: Production catalog/design not approved: 25 design BLOCKER(s) outstanding",
+        "path": "resolved.validation",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_003"
+      },
+      {
+        "code": "PRICING_DESIGN_BLOCKED",
+        "message": "OBJ-KIT-004: Production catalog/design not approved: 25 design BLOCKER(s) outstanding",
+        "path": "resolved.validation",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_004"
+      },
+      {
+        "code": "PRICING_RATE_CARD_NOT_APPROVED",
+        "message": "OBJ-KIT-001: Rate card LINTEL_PRODUCTION_RATE_CARD v0.1.0 is DRAFT",
+        "path": "rateCard.status",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_001"
+      },
+      {
+        "code": "PRICING_RATE_CARD_NOT_APPROVED",
+        "message": "OBJ-KIT-002: Rate card LINTEL_PRODUCTION_RATE_CARD v0.1.0 is DRAFT",
+        "path": "rateCard.status",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_002"
+      },
+      {
+        "code": "PRICING_RATE_CARD_NOT_APPROVED",
+        "message": "OBJ-KIT-003: Rate card LINTEL_PRODUCTION_RATE_CARD v0.1.0 is DRAFT",
+        "path": "rateCard.status",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_003"
+      },
+      {
+        "code": "PRICING_RATE_CARD_NOT_APPROVED",
+        "message": "OBJ-KIT-004: Rate card LINTEL_PRODUCTION_RATE_CARD v0.1.0 is DRAFT",
+        "path": "rateCard.status",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_004"
+      },
+      {
+        "code": "PRICING_RATE_UNVERIFIED",
+        "message": "OBJ-KIT-001: Rate for BOARD_BWP_18 is NULL / UNVERIFIED in LINTEL_PRODUCTION_RATE_CARD",
+        "path": "rateCard.boardPerM2.BOARD_BWP_18",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_001"
+      },
+      {
+        "code": "PRICING_RATE_UNVERIFIED",
+        "message": "OBJ-KIT-002: Rate for BOARD_BWP_18 is NULL / UNVERIFIED in LINTEL_PRODUCTION_RATE_CARD",
+        "path": "rateCard.boardPerM2.BOARD_BWP_18",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_002"
+      },
+      {
+        "code": "PRICING_RATE_UNVERIFIED",
+        "message": "OBJ-KIT-003: Rate for BOARD_BWP_18 is NULL / UNVERIFIED in LINTEL_PRODUCTION_RATE_CARD",
+        "path": "rateCard.boardPerM2.BOARD_BWP_18",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_003"
+      },
+      {
+        "code": "PRICING_RATE_UNVERIFIED",
+        "message": "OBJ-KIT-004: Rate for BOARD_BWP_18 is NULL / UNVERIFIED in LINTEL_PRODUCTION_RATE_CARD",
+        "path": "rateCard.boardPerM2.BOARD_BWP_18",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_004"
+      },
+      {
+        "code": "PRICING_RULES_NOT_APPROVED",
+        "message": "OBJ-KIT-001: Pricing rules LINTEL_PRODUCTION_PRICING_RULES v0.1.0 are DRAFT",
+        "path": "rules.status",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_001"
+      },
+      {
+        "code": "PRICING_RULES_NOT_APPROVED",
+        "message": "OBJ-KIT-002: Pricing rules LINTEL_PRODUCTION_PRICING_RULES v0.1.0 are DRAFT",
+        "path": "rules.status",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_002"
+      },
+      {
+        "code": "PRICING_RULES_NOT_APPROVED",
+        "message": "OBJ-KIT-003: Pricing rules LINTEL_PRODUCTION_PRICING_RULES v0.1.0 are DRAFT",
+        "path": "rules.status",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_003"
+      },
+      {
+        "code": "PRICING_RULES_NOT_APPROVED",
+        "message": "OBJ-KIT-004: Pricing rules LINTEL_PRODUCTION_PRICING_RULES v0.1.0 are DRAFT",
+        "path": "rules.status",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_004"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-001: Pricing rule gstPercent is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.gstPercent",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_001"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-002: Pricing rule gstPercent is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.gstPercent",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_002"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-003: Pricing rule gstPercent is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.gstPercent",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_003"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-004: Pricing rule gstPercent is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.gstPercent",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_004"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-001: Pricing rule manufacturingCost is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.manufacturingCost",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_001"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-002: Pricing rule manufacturingCost is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.manufacturingCost",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_002"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-003: Pricing rule manufacturingCost is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.manufacturingCost",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_003"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-004: Pricing rule manufacturingCost is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.manufacturingCost",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_004"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-001: Pricing rule marginBasis is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.marginBasis",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_001"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-002: Pricing rule marginBasis is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.marginBasis",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_002"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-003: Pricing rule marginBasis is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.marginBasis",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_003"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-004: Pricing rule marginBasis is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.marginBasis",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_004"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-001: Pricing rule marginPercent is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.marginPercent",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_001"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-002: Pricing rule marginPercent is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.marginPercent",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_002"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-003: Pricing rule marginPercent is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.marginPercent",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_003"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-004: Pricing rule marginPercent is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.marginPercent",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_004"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-001: Pricing rule overheadPercent is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.overheadPercent",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_001"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-002: Pricing rule overheadPercent is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.overheadPercent",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_002"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-003: Pricing rule overheadPercent is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.overheadPercent",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_003"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-004: Pricing rule overheadPercent is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.overheadPercent",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_004"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-001: Pricing rule wastagePercent.board is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.wastagePercent.board",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_001"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-002: Pricing rule wastagePercent.board is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.wastagePercent.board",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_002"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-003: Pricing rule wastagePercent.board is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.wastagePercent.board",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_003"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-004: Pricing rule wastagePercent.board is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.wastagePercent.board",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_004"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-001: Pricing rule wastagePercent.edgeBand is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.wastagePercent.edgeBand",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_001"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-002: Pricing rule wastagePercent.edgeBand is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.wastagePercent.edgeBand",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_002"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-003: Pricing rule wastagePercent.edgeBand is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.wastagePercent.edgeBand",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_003"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-004: Pricing rule wastagePercent.edgeBand is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.wastagePercent.edgeBand",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_004"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-001: Pricing rule wastagePercent.finish is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.wastagePercent.finish",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_001"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-002: Pricing rule wastagePercent.finish is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.wastagePercent.finish",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_002"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-003: Pricing rule wastagePercent.finish is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.wastagePercent.finish",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_003"
+      },
+      {
+        "code": "PRICING_RULE_UNVERIFIED",
+        "message": "OBJ-KIT-004: Pricing rule wastagePercent.finish is NULL / UNVERIFIED in LINTEL_PRODUCTION_PRICING_RULES",
+        "path": "rules.wastagePercent.finish",
+        "severity": "BLOCKER",
+        "sourceObjectId": "obj_004"
+      },
+      {
+        "code": "QUOTATION_POLICY_NOT_APPROVED",
+        "message": "Quotation policy LINTEL_PRODUCTION_QUOTATION_POLICY v0.1.0 is DRAFT",
+        "path": "policy.status",
+        "severity": "BLOCKER"
+      },
+      {
+        "code": "QUOTATION_POLICY_UNVERIFIED",
+        "message": "Discount policy is NULL / UNVERIFIED in LINTEL_PRODUCTION_QUOTATION_POLICY",
+        "path": "policy.discountPolicy",
+        "severity": "BLOCKER"
+      },
+      {
+        "code": "QUOTATION_POLICY_UNVERIFIED",
+        "message": "Grand-total rounding policy is NULL / UNVERIFIED in LINTEL_PRODUCTION_QUOTATION_POLICY",
+        "path": "policy.rounding.grandTotal",
+        "severity": "BLOCKER"
+      },
+      {
+        "code": "QUOTATION_POLICY_UNVERIFIED",
+        "message": "Tax rounding policy is NULL / UNVERIFIED in LINTEL_PRODUCTION_QUOTATION_POLICY",
+        "path": "policy.rounding.tax",
+        "severity": "BLOCKER"
+      },
+      {
+        "code": "QUOTATION_POLICY_UNVERIFIED",
+        "message": "Tax policy is NULL / UNVERIFIED in LINTEL_PRODUCTION_QUOTATION_POLICY",
+        "path": "policy.taxPolicy",
+        "severity": "BLOCKER"
+      },
+      {
+        "code": "QUOTATION_ROOM_BLOCKED",
+        "message": "Room has 104 BLOCKER(s) outstanding",
+        "path": "room.validation",
+        "severity": "BLOCKER"
+      },
+      {
+        "code": "QUOTATION_TAX_RATE_UNVERIFIED",
+        "message": "No verified tax rate for product category KITCHEN_BASE in LINTEL_PRODUCTION_QUOTATION_POLICY",
+        "path": "policy.taxRateByProductCategory.KITCHEN_BASE",
+        "severity": "BLOCKER"
+      }
+    ],
+    "classification": "PRODUCTION",
+    "status": "UNAVAILABLE"
+  }
+}

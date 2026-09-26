@@ -147,6 +147,11 @@ describe("refusals — nothing priced at zero, no substitution", () => {
     });
     expect(blockerCodes(r)).toEqual(["PRICING_RATE_INVALID", "PRICING_RULE_INVALID"]);
   });
+  it("a cabinet with an unresolved material is never priced (regression: omitted panels made the BOM look complete)", () => {
+    const s = fixtureSlice(referenceObject({ parameters: { material: "NOT_A_MATERIAL" } }));
+    expect(s.bom.incomplete).toBe(true);
+    expect(blockerCodes(price(s))).toContain("PRICING_BOM_INCOMPLETE");
+  });
   it("an incomplete BOM (unresolved hinges) is never priced", () => {
     expect(blockerCodes(price(productionSlice()))).toContain("PRICING_BOM_INCOMPLETE");
   });

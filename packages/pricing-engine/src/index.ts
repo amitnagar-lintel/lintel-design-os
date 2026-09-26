@@ -10,3 +10,8 @@ export function formatInr(paise: number): string {
   const p = Math.abs(paise % 100);
   return `₹${rupees.toLocaleString("en-IN")}.${String(p).padStart(2, "0")}`;
 }
+export { checkQuotationStaleness, priceQuotation, verifyQuotation } from "./quotation.js";
+export type { PriceQuotationInput, QuotationResult } from "./quotation.js";
+export { roundRational } from "./rounding.js";
+export { LINTEL_PRODUCTION_QUOTATION_POLICY } from "./data/quotation-policy.js";
+export { TEST_FIXTURE_QUOTATION_POLICY } from "./fixtures/test-quotation-policy.js";

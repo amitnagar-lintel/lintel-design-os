@@ -173,6 +173,12 @@ export function generateBom(resolved: ResolvedCabinet): BOM {
   }
   items.push(...unresolved);
 
-  const incomplete = unresolved.length > 0 || resolved.validation.messages.some((m) => m.code === "COMPONENT_NOT_GENERATED");
+  // Incomplete when hardware is unresolved or any expected component was omitted, whatever the
+  // reason (undefined construction value, unresolved material, invalid dimension, …).
+  const generated = new Set(resolved.components.map((c) => c.componentId));
+  const omitted = resolved.validation.messages.some((m) => m.severity === "BLOCKER" && m.componentId !== undefined && !generated.has(m.componentId));
+  const incomplete = unresolved.length > 0 || omitted;
   return { bomId: bomId(resolved), trace: resolved.trace, items, incomplete };
 }
+
+export { generateRoomBom } from "./room.js";

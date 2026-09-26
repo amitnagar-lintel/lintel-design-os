@@ -1,0 +1,1751 @@
+{
+  "description": "Combined room BOM (object BOMs + traced room totals) and room BOQ for the TEST_FIXTURE L-layout.",
+  "result": {
+    "roomBom": {
+      "incomplete": false,
+      "objectBoms": [
+        {
+          "bomId": "BOM:dv_001:obj_001",
+          "incomplete": false,
+          "items": [
+            {
+              "bomItemId": "BOM:OBJ-KIT-001-SL",
+              "componentType": "SIDE_LEFT",
+              "description": "SIDE_LEFT 560 × 720 × 18 mm, BOARD_BWP_18",
+              "grainDirection": "HEIGHT",
+              "height": 720,
+              "kind": "PANEL",
+              "materialId": "BOARD_BWP_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-001-SL"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 560
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-001-SR",
+              "componentType": "SIDE_RIGHT",
+              "description": "SIDE_RIGHT 560 × 720 × 18 mm, BOARD_BWP_18",
+              "grainDirection": "HEIGHT",
+              "height": 720,
+              "kind": "PANEL",
+              "materialId": "BOARD_BWP_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-001-SR"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 560
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-001-BOT",
+              "componentType": "BOTTOM",
+              "description": "BOTTOM 564 × 560 × 18 mm, BOARD_BWP_18",
+              "grainDirection": "WIDTH",
+              "height": 560,
+              "kind": "PANEL",
+              "materialId": "BOARD_BWP_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-001-BOT"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 564
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-001-TSF",
+              "componentType": "TOP_SUPPORT_FRONT",
+              "description": "TOP_SUPPORT_FRONT 564 × 100 × 18 mm, BOARD_BWP_18",
+              "grainDirection": "WIDTH",
+              "height": 100,
+              "kind": "PANEL",
+              "materialId": "BOARD_BWP_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-001-TSF"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 564
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-001-TSB",
+              "componentType": "TOP_SUPPORT_BACK",
+              "description": "TOP_SUPPORT_BACK 564 × 100 × 18 mm, BOARD_BWP_18",
+              "grainDirection": "WIDTH",
+              "height": 100,
+              "kind": "PANEL",
+              "materialId": "BOARD_BWP_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-001-TSB"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 564
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-001-BCK",
+              "componentType": "BACK",
+              "description": "BACK 580 × 710 × 6 mm, BOARD_BACK_6",
+              "grainDirection": "NONE",
+              "height": 710,
+              "kind": "PANEL",
+              "materialId": "BOARD_BACK_6",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-001-BCK"
+              ],
+              "thickness": 6,
+              "unit": "NOS",
+              "width": 580
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-001-SHF-01",
+              "componentType": "SHELF",
+              "description": "SHELF 562 × 518 × 18 mm, BOARD_BWP_18",
+              "grainDirection": "WIDTH",
+              "height": 518,
+              "kind": "PANEL",
+              "materialId": "BOARD_BWP_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-001-SHF-01"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 562
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-001-SHT-L",
+              "componentType": "SHUTTER",
+              "description": "SHUTTER 297 × 717 × 18 mm, BOARD_HDHMR_18",
+              "grainDirection": "HEIGHT",
+              "height": 717,
+              "kind": "PANEL",
+              "materialId": "BOARD_HDHMR_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-001-SHT-L"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 297
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-001-SHT-R",
+              "componentType": "SHUTTER",
+              "description": "SHUTTER 297 × 717 × 18 mm, BOARD_HDHMR_18",
+              "grainDirection": "HEIGHT",
+              "height": 717,
+              "kind": "PANEL",
+              "materialId": "BOARD_HDHMR_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-001-SHT-R"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 297
+            },
+            {
+              "bomItemId": "BOM:obj_001:BOARD:BOARD_BACK_6",
+              "description": "BOARD_BACK_6 board, net area",
+              "kind": "BOARD",
+              "materialId": "BOARD_BACK_6",
+              "panelCount": 1,
+              "quantity": 0.4118,
+              "sourceComponentIds": [
+                "OBJ-KIT-001-BCK"
+              ],
+              "thickness": 6,
+              "unit": "M2"
+            },
+            {
+              "bomItemId": "BOM:obj_001:BOARD:BOARD_BWP_18",
+              "description": "BOARD_BWP_18 board, net area",
+              "kind": "BOARD",
+              "materialId": "BOARD_BWP_18",
+              "panelCount": 6,
+              "quantity": 1.526156,
+              "sourceComponentIds": [
+                "OBJ-KIT-001-SL",
+                "OBJ-KIT-001-SR",
+                "OBJ-KIT-001-BOT",
+                "OBJ-KIT-001-TSF",
+                "OBJ-KIT-001-TSB",
+                "OBJ-KIT-001-SHF-01"
+              ],
+              "thickness": 18,
+              "unit": "M2"
+            },
+            {
+              "bomItemId": "BOM:obj_001:BOARD:BOARD_HDHMR_18",
+              "description": "BOARD_HDHMR_18 board, net area",
+              "kind": "BOARD",
+              "materialId": "BOARD_HDHMR_18",
+              "panelCount": 2,
+              "quantity": 0.425898,
+              "sourceComponentIds": [
+                "OBJ-KIT-001-SHT-L",
+                "OBJ-KIT-001-SHT-R"
+              ],
+              "thickness": 18,
+              "unit": "M2"
+            },
+            {
+              "bomItemId": "BOM:obj_001:EDGE:EDGE_ABS_0_8MM",
+              "description": "EDGE_ABS_0_8MM, net banded length",
+              "edgeBandId": "EDGE_ABS_0_8MM",
+              "kind": "EDGE_BAND",
+              "quantity": 3.13,
+              "sourceComponentIds": [
+                "OBJ-KIT-001-SL",
+                "OBJ-KIT-001-SR",
+                "OBJ-KIT-001-BOT",
+                "OBJ-KIT-001-TSF",
+                "OBJ-KIT-001-SHF-01"
+              ],
+              "unit": "M"
+            },
+            {
+              "bomItemId": "BOM:obj_001:EDGE:EDGE_ABS_2MM",
+              "description": "EDGE_ABS_2MM, net banded length",
+              "edgeBandId": "EDGE_ABS_2MM",
+              "kind": "EDGE_BAND",
+              "quantity": 4.056,
+              "sourceComponentIds": [
+                "OBJ-KIT-001-SHT-L",
+                "OBJ-KIT-001-SHT-R"
+              ],
+              "unit": "M"
+            },
+            {
+              "bomItemId": "BOM:obj_001:FINISH:LAMINATE_WHITE",
+              "description": "LAMINATE_WHITE, net finished area",
+              "finishId": "LAMINATE_WHITE",
+              "kind": "FINISH",
+              "quantity": 0.851796,
+              "sourceComponentIds": [
+                "OBJ-KIT-001-SHT-L",
+                "OBJ-KIT-001-SHT-R"
+              ],
+              "unit": "M2"
+            },
+            {
+              "articleNumber": "FIXTURE-HINGE-FO-A",
+              "bomItemId": "BOM:obj_001:HW:HETTICH:FIXTURE-HINGE-FO-A",
+              "category": "HINGE",
+              "description": "Fixture hinge, full overlay",
+              "kind": "HARDWARE",
+              "manufacturer": "HETTICH",
+              "quantity": 4,
+              "sourceComponentIds": [
+                "OBJ-KIT-001-SHT-L",
+                "OBJ-KIT-001-SHT-R"
+              ],
+              "sourceRequirementIds": [
+                "OBJ-KIT-001-SHT-L-HINGE",
+                "OBJ-KIT-001-SHT-R-HINGE"
+              ],
+              "sourceVersion": "fixture-0.0.1",
+              "status": "RESOLVED",
+              "unit": "NOS"
+            },
+            {
+              "articleNumber": "FIXTURE-PLATE-A",
+              "bomItemId": "BOM:obj_001:HW:HETTICH:FIXTURE-PLATE-A",
+              "category": "MOUNTING_PLATE",
+              "description": "Fixture mounting plate",
+              "kind": "HARDWARE",
+              "manufacturer": "HETTICH",
+              "quantity": 4,
+              "sourceComponentIds": [
+                "OBJ-KIT-001-SHT-L",
+                "OBJ-KIT-001-SHT-R"
+              ],
+              "sourceRequirementIds": [
+                "OBJ-KIT-001-SHT-L-HINGE",
+                "OBJ-KIT-001-SHT-R-HINGE"
+              ],
+              "sourceVersion": "fixture-0.0.1",
+              "status": "RESOLVED",
+              "unit": "NOS"
+            }
+          ],
+          "trace": {
+            "catalogVersion": "2026.09.26-m1",
+            "dataClassification": "TEST_FIXTURE",
+            "designVersionId": "dv_001",
+            "designVersionStatus": "DRAFT",
+            "engineVersion": "0.1.0",
+            "hardwareDatasets": [
+              {
+                "authoritative": false,
+                "classification": "TEST_FIXTURE",
+                "datasetId": "HETTICH_TEST_FIXTURE",
+                "manufacturer": "HETTICH",
+                "sourceVersion": "fixture-0.0.1"
+              }
+            ],
+            "objectId": "obj_001",
+            "product": {
+              "id": "KIT_BASE_STANDARD",
+              "status": "DRAFT",
+              "version": "1.0.0"
+            },
+            "recipe": {
+              "id": "KITCHEN_BASE_STANDARD_V1",
+              "status": "DRAFT",
+              "version": "1.1.0"
+            },
+            "standard": {
+              "id": "TEST_FIXTURE_CONSTRUCTION_STANDARD",
+              "status": "TEST_FIXTURE",
+              "version": "0.0.2"
+            },
+            "testFixtureSources": [
+              "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+              "hardware dataset HETTICH_TEST_FIXTURE"
+            ]
+          }
+        },
+        {
+          "bomId": "BOM:dv_001:obj_002",
+          "incomplete": false,
+          "items": [
+            {
+              "bomItemId": "BOM:OBJ-KIT-002-SL",
+              "componentType": "SIDE_LEFT",
+              "description": "SIDE_LEFT 560 × 720 × 18 mm, BOARD_BWP_18",
+              "grainDirection": "HEIGHT",
+              "height": 720,
+              "kind": "PANEL",
+              "materialId": "BOARD_BWP_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-002-SL"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 560
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-002-SR",
+              "componentType": "SIDE_RIGHT",
+              "description": "SIDE_RIGHT 560 × 720 × 18 mm, BOARD_BWP_18",
+              "grainDirection": "HEIGHT",
+              "height": 720,
+              "kind": "PANEL",
+              "materialId": "BOARD_BWP_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-002-SR"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 560
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-002-BOT",
+              "componentType": "BOTTOM",
+              "description": "BOTTOM 714 × 560 × 18 mm, BOARD_BWP_18",
+              "grainDirection": "WIDTH",
+              "height": 560,
+              "kind": "PANEL",
+              "materialId": "BOARD_BWP_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-002-BOT"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 714
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-002-TSF",
+              "componentType": "TOP_SUPPORT_FRONT",
+              "description": "TOP_SUPPORT_FRONT 714 × 100 × 18 mm, BOARD_BWP_18",
+              "grainDirection": "WIDTH",
+              "height": 100,
+              "kind": "PANEL",
+              "materialId": "BOARD_BWP_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-002-TSF"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 714
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-002-TSB",
+              "componentType": "TOP_SUPPORT_BACK",
+              "description": "TOP_SUPPORT_BACK 714 × 100 × 18 mm, BOARD_BWP_18",
+              "grainDirection": "WIDTH",
+              "height": 100,
+              "kind": "PANEL",
+              "materialId": "BOARD_BWP_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-002-TSB"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 714
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-002-BCK",
+              "componentType": "BACK",
+              "description": "BACK 730 × 710 × 6 mm, BOARD_BACK_6",
+              "grainDirection": "NONE",
+              "height": 710,
+              "kind": "PANEL",
+              "materialId": "BOARD_BACK_6",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-002-BCK"
+              ],
+              "thickness": 6,
+              "unit": "NOS",
+              "width": 730
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-002-SHF-01",
+              "componentType": "SHELF",
+              "description": "SHELF 712 × 518 × 18 mm, BOARD_BWP_18",
+              "grainDirection": "WIDTH",
+              "height": 518,
+              "kind": "PANEL",
+              "materialId": "BOARD_BWP_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-002-SHF-01"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 712
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-002-SHT-L",
+              "componentType": "SHUTTER",
+              "description": "SHUTTER 372 × 717 × 18 mm, BOARD_HDHMR_18",
+              "grainDirection": "HEIGHT",
+              "height": 717,
+              "kind": "PANEL",
+              "materialId": "BOARD_HDHMR_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-002-SHT-L"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 372
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-002-SHT-R",
+              "componentType": "SHUTTER",
+              "description": "SHUTTER 372 × 717 × 18 mm, BOARD_HDHMR_18",
+              "grainDirection": "HEIGHT",
+              "height": 717,
+              "kind": "PANEL",
+              "materialId": "BOARD_HDHMR_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-002-SHT-R"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 372
+            },
+            {
+              "bomItemId": "BOM:obj_002:BOARD:BOARD_BACK_6",
+              "description": "BOARD_BACK_6 board, net area",
+              "kind": "BOARD",
+              "materialId": "BOARD_BACK_6",
+              "panelCount": 1,
+              "quantity": 0.5183,
+              "sourceComponentIds": [
+                "OBJ-KIT-002-BCK"
+              ],
+              "thickness": 6,
+              "unit": "M2"
+            },
+            {
+              "bomItemId": "BOM:obj_002:BOARD:BOARD_BWP_18",
+              "description": "BOARD_BWP_18 board, net area",
+              "kind": "BOARD",
+              "materialId": "BOARD_BWP_18",
+              "panelCount": 6,
+              "quantity": 1.717856,
+              "sourceComponentIds": [
+                "OBJ-KIT-002-SL",
+                "OBJ-KIT-002-SR",
+                "OBJ-KIT-002-BOT",
+                "OBJ-KIT-002-TSF",
+                "OBJ-KIT-002-TSB",
+                "OBJ-KIT-002-SHF-01"
+              ],
+              "thickness": 18,
+              "unit": "M2"
+            },
+            {
+              "bomItemId": "BOM:obj_002:BOARD:BOARD_HDHMR_18",
+              "description": "BOARD_HDHMR_18 board, net area",
+              "kind": "BOARD",
+              "materialId": "BOARD_HDHMR_18",
+              "panelCount": 2,
+              "quantity": 0.533448,
+              "sourceComponentIds": [
+                "OBJ-KIT-002-SHT-L",
+                "OBJ-KIT-002-SHT-R"
+              ],
+              "thickness": 18,
+              "unit": "M2"
+            },
+            {
+              "bomItemId": "BOM:obj_002:EDGE:EDGE_ABS_0_8MM",
+              "description": "EDGE_ABS_0_8MM, net banded length",
+              "edgeBandId": "EDGE_ABS_0_8MM",
+              "kind": "EDGE_BAND",
+              "quantity": 3.58,
+              "sourceComponentIds": [
+                "OBJ-KIT-002-SL",
+                "OBJ-KIT-002-SR",
+                "OBJ-KIT-002-BOT",
+                "OBJ-KIT-002-TSF",
+                "OBJ-KIT-002-SHF-01"
+              ],
+              "unit": "M"
+            },
+            {
+              "bomItemId": "BOM:obj_002:EDGE:EDGE_ABS_2MM",
+              "description": "EDGE_ABS_2MM, net banded length",
+              "edgeBandId": "EDGE_ABS_2MM",
+              "kind": "EDGE_BAND",
+              "quantity": 4.356,
+              "sourceComponentIds": [
+                "OBJ-KIT-002-SHT-L",
+                "OBJ-KIT-002-SHT-R"
+              ],
+              "unit": "M"
+            },
+            {
+              "bomItemId": "BOM:obj_002:FINISH:LAMINATE_WHITE",
+              "description": "LAMINATE_WHITE, net finished area",
+              "finishId": "LAMINATE_WHITE",
+              "kind": "FINISH",
+              "quantity": 1.066896,
+              "sourceComponentIds": [
+                "OBJ-KIT-002-SHT-L",
+                "OBJ-KIT-002-SHT-R"
+              ],
+              "unit": "M2"
+            },
+            {
+              "articleNumber": "FIXTURE-HINGE-FO-A",
+              "bomItemId": "BOM:obj_002:HW:HETTICH:FIXTURE-HINGE-FO-A",
+              "category": "HINGE",
+              "description": "Fixture hinge, full overlay",
+              "kind": "HARDWARE",
+              "manufacturer": "HETTICH",
+              "quantity": 4,
+              "sourceComponentIds": [
+                "OBJ-KIT-002-SHT-L",
+                "OBJ-KIT-002-SHT-R"
+              ],
+              "sourceRequirementIds": [
+                "OBJ-KIT-002-SHT-L-HINGE",
+                "OBJ-KIT-002-SHT-R-HINGE"
+              ],
+              "sourceVersion": "fixture-0.0.1",
+              "status": "RESOLVED",
+              "unit": "NOS"
+            },
+            {
+              "articleNumber": "FIXTURE-PLATE-A",
+              "bomItemId": "BOM:obj_002:HW:HETTICH:FIXTURE-PLATE-A",
+              "category": "MOUNTING_PLATE",
+              "description": "Fixture mounting plate",
+              "kind": "HARDWARE",
+              "manufacturer": "HETTICH",
+              "quantity": 4,
+              "sourceComponentIds": [
+                "OBJ-KIT-002-SHT-L",
+                "OBJ-KIT-002-SHT-R"
+              ],
+              "sourceRequirementIds": [
+                "OBJ-KIT-002-SHT-L-HINGE",
+                "OBJ-KIT-002-SHT-R-HINGE"
+              ],
+              "sourceVersion": "fixture-0.0.1",
+              "status": "RESOLVED",
+              "unit": "NOS"
+            }
+          ],
+          "trace": {
+            "catalogVersion": "2026.09.26-m1",
+            "dataClassification": "TEST_FIXTURE",
+            "designVersionId": "dv_001",
+            "designVersionStatus": "DRAFT",
+            "engineVersion": "0.1.0",
+            "hardwareDatasets": [
+              {
+                "authoritative": false,
+                "classification": "TEST_FIXTURE",
+                "datasetId": "HETTICH_TEST_FIXTURE",
+                "manufacturer": "HETTICH",
+                "sourceVersion": "fixture-0.0.1"
+              }
+            ],
+            "objectId": "obj_002",
+            "product": {
+              "id": "KIT_BASE_STANDARD",
+              "status": "DRAFT",
+              "version": "1.0.0"
+            },
+            "recipe": {
+              "id": "KITCHEN_BASE_STANDARD_V1",
+              "status": "DRAFT",
+              "version": "1.1.0"
+            },
+            "standard": {
+              "id": "TEST_FIXTURE_CONSTRUCTION_STANDARD",
+              "status": "TEST_FIXTURE",
+              "version": "0.0.2"
+            },
+            "testFixtureSources": [
+              "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+              "hardware dataset HETTICH_TEST_FIXTURE"
+            ]
+          }
+        },
+        {
+          "bomId": "BOM:dv_001:obj_003",
+          "incomplete": false,
+          "items": [
+            {
+              "bomItemId": "BOM:OBJ-KIT-003-SL",
+              "componentType": "SIDE_LEFT",
+              "description": "SIDE_LEFT 560 × 720 × 18 mm, BOARD_BWP_18",
+              "grainDirection": "HEIGHT",
+              "height": 720,
+              "kind": "PANEL",
+              "materialId": "BOARD_BWP_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-003-SL"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 560
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-003-SR",
+              "componentType": "SIDE_RIGHT",
+              "description": "SIDE_RIGHT 560 × 720 × 18 mm, BOARD_BWP_18",
+              "grainDirection": "HEIGHT",
+              "height": 720,
+              "kind": "PANEL",
+              "materialId": "BOARD_BWP_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-003-SR"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 560
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-003-BOT",
+              "componentType": "BOTTOM",
+              "description": "BOTTOM 564 × 560 × 18 mm, BOARD_BWP_18",
+              "grainDirection": "WIDTH",
+              "height": 560,
+              "kind": "PANEL",
+              "materialId": "BOARD_BWP_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-003-BOT"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 564
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-003-TSF",
+              "componentType": "TOP_SUPPORT_FRONT",
+              "description": "TOP_SUPPORT_FRONT 564 × 100 × 18 mm, BOARD_BWP_18",
+              "grainDirection": "WIDTH",
+              "height": 100,
+              "kind": "PANEL",
+              "materialId": "BOARD_BWP_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-003-TSF"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 564
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-003-TSB",
+              "componentType": "TOP_SUPPORT_BACK",
+              "description": "TOP_SUPPORT_BACK 564 × 100 × 18 mm, BOARD_BWP_18",
+              "grainDirection": "WIDTH",
+              "height": 100,
+              "kind": "PANEL",
+              "materialId": "BOARD_BWP_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-003-TSB"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 564
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-003-BCK",
+              "componentType": "BACK",
+              "description": "BACK 580 × 710 × 6 mm, BOARD_BACK_6",
+              "grainDirection": "NONE",
+              "height": 710,
+              "kind": "PANEL",
+              "materialId": "BOARD_BACK_6",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-003-BCK"
+              ],
+              "thickness": 6,
+              "unit": "NOS",
+              "width": 580
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-003-SHF-01",
+              "componentType": "SHELF",
+              "description": "SHELF 562 × 518 × 18 mm, BOARD_BWP_18",
+              "grainDirection": "WIDTH",
+              "height": 518,
+              "kind": "PANEL",
+              "materialId": "BOARD_BWP_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-003-SHF-01"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 562
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-003-SHT-L",
+              "componentType": "SHUTTER",
+              "description": "SHUTTER 297 × 717 × 18 mm, BOARD_HDHMR_18",
+              "grainDirection": "HEIGHT",
+              "height": 717,
+              "kind": "PANEL",
+              "materialId": "BOARD_HDHMR_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-003-SHT-L"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 297
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-003-SHT-R",
+              "componentType": "SHUTTER",
+              "description": "SHUTTER 297 × 717 × 18 mm, BOARD_HDHMR_18",
+              "grainDirection": "HEIGHT",
+              "height": 717,
+              "kind": "PANEL",
+              "materialId": "BOARD_HDHMR_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-003-SHT-R"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 297
+            },
+            {
+              "bomItemId": "BOM:obj_003:BOARD:BOARD_BACK_6",
+              "description": "BOARD_BACK_6 board, net area",
+              "kind": "BOARD",
+              "materialId": "BOARD_BACK_6",
+              "panelCount": 1,
+              "quantity": 0.4118,
+              "sourceComponentIds": [
+                "OBJ-KIT-003-BCK"
+              ],
+              "thickness": 6,
+              "unit": "M2"
+            },
+            {
+              "bomItemId": "BOM:obj_003:BOARD:BOARD_BWP_18",
+              "description": "BOARD_BWP_18 board, net area",
+              "kind": "BOARD",
+              "materialId": "BOARD_BWP_18",
+              "panelCount": 6,
+              "quantity": 1.526156,
+              "sourceComponentIds": [
+                "OBJ-KIT-003-SL",
+                "OBJ-KIT-003-SR",
+                "OBJ-KIT-003-BOT",
+                "OBJ-KIT-003-TSF",
+                "OBJ-KIT-003-TSB",
+                "OBJ-KIT-003-SHF-01"
+              ],
+              "thickness": 18,
+              "unit": "M2"
+            },
+            {
+              "bomItemId": "BOM:obj_003:BOARD:BOARD_HDHMR_18",
+              "description": "BOARD_HDHMR_18 board, net area",
+              "kind": "BOARD",
+              "materialId": "BOARD_HDHMR_18",
+              "panelCount": 2,
+              "quantity": 0.425898,
+              "sourceComponentIds": [
+                "OBJ-KIT-003-SHT-L",
+                "OBJ-KIT-003-SHT-R"
+              ],
+              "thickness": 18,
+              "unit": "M2"
+            },
+            {
+              "bomItemId": "BOM:obj_003:EDGE:EDGE_ABS_0_8MM",
+              "description": "EDGE_ABS_0_8MM, net banded length",
+              "edgeBandId": "EDGE_ABS_0_8MM",
+              "kind": "EDGE_BAND",
+              "quantity": 3.13,
+              "sourceComponentIds": [
+                "OBJ-KIT-003-SL",
+                "OBJ-KIT-003-SR",
+                "OBJ-KIT-003-BOT",
+                "OBJ-KIT-003-TSF",
+                "OBJ-KIT-003-SHF-01"
+              ],
+              "unit": "M"
+            },
+            {
+              "bomItemId": "BOM:obj_003:EDGE:EDGE_ABS_2MM",
+              "description": "EDGE_ABS_2MM, net banded length",
+              "edgeBandId": "EDGE_ABS_2MM",
+              "kind": "EDGE_BAND",
+              "quantity": 4.056,
+              "sourceComponentIds": [
+                "OBJ-KIT-003-SHT-L",
+                "OBJ-KIT-003-SHT-R"
+              ],
+              "unit": "M"
+            },
+            {
+              "bomItemId": "BOM:obj_003:FINISH:LAMINATE_WHITE",
+              "description": "LAMINATE_WHITE, net finished area",
+              "finishId": "LAMINATE_WHITE",
+              "kind": "FINISH",
+              "quantity": 0.851796,
+              "sourceComponentIds": [
+                "OBJ-KIT-003-SHT-L",
+                "OBJ-KIT-003-SHT-R"
+              ],
+              "unit": "M2"
+            },
+            {
+              "articleNumber": "FIXTURE-HINGE-FO-A",
+              "bomItemId": "BOM:obj_003:HW:HETTICH:FIXTURE-HINGE-FO-A",
+              "category": "HINGE",
+              "description": "Fixture hinge, full overlay",
+              "kind": "HARDWARE",
+              "manufacturer": "HETTICH",
+              "quantity": 4,
+              "sourceComponentIds": [
+                "OBJ-KIT-003-SHT-L",
+                "OBJ-KIT-003-SHT-R"
+              ],
+              "sourceRequirementIds": [
+                "OBJ-KIT-003-SHT-L-HINGE",
+                "OBJ-KIT-003-SHT-R-HINGE"
+              ],
+              "sourceVersion": "fixture-0.0.1",
+              "status": "RESOLVED",
+              "unit": "NOS"
+            },
+            {
+              "articleNumber": "FIXTURE-PLATE-A",
+              "bomItemId": "BOM:obj_003:HW:HETTICH:FIXTURE-PLATE-A",
+              "category": "MOUNTING_PLATE",
+              "description": "Fixture mounting plate",
+              "kind": "HARDWARE",
+              "manufacturer": "HETTICH",
+              "quantity": 4,
+              "sourceComponentIds": [
+                "OBJ-KIT-003-SHT-L",
+                "OBJ-KIT-003-SHT-R"
+              ],
+              "sourceRequirementIds": [
+                "OBJ-KIT-003-SHT-L-HINGE",
+                "OBJ-KIT-003-SHT-R-HINGE"
+              ],
+              "sourceVersion": "fixture-0.0.1",
+              "status": "RESOLVED",
+              "unit": "NOS"
+            }
+          ],
+          "trace": {
+            "catalogVersion": "2026.09.26-m1",
+            "dataClassification": "TEST_FIXTURE",
+            "designVersionId": "dv_001",
+            "designVersionStatus": "DRAFT",
+            "engineVersion": "0.1.0",
+            "hardwareDatasets": [
+              {
+                "authoritative": false,
+                "classification": "TEST_FIXTURE",
+                "datasetId": "HETTICH_TEST_FIXTURE",
+                "manufacturer": "HETTICH",
+                "sourceVersion": "fixture-0.0.1"
+              }
+            ],
+            "objectId": "obj_003",
+            "product": {
+              "id": "KIT_BASE_STANDARD",
+              "status": "DRAFT",
+              "version": "1.0.0"
+            },
+            "recipe": {
+              "id": "KITCHEN_BASE_STANDARD_V1",
+              "status": "DRAFT",
+              "version": "1.1.0"
+            },
+            "standard": {
+              "id": "TEST_FIXTURE_CONSTRUCTION_STANDARD",
+              "status": "TEST_FIXTURE",
+              "version": "0.0.2"
+            },
+            "testFixtureSources": [
+              "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+              "hardware dataset HETTICH_TEST_FIXTURE"
+            ]
+          }
+        },
+        {
+          "bomId": "BOM:dv_001:obj_004",
+          "incomplete": false,
+          "items": [
+            {
+              "bomItemId": "BOM:OBJ-KIT-004-SL",
+              "componentType": "SIDE_LEFT",
+              "description": "SIDE_LEFT 560 × 720 × 18 mm, BOARD_BWP_18",
+              "grainDirection": "HEIGHT",
+              "height": 720,
+              "kind": "PANEL",
+              "materialId": "BOARD_BWP_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-004-SL"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 560
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-004-SR",
+              "componentType": "SIDE_RIGHT",
+              "description": "SIDE_RIGHT 560 × 720 × 18 mm, BOARD_BWP_18",
+              "grainDirection": "HEIGHT",
+              "height": 720,
+              "kind": "PANEL",
+              "materialId": "BOARD_BWP_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-004-SR"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 560
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-004-BOT",
+              "componentType": "BOTTOM",
+              "description": "BOTTOM 564 × 560 × 18 mm, BOARD_BWP_18",
+              "grainDirection": "WIDTH",
+              "height": 560,
+              "kind": "PANEL",
+              "materialId": "BOARD_BWP_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-004-BOT"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 564
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-004-TSF",
+              "componentType": "TOP_SUPPORT_FRONT",
+              "description": "TOP_SUPPORT_FRONT 564 × 100 × 18 mm, BOARD_BWP_18",
+              "grainDirection": "WIDTH",
+              "height": 100,
+              "kind": "PANEL",
+              "materialId": "BOARD_BWP_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-004-TSF"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 564
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-004-TSB",
+              "componentType": "TOP_SUPPORT_BACK",
+              "description": "TOP_SUPPORT_BACK 564 × 100 × 18 mm, BOARD_BWP_18",
+              "grainDirection": "WIDTH",
+              "height": 100,
+              "kind": "PANEL",
+              "materialId": "BOARD_BWP_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-004-TSB"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 564
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-004-BCK",
+              "componentType": "BACK",
+              "description": "BACK 580 × 710 × 6 mm, BOARD_BACK_6",
+              "grainDirection": "NONE",
+              "height": 710,
+              "kind": "PANEL",
+              "materialId": "BOARD_BACK_6",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-004-BCK"
+              ],
+              "thickness": 6,
+              "unit": "NOS",
+              "width": 580
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-004-SHF-01",
+              "componentType": "SHELF",
+              "description": "SHELF 562 × 518 × 18 mm, BOARD_BWP_18",
+              "grainDirection": "WIDTH",
+              "height": 518,
+              "kind": "PANEL",
+              "materialId": "BOARD_BWP_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-004-SHF-01"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 562
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-004-SHT-L",
+              "componentType": "SHUTTER",
+              "description": "SHUTTER 297 × 717 × 18 mm, BOARD_HDHMR_18",
+              "grainDirection": "HEIGHT",
+              "height": 717,
+              "kind": "PANEL",
+              "materialId": "BOARD_HDHMR_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-004-SHT-L"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 297
+            },
+            {
+              "bomItemId": "BOM:OBJ-KIT-004-SHT-R",
+              "componentType": "SHUTTER",
+              "description": "SHUTTER 297 × 717 × 18 mm, BOARD_HDHMR_18",
+              "grainDirection": "HEIGHT",
+              "height": 717,
+              "kind": "PANEL",
+              "materialId": "BOARD_HDHMR_18",
+              "quantity": 1,
+              "sourceComponentIds": [
+                "OBJ-KIT-004-SHT-R"
+              ],
+              "thickness": 18,
+              "unit": "NOS",
+              "width": 297
+            },
+            {
+              "bomItemId": "BOM:obj_004:BOARD:BOARD_BACK_6",
+              "description": "BOARD_BACK_6 board, net area",
+              "kind": "BOARD",
+              "materialId": "BOARD_BACK_6",
+              "panelCount": 1,
+              "quantity": 0.4118,
+              "sourceComponentIds": [
+                "OBJ-KIT-004-BCK"
+              ],
+              "thickness": 6,
+              "unit": "M2"
+            },
+            {
+              "bomItemId": "BOM:obj_004:BOARD:BOARD_BWP_18",
+              "description": "BOARD_BWP_18 board, net area",
+              "kind": "BOARD",
+              "materialId": "BOARD_BWP_18",
+              "panelCount": 6,
+              "quantity": 1.526156,
+              "sourceComponentIds": [
+                "OBJ-KIT-004-SL",
+                "OBJ-KIT-004-SR",
+                "OBJ-KIT-004-BOT",
+                "OBJ-KIT-004-TSF",
+                "OBJ-KIT-004-TSB",
+                "OBJ-KIT-004-SHF-01"
+              ],
+              "thickness": 18,
+              "unit": "M2"
+            },
+            {
+              "bomItemId": "BOM:obj_004:BOARD:BOARD_HDHMR_18",
+              "description": "BOARD_HDHMR_18 board, net area",
+              "kind": "BOARD",
+              "materialId": "BOARD_HDHMR_18",
+              "panelCount": 2,
+              "quantity": 0.425898,
+              "sourceComponentIds": [
+                "OBJ-KIT-004-SHT-L",
+                "OBJ-KIT-004-SHT-R"
+              ],
+              "thickness": 18,
+              "unit": "M2"
+            },
+            {
+              "bomItemId": "BOM:obj_004:EDGE:EDGE_ABS_0_8MM",
+              "description": "EDGE_ABS_0_8MM, net banded length",
+              "edgeBandId": "EDGE_ABS_0_8MM",
+              "kind": "EDGE_BAND",
+              "quantity": 3.13,
+              "sourceComponentIds": [
+                "OBJ-KIT-004-SL",
+                "OBJ-KIT-004-SR",
+                "OBJ-KIT-004-BOT",
+                "OBJ-KIT-004-TSF",
+                "OBJ-KIT-004-SHF-01"
+              ],
+              "unit": "M"
+            },
+            {
+              "bomItemId": "BOM:obj_004:EDGE:EDGE_ABS_2MM",
+              "description": "EDGE_ABS_2MM, net banded length",
+              "edgeBandId": "EDGE_ABS_2MM",
+              "kind": "EDGE_BAND",
+              "quantity": 4.056,
+              "sourceComponentIds": [
+                "OBJ-KIT-004-SHT-L",
+                "OBJ-KIT-004-SHT-R"
+              ],
+              "unit": "M"
+            },
+            {
+              "bomItemId": "BOM:obj_004:FINISH:LAMINATE_WHITE",
+              "description": "LAMINATE_WHITE, net finished area",
+              "finishId": "LAMINATE_WHITE",
+              "kind": "FINISH",
+              "quantity": 0.851796,
+              "sourceComponentIds": [
+                "OBJ-KIT-004-SHT-L",
+                "OBJ-KIT-004-SHT-R"
+              ],
+              "unit": "M2"
+            },
+            {
+              "articleNumber": "FIXTURE-HINGE-FO-A",
+              "bomItemId": "BOM:obj_004:HW:HETTICH:FIXTURE-HINGE-FO-A",
+              "category": "HINGE",
+              "description": "Fixture hinge, full overlay",
+              "kind": "HARDWARE",
+              "manufacturer": "HETTICH",
+              "quantity": 4,
+              "sourceComponentIds": [
+                "OBJ-KIT-004-SHT-L",
+                "OBJ-KIT-004-SHT-R"
+              ],
+              "sourceRequirementIds": [
+                "OBJ-KIT-004-SHT-L-HINGE",
+                "OBJ-KIT-004-SHT-R-HINGE"
+              ],
+              "sourceVersion": "fixture-0.0.1",
+              "status": "RESOLVED",
+              "unit": "NOS"
+            },
+            {
+              "articleNumber": "FIXTURE-PLATE-A",
+              "bomItemId": "BOM:obj_004:HW:HETTICH:FIXTURE-PLATE-A",
+              "category": "MOUNTING_PLATE",
+              "description": "Fixture mounting plate",
+              "kind": "HARDWARE",
+              "manufacturer": "HETTICH",
+              "quantity": 4,
+              "sourceComponentIds": [
+                "OBJ-KIT-004-SHT-L",
+                "OBJ-KIT-004-SHT-R"
+              ],
+              "sourceRequirementIds": [
+                "OBJ-KIT-004-SHT-L-HINGE",
+                "OBJ-KIT-004-SHT-R-HINGE"
+              ],
+              "sourceVersion": "fixture-0.0.1",
+              "status": "RESOLVED",
+              "unit": "NOS"
+            }
+          ],
+          "trace": {
+            "catalogVersion": "2026.09.26-m1",
+            "dataClassification": "TEST_FIXTURE",
+            "designVersionId": "dv_001",
+            "designVersionStatus": "DRAFT",
+            "engineVersion": "0.1.0",
+            "hardwareDatasets": [
+              {
+                "authoritative": false,
+                "classification": "TEST_FIXTURE",
+                "datasetId": "HETTICH_TEST_FIXTURE",
+                "manufacturer": "HETTICH",
+                "sourceVersion": "fixture-0.0.1"
+              }
+            ],
+            "objectId": "obj_004",
+            "product": {
+              "id": "KIT_BASE_STANDARD",
+              "status": "DRAFT",
+              "version": "1.0.0"
+            },
+            "recipe": {
+              "id": "KITCHEN_BASE_STANDARD_V1",
+              "status": "DRAFT",
+              "version": "1.1.0"
+            },
+            "standard": {
+              "id": "TEST_FIXTURE_CONSTRUCTION_STANDARD",
+              "status": "TEST_FIXTURE",
+              "version": "0.0.2"
+            },
+            "testFixtureSources": [
+              "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+              "hardware dataset HETTICH_TEST_FIXTURE"
+            ]
+          }
+        }
+      ],
+      "roomBomId": "ROOMBOM:dv_001:room_001",
+      "roomFingerprint": "0ae96d596b740a",
+      "totals": [
+        {
+          "description": "BOARD_BACK_6 board, net area",
+          "key": "BOARD_BACK_6",
+          "kind": "BOARD",
+          "lineId": "ROOMBOM:room_001:BOARD:BOARD_BACK_6",
+          "quantity": 1.7537,
+          "sourceBomItemIds": [
+            "BOM:obj_001:BOARD:BOARD_BACK_6",
+            "BOM:obj_002:BOARD:BOARD_BACK_6",
+            "BOM:obj_003:BOARD:BOARD_BACK_6",
+            "BOM:obj_004:BOARD:BOARD_BACK_6"
+          ],
+          "status": "RESOLVED",
+          "unit": "M2"
+        },
+        {
+          "description": "BOARD_BWP_18 board, net area",
+          "key": "BOARD_BWP_18",
+          "kind": "BOARD",
+          "lineId": "ROOMBOM:room_001:BOARD:BOARD_BWP_18",
+          "quantity": 6.296324,
+          "sourceBomItemIds": [
+            "BOM:obj_001:BOARD:BOARD_BWP_18",
+            "BOM:obj_002:BOARD:BOARD_BWP_18",
+            "BOM:obj_003:BOARD:BOARD_BWP_18",
+            "BOM:obj_004:BOARD:BOARD_BWP_18"
+          ],
+          "status": "RESOLVED",
+          "unit": "M2"
+        },
+        {
+          "description": "BOARD_HDHMR_18 board, net area",
+          "key": "BOARD_HDHMR_18",
+          "kind": "BOARD",
+          "lineId": "ROOMBOM:room_001:BOARD:BOARD_HDHMR_18",
+          "quantity": 1.811142,
+          "sourceBomItemIds": [
+            "BOM:obj_001:BOARD:BOARD_HDHMR_18",
+            "BOM:obj_002:BOARD:BOARD_HDHMR_18",
+            "BOM:obj_003:BOARD:BOARD_HDHMR_18",
+            "BOM:obj_004:BOARD:BOARD_HDHMR_18"
+          ],
+          "status": "RESOLVED",
+          "unit": "M2"
+        },
+        {
+          "description": "EDGE_ABS_0_8MM, net banded length",
+          "key": "EDGE_ABS_0_8MM",
+          "kind": "EDGE_BAND",
+          "lineId": "ROOMBOM:room_001:EDGE_BAND:EDGE_ABS_0_8MM",
+          "quantity": 12.97,
+          "sourceBomItemIds": [
+            "BOM:obj_001:EDGE:EDGE_ABS_0_8MM",
+            "BOM:obj_002:EDGE:EDGE_ABS_0_8MM",
+            "BOM:obj_003:EDGE:EDGE_ABS_0_8MM",
+            "BOM:obj_004:EDGE:EDGE_ABS_0_8MM"
+          ],
+          "status": "RESOLVED",
+          "unit": "M"
+        },
+        {
+          "description": "EDGE_ABS_2MM, net banded length",
+          "key": "EDGE_ABS_2MM",
+          "kind": "EDGE_BAND",
+          "lineId": "ROOMBOM:room_001:EDGE_BAND:EDGE_ABS_2MM",
+          "quantity": 16.524,
+          "sourceBomItemIds": [
+            "BOM:obj_001:EDGE:EDGE_ABS_2MM",
+            "BOM:obj_002:EDGE:EDGE_ABS_2MM",
+            "BOM:obj_003:EDGE:EDGE_ABS_2MM",
+            "BOM:obj_004:EDGE:EDGE_ABS_2MM"
+          ],
+          "status": "RESOLVED",
+          "unit": "M"
+        },
+        {
+          "description": "LAMINATE_WHITE, net finished area",
+          "key": "LAMINATE_WHITE",
+          "kind": "FINISH",
+          "lineId": "ROOMBOM:room_001:FINISH:LAMINATE_WHITE",
+          "quantity": 3.622284,
+          "sourceBomItemIds": [
+            "BOM:obj_001:FINISH:LAMINATE_WHITE",
+            "BOM:obj_002:FINISH:LAMINATE_WHITE",
+            "BOM:obj_003:FINISH:LAMINATE_WHITE",
+            "BOM:obj_004:FINISH:LAMINATE_WHITE"
+          ],
+          "status": "RESOLVED",
+          "unit": "M2"
+        },
+        {
+          "description": "Fixture hinge, full overlay",
+          "key": "HETTICH:FIXTURE-HINGE-FO-A",
+          "kind": "HARDWARE",
+          "lineId": "ROOMBOM:room_001:HARDWARE:HETTICH:FIXTURE-HINGE-FO-A",
+          "quantity": 16,
+          "sourceBomItemIds": [
+            "BOM:obj_001:HW:HETTICH:FIXTURE-HINGE-FO-A",
+            "BOM:obj_002:HW:HETTICH:FIXTURE-HINGE-FO-A",
+            "BOM:obj_003:HW:HETTICH:FIXTURE-HINGE-FO-A",
+            "BOM:obj_004:HW:HETTICH:FIXTURE-HINGE-FO-A"
+          ],
+          "status": "RESOLVED",
+          "unit": "NOS"
+        },
+        {
+          "description": "Fixture mounting plate",
+          "key": "HETTICH:FIXTURE-PLATE-A",
+          "kind": "HARDWARE",
+          "lineId": "ROOMBOM:room_001:HARDWARE:HETTICH:FIXTURE-PLATE-A",
+          "quantity": 16,
+          "sourceBomItemIds": [
+            "BOM:obj_001:HW:HETTICH:FIXTURE-PLATE-A",
+            "BOM:obj_002:HW:HETTICH:FIXTURE-PLATE-A",
+            "BOM:obj_003:HW:HETTICH:FIXTURE-PLATE-A",
+            "BOM:obj_004:HW:HETTICH:FIXTURE-PLATE-A"
+          ],
+          "status": "RESOLVED",
+          "unit": "NOS"
+        }
+      ],
+      "trace": {
+        "catalogVersion": "2026.09.26-m1",
+        "dataClassification": "TEST_FIXTURE",
+        "designVersionId": "dv_001",
+        "designVersionStatus": "DRAFT",
+        "engineVersion": "0.1.0",
+        "objects": [
+          {
+            "modelFingerprint": "0d8691345c4075",
+            "objectCode": "OBJ-KIT-001",
+            "objectId": "obj_001"
+          },
+          {
+            "modelFingerprint": "1cbd5f676f1791",
+            "objectCode": "OBJ-KIT-002",
+            "objectId": "obj_002"
+          },
+          {
+            "modelFingerprint": "00699dfb89f5a9",
+            "objectCode": "OBJ-KIT-003",
+            "objectId": "obj_003"
+          },
+          {
+            "modelFingerprint": "0076805444297a",
+            "objectCode": "OBJ-KIT-004",
+            "objectId": "obj_004"
+          }
+        ],
+        "overrides": [],
+        "planningStandard": {
+          "id": "TEST_FIXTURE_PLANNING_STANDARD",
+          "status": "TEST_FIXTURE",
+          "version": "0.0.1"
+        },
+        "projectId": "project_001",
+        "roomId": "room_001",
+        "testFixtureSources": [
+          "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+          "hardware dataset HETTICH_TEST_FIXTURE",
+          "planning standard TEST_FIXTURE_PLANNING_STANDARD"
+        ]
+      }
+    },
+    "roomBoq": {
+      "items": [
+        {
+          "boqItemId": "BOQ:dv_001:obj_001",
+          "description": "600 Base Cabinet",
+          "itemCode": "KIT_BASE_STANDARD-600",
+          "linkedBomId": "BOM:dv_001:obj_001",
+          "measures": {
+            "depth": 560,
+            "height": 720,
+            "width": 600
+          },
+          "productId": "KIT_BASE_STANDARD",
+          "quantity": 1,
+          "sourceObjectId": "obj_001",
+          "unit": "NOS"
+        },
+        {
+          "boqItemId": "BOQ:dv_001:obj_002",
+          "description": "750 Base Cabinet",
+          "itemCode": "KIT_BASE_STANDARD-750",
+          "linkedBomId": "BOM:dv_001:obj_002",
+          "measures": {
+            "depth": 560,
+            "height": 720,
+            "width": 750
+          },
+          "productId": "KIT_BASE_STANDARD",
+          "quantity": 1,
+          "sourceObjectId": "obj_002",
+          "unit": "NOS"
+        },
+        {
+          "boqItemId": "BOQ:dv_001:obj_003",
+          "description": "600 Base Cabinet",
+          "itemCode": "KIT_BASE_STANDARD-600",
+          "linkedBomId": "BOM:dv_001:obj_003",
+          "measures": {
+            "depth": 560,
+            "height": 720,
+            "width": 600
+          },
+          "productId": "KIT_BASE_STANDARD",
+          "quantity": 1,
+          "sourceObjectId": "obj_003",
+          "unit": "NOS"
+        },
+        {
+          "boqItemId": "BOQ:dv_001:obj_004",
+          "description": "600 Base Cabinet",
+          "itemCode": "KIT_BASE_STANDARD-600",
+          "linkedBomId": "BOM:dv_001:obj_004",
+          "measures": {
+            "depth": 560,
+            "height": 720,
+            "width": 600
+          },
+          "productId": "KIT_BASE_STANDARD",
+          "quantity": 1,
+          "sourceObjectId": "obj_004",
+          "unit": "NOS"
+        }
+      ],
+      "objectBoqs": [
+        {
+          "boqId": "BOQ:dv_001:obj_001",
+          "items": [
+            {
+              "boqItemId": "BOQ:dv_001:obj_001",
+              "description": "600 Base Cabinet",
+              "itemCode": "KIT_BASE_STANDARD-600",
+              "linkedBomId": "BOM:dv_001:obj_001",
+              "measures": {
+                "depth": 560,
+                "height": 720,
+                "width": 600
+              },
+              "productId": "KIT_BASE_STANDARD",
+              "quantity": 1,
+              "sourceObjectId": "obj_001",
+              "unit": "NOS"
+            }
+          ],
+          "trace": {
+            "catalogVersion": "2026.09.26-m1",
+            "dataClassification": "TEST_FIXTURE",
+            "designVersionId": "dv_001",
+            "designVersionStatus": "DRAFT",
+            "engineVersion": "0.1.0",
+            "hardwareDatasets": [
+              {
+                "authoritative": false,
+                "classification": "TEST_FIXTURE",
+                "datasetId": "HETTICH_TEST_FIXTURE",
+                "manufacturer": "HETTICH",
+                "sourceVersion": "fixture-0.0.1"
+              }
+            ],
+            "objectId": "obj_001",
+            "product": {
+              "id": "KIT_BASE_STANDARD",
+              "status": "DRAFT",
+              "version": "1.0.0"
+            },
+            "recipe": {
+              "id": "KITCHEN_BASE_STANDARD_V1",
+              "status": "DRAFT",
+              "version": "1.1.0"
+            },
+            "standard": {
+              "id": "TEST_FIXTURE_CONSTRUCTION_STANDARD",
+              "status": "TEST_FIXTURE",
+              "version": "0.0.2"
+            },
+            "testFixtureSources": [
+              "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+              "hardware dataset HETTICH_TEST_FIXTURE"
+            ]
+          }
+        },
+        {
+          "boqId": "BOQ:dv_001:obj_002",
+          "items": [
+            {
+              "boqItemId": "BOQ:dv_001:obj_002",
+              "description": "750 Base Cabinet",
+              "itemCode": "KIT_BASE_STANDARD-750",
+              "linkedBomId": "BOM:dv_001:obj_002",
+              "measures": {
+                "depth": 560,
+                "height": 720,
+                "width": 750
+              },
+              "productId": "KIT_BASE_STANDARD",
+              "quantity": 1,
+              "sourceObjectId": "obj_002",
+              "unit": "NOS"
+            }
+          ],
+          "trace": {
+            "catalogVersion": "2026.09.26-m1",
+            "dataClassification": "TEST_FIXTURE",
+            "designVersionId": "dv_001",
+            "designVersionStatus": "DRAFT",
+            "engineVersion": "0.1.0",
+            "hardwareDatasets": [
+              {
+                "authoritative": false,
+                "classification": "TEST_FIXTURE",
+                "datasetId": "HETTICH_TEST_FIXTURE",
+                "manufacturer": "HETTICH",
+                "sourceVersion": "fixture-0.0.1"
+              }
+            ],
+            "objectId": "obj_002",
+            "product": {
+              "id": "KIT_BASE_STANDARD",
+              "status": "DRAFT",
+              "version": "1.0.0"
+            },
+            "recipe": {
+              "id": "KITCHEN_BASE_STANDARD_V1",
+              "status": "DRAFT",
+              "version": "1.1.0"
+            },
+            "standard": {
+              "id": "TEST_FIXTURE_CONSTRUCTION_STANDARD",
+              "status": "TEST_FIXTURE",
+              "version": "0.0.2"
+            },
+            "testFixtureSources": [
+              "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+              "hardware dataset HETTICH_TEST_FIXTURE"
+            ]
+          }
+        },
+        {
+          "boqId": "BOQ:dv_001:obj_003",
+          "items": [
+            {
+              "boqItemId": "BOQ:dv_001:obj_003",
+              "description": "600 Base Cabinet",
+              "itemCode": "KIT_BASE_STANDARD-600",
+              "linkedBomId": "BOM:dv_001:obj_003",
+              "measures": {
+                "depth": 560,
+                "height": 720,
+                "width": 600
+              },
+              "productId": "KIT_BASE_STANDARD",
+              "quantity": 1,
+              "sourceObjectId": "obj_003",
+              "unit": "NOS"
+            }
+          ],
+          "trace": {
+            "catalogVersion": "2026.09.26-m1",
+            "dataClassification": "TEST_FIXTURE",
+            "designVersionId": "dv_001",
+            "designVersionStatus": "DRAFT",
+            "engineVersion": "0.1.0",
+            "hardwareDatasets": [
+              {
+                "authoritative": false,
+                "classification": "TEST_FIXTURE",
+                "datasetId": "HETTICH_TEST_FIXTURE",
+                "manufacturer": "HETTICH",
+                "sourceVersion": "fixture-0.0.1"
+              }
+            ],
+            "objectId": "obj_003",
+            "product": {
+              "id": "KIT_BASE_STANDARD",
+              "status": "DRAFT",
+              "version": "1.0.0"
+            },
+            "recipe": {
+              "id": "KITCHEN_BASE_STANDARD_V1",
+              "status": "DRAFT",
+              "version": "1.1.0"
+            },
+            "standard": {
+              "id": "TEST_FIXTURE_CONSTRUCTION_STANDARD",
+              "status": "TEST_FIXTURE",
+              "version": "0.0.2"
+            },
+            "testFixtureSources": [
+              "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+              "hardware dataset HETTICH_TEST_FIXTURE"
+            ]
+          }
+        },
+        {
+          "boqId": "BOQ:dv_001:obj_004",
+          "items": [
+            {
+              "boqItemId": "BOQ:dv_001:obj_004",
+              "description": "600 Base Cabinet",
+              "itemCode": "KIT_BASE_STANDARD-600",
+              "linkedBomId": "BOM:dv_001:obj_004",
+              "measures": {
+                "depth": 560,
+                "height": 720,
+                "width": 600
+              },
+              "productId": "KIT_BASE_STANDARD",
+              "quantity": 1,
+              "sourceObjectId": "obj_004",
+              "unit": "NOS"
+            }
+          ],
+          "trace": {
+            "catalogVersion": "2026.09.26-m1",
+            "dataClassification": "TEST_FIXTURE",
+            "designVersionId": "dv_001",
+            "designVersionStatus": "DRAFT",
+            "engineVersion": "0.1.0",
+            "hardwareDatasets": [
+              {
+                "authoritative": false,
+                "classification": "TEST_FIXTURE",
+                "datasetId": "HETTICH_TEST_FIXTURE",
+                "manufacturer": "HETTICH",
+                "sourceVersion": "fixture-0.0.1"
+              }
+            ],
+            "objectId": "obj_004",
+            "product": {
+              "id": "KIT_BASE_STANDARD",
+              "status": "DRAFT",
+              "version": "1.0.0"
+            },
+            "recipe": {
+              "id": "KITCHEN_BASE_STANDARD_V1",
+              "status": "DRAFT",
+              "version": "1.1.0"
+            },
+            "standard": {
+              "id": "TEST_FIXTURE_CONSTRUCTION_STANDARD",
+              "status": "TEST_FIXTURE",
+              "version": "0.0.2"
+            },
+            "testFixtureSources": [
+              "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+              "hardware dataset HETTICH_TEST_FIXTURE"
+            ]
+          }
+        }
+      ],
+      "roomBomId": "ROOMBOM:dv_001:room_001",
+      "roomBoqId": "ROOMBOQ:dv_001:room_001",
+      "roomFingerprint": "0ae96d596b740a",
+      "trace": {
+        "catalogVersion": "2026.09.26-m1",
+        "dataClassification": "TEST_FIXTURE",
+        "designVersionId": "dv_001",
+        "designVersionStatus": "DRAFT",
+        "engineVersion": "0.1.0",
+        "objects": [
+          {
+            "modelFingerprint": "0d8691345c4075",
+            "objectCode": "OBJ-KIT-001",
+            "objectId": "obj_001"
+          },
+          {
+            "modelFingerprint": "1cbd5f676f1791",
+            "objectCode": "OBJ-KIT-002",
+            "objectId": "obj_002"
+          },
+          {
+            "modelFingerprint": "00699dfb89f5a9",
+            "objectCode": "OBJ-KIT-003",
+            "objectId": "obj_003"
+          },
+          {
+            "modelFingerprint": "0076805444297a",
+            "objectCode": "OBJ-KIT-004",
+            "objectId": "obj_004"
+          }
+        ],
+        "overrides": [],
+        "planningStandard": {
+          "id": "TEST_FIXTURE_PLANNING_STANDARD",
+          "status": "TEST_FIXTURE",
+          "version": "0.0.1"
+        },
+        "projectId": "project_001",
+        "roomId": "room_001",
+        "testFixtureSources": [
+          "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
+          "hardware dataset HETTICH_TEST_FIXTURE",
+          "planning standard TEST_FIXTURE_PLANNING_STANDARD"
+        ]
+      }
+    }
+  }
+}

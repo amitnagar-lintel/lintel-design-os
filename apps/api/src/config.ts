@@ -30,6 +30,22 @@ export interface ApiConfig {
    * HMAC-signed, short-lived and served by GET /api/v1/file-content/…; `publicBaseUrl` is the API's public origin.
    */
   readonly files: { readonly provider: "memory" | "local"; readonly root?: string; readonly signingSecret: string; readonly publicBaseUrl: string };
+  /** Error tracking (OD-M6-6). Absent = no error tracking (development / tests): nothing is loaded or sent. */
+  readonly sentry?: { readonly dsn: string; readonly environment: string; readonly release: string };
+  /** Request rate limits (M6 CP3). Every number comes from the environment; see RATE_LIMIT_* below. */
+  readonly rateLimit: RateLimitConfig;
+  /** Proxy hops to trust for the client IP (X-Forwarded-For); 0 = use the socket address. */
+  readonly trustProxyHops: number;
+}
+
+/** Requests per window. `ip` applies to every request before authentication; the others per user and organization. */
+export interface RateLimitConfig {
+  readonly enabled: boolean;
+  readonly windowMs: number;
+  readonly ip: number;
+  readonly read: number;
+  readonly write: number;
+  readonly sensitive: number;
 }
 
 const Env = z.object({
@@ -50,6 +66,16 @@ const Env = z.object({
   FILE_STORAGE_ROOT: z.string().min(1).optional(),
   FILE_URL_SECRET: z.string().min(32),
   FILE_URL_BASE: z.url(),
+  SENTRY_DSN: z.url().optional(),
+  SENTRY_ENVIRONMENT: z.string().regex(/^[a-z0-9_-]{1,64}$/).optional(),
+  SENTRY_RELEASE: z.string().min(1).max(200).optional(),
+  RATE_LIMIT_ENABLED: z.enum(["true", "false"]).default("true"),
+  RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().min(1).max(3600).default(60),
+  RATE_LIMIT_IP_MAX: z.coerce.number().int().min(1).default(600),
+  RATE_LIMIT_READ_MAX: z.coerce.number().int().min(1).default(600),
+  RATE_LIMIT_WRITE_MAX: z.coerce.number().int().min(1).default(120),
+  RATE_LIMIT_SENSITIVE_MAX: z.coerce.number().int().min(1).default(20),
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(10).default(0),
 });
 
 /** The checked-out commit, marked `+dirty` when tracked files differ from it (local development only). */
@@ -80,6 +106,8 @@ export function loadConfig(env: Readonly<Record<string, string | undefined>>, gi
   const e = Env.parse(env);
   if ((e.AUTH_JWKS_URL === undefined) === (e.AUTH_JWT_SECRET === undefined)) throw new Error("set exactly one of AUTH_JWKS_URL or AUTH_JWT_SECRET");
   if ((e.FILE_STORAGE === "local") !== (e.FILE_STORAGE_ROOT !== undefined)) throw new Error("FILE_STORAGE_ROOT is required for (and only for) FILE_STORAGE=local");
+  if (e.SENTRY_DSN !== undefined && e.SENTRY_ENVIRONMENT === undefined) throw new Error("SENTRY_ENVIRONMENT is required with SENTRY_DSN (e.g. staging, production)");
+  const buildRevision = resolveBuildRevision(env, git);
   const key: JwtKeySource = e.AUTH_JWKS_URL !== undefined
     ? { kind: "jwks", url: new URL(e.AUTH_JWKS_URL) }
     : { kind: "secret", secret: new TextEncoder().encode(e.AUTH_JWT_SECRET ?? "") };
@@ -91,8 +119,14 @@ export function loadConfig(env: Readonly<Record<string, string | undefined>>, gi
     cursorSecret: e.CURSOR_SECRET,
     corsOrigins: e.CORS_ORIGINS.split(",").map((s) => s.trim()).filter((s) => s !== ""),
     logger: e.API_LOG === "true",
-    buildRevision: resolveBuildRevision(env, git),
+    buildRevision,
     ...(e.ENGINE_MANIFEST_PATH === undefined ? {} : { engineManifestPath: e.ENGINE_MANIFEST_PATH }),
     files: { provider: e.FILE_STORAGE, ...(e.FILE_STORAGE_ROOT === undefined ? {} : { root: e.FILE_STORAGE_ROOT }), signingSecret: e.FILE_URL_SECRET, publicBaseUrl: e.FILE_URL_BASE.replace(/\/+$/, "") },
+    ...(e.SENTRY_DSN === undefined ? {} : { sentry: { dsn: e.SENTRY_DSN, environment: e.SENTRY_ENVIRONMENT ?? "", release: e.SENTRY_RELEASE ?? buildRevision } }),
+    rateLimit: {
+      enabled: e.RATE_LIMIT_ENABLED === "true", windowMs: e.RATE_LIMIT_WINDOW_SECONDS * 1000,
+      ip: e.RATE_LIMIT_IP_MAX, read: e.RATE_LIMIT_READ_MAX, write: e.RATE_LIMIT_WRITE_MAX, sensitive: e.RATE_LIMIT_SENSITIVE_MAX,
+    },
+    trustProxyHops: e.TRUST_PROXY_HOPS,
   };
 }

@@ -15,12 +15,14 @@ export function compareMessages(a: ValidationMessage, b: ValidationMessage): num
     compareStrings(a.componentId, b.componentId) ||
     compareStrings(a.path, b.path) ||
     compareStrings(a.ruleId, b.ruleId) ||
-    compareStrings(a.message, b.message)
+    compareStrings(a.message, b.message) ||
+    compareStrings(a.sourceObjectId, b.sourceObjectId)
   );
 }
 
 function messageKey(m: ValidationMessage): string {
-  return JSON.stringify([m.severity, m.code, m.componentId ?? "", m.path ?? "", m.ruleId ?? "", m.message]);
+  // sourceObjectId keeps identical messages from different objects (room level) distinct.
+  return JSON.stringify([m.severity, m.code, m.componentId ?? "", m.path ?? "", m.ruleId ?? "", m.message, m.sourceObjectId ?? ""]);
 }
 
 /** Sort, de-duplicate and summarise. `canApprove` is false when any BLOCKER exists (PRD §18). */

@@ -13,3 +13,4 @@ export * from "./catalog-snapshot.js";
 export * from "./stable.js";
 export * from "./pricing.js";
 export * from "./drawing.js";
+export * from "./room.js";

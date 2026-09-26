@@ -23,6 +23,9 @@ importers:
       '@lintel/design-engine':
         specifier: workspace:*
         version: link:packages/design-engine
+      '@lintel/drawing-engine':
+        specifier: workspace:*
+        version: link:packages/drawing-engine
       '@lintel/geometry-engine':
         specifier: workspace:*
         version: link:packages/geometry-engine
@@ -92,6 +95,15 @@ importers:
       '@lintel/rules-engine':
         specifier: workspace:*
         version: link:../rules-engine
+      '@lintel/types':
+        specifier: workspace:*
+        version: link:../types
+
+  packages/drawing-engine:
+    dependencies:
+      '@lintel/design-engine':
+        specifier: workspace:*
+        version: link:../design-engine
       '@lintel/types':
         specifier: workspace:*
         version: link:../types

@@ -128,7 +128,9 @@ function gate(input: PriceCabinetInput): ValidationMessage[] {
       case "HARDWARE":
         if (item.status === "RESOLVED" && item.articleNumber !== null) need(rateCard.hardwarePerUnit, `${item.manufacturer}:${item.articleNumber}`, "rateCard.hardwarePerUnit");
         break;
+      // An appliance is referenced reference data, never a priced BOM line (design doc §8): not proposed here.
       case "PANEL":
+      case "APPLIANCE":
         break;
     }
   }
@@ -201,6 +203,9 @@ export function priceCabinet(input: PriceCabinetInput): PricingResult {
         lines.push({ lineId: `PL:HARDWARE:${key}`, category: "HARDWARE", description: item.description, sourceBomItemIds: [item.bomItemId], quantity: item.quantity, unit: "NOS", rate, amount: toSafeNumber(amount) });
         break;
       }
+      // An appliance is referenced reference data, never a priced BOM line (design doc §8): not proposed here.
+      case "APPLIANCE":
+        break;
     }
   }
 

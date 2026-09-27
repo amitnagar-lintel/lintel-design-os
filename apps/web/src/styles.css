@@ -42,7 +42,8 @@ svg .selected, svg .selected polygon { fill: #f59e0b; stroke: #92400e; stroke-wi
 svg .floor { fill: #eef0f3; stroke: #999; } svg .wallface { fill: #f7f8fa; stroke: #bbb; }
 svg .run { stroke: var(--ok); stroke-width: 4; }
 svg .cutout { fill: none; stroke: var(--bad); stroke-width: 1.2; stroke-dasharray: 4 3; }
-svg text { font-size: 11px; fill: #333; } svg .cab-label { font-weight: 600; } svg .wall-label { font-weight: 700; fill: var(--accent); } svg .dim { fill: var(--muted); }
+svg .cab.draggable { cursor: grab; touch-action: none; } svg .cab.dragging { cursor: grabbing; opacity: .7; stroke-dasharray: 5 3; }
+svg text { font-size: 11px; fill: #333; pointer-events: none; } svg .cab-label { font-weight: 600; } svg .wall-label { font-weight: 700; fill: var(--accent); } svg .dim { fill: var(--muted); }
 
 /* Design Studio (Phase D6): 3-pane layout + bottom bar. */
 .studio { display: grid; grid-template-columns: 220px 1fr 260px; gap: 12px; align-items: start; }

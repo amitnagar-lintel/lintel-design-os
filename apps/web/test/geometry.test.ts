@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { arrangeRun, fit, inr, nextFreeX } from "../src/geometry.js";
+import { arrangeRun, clampAlong, fit, footprintBox, inr, nearestWall, nextFreeX, placeOnWall } from "../src/geometry.js";
 
 describe("pilot UI layout helpers (user placement only)", () => {
   it("arranges a run edge to edge in the current left-to-right order and reports only the moves", () => {
@@ -17,5 +17,57 @@ describe("pilot UI layout helpers (user placement only)", () => {
     expect(f.ox).toBeCloseTo(20);
     expect(inr(3221500)).toBe("₹32,215.00");
     expect(inr(null)).toBe("—");
+  });
+});
+
+describe("Slice 6A wall placement (mirrors geometry-engine's wallFrame/BACK_WALL)", () => {
+  // KITCHEN room from tests/support/room.ts: 4200 (wall A) × 3200, matching the golden L-layout fixture.
+  const L = 4200;
+  const W = 3200;
+
+  it("places a cabinet flush against each of the 4 walls at the correct origin and rotation", () => {
+    expect(placeOnWall("A", 600, 0, L, W)).toEqual({ x: 600, z: 0, rotationY: 0 });
+    expect(placeOnWall("B", 700, 30, L, W)).toEqual({ x: 4170, z: 700, rotationY: 270 });
+    expect(placeOnWall("C", 500, 20, L, W)).toEqual({ x: 3700, z: 3180, rotationY: 180 });
+    // The exact fixture in tests/support/room.ts: OBJ-KIT-004 (600 mm, rotationY 90) sits at x=0, z=1200 —
+    // i.e. distance 0 (flush on wall D) and along 2000 (the L-layout's own comment: "spanning z 600…1200").
+    expect(placeOnWall("D", 2000, 0, L, W)).toEqual({ x: 0, z: 1200, rotationY: 90 });
+  });
+
+  it("is the exact inverse of nearestWall for all 4 walls", () => {
+    for (const [wallId, along, distance] of [["A", 600, 0], ["B", 700, 30], ["C", 500, 20], ["D", 2000, 0]] as const) {
+      const { x, z } = placeOnWall(wallId, along, distance, L, W);
+      expect(nearestWall(x, z, L, W)).toEqual({ wallId, along, distance });
+    }
+  });
+
+  it("picks the nearest of the 4 walls for an arbitrary plan point", () => {
+    expect(nearestWall(100, 50, L, W).wallId).toBe("A"); // z=50 is the smallest of the 4 candidate distances
+    expect(nearestWall(4100, 1000, L, W).wallId).toBe("B");
+    expect(nearestWall(1000, 3100, L, W).wallId).toBe("C");
+    expect(nearestWall(80, 1500, L, W).wallId).toBe("D");
+  });
+
+  it("computes the footprint box for all 4 rotations, matching the golden L-layout fixture on wall D", () => {
+    expect(footprintBox(600, 0, 0, 600, 560)).toEqual({ minX: 600, minZ: 0, sizeX: 600, sizeZ: 560 });
+    // OBJ-KIT-004: x=0, z=1200, rotationY=90, width 600, depth 560 — footprint spans z ∈ [600, 1200] (the
+    // fixture's own comment), clear of the depth-560 cabinets on wall A whose fronts reach z=560.
+    expect(footprintBox(0, 1200, 90, 600, 560)).toEqual({ minX: 0, minZ: 600, sizeX: 560, sizeZ: 600 });
+  });
+
+  it("rounds its output to at most 2 decimals — the API's numeric(10,2) storage rejects more (see apps/api/src/common/http/measures.ts's Millimetres)", () => {
+    const { x, z } = placeOnWall("A", 1234.567891, 0.001, L, W);
+    expect(x).toBe(1234.57);
+    expect(z).toBe(0);
+    const b = placeOnWall("B", 700.005, 30.004999, L, W);
+    expect(Number.isInteger(b.x * 100)).toBe(true);
+    expect(Number.isInteger(b.z * 100)).toBe(true);
+  });
+
+  it("clamps an along-wall position so the footprint stays on the wall", () => {
+    expect(clampAlong(-50, 600, 4200)).toBe(0);
+    expect(clampAlong(4000, 600, 4200)).toBe(3600);
+    expect(clampAlong(1000, 600, 4200)).toBe(1000);
+    expect(clampAlong(100, 5000, 4200)).toBe(0); // a footprint wider than the wall clamps to its left end
   });
 });

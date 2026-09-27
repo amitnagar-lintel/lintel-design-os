@@ -69,15 +69,24 @@ export function nearestWall(x: number, z: number, roomLength: number, roomWidth:
   return options.reduce((best, o) => (o.distance < best.distance ? o : best));
 }
 
+/** The API stores millimetres as `numeric(10,2)` and rejects anything with more than 2 decimal places
+ * (`apps/api/src/common/http/measures.ts`'s `Millimetres`); a drag's pointer-to-mm conversion (dividing by the
+ * Plan view's non-round pixel scale) produces far more decimals than that, so every mm value this module hands
+ * to the API is rounded here first. */
+const round2 = (v: number): number => Math.round(v * 100) / 100;
+
 /** The cabinet-local origin `(x, z)` and quarter-turn rotation that puts a cabinet's back flush against `wallId`
  * at `alongMm` from that wall's left end (seen facing it from inside the room) and `distanceMm` from its face. */
 export function placeOnWall(wallId: WallId, alongMm: number, distanceMm: number, roomLength: number, roomWidth: number): { x: number; z: number; rotationY: QuarterTurn } {
-  switch (wallId) {
-    case "A": return { x: alongMm, z: distanceMm, rotationY: 0 };
-    case "B": return { x: roomLength - distanceMm, z: alongMm, rotationY: 270 };
-    case "C": return { x: roomLength - alongMm, z: roomWidth - distanceMm, rotationY: 180 };
-    case "D": return { x: distanceMm, z: roomWidth - alongMm, rotationY: 90 };
-  }
+  const { x, z, rotationY } = ((): { x: number; z: number; rotationY: QuarterTurn } => {
+    switch (wallId) {
+      case "A": return { x: alongMm, z: distanceMm, rotationY: 0 };
+      case "B": return { x: roomLength - distanceMm, z: alongMm, rotationY: 270 };
+      case "C": return { x: roomLength - alongMm, z: roomWidth - distanceMm, rotationY: 180 };
+      case "D": return { x: distanceMm, z: roomWidth - alongMm, rotationY: 90 };
+    }
+  })();
+  return { x: round2(x), z: round2(z), rotationY };
 }
 
 /** The room-plan bounding box (min corner + size) of a cabinet footprint at `(x, z)`/`rotationY`, given its

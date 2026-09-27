@@ -55,6 +55,15 @@ describe("Slice 6A wall placement (mirrors geometry-engine's wallFrame/BACK_WALL
     expect(footprintBox(0, 1200, 90, 600, 560)).toEqual({ minX: 0, minZ: 600, sizeX: 560, sizeZ: 600 });
   });
 
+  it("rounds its output to at most 2 decimals — the API's numeric(10,2) storage rejects more (see apps/api/src/common/http/measures.ts's Millimetres)", () => {
+    const { x, z } = placeOnWall("A", 1234.567891, 0.001, L, W);
+    expect(x).toBe(1234.57);
+    expect(z).toBe(0);
+    const b = placeOnWall("B", 700.005, 30.004999, L, W);
+    expect(Number.isInteger(b.x * 100)).toBe(true);
+    expect(Number.isInteger(b.z * 100)).toBe(true);
+  });
+
   it("clamps an along-wall position so the footprint stays on the wall", () => {
     expect(clampAlong(-50, 600, 4200)).toBe(0);
     expect(clampAlong(4000, 600, 4200)).toBe(3600);

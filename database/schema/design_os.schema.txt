@@ -590,8 +590,8 @@ column: hardware_rule.rule_code text NOT NULL
 column: hardware_rule.component_type text NOT NULL
 column: hardware_rule.category text NOT NULL
 column: hardware_rule.application text NOT NULL
-column: hardware_rule.mounting_parameter_key text NOT NULL
-column: hardware_rule.mounting_map jsonb NOT NULL
+column: hardware_rule.mounting_parameter_key text
+column: hardware_rule.mounting_map jsonb
 column: hardware_rule.preferred_manufacturer text NOT NULL
 column: hardware_rule_set.id uuid NOT NULL DEFAULT gen_random_uuid()
 column: hardware_rule_set.org_id uuid NOT NULL
@@ -1831,14 +1831,14 @@ constraint: design_os.hardware_rule_set_version hardware_rule_set_version_supers
 constraint: design_os.hardware_rule_set_version hardware_rule_set_version_superseded_iff CHECK (((status = 'SUPERSEDED'::design_os.record_lifecycle_status) = ((superseded_by IS NOT NULL) AND (superseded_at IS NOT NULL))))
 constraint: design_os.hardware_rule_set_version hardware_rule_set_version_version_number_check CHECK ((version_number >= 1))
 constraint: design_os.hardware_rule_set_version hardware_rule_set_version_version_number_unique UNIQUE (org_id, entity_id, version_number)
-constraint: design_os.hettich_article hettich_article_category_check CHECK ((category = ANY (ARRAY['HINGE'::text, 'MOUNTING_PLATE'::text])))
+constraint: design_os.hettich_article hettich_article_category_check CHECK ((category = ANY (ARRAY['HINGE'::text, 'MOUNTING_PLATE'::text, 'RUNNER'::text])))
 constraint: design_os.hettich_article hettich_article_licence_status_check CHECK ((licence_status = ANY (ARRAY['OFFICIAL_PUBLIC'::text, 'AUTHORISED'::text, 'RESTRICTED'::text, 'UNKNOWN'::text])))
 constraint: design_os.hettich_article hettich_article_pkey PRIMARY KEY (version_id, record_code)
 constraint: design_os.hettich_article hettich_article_position_check CHECK (("position" >= 0))
 constraint: design_os.hettich_article hettich_article_position_unique UNIQUE (version_id, "position")
 constraint: design_os.hettich_article hettich_article_version_fk FOREIGN KEY (org_id, version_id) REFERENCES design_os.hettich_dataset_version(org_id, id)
 constraint: design_os.hettich_calculation_rule hettich_calculation_rule_bands_check CHECK ((jsonb_typeof(bands) = 'array'::text))
-constraint: design_os.hettich_calculation_rule hettich_calculation_rule_category_check CHECK ((category = ANY (ARRAY['HINGE'::text, 'MOUNTING_PLATE'::text])))
+constraint: design_os.hettich_calculation_rule hettich_calculation_rule_category_check CHECK ((category = ANY (ARRAY['HINGE'::text, 'MOUNTING_PLATE'::text, 'RUNNER'::text])))
 constraint: design_os.hettich_calculation_rule hettich_calculation_rule_pkey PRIMARY KEY (version_id, rule_code)
 constraint: design_os.hettich_calculation_rule hettich_calculation_rule_position_check CHECK (("position" >= 0))
 constraint: design_os.hettich_calculation_rule hettich_rule_position_unique UNIQUE (version_id, "position")

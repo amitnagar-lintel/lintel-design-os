@@ -108,7 +108,7 @@ describe("entities and versions", () => {
     await seeded(async (c) => { expect(d.contentHash).toBe(await hashOf(c, "construction_standard", v2)); });
     expect(d.content).toEqual({ description: expect.any(String) as string });
     const values = d.children.values!;
-    expect(values).toHaveLength(12);
+    expect(values).toHaveLength(15);
     expect(Object.keys(values[0]!).sort()).toEqual(["evidence_ref", "note", "source", "unit", "value", "variable_code"]);
     expect(values.every((v) => typeof v.value === "number" && typeof v.source === "string")).toBe(true);
 

@@ -38,12 +38,19 @@ export const KIT_FILLER: ProductDefinition = {
 };
 
 /**
- * FILLER_STANDARD_V1 recipe: exactly one `FILLER` component, a finished vertical panel shaped like a cabinet's
- * own side panel (width × height face, `W` mm thick — the panel's own thickness is its along-wall footprint
- * width, matching how every other product's `dimensions.width` becomes its room-placement footprint).
+ * FILLER_STANDARD_V1 recipe: exactly one `FILLER` component, a finished vertical panel shaped like a real
+ * gap-filler strip — a shutter-like flat board (width × height face, plane XY, exactly `SHUTTER`'s own
+ * orientation), its own physical thickness sourced directly from the assigned material (`T_MAT`, a
+ * `kind: "material"` parameter, which the engine resolves to that material's real registered thickness — so
+ * this can never fail the generic component/material thickness check: it IS the material's own thickness, by
+ * construction, not a value that could disagree with it). `depth` is intentionally not read by this component:
+ * a real filler strip is a thin board mounted at the front of a gap, not a full-depth carcass side (unlike a
+ * cabinet, whose sides run the full depth) — `depth` is kept as a declared field only because a designer still
+ * places a filler within a run of a given depth, and it seeds the object's own `dimensions.depthMm` default.
  *
  * Assumptions (explicit, PRD §14):
  * - A filler has no carcass, front, internals or hardware — it is the one finished panel, full stop.
+ * - The panel's own thickness is the assigned material's real thickness; `width`/`height` are its face.
  * - Panel dimensions are finished sizes; cut-size allowances belong to the manufacturing engine.
  */
 export const FILLER_STANDARD_V1: ConstructionRecipe = {
@@ -54,7 +61,7 @@ export const FILLER_STANDARD_V1: ConstructionRecipe = {
   description: "One finished panel, no carcass, no front, no internals.",
   assumptions: [
     "A filler is a single finished panel filling a gap between a cabinet and a wall, appliance or corner.",
-    "The panel's own board thickness is its along-wall footprint width; height and depth match the run it fills.",
+    "The panel's own thickness is the assigned material's real thickness, not an independent dimension.",
     "Panel dimensions are finished sizes; cut-size allowances belong to the manufacturing engine.",
   ],
   constructionVariables: [
@@ -64,7 +71,7 @@ export const FILLER_STANDARD_V1: ConstructionRecipe = {
   components: [
     {
       templateId: "FILLER", componentType: "FILLER", idSuffix: "FIL", instanceSuffix: null, when: null, count: "1",
-      plane: "YZ", width: "D", height: "H", thickness: "W", position: { x: "0", y: "0", z: "0" },
+      plane: "XY", width: "W", height: "H", thickness: "T_MAT", position: { x: "0", y: "0", z: "0" },
       materialRole: "FRONT", finish: { role: "FRONT_FINISH", faces: "FRONT_FINISHED_FACES" }, grainDirection: "HEIGHT",
     },
   ],

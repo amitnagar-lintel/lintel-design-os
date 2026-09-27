@@ -403,14 +403,18 @@ describe.each([
     expect(r.trace.product.id).toBe(productId);
   });
 
-  it("generates exactly one finished panel component, sized from width/height/depth, with no carcass, front, internals or hardware", () => {
+  it("generates exactly one finished panel component, sized from width/height (not depth), thickness sourced from the assigned material — with no carcass, front, internals or hardware, and no thickness/edge-side mismatch", () => {
     const r = run(panelObj({ dimensions: { width: 120, height: 700, depth: 550 } }));
-    expect(codes(r.validation).filter((c) => c === "COMPONENT_DIMENSION_INVALID" || c === "COMPONENT_COUNT_INVALID")).toEqual([]);
+    expect(codes(r.validation).filter((c) => c === "COMPONENT_DIMENSION_INVALID" || c === "COMPONENT_COUNT_INVALID" || c === "COMPONENT_THICKNESS_MATERIAL_MISMATCH" || c === "STANDARD_INVALID_EDGE_SIDE")).toEqual([]);
     expect(r.components).toHaveLength(1);
     const panel = r.components[0]!;
     expect(panel.componentType).toBe(componentType);
-    // A YZ-plane panel: width/height map to the template's own "width"/"height" fields (D/H), thickness to "W".
-    expect(panel.geometry.local.size).toEqual({ x: 120, y: 700, z: 550 });
+    // An XY-plane panel (shutter-like): width/height map to the template's own "width"/"height" fields (W/H);
+    // thickness comes from the assigned material's own real thickness (BOARD_BWP_18 = 18 mm here), never from
+    // "width" — a component's thickness is generically validated against its material, so it can't double as an
+    // independently-editable footprint dimension. depth (550) is deliberately not part of this component's
+    // geometry (see FILLER_STANDARD_V1's own doc comment).
+    expect(panel.geometry.local.size).toEqual({ x: 120, y: 700, z: 18 });
     expect(r.hardwareRequirements).toEqual([]);
     expect(r.cutouts).toEqual([]);
   });

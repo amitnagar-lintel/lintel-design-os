@@ -39,10 +39,14 @@ export const KIT_END_PANEL: ProductDefinition = {
 
 /**
  * END_PANEL_STANDARD_V1 recipe: exactly one `END_PANEL` component, shaped identically to `FILLER_STANDARD_V1`'s
- * own single panel (see that recipe's own doc comment for the width/height/depth-to-axis mapping).
+ * own single panel — see that recipe's own doc comment for why `width`/`height` (not `depth`) drive its
+ * geometry, and why `thickness` is sourced from the assigned material (`T_MAT`) rather than from `width`: a
+ * component's `thickness` is generically validated against its assigned material's own real thickness, so it
+ * can never be an independent, freely-editable dimension.
  *
  * Assumptions (explicit, PRD §14):
  * - An end panel has no carcass, front, internals or hardware — it is the one finished panel, full stop.
+ * - The panel's own thickness is the assigned material's real thickness, not an independent dimension.
  * - Panel dimensions are finished sizes; cut-size allowances belong to the manufacturing engine.
  */
 export const END_PANEL_STANDARD_V1: ConstructionRecipe = {
@@ -53,7 +57,7 @@ export const END_PANEL_STANDARD_V1: ConstructionRecipe = {
   description: "One finished panel, no carcass, no front, no internals.",
   assumptions: [
     "An end panel is a single finished panel skinning the exposed side of a run's end cabinet.",
-    "The panel's own board thickness is its along-wall footprint width; height and depth match the run it skins.",
+    "The panel's own thickness is the assigned material's real thickness, not an independent dimension.",
     "Panel dimensions are finished sizes; cut-size allowances belong to the manufacturing engine.",
   ],
   constructionVariables: [
@@ -63,7 +67,7 @@ export const END_PANEL_STANDARD_V1: ConstructionRecipe = {
   components: [
     {
       templateId: "END_PANEL", componentType: "END_PANEL", idSuffix: "ENP", instanceSuffix: null, when: null, count: "1",
-      plane: "YZ", width: "D", height: "H", thickness: "W", position: { x: "0", y: "0", z: "0" },
+      plane: "XY", width: "W", height: "H", thickness: "T_MAT", position: { x: "0", y: "0", z: "0" },
       materialRole: "FRONT", finish: { role: "FRONT_FINISH", faces: "FRONT_FINISHED_FACES" }, grainDirection: "HEIGHT",
     },
   ],

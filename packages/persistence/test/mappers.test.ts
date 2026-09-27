@@ -88,7 +88,7 @@ describe("standards map to rows and back without loss (production drafts)", () =
   });
   it("EdgeBandStandard keeps an existing but empty rule set (rules not yet defined)", () => {
     const rows = edgeBandStandardToRows(LINTEL_EDGE_BAND_STANDARD_DRAFT, meta(), CTX);
-    expect(rows.ruleSets.map((s) => s.rule_set_code)).toEqual(["CARCASS_STANDARD", "DRAWER_CARCASS_STANDARD", "OPEN_CARCASS_STANDARD", "OVEN_TOWER_CARCASS_STANDARD", "PULLOUT_CARCASS_STANDARD", "SINK_CARCASS_STANDARD"]);
+    expect(rows.ruleSets.map((s) => s.rule_set_code)).toEqual(["CARCASS_STANDARD", "DRAWER_CARCASS_STANDARD", "HOB_CARCASS_STANDARD", "OPEN_CARCASS_STANDARD", "OVEN_TOWER_CARCASS_STANDARD", "PULLOUT_CARCASS_STANDARD", "SINK_CARCASS_STANDARD"]);
     expect(rows.rules).toEqual([]);
     expect(edgeBandStandardFromRows(rows).value).toEqual(LINTEL_EDGE_BAND_STANDARD_DRAFT);
   });

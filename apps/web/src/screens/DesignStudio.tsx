@@ -326,7 +326,7 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
               onRemove={() => removeCabinet(selected.objectId)}
               selectedComponentId={selectedComponentId}
               onSelectComponentId={(componentId) => { setSelectedComponentId(componentId); }}
-              applianceId={typeof selected.parameters.oven === "string" ? selected.parameters.oven : null}
+              applianceId={typeof selected.parameters.oven === "string" ? selected.parameters.oven : typeof selected.parameters.hob === "string" ? selected.parameters.hob : null}
             />
           ) : <p>Select a cabinet, or add one from the library.</p>}
         </aside>
@@ -379,6 +379,7 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
   const isPullout = instance.recipe.productCode === "KIT_BASE_PULLOUT";
   const isOvenTower = instance.recipe.productCode === "KIT_TALL_OVEN";
   const isSink = instance.recipe.productCode === "KIT_BASE_SINK";
+  const isHob = instance.recipe.productCode === "KIT_BASE_HOB";
   const noFront = isOpen || isOvenTower;
   const element = instance.front.rows[0]?.columns[0]?.element;
   const currentShutterCount = !isDrawer && !noFront && instance.front.rows[0]?.columns.length === 2 ? 2 : 1;
@@ -476,7 +477,7 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
       {isPullout && (
         <Field label="Pull-out count"><input className="num" value={pulloutCount} disabled={!canEdit} onChange={(e) => { setPulloutCount(e.target.value); }} /></Field>
       )}
-      {isOvenTower && (
+      {(isOvenTower || isHob) && (
         <Field label="Appliance"><input value={applianceId ?? "—"} disabled /></Field>
       )}
       {isSink && (

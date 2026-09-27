@@ -127,6 +127,23 @@ export const BASE_SINK_CABINET: CabinetType = {
   supportedFronts: [BASE_ONE_SHUTTER, BASE_TWO_SHUTTER],
 };
 
+// ---------------------------------------------------------------- Slice 5 step 5: BASE_HOB
+
+/** `KIT_BASE_HOB` / `KITCHEN_BASE_HOB_V1` (Slice 5 step 5). A shutter front, identical to
+ * `BASE_SHUTTER_CABINET`'s own topologies — the referenced hob `Appliance` is never part of the front topology
+ * grid or the internals; it reaches the Properties panel and the BOM the same generic way `TALL_OVEN_TOWER`'s
+ * own oven reference already does. The countertop's own future hob cutout (Slice 5 step 6) is not this
+ * cabinet's concern. */
+export const BASE_HOB_CABINET: CabinetType = {
+  cabinetTypeId: "BASE_HOB",
+  category: "BASE",
+  label: "Hob cabinet",
+  description: "Base cabinet with no top rails (hob-body and ventilation clearance), referencing one hob appliance.",
+  productCode: "KIT_BASE_HOB",
+  recipeId: "KITCHEN_BASE_HOB_V1",
+  supportedFronts: [BASE_ONE_SHUTTER, BASE_TWO_SHUTTER],
+};
+
 // ---------------------------------------------------------------- Slice 5 step 3: TALL_OVEN_TOWER
 
 /** `KIT_TALL_OVEN` / `KITCHEN_TALL_OVEN_V1` (Slice 5 step 3). Front-less like `BASE_OPEN_CABINET`: no front
@@ -178,7 +195,13 @@ export const CABINET_LIBRARY: readonly CabinetLibraryEntry[] = [
     description: BASE_SINK_CABINET.description,
     availability: { kind: "AVAILABLE", cabinetType: BASE_SINK_CABINET },
   },
-  planned("BASE_HOB", "BASE", "Hob cabinet", "Base cabinet with a hob cut-out.", 5),
+  {
+    cabinetTypeId: BASE_HOB_CABINET.cabinetTypeId,
+    category: BASE_HOB_CABINET.category,
+    label: BASE_HOB_CABINET.label,
+    description: BASE_HOB_CABINET.description,
+    availability: { kind: "AVAILABLE", cabinetType: BASE_HOB_CABINET },
+  },
   planned("BASE_APPLIANCE", "BASE", "Appliance cabinet", "Base cabinet housing a built-in appliance.", 5),
   {
     cabinetTypeId: BASE_PULLOUT_CABINET.cabinetTypeId,

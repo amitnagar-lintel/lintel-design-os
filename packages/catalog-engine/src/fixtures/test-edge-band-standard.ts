@@ -85,5 +85,14 @@ export const TEST_FIXTURE_EDGE_BAND_STANDARD: EdgeBandStandard = {
       PULLOUT_FRAME_SIDE: { TOP: "EDGE_ABS_0_8MM" },
       PULLOUT_TRAY: {},
     },
+    // KITCHEN_BASE_HOB_V1's own rule set: the shared carcass component types (no TOP_SUPPORT_FRONT or
+    // TOP_SUPPORT_BACK — this recipe never generates either one) and SHUTTER (same as CARCASS_STANDARD).
+    HOB_CARCASS_STANDARD: {
+      SIDE_LEFT: { FRONT: "EDGE_ABS_0_8MM" },
+      SIDE_RIGHT: { FRONT: "EDGE_ABS_0_8MM" },
+      BOTTOM: { FRONT: "EDGE_ABS_0_8MM" },
+      BACK: {},
+      SHUTTER: { TOP: "EDGE_ABS_2MM", BOTTOM: "EDGE_ABS_2MM", LEFT: "EDGE_ABS_2MM", RIGHT: "EDGE_ABS_2MM" },
+    },
   },
 };

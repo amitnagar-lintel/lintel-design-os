@@ -6,11 +6,11 @@
  * operator and the file hash. Nothing is ever approved here.
  */
 import { createHash } from "node:crypto";
-import type { ConstructionRecipe, ConstructionStandard, EdgeBand, EdgeBandStandard, Finish, HardwareRuleSet, Material, PlanningStandard, PricingRuleSet, ProductDefinition, QuotationPolicy, RateCard } from "@lintel/types";
+import type { Appliance, ConstructionRecipe, ConstructionStandard, EdgeBand, EdgeBandStandard, Finish, HardwareRuleSet, Material, PlanningStandard, PricingRuleSet, ProductDefinition, QuotationPolicy, RateCard } from "@lintel/types";
 import type { HettichProductionDataset } from "@lintel/hettich-engine";
 import type { VersionMeta } from "@lintel/persistence";
 import {
-  constructionStandardToRows, contentHash, edgeBandStandardToRows, edgeBandToRow, finishToRow, hardwareRuleSetToRows, hettichDatasetToRows, materialToRow, planningStandardToRows,
+  applianceToRow, constructionStandardToRows, contentHash, edgeBandStandardToRows, edgeBandToRow, finishToRow, hardwareRuleSetToRows, hettichDatasetToRows, materialToRow, planningStandardToRows,
   pricingStandardToRows, productToRow, quotationPolicyToRows, recipeToRow,
 } from "@lintel/persistence";
 import type pg from "pg";
@@ -29,11 +29,13 @@ export const TABLES: Readonly<Record<IntakeType | "hardware_item", { readonly ve
   finish: { version: "finish_version", entity: "finish" },
   hardware_item: { version: "hardware_item_version", entity: "hardware_item" },
   hardware_rule_set: { version: "hardware_rule_set_version", entity: "hardware_rule_set" },
+  appliance: { version: "appliance_version", entity: "appliance" },
   construction_recipe: { version: "recipe_version", entity: "construction_recipe" },
   product: { version: "product_version", entity: "product" },
   material_catalog: { version: "material_catalog_version", entity: "material_catalog" },
   finish_catalog: { version: "finish_catalog_version", entity: "finish_catalog" },
   hardware_catalog: { version: "hardware_catalog_version", entity: "hardware_catalog" },
+  appliance_catalog: { version: "appliance_catalog_version", entity: "appliance_catalog" },
   product_catalog: { version: "product_catalog_version", entity: "product_catalog" },
   hettich_dataset: { version: "hettich_dataset_version", entity: "hettich_dataset" },
   pricing_standard: { version: "pricing_standard_version", entity: "pricing_standard" },
@@ -162,6 +164,7 @@ async function build(client: pg.ClientBase, v: Validated, meta: VersionMeta, org
     case "material": return { version: materialToRow(data as Material, meta, ctx), children: [] };
     case "edge_band": return { version: edgeBandToRow(data as EdgeBand, meta, ctx), children: [] };
     case "finish": return { version: finishToRow(data as Finish, meta, ctx), children: [] };
+    case "appliance": return { version: applianceToRow(data as Appliance, meta, ctx), children: [] };
     case "hardware_rule_set": {
       const r = hardwareRuleSetToRows(data as HardwareRuleSet, meta, ctx, file.source);
       return { version: r.version, children: [{ table: "hardware_rule", rows: r.rules }] };
@@ -197,6 +200,7 @@ async function build(client: pg.ClientBase, v: Validated, meta: VersionMeta, org
     case "material_catalog":
     case "finish_catalog":
     case "hardware_catalog":
+    case "appliance_catalog":
     case "product_catalog": {
       const c = data as CatalogData;
       const domain = file.type.replace(/_catalog$/, "");

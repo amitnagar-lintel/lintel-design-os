@@ -5,6 +5,7 @@ import {
   LINTEL_CONSTRUCTION_STANDARD_DRAFT,
   LINTEL_EDGE_BAND_STANDARD_DRAFT,
   LINTEL_PLANNING_STANDARD_DRAFT,
+  TEST_FIXTURE_APPLIANCES,
   TEST_FIXTURE_CONSTRUCTION_STANDARD,
   TEST_FIXTURE_EDGE_BAND_STANDARD,
   TEST_FIXTURE_PLANNING_STANDARD,
@@ -13,6 +14,8 @@ import { HETTICH_PRODUCTION_DATASET, HETTICH_TEST_FIXTURE_DATASET } from "@linte
 import type { HettichProductionDataset } from "@lintel/hettich-engine";
 import type { VersionMeta } from "../src/index.js";
 import {
+  applianceFromRow,
+  applianceToRow,
   constructionStandardFromRows,
   constructionStandardToRows,
   contentHash,
@@ -130,6 +133,11 @@ describe("catalog domains map without loss", () => {
     for (const b of LINTEL_CATALOG.edgeBands) expect(edgeBandFromRow(edgeBandToRow(b, meta(), CTX)).value).toEqual(b);
     for (const f of LINTEL_CATALOG.finishes) expect(finishFromRow(finishToRow(f, meta(), CTX)).value).toEqual(f);
   });
+  it("appliances (dimensions and cutout requirements both round-trip, including all-null)", () => {
+    for (const a of TEST_FIXTURE_APPLIANCES) expect(applianceFromRow(applianceToRow({ ...a, status: "DRAFT" }, meta(), CTX)).value).toEqual({ ...a, status: "DRAFT" });
+    const bare = { ...TEST_FIXTURE_APPLIANCES[0]!, status: "DRAFT" as const, make: null, model: null, dimensions: null, installation: null, ventilation: null, frontAlignment: null };
+    expect(applianceFromRow(applianceToRow(bare, meta(), CTX)).value).toEqual(bare);
+  });
   it("products, recipes (formulas stay data) and hardware rule sets", () => {
     for (const p of LINTEL_CATALOG.products) expect(productFromRow(productToRow(p, meta(), { ...CTX, recipeVersionId: "rcv_1" }, "Lintel catalog")).value).toEqual(p);
     for (const r of LINTEL_CATALOG.recipes) expect(recipeFromRow(recipeToRow(r, meta(), CTX, "Lintel catalog")).value).toEqual(r);
@@ -174,6 +182,11 @@ describe("TEST_FIXTURE data can never become rows", () => {
     const m = LINTEL_CATALOG.materials[0];
     if (m === undefined) throw new Error("catalog has materials");
     expect(() => materialToRow({ ...m, status: "TEST_FIXTURE" }, meta(), CTX)).toThrow(TestFixturePersistenceError);
+  });
+  it("a fixture-labelled appliance is refused", () => {
+    const a = TEST_FIXTURE_APPLIANCES[0];
+    if (a === undefined) throw new Error("fixture has appliances");
+    expect(() => applianceToRow(a, meta(), CTX)).toThrow(TestFixturePersistenceError);
   });
 });
 

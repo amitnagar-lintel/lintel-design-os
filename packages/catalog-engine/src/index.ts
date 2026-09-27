@@ -13,6 +13,7 @@ export { KIT_BASE_PULLOUT, KITCHEN_BASE_PULLOUT_V1, PULLOUT_STANDARD } from "./d
 export { LINTEL_CONSTRUCTION_STANDARD_DRAFT, LINTEL_EDGE_BAND_STANDARD_DRAFT } from "./data/standards.js";
 export { TEST_FIXTURE_CONSTRUCTION_STANDARD } from "./fixtures/test-construction-standard.js";
 export { TEST_FIXTURE_EDGE_BAND_STANDARD } from "./fixtures/test-edge-band-standard.js";
+export { TEST_FIXTURE_APPLIANCES } from "./fixtures/test-appliances.js";
 export { LINTEL_PLANNING_STANDARD_DRAFT, PLANNING_VARIABLES } from "./data/planning.js";
 export type { PlanningVariableDefinition } from "./data/planning.js";
 export { TEST_FIXTURE_PLANNING_STANDARD } from "./fixtures/test-planning-standard.js";

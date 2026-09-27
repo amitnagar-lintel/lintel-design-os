@@ -1,4 +1,5 @@
 import type {
+  Appliance,
   ComponentType,
   ConstructionRecipe,
   EdgeBand,
@@ -89,6 +90,57 @@ export const edgeBandFromRow = (r: EdgeBandVersionRow): Versioned<EdgeBand> => v
 function edgeBandValue(r: EdgeBandVersionRow): EdgeBand {
   const e = readEnvelope(r);
   return { edgeBandId: r.entity_code, name: r.name, material: r.material, thickness: r.thickness_mm, width: r.width_mm, status: engineCalculationStatus(e.status), source: e.source };
+}
+
+/* ------------------------------------------------------------ appliance (Design Studio Slice 5 step 2) */
+
+/**
+ * A first-class, versioned reference-data entity, kept independent of any cabinet (§5 of
+ * docs/architecture/DESIGN-STUDIO-SLICE-5-SPECIAL-CABINETS.md). `dimensions` (the appliance's own physical
+ * size) and `cutout_requirements` (the opening/clearances it needs — `installation`/`ventilation`/
+ * `frontAlignment`) are two separate jsonb columns (0004_catalogs.up.sql), matching two separate domain
+ * concepts; `cutout_requirements` as a whole is `null` only when all three of its fields are `null`.
+ */
+export interface ApplianceVersionRow extends VersionRow {
+  readonly category: Appliance["category"];
+  readonly make: string | null;
+  readonly model: string | null;
+  readonly dimensions: Appliance["dimensions"];
+  readonly cutout_requirements: { readonly installation: Appliance["installation"]; readonly ventilation: Appliance["ventilation"]; readonly frontAlignment: Appliance["frontAlignment"] } | null;
+}
+
+export function applianceToRow(a: Appliance, meta: VersionMeta, ctx: MapContext): ApplianceVersionRow {
+  checkEngineStatus(`appliance ${a.applianceId}`, a.status, meta);
+  const content = omit(a, "status");
+  const cutoutRequirements = a.installation === null && a.ventilation === null && a.frontAlignment === null
+    ? null
+    : { installation: a.installation, ventilation: a.ventilation, frontAlignment: a.frontAlignment };
+  return {
+    ...versionRow(ctx, a.applianceId, meta, a.source, String(meta.versionNumber), content),
+    category: a.category,
+    make: a.make,
+    model: a.model,
+    dimensions: a.dimensions,
+    cutout_requirements: cutoutRequirements,
+  };
+}
+
+export const applianceFromRow = (r: ApplianceVersionRow): Versioned<Appliance> => versioned(r, applianceValue(r));
+
+function applianceValue(r: ApplianceVersionRow): Appliance {
+  const e = readEnvelope(r);
+  return {
+    applianceId: r.entity_code,
+    category: r.category,
+    make: r.make,
+    model: r.model,
+    dimensions: r.dimensions,
+    installation: r.cutout_requirements?.installation ?? null,
+    ventilation: r.cutout_requirements?.ventilation ?? null,
+    frontAlignment: r.cutout_requirements?.frontAlignment ?? null,
+    status: engineCalculationStatus(e.status),
+    source: e.source,
+  };
 }
 
 /* ------------------------------------------------------------ finish */

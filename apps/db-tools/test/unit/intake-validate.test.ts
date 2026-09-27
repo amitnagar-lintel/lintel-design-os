@@ -4,14 +4,14 @@
  */
 import {
   EDGE_BANDS, FINISHES, HINGE_STANDARD, KIT_BASE_STANDARD, KITCHEN_BASE_STANDARD_V1, LINTEL_CONSTRUCTION_STANDARD_DRAFT, LINTEL_EDGE_BAND_STANDARD_DRAFT, LINTEL_PLANNING_STANDARD_DRAFT, MATERIALS,
-  TEST_FIXTURE_CONSTRUCTION_STANDARD,
+  TEST_FIXTURE_APPLIANCES, TEST_FIXTURE_CONSTRUCTION_STANDARD,
 } from "@lintel/catalog-engine";
 import { HETTICH_PRODUCTION_DATASET, HETTICH_TEST_FIXTURE_DATASET } from "@lintel/hettich-engine";
 import { LINTEL_PRODUCTION_PRICING_RULES, LINTEL_PRODUCTION_QUOTATION_POLICY, LINTEL_PRODUCTION_RATE_CARD, TEST_FIXTURE_PRICING_RULES, TEST_FIXTURE_RATE_CARD } from "@lintel/pricing-engine";
 import { describe, expect, it } from "vitest";
 import { stableUuid } from "../../src/intake/importer.js";
 import {
-  ConstructionRecipeSchema, ConstructionStandardSchema, EdgeBandSchema, EdgeBandStandardSchema, FinishSchema, HardwareRuleSetSchema, HettichProductionDatasetSchema, MaterialSchema,
+  ApplianceSchema, ConstructionRecipeSchema, ConstructionStandardSchema, EdgeBandSchema, EdgeBandStandardSchema, FinishSchema, HardwareRuleSetSchema, HettichProductionDatasetSchema, MaterialSchema,
   PlanningStandardSchema, PricingRuleSetSchema, ProductDefinitionSchema, QuotationPolicySchema, RateCardSchema, SCHEMAS_MATCH_DOMAIN_TYPES,
 } from "../../src/intake/schemas.js";
 import type { Finding } from "../../src/intake/spec.js";
@@ -23,14 +23,15 @@ const construction = (over: Record<string, unknown> = {}, o: Parameters<typeof i
   validateIntake(intakeFile("construction_standard", LINTEL_CONSTRUCTION_STANDARD_DRAFT.standardId, { ...LINTEL_CONSTRUCTION_STANDARD_DRAFT, ...over }, o));
 
 describe("schemas mirror the domain types", () => {
-  it("every production object in the repository parses with its schema (the compile-time guard covers 13 types)", () => {
-    expect(SCHEMAS_MATCH_DOMAIN_TYPES).toHaveLength(13);
+  it("every production object in the repository parses with its schema (the compile-time guard covers 14 types)", () => {
+    expect(SCHEMAS_MATCH_DOMAIN_TYPES).toHaveLength(14);
     expect(ConstructionStandardSchema.parse(LINTEL_CONSTRUCTION_STANDARD_DRAFT)).toEqual(LINTEL_CONSTRUCTION_STANDARD_DRAFT);
     expect(PlanningStandardSchema.parse(LINTEL_PLANNING_STANDARD_DRAFT)).toEqual(LINTEL_PLANNING_STANDARD_DRAFT);
     expect(EdgeBandStandardSchema.parse(LINTEL_EDGE_BAND_STANDARD_DRAFT)).toEqual(LINTEL_EDGE_BAND_STANDARD_DRAFT);
     for (const m of MATERIALS) expect(MaterialSchema.parse(m)).toEqual(m);
     for (const b of EDGE_BANDS) expect(EdgeBandSchema.parse(b)).toEqual(b);
     for (const f of FINISHES) expect(FinishSchema.parse(f)).toEqual(f);
+    for (const a of TEST_FIXTURE_APPLIANCES) expect(ApplianceSchema.parse(a)).toEqual(a);
     expect(HardwareRuleSetSchema.parse(HINGE_STANDARD)).toEqual(HINGE_STANDARD);
     expect(ProductDefinitionSchema.parse(KIT_BASE_STANDARD)).toEqual(KIT_BASE_STANDARD);
     expect(ConstructionRecipeSchema.parse(KITCHEN_BASE_STANDARD_V1)).toEqual(KITCHEN_BASE_STANDARD_V1);
@@ -103,7 +104,7 @@ describe("lifecycle, identity and provenance", () => {
     expect(codes(wrongRecipe.findings, "ERROR")).toEqual(["IDENTITY_MISMATCH"]);
     const hw = validateIntake(JSON.stringify({ ...intakeObject("material", "X", MATERIALS[0]), type: "hardware_item" }));
     expect(codes(hw.findings, "ERROR")).toEqual(expect.arrayContaining(["TYPE_NOT_ACCEPTED", "FORMAT_INVALID"]));
-    expect(codes(validateIntake(JSON.stringify({ ...intakeObject("material", "X", MATERIALS[0]), type: "appliance" })).findings, "ERROR")).toContain("TYPE_NOT_ACCEPTED");
+    expect(codes(validateIntake(JSON.stringify({ ...intakeObject("material", "X", MATERIALS[0]), type: "manufacturing_standard" })).findings, "ERROR")).toContain("TYPE_NOT_ACCEPTED");
   });
 
   it("never accepts an unsourced value; missing evidence is UNVERIFIED; provenance must name declared values", () => {
@@ -152,5 +153,41 @@ describe("determinism", () => {
     expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     expect(stableUuid("org", "construction_standard", "CODE", "1")).toBe(id);
     expect(stableUuid("org", "construction_standard", "CODE", "2")).not.toBe(id);
+  });
+});
+
+describe("appliance intake (Slice 5 step 2: first-class, versioned reference data)", () => {
+  // A non-fixture-looking applianceId/source: an entityCode or source containing "TEST_FIXTURE" is refused by
+  // the intake's own TEST_FIXTURE_REFUSED guard (spec.ts), independent of `status` — exactly as intended for a
+  // production-candidate intake file. This mirrors the fixture's shape without tripping that guard.
+  const sample = { ...TEST_FIXTURE_APPLIANCES[0]!, applianceId: "SAMPLE_HOB", status: "DRAFT" as const, source: "Test source (not a fixture record)" };
+
+  it("accepts a WORKING_DRAFT with every NULL field listed as UNVERIFIED", () => {
+    const bare = { ...sample, make: null, model: null, dimensions: null, installation: null, ventilation: null, frontAlignment: null };
+    const draft = validateIntake(intakeFile("appliance", bare.applianceId, bare));
+    expect(draft.accepted).toBe(true);
+    expect(codes(draft.findings, "UNVERIFIED").sort()).toEqual(["VALUE_UNVERIFIED", "VALUE_UNVERIFIED", "VALUE_UNVERIFIED", "VALUE_UNVERIFIED", "VALUE_UNVERIFIED", "VALUE_UNVERIFIED"]);
+  });
+
+  it("refuses an incomplete appliance as a PRODUCTION_CANDIDATE", () => {
+    const bare = { ...sample, make: null, model: null, dimensions: null, installation: null, ventilation: null, frontAlignment: null };
+    const candidate = validateIntake(intakeFile("appliance", bare.applianceId, bare, { intent: "PRODUCTION_CANDIDATE", sourceRef: { url: null, documentTitle: "Test", documentVersion: "1", sourceDate: "2026-09-26" } }));
+    expect(candidate.accepted).toBe(false);
+    expect(codes(candidate.findings, "ERROR")).toEqual(["INCOMPLETE_PRODUCTION_DATA"]);
+  });
+
+  it("accepts a fully-sourced appliance as a PRODUCTION_CANDIDATE", () => {
+    const full = { ...sample, make: "Test Make", model: "Test Model", frontAlignment: "FLUSH" as const };
+    const candidate = validateIntake(intakeFile("appliance", full.applianceId, full, { intent: "PRODUCTION_CANDIDATE", sourceRef: { url: null, documentTitle: "Test", documentVersion: "1", sourceDate: "2026-09-26" } }));
+    expect(candidate.accepted).toBe(true);
+    expect(codes(candidate.findings, "ERROR")).toEqual([]);
+  });
+
+  it("lists an appliance in an appliance_catalog exactly like material/finish catalogs", () => {
+    const members = [{ itemType: "appliance", entityCode: "SAMPLE_HOB", versionNumber: 1 }];
+    const cat = validateIntake(intakeFile("appliance_catalog", "SAMPLE_APPLIANCE_CATALOG", { versionLabel: "1", description: "x", members }, { source: "Test catalog" }));
+    expect(codes(cat.findings, "ERROR")).toEqual([]);
+    const badMember = validateIntake(intakeFile("appliance_catalog", "SAMPLE_APPLIANCE_CATALOG", { versionLabel: "1", description: "x", members: [{ itemType: "material", entityCode: "M", versionNumber: 1 }] }, { source: "Test catalog" }));
+    expect(codes(badMember.findings, "ERROR")).toContain("MEMBER_TYPE_INVALID");
   });
 });

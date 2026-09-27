@@ -37,3 +37,48 @@ export interface EdgeBand {
   readonly status: DataStatus;
   readonly source: string;
 }
+
+/**
+ * Design Studio Slice 5 step 2 (`docs/architecture/DESIGN-STUDIO-SLICE-5-SPECIAL-CABINETS.md` §5/§6): a
+ * generic clearance a cabinet/appliance bay/countertop opening must respect. Reusable across zones — never a
+ * one-off field on `Appliance` itself.
+ */
+export interface ClearanceRule {
+  readonly ruleId: string;
+  readonly zone: "INSTALLATION" | "VENTILATION" | "STRUCTURAL_EXCLUSION";
+  readonly axis: "TOP" | "BOTTOM" | "LEFT" | "RIGHT" | "FRONT" | "BACK";
+  /** `null` = not yet sourced (never invented). */
+  readonly minMm: Millimetres | null;
+  /** `null` = no upper bound. */
+  readonly maxMm: Millimetres | null;
+}
+
+/** The opening an appliance needs (already clearance-inclusive) — not the appliance's own physical size. */
+export interface InstallationEnvelope {
+  readonly widthMm: Millimetres;
+  readonly heightMm: Millimetres;
+  readonly depthMm: Millimetres;
+  readonly clearances: readonly ClearanceRule[];
+}
+
+/**
+ * A first-class, versioned reference-data entity (§5), independent of any cabinet — a cabinet references an
+ * appliance by id/version, exactly the way it references a material by catalog code, never by embedding
+ * appliance data inline. Every field stays `null`/`TEST_FIXTURE` until Lintel or a real manufacturer feed
+ * supplies real values (same discipline as `Material`/`Finish`/`EdgeBand`); no real appliance dimensions are
+ * ever invented (CLAUDE.md).
+ */
+export interface Appliance {
+  readonly applianceId: string;
+  readonly category: "HOB" | "OVEN" | "MICROWAVE" | "DISHWASHER" | "REFRIGERATOR" | "SINK";
+  readonly make: string | null;
+  readonly model: string | null;
+  /** The appliance's own physical size — distinct from `installation`, the opening it needs. */
+  readonly dimensions: { readonly widthMm: Millimetres; readonly heightMm: Millimetres; readonly depthMm: Millimetres } | null;
+  readonly installation: InstallationEnvelope | null;
+  readonly ventilation: readonly ClearanceRule[] | null;
+  /** `null` until sourced. */
+  readonly frontAlignment: "FLUSH" | "RECESSED" | "PROUD" | null;
+  readonly status: DataStatus;
+  readonly source: string;
+}

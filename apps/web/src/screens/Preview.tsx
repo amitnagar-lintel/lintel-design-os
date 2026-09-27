@@ -7,7 +7,7 @@ import { useState } from "react";
 import type { ScreenProps } from "../App";
 import type { ModelPreview } from "../api/client";
 import { api, must } from "../api/client";
-import { clampAlong, fit, footprintBox, mm, nearestWall, placeOnWall } from "../geometry";
+import { clampAlong, fit, footprintBox, mm, nearestWall, placeOnWall, snapToNeighbors } from "../geometry";
 import type { QuarterTurn } from "../geometry";
 import { Badge, ErrorBox, Section, useLoad } from "../ui";
 
@@ -103,10 +103,13 @@ export function Plan({ m, canEdit = false, selectedId = null, onSelect, onMove }
     return { x: (loc.x - ox) / s, z: (loc.y - oy) / s };
   };
 
-  const snappedFrom = (rawX: number, rawZ: number, widthMm: number): { x: number; z: number; rotationY: QuarterTurn } => {
+  /** Slice 6B: after wall-snapping, also snap flush against a neighbouring cabinet already on that same wall
+   * (within `snapToNeighbors`'s threshold) — the physical act of building a run by drag. */
+  const snappedFrom = (rawX: number, rawZ: number, widthMm: number, excludeLineageId: string): { x: number; z: number; rotationY: QuarterTurn } => {
     const near = nearestWall(rawX, rawZ, m.room.length, m.room.width);
     const wallLength = near.wallId === "A" || near.wallId === "C" ? m.room.length : m.room.width;
-    const along = clampAlong(near.along, widthMm, wallLength);
+    const neighbors = m.objects.filter((n) => n.lineageId !== excludeLineageId && n.placement !== null && n.placement.wallId === near.wallId).map((n) => n.placement?.alongWall).filter((a): a is { start: number; end: number } => a !== undefined);
+    const along = clampAlong(snapToNeighbors(near.along, widthMm, neighbors), widthMm, wallLength);
     return placeOnWall(near.wallId, along, 0, m.room.length, m.room.width);
   };
 
@@ -128,7 +131,7 @@ export function Plan({ m, canEdit = false, selectedId = null, onSelect, onMove }
     const svg = e.currentTarget.ownerSVGElement;
     if (svg === null) return;
     const { x: px, z: pz } = toRoomMm(svg, e.clientX, e.clientY);
-    const snapped = snappedFrom(px - drag.grabOffsetXMm, pz - drag.grabOffsetZMm, o.dimensions.width);
+    const snapped = snappedFrom(px - drag.grabOffsetXMm, pz - drag.grabOffsetZMm, o.dimensions.width, o.lineageId);
     setDrag({ ...drag, ...snapped });
   };
 
@@ -171,7 +174,17 @@ export function Plan({ m, canEdit = false, selectedId = null, onSelect, onMove }
           </g>
         );
       })}
-      {m.runs.map((r) => r.wallId !== "A" ? null : <line key={r.runId} className="run" x1={X(r.start)} x2={X(r.end)} y1={Z(0) - 6} y2={Z(0) - 6} />)}
+      {/* Slice 6B: one run indicator per wall (was wall A only), a few px outside the wall's own face. */}
+      {m.runs.map((r) => {
+        const wall = m.room.walls.find((w) => w.wallId === r.wallId);
+        if (wall === undefined || wall.length <= 0) return null;
+        const along = (t: number) => ({ x: wall.start.x + (t / wall.length) * (wall.end.x - wall.start.x), z: wall.start.z + (t / wall.length) * (wall.end.z - wall.start.z) });
+        const p1 = along(r.start);
+        const p2 = along(r.end);
+        const OUTWARD_PX: Record<"A" | "B" | "C" | "D", readonly [number, number]> = { A: [0, -6], B: [6, 0], C: [0, 6], D: [-6, 0] };
+        const [dx, dz] = OUTWARD_PX[r.wallId];
+        return <line key={r.runId} className="run" x1={X(p1.x) + dx} y1={Z(p1.z) + dz} x2={X(p2.x) + dx} y2={Z(p2.z) + dz} />;
+      })}
     </svg>
   );
 }

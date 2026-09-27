@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { arrangeRun, clampAlong, fit, footprintBox, inr, nearestWall, nextFreeX, placeOnWall } from "../src/geometry.js";
+import { arrangeRun, clampAlong, fit, footprintBox, inr, nearestWall, nextFreeX, placeOnWall, snapToNeighbors } from "../src/geometry.js";
 
 describe("pilot UI layout helpers (user placement only)", () => {
   it("arranges a run edge to edge in the current left-to-right order and reports only the moves", () => {
@@ -69,5 +69,30 @@ describe("Slice 6A wall placement (mirrors geometry-engine's wallFrame/BACK_WALL
     expect(clampAlong(4000, 600, 4200)).toBe(3600);
     expect(clampAlong(1000, 600, 4200)).toBe(1000);
     expect(clampAlong(100, 5000, 4200)).toBe(0); // a footprint wider than the wall clamps to its left end
+  });
+});
+
+describe("Slice 6B cabinet-to-cabinet snap (snapToNeighbors)", () => {
+  const neighbor600to1350 = [{ start: 600, end: 1350 }];
+
+  it("snaps a dragged cabinet's start flush to a neighbour's right edge when within threshold", () => {
+    expect(snapToNeighbors(1400, 600, neighbor600to1350)).toBe(1350); // 50 mm short, within default 150 mm threshold
+    expect(snapToNeighbors(1350, 600, neighbor600to1350)).toBe(1350); // already exact
+  });
+
+  it("snaps a dragged cabinet's end flush to a neighbour's left edge when within threshold", () => {
+    // A 600 mm cabinet whose end (along+600) is near the neighbour's start (600): along ≈ 0.
+    expect(snapToNeighbors(50, 600, neighbor600to1350)).toBe(0);
+  });
+
+  it("does nothing beyond the snap threshold", () => {
+    expect(snapToNeighbors(2000, 600, neighbor600to1350)).toBe(2000);
+  });
+
+  it("picks the closer of two candidate snaps", () => {
+    const twoNeighbors = [{ start: 0, end: 590 }, { start: 1250, end: 1850 }];
+    // A 600 mm cabinet at along=610 spans [610, 1210]: 20 mm short of the left neighbour's right edge (590),
+    // and 40 mm short of the right neighbour's left edge (1250) — the left snap (590) is closer.
+    expect(snapToNeighbors(610, 600, twoNeighbors)).toBe(590);
   });
 });

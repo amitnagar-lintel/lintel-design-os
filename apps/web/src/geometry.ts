@@ -107,6 +107,29 @@ export function clampAlong(alongMm: number, widthMm: number, wallLengthMm: numbe
   return Math.min(Math.max(alongMm, 0), Math.max(0, wallLengthMm - widthMm));
 }
 
+/**
+ * Slice 6B (cabinet runs + adjacency): if dragging a `widthMm`-wide footprint to `alongMm` would leave either of
+ * its edges within `thresholdMm` of an existing neighbour's edge on the same wall, snap that edge flush (gap 0)
+ * instead — the same "cabinet aligns to an adjacent cabinet without overlap" behaviour a real design tool gives,
+ * so a designer building a run doesn't have to hit an exact pixel to close a gap. Neighbours are the *other*
+ * cabinets already placed on the candidate wall (their own `alongWall.start/end`, as the API already resolves —
+ * this never recomputes placement itself). The closest snap within threshold wins; otherwise `alongMm` is
+ * returned unchanged (still subject to `clampAlong`). Becoming flush against a neighbour is exactly what makes
+ * the engine's own derived `SAME_WALL_RUN`/`ADJACENT` relationships pick the dragged cabinet up as a run member
+ * (`packages/design-engine/src/room.ts`) — there is no separate "run" to join.
+ */
+export function snapToNeighbors(alongMm: number, widthMm: number, neighbors: readonly { readonly start: number; readonly end: number }[], thresholdMm = 150): number {
+  let best: { distance: number; along: number } | null = null;
+  for (const n of neighbors) {
+    const snapStartToRight = { distance: Math.abs(alongMm - n.end), along: n.end };
+    const snapEndToLeft = { distance: Math.abs(alongMm + widthMm - n.start), along: n.start - widthMm };
+    for (const candidate of [snapStartToRight, snapEndToLeft]) {
+      if (candidate.distance <= thresholdMm && (best === null || candidate.distance < best.distance)) best = candidate;
+    }
+  }
+  return best === null ? alongMm : best.along;
+}
+
 /** Paise → "₹12,345.00" (display only; the amount itself comes from the API). */
 export function inr(paise: unknown): string {
   if (typeof paise !== "number" || !Number.isFinite(paise)) return "—";

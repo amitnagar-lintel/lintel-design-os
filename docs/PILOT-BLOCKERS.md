@@ -42,7 +42,10 @@ Execution steps for every item are in **`docs/PILOT-TOMORROW.md`** (the single o
 
 ## B3 — Hosted Supabase and staging
 
-**Blocker.** There is no approved hosted environment. Validation of the staging project has **not started**: no project, ref or credentials exist.
+**Blocker.** There is no hosted environment. Checked 2026-09-27 (details and exact steps in `docs/DEPLOYMENT-REMAINING-INPUTS.md`):
+- **The staging project cannot be created.** Supabase refused `lintel-design-os-staging` (ap-south-1): the "lintelspace" organization is on the Free plan and already has 2 active projects, both Lintel Ops (I1).
+- **There is no API host.** Lintel Ops runs on GitHub Pages plus Supabase Edge Functions, which cannot run the NestJS API or forward `/api`. A Node host must be chosen, and deploy access given (I2).
+- **The database passwords are not set.** Migrations run from Amit's Mac, because the engineering session can reach HTTPS only. The direct connection is IPv6-only unless the IPv4 add-on is enabled (I3).
 
 **Why it blocks.** Real sign-in (Supabase Auth), authenticated approvals and hosted storage exist only on a hosted project. The LOCAL demo can only ever hold rehearsal data.
 
@@ -52,9 +55,9 @@ Execution steps for every item are in **`docs/PILOT-TOMORROW.md`** (the single o
 - a separate "Design OS staging" project in Mumbai; send its project ref;
 - the staging secret-store entries of PILOT-TOMORROW §4.4: database password (direct connection) and API login password, entered by Amit, never sent in chat.
 
-**Next action.** Engineering runs checklist PILOT-TOMORROW §4.5–§4.11 on staging, then repeats it on production (M6-11).
+**Next action.** Clear I1 and I2. Engineering then creates the project and runs checklist PILOT-TOMORROW §4.5–§4.11 on staging, with Amit entering the secrets. Later it repeats the checklist on production (M6-11).
 
-**Where work resumes.** PILOT-TOMORROW §4.5: `pnpm -s db:migrate status` against the staging direct connection.
+**Where work resumes.** `docs/DEPLOYMENT-REMAINING-INPUTS.md` I1.
 
 ## B4 — Storage credential
 
@@ -68,4 +71,4 @@ Execution steps for every item are in **`docs/PILOT-TOMORROW.md`** (the single o
 
 **Next action.** Engineering creates the private bucket `design-os-outputs`, sets the storage variables, and runs the staging verification (PILOT-TOMORROW §5 steps 1–4).
 
-**Where work resumes.** PILOT-TOMORROW §5 step 1.
+**Where work resumes.** PILOT-TOMORROW §5 step 1 / DEPLOYMENT-REMAINING-INPUTS I5, after the staging project exists (B3).

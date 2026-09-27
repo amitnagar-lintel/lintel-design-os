@@ -18,7 +18,8 @@ const NullableNumber = z.number().nullable();
 const Severity = z.enum(["INFO", "WARNING", "ERROR", "BLOCKER"]);
 const ComponentType = z.enum([
   "SIDE_LEFT", "SIDE_RIGHT", "TOP", "BOTTOM", "TOP_SUPPORT_FRONT", "TOP_SUPPORT_BACK", "BACK", "SHELF", "PARTITION", "SHUTTER",
-  "DRAWER_FRONT", "DRAWER_BOX_SIDE", "DRAWER_BOX_FRONT", "DRAWER_BOX_BACK", "DRAWER_BOTTOM", "PLINTH", "FILLER", "END_PANEL", "KICKBOARD",
+  "DRAWER_FRONT", "DRAWER_BOX_SIDE", "DRAWER_BOX_FRONT", "DRAWER_BOX_BACK", "DRAWER_BOTTOM",
+  "PULLOUT_FRAME_SIDE", "PULLOUT_TRAY", "PLINTH", "FILLER", "END_PANEL", "KICKBOARD",
 ]);
 const EdgeSide = z.enum(["FRONT", "BACK", "TOP", "BOTTOM", "LEFT", "RIGHT"]);
 const HardwareCategory = z.enum(["HINGE", "MOUNTING_PLATE", "RUNNER"]);

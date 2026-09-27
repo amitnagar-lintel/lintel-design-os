@@ -16,12 +16,16 @@
  * Slice 3 (`BASE_OPEN` / `KIT_BASE_OPEN`): `shelfCount`, `material`, `backMaterial`. No front at all — `front`
  * must have zero rows — and `internals` must hold only `Shelf` entries.
  *
+ * Slice 5 step 1 (`BASE_PULLOUT` / `KIT_BASE_PULLOUT`): `shutterCount`, `pulloutCount`, `frontType`, `material`,
+ * `backMaterial`, `shutterMaterial`, `finish` — a shutter front (like Slice 1) over an internal `PullOut[]`
+ * bank (like Slice 3's shelves), every frame evenly spaced.
+ *
  * Refuses (throws) a `CabinetInstance` outside a supported product's scope rather than silently dropping
  * data: an unknown `productCode`, a mismatched front element, more than one front row, an `internals` entry
  * other than `Shelf` (a `BASE_SHUTTER` or `BASE_DRAWER_BANK` cabinet compiles no internals at all — reserved
  * for a later slice), or a `corner` configuration.
  */
-import type { CabinetInstance, DrawerBank, OverlayMode, Shelf, Shutter } from "./model.js";
+import type { CabinetInstance, DrawerBank, OverlayMode, PullOut, Shelf, Shutter } from "./model.js";
 
 export interface CompiledPosition {
   readonly xMm: number;
@@ -75,6 +79,44 @@ function shutterFrontTypeOf(shutters: readonly Shutter[]): OverlayMode {
   if (first === undefined) throw new Error("A cabinet front row must have at least one column");
   if (rest.some((s) => s.overlay !== first.overlay)) throw new Error("Every shutter on one cabinet must share a single overlay mode");
   return first.overlay;
+}
+
+/**
+ * Slice 5 step 1 (`BASE_PULLOUT`): a shutter front identical to `shuttersOf`'s own row/column extraction, but
+ * without `shuttersOf`'s "no internals" guard — a pull-out cabinet's whole point is an internal `PullOut[]`
+ * bank behind the door, resolved by `KITCHEN_BASE_PULLOUT_V1`'s own `pulloutCount` parameter (`drawerParametersOf`'s
+ * `heightParameters`-equivalent does not apply here: every pull-out frame is evenly spaced, exactly like
+ * `BASE_OPEN`'s shelves — Slice 5 does not extend per-drawer-style height overrides to pull-outs).
+ */
+function pulloutFrontOf(instance: CabinetInstance): readonly Shutter[] {
+  if (instance.corner !== null) throw new Error("Cannot compile a corner cabinet (reserved for Slice 4)");
+  if (instance.front.rows.length !== 1) throw new Error("Only a front with exactly one row can be compiled (multi-row fronts are reserved for a later slice)");
+  const [row] = instance.front.rows;
+  if (row === undefined || row.columns.length === 0) throw new Error("A cabinet front row must have at least one column");
+  return row.columns.map((column) => {
+    if (column.element.kind !== "SHUTTER") throw new Error(`A BASE_PULLOUT cabinet only compiles shutter fronts; column '${column.columnId}' is a ${column.element.kind}`);
+    return column.element;
+  });
+}
+
+function pulloutsOf(instance: CabinetInstance): readonly PullOut[] {
+  return instance.internals.map((c) => {
+    if (!("pullOutId" in c)) throw new Error("A BASE_PULLOUT cabinet only compiles pull-out internals; found a non-pullout internal component (reserved for a later slice)");
+    return c;
+  });
+}
+
+function pulloutParametersOf(instance: CabinetInstance): CompiledParameters {
+  const shutters = pulloutFrontOf(instance);
+  return {
+    shutterCount: shutters.length,
+    pulloutCount: pulloutsOf(instance).length,
+    frontType: shutterFrontTypeOf(shutters),
+    material: instance.finish.carcassMaterialId,
+    backMaterial: instance.finish.backMaterialId,
+    shutterMaterial: instance.finish.frontMaterialId,
+    finish: instance.finish.frontFinishId,
+  };
 }
 
 function drawerBankOf(instance: CabinetInstance): DrawerBank {
@@ -145,6 +187,7 @@ function parametersOf(instance: CabinetInstance): CompiledParameters {
     case "KIT_BASE_STANDARD": return shutterParametersOf(instance);
     case "KIT_BASE_DRAWER": return drawerParametersOf(instance);
     case "KIT_BASE_OPEN": return openParametersOf(instance);
+    case "KIT_BASE_PULLOUT": return pulloutParametersOf(instance);
     default: throw new Error(`No compiler for product '${instance.recipe.productCode}'`);
   }
 }

@@ -45,7 +45,7 @@ describe("the current production drafts", () => {
   it("are accepted as WORKING_DRAFT with every NULL listed as UNVERIFIED — and refused as PRODUCTION_CANDIDATE", () => {
     const draft = construction();
     expect(draft.accepted).toBe(true);
-    expect(codes(draft.findings, "UNVERIFIED")).toEqual(Array(15).fill("VALUE_UNVERIFIED"));
+    expect(codes(draft.findings, "UNVERIFIED")).toEqual(Array(18).fill("VALUE_UNVERIFIED"));
     const candidate = construction({}, { intent: "PRODUCTION_CANDIDATE", sourceRef: { url: null, documentTitle: "Lintel standard", documentVersion: "1", sourceDate: "2026-09-26" } });
     expect(candidate.accepted).toBe(false);
     expect(codes(candidate.findings, "ERROR")).toEqual(["INCOMPLETE_PRODUCTION_DATA"]);

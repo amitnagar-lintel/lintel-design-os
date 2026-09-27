@@ -17,6 +17,8 @@ export type ComponentType =
   | "DRAWER_BOX_FRONT"
   | "DRAWER_BOX_BACK"
   | "DRAWER_BOTTOM"
+  | "PULLOUT_FRAME_SIDE"
+  | "PULLOUT_TRAY"
   | "PLINTH"
   | "FILLER"
   | "END_PANEL"

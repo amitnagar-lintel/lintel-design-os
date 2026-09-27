@@ -8,7 +8,7 @@ import type { ConstructionStandard } from "@lintel/types";
  */
 export const TEST_FIXTURE_CONSTRUCTION_STANDARD: ConstructionStandard = {
   standardId: "TEST_FIXTURE_CONSTRUCTION_STANDARD",
-  version: "0.0.2",
+  version: "0.0.3",
   status: "TEST_FIXTURE",
   description: "Synthetic construction values for engine tests only. Not for production.",
   source: "Test fixture (synthetic)",
@@ -29,5 +29,8 @@ export const TEST_FIXTURE_CONSTRUCTION_STANDARD: ConstructionStandard = {
     DRAWER_BOX_SIDE_CLEARANCE: 26,
     DRAWER_BOX_HEIGHT_GAP: 15,
     DRAWER_BOX_FRONT_SETBACK: 20,
+    PULLOUT_FRAME_HEIGHT: 90,
+    PULLOUT_FRAME_SIDE_CLEARANCE: 26,
+    PULLOUT_FRAME_DEPTH_SETBACK: 20,
   },
 };

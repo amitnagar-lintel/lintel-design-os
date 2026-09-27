@@ -273,7 +273,7 @@
       }
     ],
     "trace": {
-      "catalogVersion": "2026.09.29-m4",
+      "catalogVersion": "2026.09.30-m5",
       "dataClassification": "TEST_FIXTURE",
       "designVersionId": "dv_001",
       "designVersionStatus": "DRAFT",
@@ -306,7 +306,7 @@
       "standard": {
         "id": "TEST_FIXTURE_CONSTRUCTION_STANDARD",
         "status": "TEST_FIXTURE",
-        "version": "0.0.2"
+        "version": "0.0.3"
       },
       "testFixtureSources": [
         "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
@@ -335,7 +335,7 @@
       }
     ],
     "trace": {
-      "catalogVersion": "2026.09.29-m4",
+      "catalogVersion": "2026.09.30-m5",
       "dataClassification": "TEST_FIXTURE",
       "designVersionId": "dv_001",
       "designVersionStatus": "DRAFT",
@@ -368,7 +368,7 @@
       "standard": {
         "id": "TEST_FIXTURE_CONSTRUCTION_STANDARD",
         "status": "TEST_FIXTURE",
-        "version": "0.0.2"
+        "version": "0.0.3"
       },
       "testFixtureSources": [
         "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
@@ -1053,7 +1053,7 @@
       "W": 600
     },
     "trace": {
-      "catalogVersion": "2026.09.29-m4",
+      "catalogVersion": "2026.09.30-m5",
       "dataClassification": "TEST_FIXTURE",
       "designVersionId": "dv_001",
       "designVersionStatus": "DRAFT",
@@ -1086,7 +1086,7 @@
       "standard": {
         "id": "TEST_FIXTURE_CONSTRUCTION_STANDARD",
         "status": "TEST_FIXTURE",
-        "version": "0.0.2"
+        "version": "0.0.3"
       },
       "testFixtureSources": [
         "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
@@ -1098,14 +1098,14 @@
       "canApprove": false,
       "counts": {
         "BLOCKER": 8,
-        "ERROR": 3,
+        "ERROR": 6,
         "INFO": 0,
         "WARNING": 7
       },
       "messages": [
         {
           "code": "CONSTRUCTION_STANDARD_NOT_APPROVED",
-          "message": "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD v0.0.2 is a TEST FIXTURE with synthetic values",
+          "message": "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD v0.0.3 is a TEST FIXTURE with synthetic values",
           "path": "construction_standard",
           "severity": "BLOCKER",
           "sourceObjectId": "obj_001"
@@ -1176,6 +1176,27 @@
           "code": "STANDARD_UNKNOWN_VARIABLE",
           "message": "Variable DRAWER_BOX_SIDE_CLEARANCE is not declared by recipe KITCHEN_BASE_STANDARD_V1",
           "path": "standards.TEST_FIXTURE_CONSTRUCTION_STANDARD.variables.DRAWER_BOX_SIDE_CLEARANCE",
+          "severity": "ERROR",
+          "sourceObjectId": "obj_001"
+        },
+        {
+          "code": "STANDARD_UNKNOWN_VARIABLE",
+          "message": "Variable PULLOUT_FRAME_DEPTH_SETBACK is not declared by recipe KITCHEN_BASE_STANDARD_V1",
+          "path": "standards.TEST_FIXTURE_CONSTRUCTION_STANDARD.variables.PULLOUT_FRAME_DEPTH_SETBACK",
+          "severity": "ERROR",
+          "sourceObjectId": "obj_001"
+        },
+        {
+          "code": "STANDARD_UNKNOWN_VARIABLE",
+          "message": "Variable PULLOUT_FRAME_HEIGHT is not declared by recipe KITCHEN_BASE_STANDARD_V1",
+          "path": "standards.TEST_FIXTURE_CONSTRUCTION_STANDARD.variables.PULLOUT_FRAME_HEIGHT",
+          "severity": "ERROR",
+          "sourceObjectId": "obj_001"
+        },
+        {
+          "code": "STANDARD_UNKNOWN_VARIABLE",
+          "message": "Variable PULLOUT_FRAME_SIDE_CLEARANCE is not declared by recipe KITCHEN_BASE_STANDARD_V1",
+          "path": "standards.TEST_FIXTURE_CONSTRUCTION_STANDARD.variables.PULLOUT_FRAME_SIDE_CLEARANCE",
           "severity": "ERROR",
           "sourceObjectId": "obj_001"
         },

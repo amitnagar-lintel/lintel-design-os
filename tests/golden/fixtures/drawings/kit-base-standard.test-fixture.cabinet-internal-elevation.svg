@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="420mm" height="297mm" viewBox="0 0 420 297" data-drawing-id="DRW:dv_001:obj_001:CABINET_INTERNAL_ELEVATION:KIT-CI-001:RA" data-drawing-type="CABINET_INTERNAL_ELEVATION" data-status="PRELIMINARY" data-design-version="dv_001" data-model-fingerprint="063283c92764df" data-classification="TEST_FIXTURE" data-content-hash="14473fbdfe55e1" data-sheet="1/1">
+<svg xmlns="http://www.w3.org/2000/svg" width="420mm" height="297mm" viewBox="0 0 420 297" data-drawing-id="DRW:dv_001:obj_001:CABINET_INTERNAL_ELEVATION:KIT-CI-001:RA" data-drawing-type="CABINET_INTERNAL_ELEVATION" data-status="PRELIMINARY" data-design-version="dv_001" data-model-fingerprint="00bf3cc4194277" data-classification="TEST_FIXTURE" data-content-hash="16fa498483ea4b" data-sheet="1/1">
 <title>KIT-CI-001 CABINET INTERNAL ELEVATION - OBJ-KIT-001 (PRELIMINARY)</title>
 <rect x="0" y="0" width="420" height="297" fill="#ffffff"/>
 <g id="WATERMARK" fill="#d9534f" stroke="#d9534f" opacity="0.25" font-family="Helvetica, Arial, sans-serif" stroke-linecap="round">
@@ -59,7 +59,7 @@
 <text stroke="none" x="14" y="248.9" font-size="2.857" text-anchor="start">2. Front view with fronts removed to show internal construction; hidden edges dashed. Dimensions are</text>
 <text stroke="none" x="14" y="253.1" font-size="2.857" text-anchor="start">   read from the resolved model.</text>
 <text stroke="none" x="14" y="257.3" font-size="2.857" text-anchor="start">3. Derived from design version dv_001; product KIT_BASE_STANDARD v1.0.0; recipe</text>
-<text stroke="none" x="14" y="261.5" font-size="2.857" text-anchor="start">   KITCHEN_BASE_STANDARD_V1 v1.1.0; standard TEST_FIXTURE_CONSTRUCTION_STANDARD v0.0.2 (TEST_FIXTURE).</text>
+<text stroke="none" x="14" y="261.5" font-size="2.857" text-anchor="start">   KITCHEN_BASE_STANDARD_V1 v1.1.0; standard TEST_FIXTURE_CONSTRUCTION_STANDARD v0.0.3 (TEST_FIXTURE).</text>
 <text stroke="none" x="14" y="265.7" font-size="2.857" text-anchor="start">4. TEST FIXTURE data in use: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; edge band</text>
 <text stroke="none" x="14" y="269.9" font-size="2.857" text-anchor="start">   standard TEST_FIXTURE_EDGE_BAND_STANDARD; hardware dataset HETTICH_TEST_FIXTURE. Values are</text>
 <text stroke="none" x="14" y="274.1" font-size="2.857" text-anchor="start">   synthetic.</text>
@@ -99,7 +99,7 @@
 <text stroke="none" x="273.5" y="275.6" font-size="3.143" text-anchor="start">dv_001 (DRAFT)</text>
 <line fill="none" x1="230" y1="277" x2="410" y2="277" stroke-width="0.18"/>
 <text stroke="none" x="231.5" y="280.5" font-size="2.286" text-anchor="start">MODEL FINGERPRINT</text>
-<text stroke="none" x="273.5" y="280.6" font-size="3.143" text-anchor="start">063283c92764df</text>
+<text stroke="none" x="273.5" y="280.6" font-size="3.143" text-anchor="start">00bf3cc4194277</text>
 <line fill="none" x1="230" y1="282" x2="410" y2="282" stroke-width="0.18"/>
 <text stroke="none" x="231.5" y="285.5" font-size="2.286" text-anchor="start">DATA CLASSIFICATION</text>
 <text stroke="none" x="273.5" y="285.6" font-size="3.143" text-anchor="start">TEST_FIXTURE</text>

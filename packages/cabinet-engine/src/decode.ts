@@ -10,7 +10,7 @@
  * response. Per-drawer/-shutter hardware (`Drawer.runner`, `Handle`) stays `null`: the model preview carries
  * no resolved hardware article, only the BOM does.
  */
-import type { CabinetFront, CabinetInstance, CabinetType, Drawer, DrawerBank, FinishAssignment, FrontColumn, FrontRow, HardwareSet, HingeConfiguration, OverlayMode, Shelf, Shutter } from "./model.js";
+import type { CabinetFront, CabinetInstance, CabinetType, Drawer, DrawerBank, FinishAssignment, FrontColumn, FrontRow, HardwareSet, HingeConfiguration, OverlayMode, PullOut, Shelf, Shutter } from "./model.js";
 
 export interface ModelComponent {
   readonly componentId: string;
@@ -148,6 +148,19 @@ function decodeShelves(object: ModelObject): readonly Shelf[] {
     .map((c, i) => ({ shelfId: `SHF${String(i)}`, fixed: true, heightFromBottomMm: c.box.min.y }));
 }
 
+/**
+ * Every `PULLOUT_TRAY` component, bottom to top (Slice 5 step 1, `BASE_PULLOUT` only). Frames are always
+ * evenly spaced by `KITCHEN_BASE_PULLOUT_V1`'s own formulas — this slice has no per-frame position or height
+ * control, exactly like `decodeShelves`.
+ */
+function decodePullOuts(object: ModelObject): readonly PullOut[] {
+  return object.components
+    .filter((c) => c.componentType === "PULLOUT_TRAY")
+    .slice()
+    .sort((a, b) => a.box.min.y - b.box.min.y)
+    .map((_, i) => ({ pullOutId: `PLO${String(i)}`, kind: "TRAY" as const }));
+}
+
 /** Decodes one API model object into the typed `CabinetInstance` the Design Studio edits and displays. `cabinetType` comes from `library.ts` (`findAvailableCabinetType(object.productCode)`). */
 export function decodeCabinetInstance(object: ModelObject, cabinetType: CabinetType): CabinetInstance {
   const { front, hardware } = frontComponentTypesOf(object)[0] === "DRAWER_FRONT" ? decodeDrawerBankFront(object) : decodeShutterFront(object);
@@ -161,7 +174,7 @@ export function decodeCabinetInstance(object: ModelObject, cabinetType: CabinetT
     rotationY: rotationYOf(object.transform.rotationY),
     dimensions: { widthMm: object.dimensions.width, heightMm: object.dimensions.height, depthMm: object.dimensions.depth },
     front,
-    internals: object.productCode === "KIT_BASE_OPEN" ? decodeShelves(object) : [],
+    internals: object.productCode === "KIT_BASE_OPEN" ? decodeShelves(object) : object.productCode === "KIT_BASE_PULLOUT" ? decodePullOuts(object) : [],
     corner: null,
     finish: decodeFinish(object),
     hardware,

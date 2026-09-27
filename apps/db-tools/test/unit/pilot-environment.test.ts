@@ -42,7 +42,7 @@ describe("rehearsal isolation", () => {
   });
   it("every rehearsal file is a valid intake file that names itself as rehearsal data", () => {
     const files = rehearsalDataset();
-    expect(files.length).toBe(25);
+    expect(files.length).toBe(28);
     // OPEN_STANDARD's hardware_rule_set genuinely has zero rules (an open cabinet has no hardware): the intake
     // validator's generic completeness heuristic cannot tell that apart from "not yet filled in" and flags it
     // UNVERIFIED regardless — expected and accepted (see rehearsal-dataset.ts), not a defect in this one file.

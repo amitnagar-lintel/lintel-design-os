@@ -278,7 +278,7 @@
             }
           ],
           "trace": {
-            "catalogVersion": "2026.09.29-m4",
+            "catalogVersion": "2026.09.30-m5",
             "dataClassification": "TEST_FIXTURE",
             "designVersionId": "dv_001",
             "designVersionStatus": "DRAFT",
@@ -311,7 +311,7 @@
             "standard": {
               "id": "TEST_FIXTURE_CONSTRUCTION_STANDARD",
               "status": "TEST_FIXTURE",
-              "version": "0.0.2"
+              "version": "0.0.3"
             },
             "testFixtureSources": [
               "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
@@ -594,7 +594,7 @@
             }
           ],
           "trace": {
-            "catalogVersion": "2026.09.29-m4",
+            "catalogVersion": "2026.09.30-m5",
             "dataClassification": "TEST_FIXTURE",
             "designVersionId": "dv_001",
             "designVersionStatus": "DRAFT",
@@ -627,7 +627,7 @@
             "standard": {
               "id": "TEST_FIXTURE_CONSTRUCTION_STANDARD",
               "status": "TEST_FIXTURE",
-              "version": "0.0.2"
+              "version": "0.0.3"
             },
             "testFixtureSources": [
               "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
@@ -910,7 +910,7 @@
             }
           ],
           "trace": {
-            "catalogVersion": "2026.09.29-m4",
+            "catalogVersion": "2026.09.30-m5",
             "dataClassification": "TEST_FIXTURE",
             "designVersionId": "dv_001",
             "designVersionStatus": "DRAFT",
@@ -943,7 +943,7 @@
             "standard": {
               "id": "TEST_FIXTURE_CONSTRUCTION_STANDARD",
               "status": "TEST_FIXTURE",
-              "version": "0.0.2"
+              "version": "0.0.3"
             },
             "testFixtureSources": [
               "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
@@ -1226,7 +1226,7 @@
             }
           ],
           "trace": {
-            "catalogVersion": "2026.09.29-m4",
+            "catalogVersion": "2026.09.30-m5",
             "dataClassification": "TEST_FIXTURE",
             "designVersionId": "dv_001",
             "designVersionStatus": "DRAFT",
@@ -1259,7 +1259,7 @@
             "standard": {
               "id": "TEST_FIXTURE_CONSTRUCTION_STANDARD",
               "status": "TEST_FIXTURE",
-              "version": "0.0.2"
+              "version": "0.0.3"
             },
             "testFixtureSources": [
               "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
@@ -1270,7 +1270,7 @@
         }
       ],
       "roomBomId": "ROOMBOM:dv_001:room_001",
-      "roomFingerprint": "04567807d184de",
+      "roomFingerprint": "086347c47d95c2",
       "totals": [
         {
           "description": "BOARD_BACK_6 board, net area",
@@ -1394,29 +1394,29 @@
         }
       ],
       "trace": {
-        "catalogVersion": "2026.09.29-m4",
+        "catalogVersion": "2026.09.30-m5",
         "dataClassification": "TEST_FIXTURE",
         "designVersionId": "dv_001",
         "designVersionStatus": "DRAFT",
         "engineVersion": "0.1.0",
         "objects": [
           {
-            "modelFingerprint": "063283c92764df",
+            "modelFingerprint": "00bf3cc4194277",
             "objectCode": "OBJ-KIT-001",
             "objectId": "obj_001"
           },
           {
-            "modelFingerprint": "1c5b2fe8dc2ed5",
+            "modelFingerprint": "0cc70a5bfe0ca9",
             "objectCode": "OBJ-KIT-002",
             "objectId": "obj_002"
           },
           {
-            "modelFingerprint": "01055bcfad18c3",
+            "modelFingerprint": "105670aaac37a2",
             "objectCode": "OBJ-KIT-003",
             "objectId": "obj_003"
           },
           {
-            "modelFingerprint": "022bde82ad63ca",
+            "modelFingerprint": "18641e72171ff7",
             "objectCode": "OBJ-KIT-004",
             "objectId": "obj_004"
           }
@@ -1521,7 +1521,7 @@
             }
           ],
           "trace": {
-            "catalogVersion": "2026.09.29-m4",
+            "catalogVersion": "2026.09.30-m5",
             "dataClassification": "TEST_FIXTURE",
             "designVersionId": "dv_001",
             "designVersionStatus": "DRAFT",
@@ -1554,7 +1554,7 @@
             "standard": {
               "id": "TEST_FIXTURE_CONSTRUCTION_STANDARD",
               "status": "TEST_FIXTURE",
-              "version": "0.0.2"
+              "version": "0.0.3"
             },
             "testFixtureSources": [
               "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
@@ -1583,7 +1583,7 @@
             }
           ],
           "trace": {
-            "catalogVersion": "2026.09.29-m4",
+            "catalogVersion": "2026.09.30-m5",
             "dataClassification": "TEST_FIXTURE",
             "designVersionId": "dv_001",
             "designVersionStatus": "DRAFT",
@@ -1616,7 +1616,7 @@
             "standard": {
               "id": "TEST_FIXTURE_CONSTRUCTION_STANDARD",
               "status": "TEST_FIXTURE",
-              "version": "0.0.2"
+              "version": "0.0.3"
             },
             "testFixtureSources": [
               "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
@@ -1645,7 +1645,7 @@
             }
           ],
           "trace": {
-            "catalogVersion": "2026.09.29-m4",
+            "catalogVersion": "2026.09.30-m5",
             "dataClassification": "TEST_FIXTURE",
             "designVersionId": "dv_001",
             "designVersionStatus": "DRAFT",
@@ -1678,7 +1678,7 @@
             "standard": {
               "id": "TEST_FIXTURE_CONSTRUCTION_STANDARD",
               "status": "TEST_FIXTURE",
-              "version": "0.0.2"
+              "version": "0.0.3"
             },
             "testFixtureSources": [
               "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
@@ -1707,7 +1707,7 @@
             }
           ],
           "trace": {
-            "catalogVersion": "2026.09.29-m4",
+            "catalogVersion": "2026.09.30-m5",
             "dataClassification": "TEST_FIXTURE",
             "designVersionId": "dv_001",
             "designVersionStatus": "DRAFT",
@@ -1740,7 +1740,7 @@
             "standard": {
               "id": "TEST_FIXTURE_CONSTRUCTION_STANDARD",
               "status": "TEST_FIXTURE",
-              "version": "0.0.2"
+              "version": "0.0.3"
             },
             "testFixtureSources": [
               "construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD",
@@ -1752,31 +1752,31 @@
       ],
       "roomBomId": "ROOMBOM:dv_001:room_001",
       "roomBoqId": "ROOMBOQ:dv_001:room_001",
-      "roomFingerprint": "04567807d184de",
+      "roomFingerprint": "086347c47d95c2",
       "trace": {
-        "catalogVersion": "2026.09.29-m4",
+        "catalogVersion": "2026.09.30-m5",
         "dataClassification": "TEST_FIXTURE",
         "designVersionId": "dv_001",
         "designVersionStatus": "DRAFT",
         "engineVersion": "0.1.0",
         "objects": [
           {
-            "modelFingerprint": "063283c92764df",
+            "modelFingerprint": "00bf3cc4194277",
             "objectCode": "OBJ-KIT-001",
             "objectId": "obj_001"
           },
           {
-            "modelFingerprint": "1c5b2fe8dc2ed5",
+            "modelFingerprint": "0cc70a5bfe0ca9",
             "objectCode": "OBJ-KIT-002",
             "objectId": "obj_002"
           },
           {
-            "modelFingerprint": "01055bcfad18c3",
+            "modelFingerprint": "105670aaac37a2",
             "objectCode": "OBJ-KIT-003",
             "objectId": "obj_003"
           },
           {
-            "modelFingerprint": "022bde82ad63ca",
+            "modelFingerprint": "18641e72171ff7",
             "objectCode": "OBJ-KIT-004",
             "objectId": "obj_004"
           }

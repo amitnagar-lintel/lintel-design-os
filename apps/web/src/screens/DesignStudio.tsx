@@ -12,7 +12,7 @@
  * never by guessing from whatever front happens to be decoded.
  */
 import { useEffect, useState } from "react";
-import type { CabinetFront, CabinetInstance, CabinetType, Drawer, DrawerBank, OverlayMode, Shelf, Shutter } from "@lintel/cabinet-engine";
+import type { CabinetFront, CabinetInstance, CabinetType, Drawer, DrawerBank, OverlayMode, PullOut, Shelf, Shutter } from "@lintel/cabinet-engine";
 import { CABINET_LIBRARY, compileCreate, compileUpdate, cornerPairPlacementDA, decodeCabinetInstance, findAvailableCabinetType } from "@lintel/cabinet-engine";
 import type { ScreenProps } from "../App";
 import type { ModelPreview, Schemas } from "../api/client";
@@ -67,6 +67,13 @@ const OPEN_FRONT: CabinetFront = { rows: [] };
  * wire (see `compile.ts`); the engine recomputes every shelf's real position from the recipe's even-spacing formula. */
 function shelves(shelfCount: number): readonly Shelf[] {
   return Array.from({ length: shelfCount }, (_, i) => ({ shelfId: `SHF${String(i)}`, fixed: true, heightFromBottomMm: null }));
+}
+
+/** A placeholder pull-out list shaped correctly for `compileCreate`/`compileUpdate` (Slice 5 step 1): only
+ * `.length` reaches the wire (see `compile.ts`'s `pulloutParametersOf`); the engine recomputes every frame's
+ * real position from the recipe's own even-spacing formula, exactly like `shelves` above. */
+function pullouts(pulloutCount: number): readonly PullOut[] {
+  return Array.from({ length: pulloutCount }, (_, i) => ({ pullOutId: `PLO${String(i)}`, kind: "TRAY" }));
 }
 
 function paramNumber(params: readonly Param[], key: string): number | undefined {
@@ -192,7 +199,10 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
     if (width === undefined || height === undefined || depth === undefined) throw new Error("The pinned product does not define default width/height/depth.");
     const isDrawer = type.productCode === "KIT_BASE_DRAWER";
     const isOpen = type.productCode === "KIT_BASE_OPEN";
+    const isPullout = type.productCode === "KIT_BASE_PULLOUT";
     const defaultShelfCount = paramNumber(p.params, "shelfCount") ?? 2;
+    const defaultShutterCount = (paramNumber(p.params, "shutterCount") ?? 2) === 1 ? 1 : 2;
+    const defaultPulloutCount = paramNumber(p.params, "pulloutCount") ?? 3;
     return {
       instanceId: "",
       objectCode,
@@ -202,8 +212,8 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
       position,
       rotationY,
       dimensions: { widthMm: width, heightMm: height, depthMm: depth },
-      front: isOpen ? OPEN_FRONT : isDrawer ? drawerBankFront(3, overlay, width, height) : shutterFront(2, overlay, width, height),
-      internals: isOpen ? shelves(defaultShelfCount) : [],
+      front: isOpen ? OPEN_FRONT : isDrawer ? drawerBankFront(3, overlay, width, height) : shutterFront(defaultShutterCount, overlay, width, height),
+      internals: isOpen ? shelves(defaultShelfCount) : isPullout ? pullouts(defaultPulloutCount) : [],
       corner: null,
       finish: {
         carcassMaterialId: paramString(p.params, "material"),
@@ -354,11 +364,13 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
 }) {
   const isDrawer = instance.recipe.productCode === "KIT_BASE_DRAWER";
   const isOpen = instance.recipe.productCode === "KIT_BASE_OPEN";
+  const isPullout = instance.recipe.productCode === "KIT_BASE_PULLOUT";
   const element = instance.front.rows[0]?.columns[0]?.element;
   const currentShutterCount = !isDrawer && !isOpen && instance.front.rows[0]?.columns.length === 2 ? 2 : 1;
   const currentDrawerCount = element?.kind === "DRAWER_BANK" && (DRAWER_COUNTS as readonly number[]).includes(element.drawers.length) ? (element.drawers.length as 2 | 3 | 4) : 3;
   const currentOverlay: OverlayMode = element?.kind === "SHUTTER" || element?.kind === "DRAWER_BANK" ? element.overlay : "OVERLAY";
-  const currentShelfCount = instance.internals.length;
+  const currentShelfCount = isOpen ? instance.internals.length : 0;
+  const currentPulloutCount = isPullout ? instance.internals.length : 0;
   const currentDrawerHeights = element?.kind === "DRAWER_BANK" ? element.drawers.map((d) => String(d.heightMm)) : [];
   const [width, setWidth] = useState(String(instance.dimensions.widthMm));
   const [height, setHeight] = useState(String(instance.dimensions.heightMm));
@@ -367,6 +379,7 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
   const [drawerCount, setDrawerCount] = useState<2 | 3 | 4>(currentDrawerCount);
   const [overlay, setOverlay] = useState<OverlayMode>(currentOverlay);
   const [shelfCount, setShelfCount] = useState(String(currentShelfCount));
+  const [pulloutCount, setPulloutCount] = useState(String(currentPulloutCount));
   /** Slice 2.1: one front height per drawer (top to bottom), kept in sync with the resolved model until edited;
    * the bank's last (bottom) entry is display-only — `save()` never sends it (see `drawerBankFront`). */
   const [drawerHeights, setDrawerHeights] = useState<string[]>(currentDrawerHeights);
@@ -379,6 +392,7 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
     setDrawerCount(currentDrawerCount);
     setOverlay(currentOverlay);
     setShelfCount(String(currentShelfCount));
+    setPulloutCount(String(currentPulloutCount));
     setDrawerHeights(currentDrawerHeights);
     // Resync the editable fields whenever a different cabinet becomes selected.
   }, [instance.instanceId]);
@@ -407,7 +421,7 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
       ...instance,
       dimensions: { widthMm, heightMm, depthMm },
       front: isOpen ? OPEN_FRONT : isDrawer ? drawerBankFront(drawerCount, overlay, widthMm, heightMm, drawerHeights.map(Number)) : shutterFront(shutterCount, overlay, widthMm, heightMm),
-      internals: isOpen ? shelves(Math.max(0, Math.trunc(Number(shelfCount)))) : instance.internals,
+      internals: isOpen ? shelves(Math.max(0, Math.trunc(Number(shelfCount)))) : isPullout ? pullouts(Math.max(0, Math.trunc(Number(pulloutCount)))) : instance.internals,
     });
   };
 
@@ -440,6 +454,9 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
             <option value="INSET">Inset</option>
           </select>
         </Field>
+      )}
+      {isPullout && (
+        <Field label="Pull-out count"><input className="num" value={pulloutCount} disabled={!canEdit} onChange={(e) => { setPulloutCount(e.target.value); }} /></Field>
       )}
       {isDrawer && element?.kind === "DRAWER_BANK" && (
         <>
@@ -490,9 +507,13 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
       {!isOpen && (
         <details>
           <summary>Hardware (rule-derived, not chosen here)</summary>
-          {isDrawer
-            ? <p>One runner pair per drawer ({element?.kind === "DRAWER_BANK" ? element.drawers.length : 0} drawer(s)). See the BOM tab for the resolved articles.</p>
-            : <p>{instance.hardware.hinges.length} hinge(s){instance.hardware.hinges[0] === undefined ? "" : `, mounting ${instance.hardware.hinges[0].mounting}`}. See the BOM tab for the full hardware list.</p>}
+          {isDrawer ? (
+            <p>One runner pair per drawer ({element?.kind === "DRAWER_BANK" ? element.drawers.length : 0} drawer(s)). See the BOM tab for the resolved articles.</p>
+          ) : isPullout ? (
+            <p>{instance.hardware.hinges.length} hinge(s), one runner pair per pull-out frame ({instance.internals.length} frame(s)). See the BOM tab for the resolved articles.</p>
+          ) : (
+            <p>{instance.hardware.hinges.length} hinge(s){instance.hardware.hinges[0] === undefined ? "" : `, mounting ${instance.hardware.hinges[0].mounting}`}. See the BOM tab for the full hardware list.</p>
+          )}
         </details>
       )}
     </>

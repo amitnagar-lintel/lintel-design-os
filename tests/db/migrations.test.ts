@@ -8,11 +8,11 @@ import { loadMigrations } from "./support/migrate.js";
 import { schemaSnapshot } from "./support/schema-snapshot.js";
 
 const SNAPSHOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "database", "schema", "design_os.schema.txt");
-const EXPECTED = ["0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008", "0009", "0010", "0011", "0012", "0013", "0014", "0015", "0016", "0017", "0018", "0019", "0020", "0021", "0022"];
+const EXPECTED = ["0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008", "0009", "0010", "0011", "0012", "0013", "0014", "0015", "0016", "0017", "0018", "0019", "0020", "0021", "0022", "0023"];
 
-describe("migrations 0001 → 0022", () => {
+describe("migrations 0001 → 0023", () => {
   const report = inject("migrationReport");
-  it("are exactly 0001 … 0022, each with a rollback", () => {
+  it("are exactly 0001 … 0023, each with a rollback", () => {
     expect(loadMigrations().map((m) => m.version)).toEqual(EXPECTED);
     expect(report.migrations).toEqual(EXPECTED);
   });
@@ -39,7 +39,7 @@ describe("migrations 0001 → 0022", () => {
     const client = new pg.Client({ connectionString: inject("dbUrl") });
     await client.connect();
     const count = async (sql: string) => Number((await client.query<{ n: string }>(sql)).rows[0]?.n);
-    expect(await count("SELECT count(*) AS n FROM design_os.construction_variable")).toBe(15);
+    expect(await count("SELECT count(*) AS n FROM design_os.construction_variable")).toBe(18);
     expect(await count("SELECT count(*) AS n FROM design_os.planning_variable")).toBe(6);
     expect(await count("SELECT count(*) AS n FROM design_os.manufacturing_variable")).toBe(0);
     expect(await count("SELECT count(*) AS n FROM design_os.role")).toBe(10);

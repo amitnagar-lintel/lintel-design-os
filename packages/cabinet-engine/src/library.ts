@@ -96,6 +96,21 @@ export const BASE_OPEN_CABINET: CabinetType = {
   supportedFronts: [OPEN_NO_FRONT],
 };
 
+// ---------------------------------------------------------------- Slice 5 step 1: BASE_PULLOUT
+
+/** `KIT_BASE_PULLOUT` / `KITCHEN_BASE_PULLOUT_V1` (Slice 5 step 1). A shutter front, identical to
+ * `BASE_SHUTTER_CABINET`'s own topologies — the pull-out frames are internal (`pulloutCount`, edited like
+ * `BASE_OPEN`'s shelf count), never part of the front topology grid. */
+export const BASE_PULLOUT_CABINET: CabinetType = {
+  cabinetTypeId: "BASE_PULLOUT",
+  category: "BASE",
+  label: "Pull-out cabinet",
+  description: "Narrow base cabinet with an internal bank of pull-out frames on runners.",
+  productCode: "KIT_BASE_PULLOUT",
+  recipeId: "KITCHEN_BASE_PULLOUT_V1",
+  supportedFronts: [BASE_ONE_SHUTTER, BASE_TWO_SHUTTER],
+};
+
 // ---------------------------------------------------------------- planned families (D2), by the slice that adds them
 
 function planned(cabinetTypeId: string, category: CabinetCategory, label: string, description: string, slice: number): CabinetLibraryEntry {
@@ -129,7 +144,13 @@ export const CABINET_LIBRARY: readonly CabinetLibraryEntry[] = [
   planned("BASE_SINK", "BASE", "Sink cabinet", "Base cabinet with a sink cut-out.", 5),
   planned("BASE_HOB", "BASE", "Hob cabinet", "Base cabinet with a hob cut-out.", 5),
   planned("BASE_APPLIANCE", "BASE", "Appliance cabinet", "Base cabinet housing a built-in appliance.", 5),
-  planned("BASE_PULLOUT", "BASE", "Pull-out cabinet", "Narrow base cabinet with an internal pull-out.", 5),
+  {
+    cabinetTypeId: BASE_PULLOUT_CABINET.cabinetTypeId,
+    category: BASE_PULLOUT_CABINET.category,
+    label: BASE_PULLOUT_CABINET.label,
+    description: BASE_PULLOUT_CABINET.description,
+    availability: { kind: "AVAILABLE", cabinetType: BASE_PULLOUT_CABINET },
+  },
   planned("WALL_SHUTTER", "WALL", "Wall cabinet — 1 shutter", "Wall-mounted cabinet, single shutter.", 6),
   planned("WALL_2_SHUTTER", "WALL", "Wall cabinet — 2 shutters", "Wall-mounted cabinet, two shutters.", 6),
   planned("WALL_LIFT_UP", "WALL", "Wall cabinet — lift-up", "Wall-mounted cabinet with a lift-up front.", 6),

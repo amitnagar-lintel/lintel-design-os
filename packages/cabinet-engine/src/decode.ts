@@ -75,19 +75,33 @@ function decodeShutterFront(object: ModelObject): { readonly front: CabinetFront
   return { front: { rows: [row] }, hardware: { hinges, runners: [], handle: null } };
 }
 
-/** Builds `front` from the object's `DRAWER_FRONT` components, top drawer first (index 0). */
+/**
+ * Builds `front` from the object's `DRAWER_FRONT` components, top drawer first (index 0). Slice 2.1: also
+ * reads `boxHeightMm` from the matching `DRAWER_BOX_SIDE` component (the box's own left side; the right side
+ * shares the same position.y by construction, so either would do) and `gapBelowMm` from the vertical gap to
+ * the next drawer down — both purely geometric facts read off the already-resolved model, never recomputed.
+ */
 function decodeDrawerBankFront(object: ModelObject): { readonly front: CabinetFront; readonly hardware: HardwareSet } {
   const overlay = overlayOf(object);
   const frontComponents = object.components.filter((c) => c.componentType === "DRAWER_FRONT").slice().sort((a, b) => b.box.min.y - a.box.min.y);
   if (frontComponents.length === 0) return { front: { rows: [] }, hardware: { hinges: [], runners: [], handle: null } };
-  const drawers: Drawer[] = frontComponents.map((c, index) => ({
-    kind: "DRAWER",
-    widthMm: c.dimensions.width,
-    heightMm: c.dimensions.height,
-    frontThicknessMm: c.dimensions.thickness,
-    index,
-    runner: null,
-  }));
+  // One drawer box side per drawer: DRAWER_BOX_SIDE_LEFT and _RIGHT share componentType and position.y, so
+  // filtering to the left side's own component id ("-DBL-") picks exactly one per drawer.
+  const boxSides = object.components.filter((c) => c.componentType === "DRAWER_BOX_SIDE" && c.componentId.includes("-DBL-")).slice().sort((a, b) => b.box.min.y - a.box.min.y);
+  const drawers: Drawer[] = frontComponents.map((c, index) => {
+    const next = frontComponents[index + 1];
+    return {
+      kind: "DRAWER",
+      widthMm: c.dimensions.width,
+      heightMm: c.dimensions.height,
+      frontThicknessMm: c.dimensions.thickness,
+      index,
+      runner: null,
+      componentId: c.componentId,
+      boxHeightMm: boxSides[index]?.dimensions.height ?? null,
+      gapBelowMm: next === undefined ? null : c.box.min.y - (next.box.min.y + next.box.size.y),
+    };
+  });
   const bank: DrawerBank = { kind: "DRAWER_BANK", widthMm: object.dimensions.width, overlay, drawers };
   const row: FrontRow = { rowId: "R0", heightMm: object.dimensions.height, columns: [{ columnId: "C0", widthMm: bank.widthMm, element: bank }] };
   return { front: { rows: [row] }, hardware: { hinges: [], runners: [], handle: null } };

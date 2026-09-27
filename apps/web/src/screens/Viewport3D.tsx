@@ -13,6 +13,8 @@ const CARCASS_COLOR = 0xd8c9a3;
 const BACK_COLOR = 0xc7b896;
 const SHUTTER_COLOR = 0xf2efe9;
 const SELECTED_COLOR = 0x3b82f6;
+/** Slice 2.1: a single selected component (e.g. one drawer front) within an already-selected object. */
+const SELECTED_COMPONENT_COLOR = 0xf59e0b;
 
 interface Tracked {
   readonly renderer: THREE.WebGLRenderer;
@@ -20,14 +22,24 @@ interface Tracked {
   readonly camera: THREE.PerspectiveCamera;
   readonly controls: OrbitControls;
   readonly group: THREE.Group;
-  meshes: readonly { readonly mesh: THREE.Mesh; readonly lineageId: string }[];
+  meshes: readonly { readonly mesh: THREE.Mesh; readonly lineageId: string; readonly componentId: string; readonly componentType: string }[];
 }
 
-export function Viewport3D({ model, selectedId, onSelect }: { readonly model: ModelPreview | null; readonly selectedId: string | null; readonly onSelect: (lineageId: string) => void }) {
+export function Viewport3D({ model, selectedId, onSelect, selectedComponentId, onSelectComponent }: {
+  readonly model: ModelPreview | null;
+  readonly selectedId: string | null;
+  readonly onSelect: (lineageId: string) => void;
+  /** Slice 2.1: which component (e.g. one drawer front) within the selected object is highlighted, if any. */
+  readonly selectedComponentId?: string | null;
+  /** Slice 2.1: fired (in addition to `onSelect`) when the clicked component is individually selectable — today, a DRAWER_FRONT. */
+  readonly onSelectComponent?: (lineageId: string, componentId: string, componentType: string) => void;
+}) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const stateRef = useRef<Tracked | null>(null);
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
+  const onSelectComponentRef = useRef(onSelectComponent);
+  onSelectComponentRef.current = onSelectComponent;
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -83,7 +95,9 @@ export function Viewport3D({ model, selectedId, onSelect }: { readonly model: Mo
       raycaster.setFromCamera(pointer, camera);
       const hit = raycaster.intersectObjects(group.children, false)[0];
       const target = hit === undefined ? undefined : stateRef.current?.meshes.find((m) => m.mesh === hit.object);
-      if (target !== undefined) onSelectRef.current(target.lineageId);
+      if (target === undefined) return;
+      onSelectRef.current(target.lineageId);
+      if (target.componentType === "DRAWER_FRONT") onSelectComponentRef.current?.(target.lineageId, target.componentId, target.componentType);
     };
     renderer.domElement.addEventListener("click", onClick);
 
@@ -109,22 +123,23 @@ export function Viewport3D({ model, selectedId, onSelect }: { readonly model: Mo
         (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).forEach((m) => { m.dispose(); });
       }
     }
-    const meshes: { mesh: THREE.Mesh; lineageId: string }[] = [];
+    const meshes: { mesh: THREE.Mesh; lineageId: string; componentId: string; componentType: string }[] = [];
     for (const o of model?.objects ?? []) {
       const selected = o.lineageId === selectedId;
       for (const c of o.components) {
         const geometry = new THREE.BoxGeometry(Math.max(1, c.box.size.x), Math.max(1, c.box.size.y), Math.max(1, c.box.size.z));
         const isBack = c.componentType === "BACK";
-        const color = selected ? SELECTED_COLOR : c.componentType === "SHUTTER" ? SHUTTER_COLOR : isBack ? BACK_COLOR : CARCASS_COLOR;
+        const componentSelected = selected && c.componentId === selectedComponentId;
+        const color = componentSelected ? SELECTED_COMPONENT_COLOR : selected ? SELECTED_COLOR : c.componentType === "SHUTTER" ? SHUTTER_COLOR : isBack ? BACK_COLOR : CARCASS_COLOR;
         const material = new THREE.MeshStandardMaterial({ color, transparent: isBack, opacity: isBack ? 0.35 : 1 });
         const mesh = new THREE.Mesh(geometry, material);
         mesh.position.set(c.box.min.x + c.box.size.x / 2, c.box.min.y + c.box.size.y / 2, c.box.min.z + c.box.size.z / 2);
         state.group.add(mesh);
-        meshes.push({ mesh, lineageId: o.lineageId });
+        meshes.push({ mesh, lineageId: o.lineageId, componentId: c.componentId, componentType: c.componentType });
       }
     }
     state.meshes = meshes;
-  }, [model, selectedId]);
+  }, [model, selectedId, selectedComponentId]);
 
   return <div ref={mountRef} className="viewport3d" role="img" aria-label="3D view of the design" />;
 }

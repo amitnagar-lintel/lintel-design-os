@@ -36,11 +36,26 @@ function shutterFront(shutterCount: 1 | 2, overlay: OverlayMode, widthMm: number
   return { rows: [{ rowId: "R0", heightMm, columns }] };
 }
 
-/** A placeholder drawer bank shaped correctly for `compileCreate`/`compileUpdate`: only `drawers.length` and
- * `overlay` reach the wire (see `compile.ts`); the engine recomputes every drawer's real size and position. */
-function drawerBankFront(drawerCount: 2 | 3 | 4, overlay: OverlayMode, widthMm: number, heightMm: number): CabinetFront {
-  const drawerHeight = heightMm / drawerCount;
-  const drawers: Drawer[] = Array.from({ length: drawerCount }, (_, i) => ({ kind: "DRAWER", widthMm, heightMm: drawerHeight, frontThicknessMm: 18, index: i, runner: null }));
+/** A placeholder drawer bank shaped correctly for `compileCreate`/`compileUpdate`: only `drawers.length`,
+ * `overlay` and (Slice 2.1) each non-last drawer's `heightMm` reach the wire (`compile.ts`'s `drawerParametersOf`
+ * sends `drawerHeight1..N-1` from `drawers[0..N-2]`, in top-to-bottom order); the engine recomputes every
+ * drawer's real size and position, including the last (bottom) drawer's remainder height. `explicitHeightsMm`,
+ * when given, overrides the even split for drawers `0..drawerCount-2` (its own last entry, if any, is ignored —
+ * the bottom drawer never takes an explicit height). `componentId`/`boxHeightMm`/`gapBelowMm` are decode-only
+ * facts with no meaning before a save round-trip, so a freshly-built front only carries placeholders for them. */
+function drawerBankFront(drawerCount: 2 | 3 | 4, overlay: OverlayMode, widthMm: number, heightMm: number, explicitHeightsMm?: readonly number[]): CabinetFront {
+  const evenHeight = heightMm / drawerCount;
+  const drawers: Drawer[] = Array.from({ length: drawerCount }, (_, i) => ({
+    kind: "DRAWER",
+    widthMm,
+    heightMm: explicitHeightsMm?.[i] ?? evenHeight,
+    frontThicknessMm: 18,
+    index: i,
+    runner: null,
+    componentId: `PENDING-${String(i)}`,
+    boxHeightMm: null,
+    gapBelowMm: null,
+  }));
   const bank: DrawerBank = { kind: "DRAWER_BANK", widthMm, overlay, drawers };
   return { rows: [{ rowId: "R0", heightMm, columns: [{ columnId: "C0", widthMm, element: bank }] }] };
 }
@@ -142,6 +157,11 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
   const [n, setN] = useState(0);
   const model = useLoad(() => must(api.GET("/api/v1/design-versions/{versionId}/model", { params: { path: { versionId } } })), `smodel:${versionId}:${String(n)}`);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  /** Slice 2.1: which component (e.g. one drawer front) within the selected object is highlighted, if any. Cleared
+   * whenever a different object becomes selected — a component selection never survives across cabinets. */
+  const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null);
+  const selectObject = (lineageId: string | null) => { setSelectedId(lineageId); setSelectedComponentId(null); };
+  const selectComponent = (lineageId: string, componentId: string) => { setSelectedId(lineageId); setSelectedComponentId(componentId); };
   const [bottomTab, setBottomTab] = useState<"PLAN" | "ELEVATION" | "BOM">("PLAN");
   const [bom, setBom] = useState<Schemas["Snapshot"] | null>(null);
   const m = model.data;
@@ -207,7 +227,7 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
     const position = { xMm: nextFreeX(objects.map((o) => ({ id: o.objectId, x: o.transform.x, width: o.dimensions.width }))), yMm: 0, zMm: 0 };
     const instance = buildInstance(type, p, nextObjectCode(), position, 0);
     const created = await createObject(instance);
-    setSelectedId(created.object.lineageId);
+    selectObject(created.object.lineageId);
     refresh();
   };
 
@@ -225,7 +245,7 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
     await createObject(returnInstance);
     const frontInstance = buildInstance(type, p, nextObjectCode(1), frontLeg.position, frontLeg.rotationY, "INSET");
     const frontCreated = await createObject(frontInstance);
-    setSelectedId(frontCreated.object.lineageId);
+    selectObject(frontCreated.object.lineageId);
     refresh();
   };
 
@@ -239,7 +259,7 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
   const removeCabinet = async (objectId: string) => {
     const { etag } = await versionWithEtag(versionId);
     await must(api.DELETE("/api/v1/design-objects/{objectId}", { params: { path: { objectId }, header: { "If-Match": etag } } }));
-    setSelectedId(null);
+    selectObject(null);
     refresh();
   };
 
@@ -252,7 +272,10 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
           <CabinetLibraryPanel canEdit={canEdit} onAdd={addCabinet} onAddCornerPair={addCornerPair} />
         </aside>
         <div className="studio-center">
-          <Viewport3D model={m} selectedId={selected?.lineageId ?? null} onSelect={setSelectedId} />
+          <Viewport3D
+            model={m} selectedId={selected?.lineageId ?? null} onSelect={selectObject}
+            selectedComponentId={selectedComponentId} onSelectComponent={selectComponent}
+          />
           <div className="studio-bottom">
             <nav className="studio-tabs">
               <button type="button" className={bottomTab === "PLAN" ? "current" : ""} onClick={() => { setBottomTab("PLAN"); }}>Plan</button>
@@ -261,7 +284,9 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
               <button type="button" onClick={() => { setSelVersion(); go("outputs"); }}>All outputs →</button>
             </nav>
             {m !== null && bottomTab === "PLAN" && <Plan m={m} />}
-            {m !== null && bottomTab === "ELEVATION" && <Elevation m={m} />}
+            {m !== null && bottomTab === "ELEVATION" && (
+              <Elevation m={m} selectedComponentId={selectedComponentId} onSelectComponent={selectComponent} />
+            )}
             {bottomTab === "BOM" && (
               <div className="studio-bom">
                 <Action kind="primary" label="Generate BOM (PRELIMINARY)" run={async () => {
@@ -281,6 +306,8 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
               canEdit={canEdit}
               onSave={(next) => saveCabinet(selected.objectId, next)}
               onRemove={() => removeCabinet(selected.objectId)}
+              selectedComponentId={selectedComponentId}
+              onSelectComponentId={(componentId) => { setSelectedComponentId(componentId); }}
             />
           ) : <p>Select a cabinet, or add one from the library.</p>}
         </aside>
@@ -319,7 +346,12 @@ function CabinetLibraryPanel({ canEdit, onAdd, onAddCornerPair }: { readonly can
 
 const DRAWER_COUNTS = [2, 3, 4] as const;
 
-function PropertiesPanel({ instance, canEdit, onSave, onRemove }: { readonly instance: CabinetInstance; readonly canEdit: boolean; readonly onSave: (next: CabinetInstance) => Promise<void>; readonly onRemove: () => Promise<void> }) {
+function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponentId, onSelectComponentId }: {
+  readonly instance: CabinetInstance; readonly canEdit: boolean; readonly onSave: (next: CabinetInstance) => Promise<void>; readonly onRemove: () => Promise<void>;
+  /** Slice 2.1: which drawer front (by resolved `componentId`), if any, is selected in the 3D view or elevation. */
+  readonly selectedComponentId: string | null;
+  readonly onSelectComponentId: (componentId: string | null) => void;
+}) {
   const isDrawer = instance.recipe.productCode === "KIT_BASE_DRAWER";
   const isOpen = instance.recipe.productCode === "KIT_BASE_OPEN";
   const element = instance.front.rows[0]?.columns[0]?.element;
@@ -327,6 +359,7 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove }: { readonly ins
   const currentDrawerCount = element?.kind === "DRAWER_BANK" && (DRAWER_COUNTS as readonly number[]).includes(element.drawers.length) ? (element.drawers.length as 2 | 3 | 4) : 3;
   const currentOverlay: OverlayMode = element?.kind === "SHUTTER" || element?.kind === "DRAWER_BANK" ? element.overlay : "OVERLAY";
   const currentShelfCount = instance.internals.length;
+  const currentDrawerHeights = element?.kind === "DRAWER_BANK" ? element.drawers.map((d) => String(d.heightMm)) : [];
   const [width, setWidth] = useState(String(instance.dimensions.widthMm));
   const [height, setHeight] = useState(String(instance.dimensions.heightMm));
   const [depth, setDepth] = useState(String(instance.dimensions.depthMm));
@@ -334,6 +367,9 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove }: { readonly ins
   const [drawerCount, setDrawerCount] = useState<2 | 3 | 4>(currentDrawerCount);
   const [overlay, setOverlay] = useState<OverlayMode>(currentOverlay);
   const [shelfCount, setShelfCount] = useState(String(currentShelfCount));
+  /** Slice 2.1: one front height per drawer (top to bottom), kept in sync with the resolved model until edited;
+   * the bank's last (bottom) entry is display-only — `save()` never sends it (see `drawerBankFront`). */
+  const [drawerHeights, setDrawerHeights] = useState<string[]>(currentDrawerHeights);
 
   useEffect(() => {
     setWidth(String(instance.dimensions.widthMm));
@@ -343,8 +379,25 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove }: { readonly ins
     setDrawerCount(currentDrawerCount);
     setOverlay(currentOverlay);
     setShelfCount(String(currentShelfCount));
+    setDrawerHeights(currentDrawerHeights);
     // Resync the editable fields whenever a different cabinet becomes selected.
   }, [instance.instanceId]);
+
+  const selectedDrawerIndex = element?.kind === "DRAWER_BANK" ? element.drawers.findIndex((d) => d.componentId === selectedComponentId) : -1;
+  const selectedDrawer = selectedDrawerIndex >= 0 && element?.kind === "DRAWER_BANK" ? element.drawers[selectedDrawerIndex] : undefined;
+
+  const setDrawerCountAndReset = (nextCount: 2 | 3 | 4): void => {
+    setDrawerCount(nextCount);
+    // A count change re-splits evenly (Slice 2's own default); explicit per-drawer heights from before the
+    // change no longer correspond to a real slot, so they are not carried across a count change.
+    const evenHeight = Number(height) / nextCount;
+    setDrawerHeights(Array.from({ length: nextCount }, () => String(evenHeight)));
+    onSelectComponentId(null);
+  };
+
+  const setDrawerHeightAt = (index: number, value: string): void => {
+    setDrawerHeights((prev) => prev.map((h, i) => (i === index ? value : h)));
+  };
 
   const save = async (): Promise<void> => {
     const widthMm = Number(width);
@@ -353,7 +406,7 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove }: { readonly ins
     await onSave({
       ...instance,
       dimensions: { widthMm, heightMm, depthMm },
-      front: isOpen ? OPEN_FRONT : isDrawer ? drawerBankFront(drawerCount, overlay, widthMm, heightMm) : shutterFront(shutterCount, overlay, widthMm, heightMm),
+      front: isOpen ? OPEN_FRONT : isDrawer ? drawerBankFront(drawerCount, overlay, widthMm, heightMm, drawerHeights.map(Number)) : shutterFront(shutterCount, overlay, widthMm, heightMm),
       internals: isOpen ? shelves(Math.max(0, Math.trunc(Number(shelfCount)))) : instance.internals,
     });
   };
@@ -369,7 +422,7 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove }: { readonly ins
         <Field label="Shelf count"><input className="num" value={shelfCount} disabled={!canEdit} onChange={(e) => { setShelfCount(e.target.value); }} /></Field>
       ) : isDrawer ? (
         <Field label="Drawer count">
-          <select value={String(drawerCount)} disabled={!canEdit} onChange={(e) => { setDrawerCount(Number(e.target.value) as 2 | 3 | 4); }}>
+          <select value={String(drawerCount)} disabled={!canEdit} onChange={(e) => { setDrawerCountAndReset(Number(e.target.value) as 2 | 3 | 4); }}>
             {DRAWER_COUNTS.map((n) => <option key={n} value={String(n)}>{n} drawers</option>)}
           </select>
         </Field>
@@ -387,6 +440,42 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove }: { readonly ins
             <option value="INSET">Inset</option>
           </select>
         </Field>
+      )}
+      {isDrawer && element?.kind === "DRAWER_BANK" && (
+        <>
+          <h3>Selected drawer</h3>
+          <Field label="Drawer">
+            <select
+              value={selectedDrawerIndex >= 0 ? String(selectedDrawerIndex) : ""}
+              onChange={(e) => {
+                const i = e.target.value === "" ? -1 : Number(e.target.value);
+                onSelectComponentId(i >= 0 ? (element.drawers[i]?.componentId ?? null) : null);
+              }}
+            >
+              <option value="">— click a drawer in the 3D view or elevation —</option>
+              {element.drawers.map((d, i) => <option key={d.componentId} value={String(i)}>Drawer {i + 1}{i === element.drawers.length - 1 ? " (bottom, auto height)" : ""}</option>)}
+            </select>
+          </Field>
+          {selectedDrawer !== undefined && (
+            <>
+              <Field label="Drawer index"><input value={String(selectedDrawerIndex + 1)} disabled /></Field>
+              <Field label="Front height (mm)">
+                <input
+                  className="num"
+                  value={drawerHeights[selectedDrawerIndex] ?? String(selectedDrawer.heightMm)}
+                  disabled={!canEdit || selectedDrawerIndex === element.drawers.length - 1}
+                  onChange={(e) => { setDrawerHeightAt(selectedDrawerIndex, e.target.value); }}
+                />
+                {selectedDrawerIndex === element.drawers.length - 1 && <small>The bottom drawer always absorbs the remaining opening height.</small>}
+              </Field>
+              <Field label="Drawer box height (mm)"><input value={selectedDrawer.boxHeightMm === null ? "—" : String(selectedDrawer.boxHeightMm)} disabled /></Field>
+              <Field label="Front thickness (mm)"><input value={String(selectedDrawer.frontThicknessMm)} disabled /></Field>
+              <Field label="Gap to drawer below (mm)"><input value={selectedDrawer.gapBelowMm === null ? "—" : String(selectedDrawer.gapBelowMm)} disabled /></Field>
+              <Field label="Finish"><input value={instance.finish.frontFinishId} disabled /></Field>
+              <Field label="Hardware"><input value={selectedDrawer.runner === null ? "Runner pair (resolved in BOM)" : `${String(selectedDrawer.runner.systemHeightMm)} mm runner`} disabled /></Field>
+            </>
+          )}
+        </>
       )}
       <div className="row">
         <Action kind="primary" label="Save" disabled={!canEdit} run={save} />

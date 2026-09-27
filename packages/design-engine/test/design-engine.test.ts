@@ -184,6 +184,28 @@ describe("KIT_BASE_DRAWER (Slice 2: drawer bank)", () => {
     expect(codes(r.validation)).toContain("HARDWARE_ADAPTER_MISSING");
   });
 
+  it("Slice 2.1: an explicit drawer height changes only that drawer and the bank's last (remainder) drawer, never the untouched ones", () => {
+    const heightsTopToBottom = (r: ReturnType<typeof run>) =>
+      r.components.filter((c) => c.componentType === "DRAWER_FRONT").sort((a, b) => b.geometry.local.min.y - a.geometry.local.min.y).map((c) => c.dimensions.height);
+
+    const base = run(drawerObj({ parameters: { drawerCount: 3, drawerHeight1: 120, drawerHeight2: 180 } }));
+    const baseHeights = heightsTopToBottom(base);
+    expect(baseHeights[0]).toBeCloseTo(120, 9);
+    expect(baseHeights[1]).toBeCloseTo(180, 9);
+    expect(baseHeights[2]).toBeGreaterThan(0);
+
+    // Raise the middle drawer (index 1) from 180 to 240: only index 1 and the last (remainder) drawer move.
+    const changed = run(drawerObj({ parameters: { drawerCount: 3, drawerHeight1: 120, drawerHeight2: 240 } }));
+    const changedHeights = heightsTopToBottom(changed);
+    expect(changedHeights[0]).toBeCloseTo(120, 9);
+    expect(changedHeights[1]).toBeCloseTo(240, 9);
+    expect(changedHeights[2]).toBeCloseTo(baseHeights[2]! - 60, 9);
+
+    // The total internal opening the three fronts (plus their two gaps) occupy is unchanged either way.
+    const totalSpan = (hs: readonly number[]) => hs.reduce((a, b) => a + b, 0);
+    expect(totalSpan(changedHeights)).toBeCloseTo(totalSpan(baseHeights), 9);
+  });
+
   it("keeps the drawer box within the carcass and off the top rail", () => {
     const r = run(drawerObj({ parameters: { drawerCount: 4 } }));
     const topRail = r.components.find((c) => c.componentType === "TOP_SUPPORT_BACK")!;

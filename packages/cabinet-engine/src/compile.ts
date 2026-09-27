@@ -101,11 +101,20 @@ function shutterParametersOf(instance: CabinetInstance): CompiledParameters {
   };
 }
 
+/**
+ * Slice 2.1: every drawer except the bank's last (bottom, index `drawers.length - 1`) carries an explicit
+ * `drawerHeight1`/`2`/`3` parameter (`KITCHEN_BASE_DRAWER_V1`) — the last drawer has no parameter of its own,
+ * it always absorbs whatever height remains of the internal opening, so its own (decoded, read-only)
+ * `heightMm` is never sent.
+ */
 function drawerParametersOf(instance: CabinetInstance): CompiledParameters {
   const bank = drawerBankOf(instance);
+  const explicitHeights = bank.drawers.slice(0, bank.drawers.length - 1);
+  const heightParameters = Object.fromEntries(explicitHeights.map((d, i) => [`drawerHeight${String(i + 1)}`, d.heightMm]));
   return {
     drawerCount: bank.drawers.length,
     frontType: bank.overlay,
+    ...heightParameters,
     material: instance.finish.carcassMaterialId,
     backMaterial: instance.finish.backMaterialId,
     frontMaterial: instance.finish.frontMaterialId,

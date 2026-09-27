@@ -70,9 +70,18 @@ export interface Shutter {
 }
 
 /**
- * One drawer front + box (Slice 2, `KIT_BASE_DRAWER` / `KITCHEN_BASE_DRAWER_V1`). `runner` stays `null`
- * until an actual hardware resolution (the BOM, not the model preview) names a selected article — like
- * `Handle`, a per-drawer runner is never fabricated from geometry alone.
+ * One drawer front + box (Slice 2, `KIT_BASE_DRAWER` / `KITCHEN_BASE_DRAWER_V1`; per-drawer height editing,
+ * Slice 2.1). `runner` stays `null` until an actual hardware resolution (the BOM, not the model preview)
+ * names a selected article — like `Handle`, a per-drawer runner is never fabricated from geometry alone.
+ *
+ * `heightMm` is independently editable per drawer (Slice 2.1: `KITCHEN_BASE_DRAWER_V1`'s `drawerHeight1/2/3`
+ * parameters) — EXCEPT the bank's last drawer (`index === bank.drawers.length - 1`, always the physically
+ * bottom-most one): it has no parameter of its own and always absorbs whatever height remains of the internal
+ * opening, so its `heightMm` is read-only (`compile.ts` never sends a parameter for it; sending one would be
+ * silently ignored by the recipe). `boxHeightMm`/`gapBelowMm` are decode-only geometry facts (derived from the
+ * resolved model, never authored): `boxHeightMm` is `null` only if the resolved model has no matching drawer
+ * box (should not happen for `KIT_BASE_DRAWER`); `gapBelowMm` is `null` for the bank's last (bottom) drawer,
+ * which has no drawer below it to gap against.
  */
 export interface Drawer {
   readonly kind: "DRAWER";
@@ -82,11 +91,18 @@ export interface Drawer {
   /** Top to bottom position within its `DrawerBank`, 0-based. */
   readonly index: number;
   readonly runner: RunnerConfiguration | null;
+  /** The resolved `DRAWER_FRONT` component's id — lets the UI correlate a 3D/elevation click back to this drawer. */
+  readonly componentId: string;
+  /** The matching drawer box's own height (Slice 2.1), or `null` if the resolved model has no matching box. */
+  readonly boxHeightMm: Millimetres | null;
+  /** Vertical gap to the next drawer down, or `null` for the bank's bottom (last) drawer. */
+  readonly gapBelowMm: Millimetres | null;
 }
 
 /**
- * A vertical stack of equal-height drawers occupying one front column (Slice 2). Every drawer in a bank
- * shares one overlay mode: `KIT_BASE_DRAWER`'s `frontType` parameter applies to the whole bank, not per drawer.
+ * A vertical stack of drawers occupying one front column (Slice 2; independently-sized per drawer, Slice 2.1).
+ * Every drawer in a bank shares one overlay mode: `KIT_BASE_DRAWER`'s `frontType` parameter applies to the
+ * whole bank, not per drawer.
  */
 export interface DrawerBank {
   readonly kind: "DRAWER_BANK";

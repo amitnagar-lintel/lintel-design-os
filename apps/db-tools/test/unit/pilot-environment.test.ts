@@ -42,12 +42,24 @@ describe("rehearsal isolation", () => {
   });
   it("every rehearsal file is a valid intake file that names itself as rehearsal data", () => {
     const files = rehearsalDataset();
-    expect(files.length).toBe(28);
-    // OPEN_STANDARD's hardware_rule_set genuinely has zero rules (an open cabinet has no hardware): the intake
+    expect(files.length).toBe(33);
+    // OPEN_STANDARD's and OVEN_TOWER_STANDARD's hardware_rule_sets genuinely have zero rules (an open cabinet
+    // has no hardware; the oven tower has no front and no hardware defined for its bay this slice): the intake
     // validator's generic completeness heuristic cannot tell that apart from "not yet filled in" and flags it
-    // UNVERIFIED regardless — expected and accepted (see rehearsal-dataset.ts), not a defect in this one file.
-    const expectedFindings = (f: (typeof files)[number]) =>
-      f.entityCode === "OPEN_STANDARD" ? [{ code: "RULES_MISSING", level: "UNVERIFIED", message: "no hardware rules", path: "$.data.rules" }] : [];
+    // UNVERIFIED regardless — expected and accepted (see rehearsal-dataset.ts), not a defect in either file.
+    const expectedFindings = (f: (typeof files)[number]) => {
+      if (f.entityCode === "OPEN_STANDARD" || f.entityCode === "OVEN_TOWER_STANDARD") {
+        return [{ code: "RULES_MISSING", level: "UNVERIFIED", message: "no hardware rules", path: "$.data.rules" }];
+      }
+      if (f.entityCode === "OVEN_REFERENCE_60CM") {
+        return [
+          { code: "VALUE_UNVERIFIED", level: "UNVERIFIED", message: "make is NULL / UNVERIFIED", path: "$.data.make" },
+          { code: "VALUE_UNVERIFIED", level: "UNVERIFIED", message: "model is NULL / UNVERIFIED", path: "$.data.model" },
+          { code: "VALUE_UNVERIFIED", level: "UNVERIFIED", message: "ventilation is NULL / UNVERIFIED", path: "$.data.ventilation" },
+        ];
+      }
+      return [];
+    };
     for (const f of files) {
       const v = validateIntake(JSON.stringify(f.file));
       expect([f.type, f.entityCode, v.accepted, v.findings]).toEqual([f.type, f.entityCode, true, expectedFindings(f)]);

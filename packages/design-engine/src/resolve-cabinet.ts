@@ -1,6 +1,7 @@
 import type {
   CabinetComponent,
   DataStatus,
+  ResolvedApplianceReference,
   ResolvedCabinet,
   ScalarValue,
   TraceInfo,
@@ -8,7 +9,7 @@ import type {
   VersionRef,
 } from "@lintel/types";
 import { buildValidationResult, evaluateFormulaSet, evaluateRules, FormulaError } from "@lintel/rules-engine";
-import { findEdgeBand, findFinish, findHardwareRuleSet, findMaterial, findProduct, findRecipe, validateEdgeBandStandard, validateStandard } from "@lintel/catalog-engine";
+import { findAppliance, findEdgeBand, findFinish, findHardwareRuleSet, findMaterial, findProduct, findRecipe, validateEdgeBandStandard, validateStandard } from "@lintel/catalog-engine";
 import { envelope, isSupportedTransform } from "@lintel/geometry-engine";
 import { generateComponents } from "./components.js";
 import { ENGINE_VERSION } from "./context.js";
@@ -103,6 +104,7 @@ export function resolveCabinet(input: ResolveCabinetInput): ResolvedCabinet {
       scope: {},
       derived: {},
       components: [],
+      appliances: [],
       hardwareRequirements: [],
       hardwareResolutions: [],
       geometry: { envelope: null, transform: object.transform },
@@ -122,6 +124,17 @@ export function resolveCabinet(input: ResolveCabinetInput): ResolvedCabinet {
   // 1. Parameters.
   const params = resolveParameters(product, object, catalog);
   messages.push(...params.messages);
+
+  // Appliance references (Design Studio Slice 5 step 3): the join point for the bom-engine's APPLIANCE line.
+  const appliances: ResolvedApplianceReference[] = [];
+  for (const def of product.parameters) {
+    if (def.kind !== "appliance") continue;
+    const applianceId = params.parameters.values[def.key];
+    if (typeof applianceId !== "string") continue;
+    const appliance = findAppliance(catalog, applianceId);
+    if (appliance === undefined) continue;
+    appliances.push({ parameterKey: def.key, applianceId, manufacturer: appliance.make, model: appliance.model });
+  }
 
   // 2. Construction values: only declared, defined (non-null) values enter scope.
   const constructionKeys = new Set(recipe.constructionVariables.map((v) => v.key));
@@ -220,6 +233,7 @@ export function resolveCabinet(input: ResolveCabinetInput): ResolvedCabinet {
     scope: sortedRecord(scope),
     derived: sortedRecord(formulaSet.values),
     components,
+    appliances,
     hardwareRequirements: hw.requirements,
     hardwareResolutions: resolutions,
     geometry: { envelope: envelope(components.map((c) => c.geometry.local)), transform: object.transform },

@@ -1,4 +1,5 @@
 import type {
+  Appliance,
   CatalogSnapshot,
   ConstructionRecipe,
   EdgeBand,
@@ -25,4 +26,7 @@ export function findEdgeBand(c: CatalogSnapshot, edgeBandId: string): EdgeBand |
 }
 export function findHardwareRuleSet(c: CatalogSnapshot, ruleSetId: string): HardwareRuleSet | undefined {
   return c.hardwareRuleSets.find((h) => h.ruleSetId === ruleSetId);
+}
+export function findAppliance(c: CatalogSnapshot, applianceId: string): Appliance | undefined {
+  return c.appliances.find((a) => a.applianceId === applianceId);
 }

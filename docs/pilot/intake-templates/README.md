@@ -7,7 +7,7 @@ Import in the order of PILOT-TOMORROW §2: a file may reference only files that 
 
 | # | File | Author role (imports, submits) | Approver role (a different person) | Values still missing |
 |---|---|---|---|---|
-| 01 | `01-construction_standard-LINTEL_CONSTRUCTION_STANDARD.json` | PRODUCTION | DESIGN_HEAD | 18 |
+| 01 | `01-construction_standard-LINTEL_CONSTRUCTION_STANDARD.json` | PRODUCTION | DESIGN_HEAD | 19 |
 | 02 | `02-planning_standard-LINTEL_PLANNING_STANDARD.json` | PRODUCTION | DESIGN_HEAD | 6 |
 | 03 | `03-material-BOARD_BWP_18.json` | PROCUREMENT | DESIGN_HEAD | 1 |
 | 04 | `04-material-BOARD_HDHMR_18.json` | PROCUREMENT | DESIGN_HEAD | 3 |
@@ -15,7 +15,7 @@ Import in the order of PILOT-TOMORROW §2: a file may reference only files that 
 | 06 | `06-edge_band-EDGE_ABS_2MM.json` | PROCUREMENT | DESIGN_HEAD | 1 |
 | 07 | `07-edge_band-EDGE_ABS_0_8MM.json` | PROCUREMENT | DESIGN_HEAD | 1 |
 | 08 | `08-finish-LAMINATE_WHITE.json` | PROCUREMENT | DESIGN_HEAD | 0 |
-| 09 | `09-edge_band_standard-LINTEL_EDGE_BAND_STANDARD.json` | PRODUCTION | DESIGN_HEAD | 4 |
+| 09 | `09-edge_band_standard-LINTEL_EDGE_BAND_STANDARD.json` | PRODUCTION | DESIGN_HEAD | 5 |
 | 10 | `10-hardware_rule_set-HINGE_STANDARD.json` | PROCUREMENT | PRODUCTION | 0 |
 | 11 | `11-construction_recipe-KITCHEN_BASE_STANDARD_V1.json` | DESIGN_HEAD | PRODUCTION | 0 |
 | 12 | `12-product-KIT_BASE_STANDARD.json` | DESIGN_HEAD | PRODUCTION | 12 |
@@ -37,6 +37,7 @@ Import in the order of PILOT-TOMORROW §2: a file may reference only files that 
 - `$.data.variables.FRONT_BETWEEN_GAP` — FRONT_BETWEEN_GAP is NULL / UNVERIFIED
 - `$.data.variables.FRONT_FINISHED_FACES` — FRONT_FINISHED_FACES is NULL / UNVERIFIED
 - `$.data.variables.INSET_GAP` — INSET_GAP is NULL / UNVERIFIED
+- `$.data.variables.OVEN_BAY_BOTTOM_OFFSET` — OVEN_BAY_BOTTOM_OFFSET is NULL / UNVERIFIED
 - `$.data.variables.OVERLAY_BOTTOM_GAP` — OVERLAY_BOTTOM_GAP is NULL / UNVERIFIED
 - `$.data.variables.OVERLAY_EDGE_GAP` — OVERLAY_EDGE_GAP is NULL / UNVERIFIED
 - `$.data.variables.OVERLAY_TOP_GAP` — OVERLAY_TOP_GAP is NULL / UNVERIFIED
@@ -91,6 +92,7 @@ Nothing is NULL in the draft. Confirm the values and name the source document.
 - `$.data.ruleSets.CARCASS_STANDARD` — rule set CARCASS_STANDARD defines no component type
 - `$.data.ruleSets.DRAWER_CARCASS_STANDARD` — rule set DRAWER_CARCASS_STANDARD defines no component type
 - `$.data.ruleSets.OPEN_CARCASS_STANDARD` — rule set OPEN_CARCASS_STANDARD defines no component type
+- `$.data.ruleSets.OVEN_TOWER_CARCASS_STANDARD` — rule set OVEN_TOWER_CARCASS_STANDARD defines no component type
 - `$.data.ruleSets.PULLOUT_CARCASS_STANDARD` — rule set PULLOUT_CARCASS_STANDARD defines no component type
 
 ## 10-hardware_rule_set-HINGE_STANDARD.json

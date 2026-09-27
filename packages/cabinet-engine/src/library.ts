@@ -111,6 +111,20 @@ export const BASE_PULLOUT_CABINET: CabinetType = {
   supportedFronts: [BASE_ONE_SHUTTER, BASE_TWO_SHUTTER],
 };
 
+// ---------------------------------------------------------------- Slice 5 step 3: TALL_OVEN_TOWER
+
+/** `KIT_TALL_OVEN` / `KITCHEN_TALL_OVEN_V1` (Slice 5 step 3). Front-less like `BASE_OPEN_CABINET`: no front
+ * this slice — the appliance bay sits behind whatever front a later slice adds (design doc §4C/§6). */
+export const TALL_OVEN_TOWER_CABINET: CabinetType = {
+  cabinetTypeId: "TALL_OVEN_TOWER",
+  category: "TALL",
+  label: "Oven tower",
+  description: "Full-height cabinet housing a built-in oven, with configurable loose shelves above the bay.",
+  productCode: "KIT_TALL_OVEN",
+  recipeId: "KITCHEN_TALL_OVEN_V1",
+  supportedFronts: [OPEN_NO_FRONT],
+};
+
 // ---------------------------------------------------------------- planned families (D2), by the slice that adds them
 
 function planned(cabinetTypeId: string, category: CabinetCategory, label: string, description: string, slice: number): CabinetLibraryEntry {
@@ -157,7 +171,13 @@ export const CABINET_LIBRARY: readonly CabinetLibraryEntry[] = [
   planned("WALL_OPEN", "WALL", "Wall cabinet — open", "Open-front wall cabinet (no door).", 6),
   planned("TALL_SHUTTER", "TALL", "Tall cabinet — shutter", "Full-height cabinet, shutter front.", 6),
   planned("TALL_PANTRY", "TALL", "Pantry unit", "Full-height pantry cabinet with pull-out internals.", 6),
-  planned("TALL_OVEN_TOWER", "TALL", "Oven tower", "Full-height cabinet housing a built-in oven.", 6),
+  {
+    cabinetTypeId: TALL_OVEN_TOWER_CABINET.cabinetTypeId,
+    category: TALL_OVEN_TOWER_CABINET.category,
+    label: TALL_OVEN_TOWER_CABINET.label,
+    description: TALL_OVEN_TOWER_CABINET.description,
+    availability: { kind: "AVAILABLE", cabinetType: TALL_OVEN_TOWER_CABINET },
+  },
   planned("TALL_MICROWAVE_TOWER", "TALL", "Microwave tower", "Full-height cabinet housing a built-in microwave.", 6),
   planned("TALL_UTILITY", "TALL", "Utility tower", "Full-height utility/appliance cabinet.", 6),
   {

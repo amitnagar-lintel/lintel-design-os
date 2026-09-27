@@ -174,7 +174,7 @@ export function decodeCabinetInstance(object: ModelObject, cabinetType: CabinetT
     rotationY: rotationYOf(object.transform.rotationY),
     dimensions: { widthMm: object.dimensions.width, heightMm: object.dimensions.height, depthMm: object.dimensions.depth },
     front,
-    internals: object.productCode === "KIT_BASE_OPEN" ? decodeShelves(object) : object.productCode === "KIT_BASE_PULLOUT" ? decodePullOuts(object) : [],
+    internals: object.productCode === "KIT_BASE_OPEN" || object.productCode === "KIT_TALL_OVEN" ? decodeShelves(object) : object.productCode === "KIT_BASE_PULLOUT" ? decodePullOuts(object) : [],
     corner: null,
     finish: decodeFinish(object),
     hardware,

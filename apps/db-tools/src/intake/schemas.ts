@@ -91,6 +91,7 @@ const Parameter = z.discriminatedUnion("kind", [
   z.strictObject({ ...ParamBase, kind: z.literal("enum"), values: z.array(Text), default: Text }),
   z.strictObject({ ...ParamBase, kind: z.literal("material"), default: Id }),
   z.strictObject({ ...ParamBase, kind: z.literal("finish"), default: Id }),
+  z.strictObject({ ...ParamBase, kind: z.literal("appliance"), default: Id }),
 ]);
 const BoqRecipe = z.strictObject({ itemCodeTemplate: Text, descriptionTemplate: Text, unit: z.literal("NOS"), quantity: Text });
 

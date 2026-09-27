@@ -4,6 +4,7 @@
  * manufacturing). Every line traces to its source components / requirements.
  */
 import type {
+  ApplianceBomItem,
   BOM,
   BOMItem,
   BoardBomItem,
@@ -58,6 +59,21 @@ export function generateBom(resolved: ResolvedCabinet): BOM {
       thickness,
       grainDirection: c.grainDirection,
     } satisfies PanelBomItem);
+  }
+
+  // Appliances: one line per resolved appliance-kind parameter (never priced, never rolled into room totals).
+  for (const a of resolved.appliances) {
+    items.push({
+      kind: "APPLIANCE",
+      bomItemId: `BOM:${src}:APPLIANCE:${a.parameterKey}`,
+      description: `${a.applianceId}${a.manufacturer === null ? "" : `, ${a.manufacturer}`}${a.model === null ? "" : ` ${a.model}`}`,
+      quantity: 1,
+      unit: "NOS",
+      sourceComponentIds: [],
+      applianceId: a.applianceId,
+      manufacturer: a.manufacturer,
+      model: a.model,
+    } satisfies ApplianceBomItem);
   }
 
   // Board area by material (net finished area; no wastage).

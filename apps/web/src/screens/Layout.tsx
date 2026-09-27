@@ -21,9 +21,13 @@ export type Pins = Record<PinName, string>;
 
 export interface Param { readonly key: string; readonly default?: unknown; readonly min?: number | null; readonly max?: number | null }
 
-/** The newest APPROVED / LOCKED version of each pinned type, or the types that have none. */
-export async function usablePins(): Promise<{ pins: Partial<Pins>; missing: string[] }> {
-  const pins: Partial<Pins> = {};
+/**
+ * The newest APPROVED / LOCKED version of each pinned type, or the types that have none. `applianceCatalogVersionId`
+ * is the one optional pin (Design Studio Slice 5 step 3): included when an appliance catalog exists, omitted
+ * otherwise — a design version is valid either way, but the oven tower needs it to resolve its referenced appliance.
+ */
+export async function usablePins(): Promise<{ pins: Partial<Pins> & { applianceCatalogVersionId?: string }; missing: string[] }> {
+  const pins: Partial<Pins> & { applianceCatalogVersionId?: string } = {};
   const missing: string[] = [];
   for (const [name, type] of PIN_TYPES) {
     const r = await must(api.GET("/api/v1/reference-data/{type}/versions", { params: { path: { type }, query: { status: "APPROVED,LOCKED", limit: 100 } } }));
@@ -31,6 +35,9 @@ export async function usablePins(): Promise<{ pins: Partial<Pins>; missing: stri
     if (best === undefined) missing.push(type);
     else pins[name] = best.id;
   }
+  const applianceR = await must(api.GET("/api/v1/reference-data/{type}/versions", { params: { path: { type: "appliance_catalog" }, query: { status: "APPROVED,LOCKED", limit: 100 } } }));
+  const applianceBest = [...applianceR.items].sort((a, b) => b.versionNumber - a.versionNumber)[0];
+  if (applianceBest !== undefined) pins.applianceCatalogVersionId = applianceBest.id;
   return { pins, missing };
 }
 

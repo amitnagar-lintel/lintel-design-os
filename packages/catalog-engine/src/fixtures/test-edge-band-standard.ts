@@ -61,5 +61,16 @@ export const TEST_FIXTURE_EDGE_BAND_STANDARD: EdgeBandStandard = {
       PULLOUT_FRAME_SIDE: { TOP: "EDGE_ABS_0_8MM" },
       PULLOUT_TRAY: {},
     },
+    // KITCHEN_TALL_OVEN_V1's own rule set: the shared carcass/shelf component types only, no SHUTTER (no front
+    // this slice — the appliance bay sits behind whatever front a later slice adds).
+    OVEN_TOWER_CARCASS_STANDARD: {
+      SIDE_LEFT: { FRONT: "EDGE_ABS_0_8MM" },
+      SIDE_RIGHT: { FRONT: "EDGE_ABS_0_8MM" },
+      BOTTOM: { FRONT: "EDGE_ABS_0_8MM" },
+      TOP_SUPPORT_FRONT: { FRONT: "EDGE_ABS_0_8MM" },
+      TOP_SUPPORT_BACK: {},
+      BACK: {},
+      SHELF: { FRONT: "EDGE_ABS_0_8MM" },
+    },
   },
 };

@@ -181,6 +181,20 @@ function openParametersOf(instance: CabinetInstance): CompiledParameters {
   };
 }
 
+/**
+ * Slice 5 step 3 (`KIT_TALL_OVEN`): front-less like `KIT_BASE_OPEN` (`shelvesOf` applies unchanged — its own
+ * `SHELF` components sit above the appliance bay only), `shelfCountAbove` in place of `shelfCount`. `oven` is
+ * never sent: this slice has no UI control for choosing a different appliance, so it stays at the recipe's
+ * own default (the only appliance in the reference catalog today).
+ */
+function ovenTowerParametersOf(instance: CabinetInstance): CompiledParameters {
+  return {
+    shelfCountAbove: shelvesOf(instance).length,
+    material: instance.finish.carcassMaterialId,
+    backMaterial: instance.finish.backMaterialId,
+  };
+}
+
 /** Every parameter key belongs to exactly one product; compiling any other productCode is refused, not guessed. */
 function parametersOf(instance: CabinetInstance): CompiledParameters {
   switch (instance.recipe.productCode) {
@@ -188,6 +202,7 @@ function parametersOf(instance: CabinetInstance): CompiledParameters {
     case "KIT_BASE_DRAWER": return drawerParametersOf(instance);
     case "KIT_BASE_OPEN": return openParametersOf(instance);
     case "KIT_BASE_PULLOUT": return pulloutParametersOf(instance);
+    case "KIT_TALL_OVEN": return ovenTowerParametersOf(instance);
     default: throw new Error(`No compiler for product '${instance.recipe.productCode}'`);
   }
 }

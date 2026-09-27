@@ -162,6 +162,7 @@ describe("catalog assembly from pinned per-domain catalog versions", () => {
     finish: { catalogVersionId: "fcr_1", versionLabel: "2026.1", status: "APPROVED" as const, finishes: LINTEL_CATALOG.finishes },
     hardware: { catalogVersionId: "hcr_1", versionLabel: "2026.1", status: "APPROVED" as const, hardwareRuleSets: LINTEL_CATALOG.hardwareRuleSets },
     product: { catalogVersionId: "pcr_1", versionLabel: "2026.1", status: "APPROVED" as const, products: LINTEL_CATALOG.products, recipes: LINTEL_CATALOG.recipes },
+    appliance: { catalogVersionId: "acr_1", versionLabel: "2026.1", status: "APPROVED" as const, appliances: LINTEL_CATALOG.appliances },
   });
   it("is deterministic and contains exactly the pinned items", () => {
     const a = assembleCatalogSnapshot(releases("APPROVED"));

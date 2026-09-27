@@ -91,6 +91,7 @@ export async function readEngineeringInputs(tx: Tx, versionId: string): Promise<
     edge_band_standard_version_id: pins.edgeBandStandardVersionId, material_catalog_version_id: pins.materialCatalogVersionId,
     finish_catalog_version_id: pins.finishCatalogVersionId, hardware_catalog_version_id: pins.hardwareCatalogVersionId,
     product_catalog_version_id: pins.productCatalogVersionId, hettich_dataset_version_id: pins.hettichDatasetVersionId,
+    appliance_catalog_version_id: pins.applianceCatalogVersionId,
   });
 
   return { v, inputHash, pins, rows: { version: v, room, revision, objects, overrides, pinned } };

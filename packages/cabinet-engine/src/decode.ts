@@ -114,6 +114,12 @@ function decodeDrawerBankFront(object: ModelObject): { readonly front: CabinetFr
  * and reports no finish.
  */
 function decodeFinish(object: ModelObject): FinishAssignment {
+  // Slice 6C: KIT_FILLER/KIT_END_PANEL have neither SIDE_LEFT nor BACK — the one FILLER/END_PANEL component IS
+  // the whole object, so it stands in for every role.
+  const panel = findComponent(object, "FILLER") ?? findComponent(object, "END_PANEL");
+  if (panel !== undefined) {
+    return { carcassMaterialId: panel.materialId, backMaterialId: panel.materialId, frontMaterialId: panel.materialId, frontFinishId: panel.finishId ?? "" };
+  }
   const side = requireComponent(object, "SIDE_LEFT");
   const back = requireComponent(object, "BACK");
   const front = findComponent(object, "SHUTTER") ?? findComponent(object, "DRAWER_FRONT");

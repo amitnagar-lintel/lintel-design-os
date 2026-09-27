@@ -158,6 +158,30 @@ export const TALL_OVEN_TOWER_CABINET: CabinetType = {
   supportedFronts: [OPEN_NO_FRONT],
 };
 
+// ---------------------------------------------------------------- Slice 6C: FILLER_PANEL / END_PANEL
+
+/** `KIT_FILLER` / `FILLER_STANDARD_V1` and `KIT_END_PANEL` / `END_PANEL_STANDARD_V1` (Slice 6C). Neither has a
+ * front at all — a filler/end panel is one finished panel, full stop. */
+export const FILLER_PANEL_CABINET: CabinetType = {
+  cabinetTypeId: "FILLER_PANEL",
+  category: "FILLER",
+  label: "Filler panel",
+  description: "A single finished panel closing a gap between a cabinet and a wall, appliance or corner.",
+  productCode: "KIT_FILLER",
+  recipeId: "FILLER_STANDARD_V1",
+  supportedFronts: [OPEN_NO_FRONT],
+};
+
+export const END_PANEL_CABINET: CabinetType = {
+  cabinetTypeId: "END_PANEL",
+  category: "FILLER",
+  label: "End panel",
+  description: "A single finished panel skinning the exposed side of a run's end cabinet.",
+  productCode: "KIT_END_PANEL",
+  recipeId: "END_PANEL_STANDARD_V1",
+  supportedFronts: [OPEN_NO_FRONT],
+};
+
 // ---------------------------------------------------------------- planned families (D2), by the slice that adds them
 
 function planned(cabinetTypeId: string, category: CabinetCategory, label: string, description: string, slice: number): CabinetLibraryEntry {
@@ -229,13 +253,27 @@ export const CABINET_LIBRARY: readonly CabinetLibraryEntry[] = [
     cabinetTypeId: "CORNER_L",
     category: "CORNER",
     label: "L-corner cabinet",
-    description: "Two ordinary base cabinets, one per wall, meeting at the room's D-A corner without overlap.",
+    description: "Two ordinary base cabinets, one per wall, meeting at the chosen room corner without overlap.",
     availability: { kind: "AVAILABLE_CORNER_PAIR", cabinetType: BASE_SHUTTER_CABINET },
   },
   planned("CORNER_BLIND", "CORNER", "Blind-corner cabinet", "Corner base cabinet with a blind (unreachable) leg.", 4),
   planned("CORNER_PULLOUT", "CORNER", "Corner pull-out cabinet", "Corner base cabinet with a rotating/pull-out internal.", 4),
   planned("CORNER_DRAWER", "CORNER", "Corner drawer cabinet", "Corner base cabinet with corner drawer boxes.", 4),
   planned("CORNER_SINK", "CORNER", "Corner sink cabinet", "Corner base cabinet with a sink cut-out.", 4),
+  {
+    cabinetTypeId: FILLER_PANEL_CABINET.cabinetTypeId,
+    category: FILLER_PANEL_CABINET.category,
+    label: FILLER_PANEL_CABINET.label,
+    description: FILLER_PANEL_CABINET.description,
+    availability: { kind: "AVAILABLE", cabinetType: FILLER_PANEL_CABINET },
+  },
+  {
+    cabinetTypeId: END_PANEL_CABINET.cabinetTypeId,
+    category: END_PANEL_CABINET.category,
+    label: END_PANEL_CABINET.label,
+    description: END_PANEL_CABINET.description,
+    availability: { kind: "AVAILABLE", cabinetType: END_PANEL_CABINET },
+  },
 ];
 
 /** The one `CabinetType` a `productCode` resolves to today, for `decode.ts` to attach to a resolved object. */

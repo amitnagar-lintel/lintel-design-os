@@ -24,7 +24,7 @@ import type { ComponentType, HingeMounting, Millimetres } from "@lintel/types";
 
 // ---------------------------------------------------------------- cabinet family
 
-export type CabinetCategory = "BASE" | "WALL" | "TALL" | "CORNER";
+export type CabinetCategory = "BASE" | "WALL" | "TALL" | "CORNER" | "FILLER";
 
 /**
  * One entry of the Cabinet Library (Phase D6): a cabinet family the designer can place. `productCode` /

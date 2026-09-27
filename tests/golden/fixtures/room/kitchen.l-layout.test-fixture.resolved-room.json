@@ -679,7 +679,7 @@
           "W": 600
         },
         "trace": {
-          "catalogVersion": "2026.10.03-m8",
+          "catalogVersion": "2026.10.04-m9",
           "dataClassification": "TEST_FIXTURE",
           "designVersionId": "dv_001",
           "designVersionStatus": "DRAFT",
@@ -1556,7 +1556,7 @@
           "W": 750
         },
         "trace": {
-          "catalogVersion": "2026.10.03-m8",
+          "catalogVersion": "2026.10.04-m9",
           "dataClassification": "TEST_FIXTURE",
           "designVersionId": "dv_001",
           "designVersionStatus": "DRAFT",
@@ -2433,7 +2433,7 @@
           "W": 600
         },
         "trace": {
-          "catalogVersion": "2026.10.03-m8",
+          "catalogVersion": "2026.10.04-m9",
           "dataClassification": "TEST_FIXTURE",
           "designVersionId": "dv_001",
           "designVersionStatus": "DRAFT",
@@ -3310,7 +3310,7 @@
           "W": 600
         },
         "trace": {
-          "catalogVersion": "2026.10.03-m8",
+          "catalogVersion": "2026.10.04-m9",
           "dataClassification": "TEST_FIXTURE",
           "designVersionId": "dv_001",
           "designVersionStatus": "DRAFT",
@@ -4354,7 +4354,7 @@
       ],
       "width": 3200
     },
-    "roomFingerprint": "174a5b246e0032",
+    "roomFingerprint": "13a066ddbfd7f0",
     "runs": [
       {
         "end": 1950,
@@ -4380,29 +4380,29 @@
       }
     ],
     "trace": {
-      "catalogVersion": "2026.10.03-m8",
+      "catalogVersion": "2026.10.04-m9",
       "dataClassification": "TEST_FIXTURE",
       "designVersionId": "dv_001",
       "designVersionStatus": "DRAFT",
       "engineVersion": "0.1.0",
       "objects": [
         {
-          "modelFingerprint": "068f84b63b0572",
+          "modelFingerprint": "1b999072303a15",
           "objectCode": "OBJ-KIT-001",
           "objectId": "obj_001"
         },
         {
-          "modelFingerprint": "156c53b8939a12",
+          "modelFingerprint": "01be538a56f1b5",
           "objectCode": "OBJ-KIT-002",
           "objectId": "obj_002"
         },
         {
-          "modelFingerprint": "1eaa18530fc8b2",
+          "modelFingerprint": "03d10110b95d2b",
           "objectCode": "OBJ-KIT-003",
           "objectId": "obj_003"
         },
         {
-          "modelFingerprint": "088903dcb7e4f1",
+          "modelFingerprint": "1c36c58a366f34",
           "objectCode": "OBJ-KIT-004",
           "objectId": "obj_004"
         }

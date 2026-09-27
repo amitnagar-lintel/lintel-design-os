@@ -1,6 +1,6 @@
 # Pilot operational guide — the first real Lintel project
 
-**The single operational guide for the V1 pilot.** Status 2026-09-27, main `92c3ca9`. Remaining blockers: `docs/PILOT-BLOCKERS.md` (B1–B4).
+**The single operational guide for the V1 pilot.** Status 2026-09-27, main `ff341a8`. Remaining blockers: `docs/PILOT-BLOCKERS.md` (B1–B4).
 
 **Pilot scope (frozen):**
 - a rectangular kitchen with no openings;
@@ -14,6 +14,20 @@
 - **No invented values.** No Lintel production value is invented, defaulted or copied from test data. Every value comes from a named source document, and a second person approves it.
 - **Every pin approved.** A DesignVersion can be **approved** only when **all 8 engineering datasets it pins are APPROVED or LOCKED** (§2).
 - **Separation of duties.** The author of a record can never approve it. Approvals are made with the approver's own Supabase Auth sign-in.
+
+---
+
+## Setup status (verified 2026-09-27 on main `ff341a8`)
+
+| # | Setup item | Status | Waiting for |
+|---|---|---|---|
+| 1 | Staging setup checklist | **Ready**: §4, every step with its input and owner | — |
+| 2 | Validate the separate Supabase staging project | **Not started.** No project, ref or credentials exist, and hosted access is not approved | Amit: B3 (M6-5, M6-6, the project ref, the secret-store entries) |
+| 3 | Onboarding of the three people | **Ready**: §3 exact commands. Invitation and accept endpoints re-verified locally | Amit: B2 (names, emails); B3 (Supabase Auth on the project) |
+| 4 | Approved production-data intake | **Ready**: §1 and §2. All 19 templates validate as drafts and every one is refused as a production candidate until its values and source document are filled; no NULL can reach approval | Production team / procurement / costing: B1 |
+| 5 | Storage | **Ready (Supabase Storage preferred)**: §5. The configuration is validated at API start, and the built UI contains no secret key (checked) | Amit: B4 (confirm option (a)); B3 (the project) |
+| 6 | Production-readiness commands | **Verified locally** against a production-shaped API: build revision, engine manifest file, Supabase storage configuration, built UI behind its `/api` proxy. `db:migrate status --check` → UP_TO_DATE; `/ready` → 200; `pilot:check` → READY. The STAGING / PRODUCTION guards refuse a missing or wrong `--confirm`, poolers and hosted URLs under LOCAL | B3 for the real run |
+| 7 | Local rehearsal | Not repeated: no code or environment change since the last passing rehearsal (PR #23) | — |
 
 ---
 
@@ -162,101 +176,150 @@ pnpm -s db:org init --env production --confirm $REF --code LINTEL --name "Lintel
   --admin-email <Person 1 email> --admin-name "<Person 1 name>" --operator "<your name>"
 ```
 
-**4. Accepting invitations:**
-1. Person 1 signs in to the pilot UI. Screen 2 then works for them; the ADMIN invitation is accepted through the API, `POST /api/v1/me/invitations/{id}/accept`.
-2. Person 1 invites Persons 2 and 3 with their roles: `POST /api/v1/org/invitations` with `{email, displayName, roles[]}`.
-3. Each person signs in and accepts.
+**4. Accept and invite.** `$API` is the API origin. Each token is the person's own Supabase access token, obtained like `approver.token` in §1.
+
+1. Person 1 accepts their ADMIN invitation:
+   ```sh
+   curl -s -H "authorization: Bearer $(cat p1.token)" $API/api/v1/me/invitations          # note the invitation id
+   curl -s -X POST -H "authorization: Bearer $(cat p1.token)" $API/api/v1/me/invitations/<id>/accept
+   ```
+2. Person 1 invites Persons 2 and 3:
+   ```sh
+   curl -s -X POST -H "authorization: Bearer $(cat p1.token)" -H "content-type: application/json" $API/api/v1/org/invitations \
+     -d '{"email":"<p2 email>","displayName":"<P2 name>","roles":["PRODUCTION","COSTING","DESIGNER"]}'
+   curl -s -X POST -H "authorization: Bearer $(cat p1.token)" -H "content-type: application/json" $API/api/v1/org/invitations \
+     -d '{"email":"<p3 email>","displayName":"<P3 name>","roles":["PROCUREMENT","SALES","SITE_ENGINEER"]}'
+   ```
+3. Person 1 adds DESIGN_HEAD and FINANCE to themselves:
+   ```sh
+   curl -s -X POST -H "authorization: Bearer $(cat p1.token)" -H "content-type: application/json" $API/api/v1/org/members/<p1 user id>/roles -d '{"role":"DESIGN_HEAD","reason":"Pilot role assignment"}'
+   ```
+   Repeat with `FINANCE`. `db:org init` grants ADMIN only, and this self-grant was verified locally. The user id is `userId` in `GET $API/api/v1/me`.
+4. Persons 2 and 3 each list and accept their invitation, exactly as in step 1.
+5. Delete the token files.
+
+The invitation email must equal the Supabase Auth email, and that email must be confirmed.
 
 **5. Check:** `pnpm pilot:check --org LINTEL` shows `data.organization PASS` (1 active ADMIN).
 
 ---
 
-## 4. Hosted Supabase staging setup (after B3: gates M6-5 and M6-6)
+## 4. Hosted Supabase staging setup — checklist (after B3)
 
-**1. Create the project.** A **separate** Supabase project for Design OS staging, in the Mumbai region. It is not a branch of the Lintel Ops project.
+Tick each box in order. **Owner** is who acts; **needs** is the input that must exist first.
 
-**2. Secret store** (never in the repository, image, logs or chat):
+- [ ] **4.1 Gate M6-5.** The ops owner's dated confirmation of Mumbai gate items 1–8 is in the go-live record. *Owner:* Amit / ops owner.
+- [ ] **4.2 Gate M6-6.** Amit's written approval to connect to hosted Supabase. *Owner:* Amit.
+- [ ] **4.3 Project.** A **separate** Supabase project "Design OS staging", region Mumbai (ap-south-1), Pro plan. It is not a branch of the Lintel Ops project. *Owner:* Amit (account owner). *Output:* the project ref, sent to engineering.
+- [ ] **4.4 Secret store** of the staging deploy job and API host. Never in the repository, image, logs or chat. *Owner:* Amit enters the secrets; engineering names them.
 
-| Variable | Value |
-|---|---|
-| `MIGRATION_DATABASE_URL` | Direct connection `postgresql://postgres:…@db.<ref>.supabase.co:5432/postgres`. Deploy job only; **never a pooler** |
-| `DATABASE_URL` | API runtime: login role `design_os_api_login` (NOINHERIT, member of `design_os_api`, no DDL), pooler allowed |
-| `AUTH_ISSUER` | `https://<ref>.supabase.co/auth/v1` |
-| `AUTH_JWKS_URL` | `https://<ref>.supabase.co/auth/v1/.well-known/jwks.json` |
-| `CURSOR_SECRET` | 32+ random characters, per environment |
-| `BUILD_REVISION` | the deployed commit SHA (the API refuses to start without it) |
-| `ENGINE_MANIFEST_PATH` | the file written at build time by `pnpm engines:manifest <path>` |
-| `CORS_ORIGINS` | the UI origin |
-| `TRUST_PROXY_HOPS` | the number of proxies in front of the API |
-| `RATE_LIMIT_*` | every limit, set explicitly |
-| `SENTRY_DSN`, `SENTRY_ENVIRONMENT=staging` | the staging Sentry project |
-| Storage | per §5 |
+  | Variable | Value |
+  |---|---|
+  | `MIGRATION_DATABASE_URL` | Direct connection `postgresql://postgres:<db password>@db.<ref>.supabase.co:5432/postgres`. Deploy job only; **never a pooler** |
+  | `DATABASE_URL` | API runtime: login role `design_os_api_login` (created in 4.6), pooler allowed |
+  | `AUTH_ISSUER` | `https://<ref>.supabase.co/auth/v1` |
+  | `AUTH_JWKS_URL` | `https://<ref>.supabase.co/auth/v1/.well-known/jwks.json` |
+  | `CURSOR_SECRET` | 32+ random characters, per environment |
+  | `BUILD_REVISION` | the deployed commit SHA (the API refuses to start without it) |
+  | `ENGINE_MANIFEST_PATH` | the file written at build time by `pnpm engines:manifest <path>` (verified at start) |
+  | `CORS_ORIGINS` | the UI origin |
+  | `TRUST_PROXY_HOPS` | the number of proxies in front of the API |
+  | `RATE_LIMIT_*` | every limit, set explicitly |
+  | `SENTRY_DSN`, `SENTRY_ENVIRONMENT=staging` | the staging Sentry project |
+  | Storage | §5 |
 
-**3. Migrations and gate item 9.** Engineering runs:
-```sh
-pg_dump --schema=design_os "$MIGRATION_DATABASE_URL" > before-migrate.sql      # kept 30 days
-pnpm -s db:migrate up --env staging --confirm <staging ref>
-pnpm -s db:migrate status --check
-```
-Then gate item 9 (plan §1.2): roles, `auth.users` grants, SECURITY DEFINER behaviour, RLS. Create `design_os_api_login` and grant it `design_os_api`.
-
-**4. Deploy.**
-- **API:** `pnpm --filter @lintel/api start`, with the variables above.
-- **UI:** built with the **publishable** key only:
+- [ ] **4.5 Read-only readout, then migrations.** *Owner:* engineering. *Needs:* 4.3, 4.4.
   ```sh
-  VITE_SUPABASE_URL=https://<ref>.supabase.co VITE_SUPABASE_PUBLISHABLE_KEY=<sb_publishable_…> pnpm web:build
+  pnpm -s db:migrate status                                        # read-only: pending 0001–0021, prerequisites listed (auth.users, auth.uid(), role creation)
+  pg_dump --schema=design_os "$MIGRATION_DATABASE_URL" > before-migrate.sql      # kept 30 days (empty before the first run)
+  pnpm -s db:migrate up --env staging --confirm <staging ref> --dry-run
+  pnpm -s db:migrate up --env staging --confirm <staging ref>
+  pnpm -s db:migrate status --check                                # exit 0 = UP_TO_DATE
   ```
-- **Hosting:** serve `apps/web/dist` so that `/api/*` on the UI origin is forwarded to the API. The UI calls `/api/v1` on its own origin.
+  If `PREREQUISITES_MISSING` is printed, stop and record the message. It means the project does not provide what gate item 9 assumes.
+- [ ] **4.6 Gate item 9 (M6-7)** on staging (plan §1.2). *Owner:* engineering.
+  1. Check the roles, the `auth.users` grants, SECURITY DEFINER behaviour and RLS.
+  2. Create the API login role, with its password from the secret store, as the project's `postgres` user:
+     ```sql
+     CREATE ROLE design_os_api_login LOGIN NOINHERIT PASSWORD '<from secret store>';
+     GRANT design_os_api TO design_os_api_login;
+     ```
+  3. Record the evidence.
+- [ ] **4.7 Storage** per §5 (bucket + variables). *Needs:* B4.
+- [ ] **4.8 Deploy.** *Owner:* engineering.
+  - **API:** `pnpm engines:manifest <path>` at build, then `pnpm --filter @lintel/api start` with the 4.4 variables. It must print no error, and `curl https://<api>/api/v1/ready` must return 200.
+  - **UI:** built with the **publishable** key only. The build never reads a secret key; checked: a bundle built with secret variables in the environment contains none of them.
+    ```sh
+    VITE_SUPABASE_URL=https://<ref>.supabase.co VITE_SUPABASE_PUBLISHABLE_KEY=<sb_publishable_…> pnpm web:build
+    ```
+  - **Hosting:** serve `apps/web/dist` so that `/api/*` on the UI origin is forwarded to the API. The UI calls `/api/v1` on its own origin; `pilot:check` verifies this as `ui.api_connectivity`.
+- [ ] **4.9 Staging users.** In **Authentication → Users**, create 3 staging test users. Then create a staging-only test organization (`db:org init --env staging --confirm <ref> --code STAGING-TEST …`) and onboard the users as in §3. *Owner:* engineering, with Amit's test emails.
+- [ ] **4.10 Staging walk-through.** The §7 workflow with staging test data, entered through the intake CLI as **drafts only**, never approved as Lintel data. The workflow stops at the validation screen until B1 data exists. *Owner:* engineering.
+- [ ] **4.11 Staging gate.** Must print READY once B1 data is approved there, or show only the `data.*` failures before that:
+  ```sh
+  PILOT_ENV=STAGING PILOT_API_URL=https://<staging api> PILOT_WEB_URL=https://<staging ui> \
+  PILOT_ACCESS_TOKEN="$(cat admin.token)" pnpm pilot:check --confirm <staging ref> --org STAGING-TEST
+  ```
 
-**5. Staging rehearsal.**
-1. Create a staging-only test organization.
-2. Walk the §7 workflow with staging test users.
-3. Run `PILOT_ENV=STAGING pnpm pilot:check --confirm <staging ref> --org <TEST ORG>`.
+The LOCAL rehearsal data (`pilot:demo` / `pilot:rehearse`) is **never** loaded into staging; the tools refuse any non-local database (verified).
 
-The LOCAL rehearsal data (`pilot:demo` / `pilot:rehearse`) is **never** loaded into staging; the tools refuse any non-local database.
-
-**Production (M6-11).** Same steps on the production project, plus:
+**Production (M6-11).** Repeat 4.3–4.8 and 4.11 on a separate production project, plus:
 - PITR enabled, and a restore drill passed before the first issue;
-- `pg_dump` before every migration.
+- `pg_dump` before every migration;
+- `--env production --confirm <prod ref>` everywhere.
 
 ---
 
-## 5. Storage credential setup (after B4)
+## 5. Storage credential setup — Supabase Storage preferred (after B4)
 
-Until B4 is decided, the API stores files on its own persistent disk:
+**Preferred for production: option (a), Supabase Storage.** The existing storage abstraction is unchanged; `FILE_STORAGE` selects the provider:
+- `memory` for tests;
+- `local` for the API host's disk;
+- `supabase` for Supabase Storage.
+
+**Option (a) steps:**
+1. **Bucket.** On the project, create the **private** bucket `design-os-outputs` (Storage → New bucket):
+   - public: off;
+   - file-size limit: 20 MB;
+   - allowed MIME types: `application/pdf`, `image/svg+xml`.
+
+   *Owner:* engineering. *Needs:* the project (B3) and Amit's choice of (a) (B4).
+2. **The key.** Create a dedicated **secret key** for the API: Project Settings → API Keys → Secret keys → New secret key, named `design-os-api-storage`. *Owner:* Amit (account owner) creates it and enters it in the secret store directly. It is never sent in chat or e-mail, never committed, and never given to the UI or any browser.
+3. **API secret store:**
+
+   | Variable | Value |
+   |---|---|
+   | `FILE_STORAGE` | `supabase` |
+   | `SUPABASE_URL` | `https://<ref>.supabase.co` |
+   | `SUPABASE_STORAGE_BUCKET` | `design-os-outputs` |
+   | `SUPABASE_STORAGE_KEY` | the secret key from step 2 |
+   | `FILE_URL_SECRET` | 32+ random characters. **Still required** by the configuration check although this provider does not use it (verified) |
+   | `FILE_URL_BASE` | the public API origin. **Still required**, likewise |
+
+   The API refuses to start if any of the three `SUPABASE_*` values is missing (verified).
+4. **Verify on staging:**
+   - generate a drawing and a quotation (FOR_REVIEW is enough);
+   - confirm both objects appear under `org/…/dv/…/drawing/` and `…/document/` in the bucket;
+   - download both PDFs from screen 8. The browser fetches the signed Supabase URL directly, so this also verifies the Storage CORS response;
+   - re-generate and confirm the output is reused (idempotent).
+5. **Nightly copy.** Configure the nightly bucket copy. Issued files are not covered by database PITR.
+6. **Rotation.** Rotate the key after the pilot.
+
+**Until B4 is decided,** the API stores files on its own persistent disk:
 - `FILE_STORAGE=local`;
 - `FILE_STORAGE_ROOT=<persistent path>`;
 - `FILE_URL_SECRET` (32+ characters);
 - `FILE_URL_BASE=<public API origin>`.
 
-This is acceptable for staging. For production, the disk must be persistent and backed up.
+This is acceptable for staging only.
 
-**Option (a): Supabase Storage with one secret key, used for Storage only.**
-1. On the project, create the **private** bucket `design-os-outputs`:
-   - not public;
-   - file-size limit 20 MB;
-   - allowed MIME types `application/pdf` and `image/svg+xml`.
-2. Put these in the API's secret store:
-   - `FILE_STORAGE=supabase`;
-   - `SUPABASE_URL=https://<ref>.supabase.co`;
-   - `SUPABASE_STORAGE_BUCKET=design-os-outputs`;
-   - `SUPABASE_STORAGE_KEY=<sb_secret_…>`.
-
-   This key is never given to the UI or any browser. Rotate it after the pilot.
-3. Verify:
-   - generate a drawing and a quotation;
-   - confirm the objects appear in the bucket;
-   - download both PDFs from screen 8;
-   - re-generate and confirm the request is idempotent (reused).
-4. Configure the nightly bucket copy. Issued files are not covered by database PITR.
-
-**Option (b): S3 access keys with a SigV4 signer.** This needs about one engineering day before hosted storage can be used. Until then, run with `FILE_STORAGE=local`.
+**Option (b): S3 access keys with a SigV4 signer.** This is about one engineering day, not started. It is done only if Amit rejects (a).
 
 ---
 
 ## 6. Production readiness check
 
-Run all four; each must pass before the first real project:
+Run all four; each must pass before the first real project. Commands 1–3 were verified 2026-09-27 against a production-shaped local API (build revision, engine manifest file, Supabase storage configuration, built UI behind `/api`):
 ```sh
 # 1. migrations exactly up to date (exit 0)
 MIGRATION_DATABASE_URL='<prod direct>' pnpm -s db:migrate status --check

@@ -1,5 +1,8 @@
 // The pilot workflow through the UI in a real browser, against a running `pnpm pilot:demo` (LOCAL, rehearsal data).
 // Usage: node apps/web/e2e/pilot-ui.e2e.mjs [screenshot dir]   (Playwright + Chromium must be installed)
+// Updated for the Design Studio nav (Phase D6, Slice 1): step 4 now drives the 3-pane Design Studio instead of
+// the old "Base cabinets" table + "Preview" screens. Selectors match apps/web/src/screens/DesignStudio.tsx; run
+// this locally against a live `pilot:demo` to confirm after any further Design Studio UI change.
 import { readFileSync, mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
@@ -65,76 +68,77 @@ await noError("create room");
 await click("Open");
 await shot("3-room");
 
-// 4. Layout (DESIGNER): design, version pinned to approved data, three cabinets, arrange, edit, remove.
+// 4. Design Studio (DESIGNER): design, version pinned to approved data, add cabinets, edit a front, BOM.
 await as("DESIGNER");
-await step("4 Base cabinets");
+await step("4 Design Studio");
 await click("Create design");
 await noError("create design");
 await click("Create version (pinned to approved data)");
 await noError("create version");
-for (const w of ["600", "750", "600", "450"]) {
-  await page.getByLabel("Width (mm)").fill(w);
-  await click("Add cabinet at the end of the run");
-  await noError(`add ${w}`);
-}
-await page.getByLabel("BC-002 position").fill("700");
-await page.locator("tr", { hasText: "BC-002" }).getByRole("button", { name: "Save" }).click();
-await noError("move BC-002");
-await page.locator("tr", { hasText: "BC-004" }).getByRole("button", { name: "Remove" }).click();
-await noError("remove BC-004");
-await click("Arrange run (edge to edge)");
-await noError("arrange");
-await shot("4-layout");
+await click("+ Add");
+await noError("add cabinet");
+await page.getByLabel("Width (mm)").fill("750");
+await click("Save");
+await noError("save width");
+await click("+ Add");
+await noError("add second cabinet");
+await page.getByLabel("Front").selectOption({ label: "2 shutters" });
+await click("Save");
+await noError("save front");
+await page.getByRole("button", { name: "Plan", exact: true }).click();
+await shot("4-studio-plan");
+await page.getByRole("button", { name: "Elevation", exact: true }).click();
+await shot("4-studio-elevation");
+await page.getByRole("button", { name: "BOM", exact: true }).click();
+await click("Generate BOM (PRELIMINARY)");
+await noError("generate bom");
+await page.getByText("Full payload (as stored)").waitFor();
+await shot("4-studio-bom");
 
-// 5. Preview.
-await step("5 Preview");
-await page.getByText("Run ").first().waitFor();
-await shot("5-preview");
-
-// 6. Validation → submit (DESIGNER), approve (DESIGN_HEAD), lock (SALES).
-await step("6 Validation");
+// 5. Validation → submit (DESIGNER), approve (DESIGN_HEAD), lock (SALES).
+await step("5 Validation");
 await page.getByRole("heading", { name: "Passed" }).waitFor();
 await click("Run APPROVAL validation");
 await noError("validation run");
 await click("Submit");
 await noError("submit");
 await as("DESIGN_HEAD");
-await step("6 Validation");
+await step("5 Validation");
 await click("Approve");
 await noError("approve");
 await as("SALES");
-await step("6 Validation");
+await step("5 Validation");
 await click("Lock for issue");
 await noError("lock");
-await shot("6-validation");
+await shot("5-validation");
 
-// 7. Outputs FOR_PRODUCTION: BOM, BOQ, drawings (DESIGNER); pricing, quotation (COSTING).
+// 6. Outputs FOR_PRODUCTION: BOM, BOQ, drawings (DESIGNER); pricing, quotation (COSTING).
 await as("DESIGNER");
-await step("7 Outputs");
+await step("6 Outputs");
 await page.waitForTimeout(800);
 await page.getByLabel("Purpose").selectOption("FOR_PRODUCTION");
 await page.getByLabel("Drawing number").fill(`UI-${suffix}`);
 for (const b of ["BOM", "BOQ", "Drawing: wall A elevation", "Drawing: panel schedule"]) { await click(b); await noError(b); }
 await as("COSTING");
-await step("7 Outputs");
+await step("6 Outputs");
 await page.waitForTimeout(800);
 await page.getByLabel("Purpose").selectOption("FOR_PRODUCTION");
 for (const b of ["Pricing", "Quotation"]) { await click(b); await noError(b); }
 await page.locator("tr", { hasText: "QUOTATION" }).getByRole("button", { name: "View" }).click();
 await page.waitForTimeout(800);
 const handOver = (await page.locator("code.handover").innerText()).trim();
-await shot("7-outputs");
+await shot("6-outputs");
 
-// 8. Issue: quotation (SALES), drawings (DESIGN_HEAD), PDF download.
+// 7. Issue: quotation (SALES), drawings (DESIGN_HEAD), PDF download.
 await as("SALES");
-await step("8 Issue");
+await step("7 Issue");
 await page.getByLabel("Reason (recorded in the audit log)").fill("UI rehearsal issue");
 await page.getByLabel("Hand-over code").fill(handOver);
 await click("Issue quotation");
 await noError("issue quotation");
 await page.getByText("ISSUED: quotation").waitFor();
 await as("DESIGN_HEAD");
-await step("8 Issue");
+await step("7 Issue");
 await page.getByLabel("Reason (recorded in the audit log)").fill("UI rehearsal issue");
 for (let i = 0; i < 2; i++) {
   await page.locator("tr", { hasText: "DRAWING" }).filter({ has: page.getByRole("button", { name: "Issue", exact: true }) }).first().getByRole("button", { name: "Issue", exact: true }).click();
@@ -149,12 +153,12 @@ const head = pdf.subarray(0, 5).toString();
 if (head !== "%PDF-") throw new Error(`downloaded file is not a PDF (${head})`);
 // The issued quotation document (PDF sealed with the quotation snapshot), downloaded by Costing.
 await as("COSTING");
-await step("8 Issue");
+await step("7 Issue");
 await page.waitForTimeout(1500);
 const qDownload = page.waitForEvent("download", { timeout: 10000 });
 await page.locator("tr", { hasText: "QUOTATION" }).getByRole("button", { name: /^Download PDF/ }).click();
 const qpdf = readFileSync(await (await qDownload).path());
 if (qpdf.subarray(0, 5).toString() !== "%PDF-" || !qpdf.toString("latin1").includes("GRAND TOTAL")) throw new Error("the quotation download is not the quotation PDF");
-await shot("8-issue");
+await shot("7-issue");
 console.log(`UI E2E PASSED: drawing PDF ${String(pdf.byteLength)} bytes, quotation PDF ${String(qpdf.byteLength)} bytes; screenshots in ${SHOTS}`);
 await browser.close();

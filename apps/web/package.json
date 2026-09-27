@@ -10,13 +10,16 @@
     "api:types": "openapi-typescript ../api/openapi/openapi.json -o src/api/schema.d.ts"
   },
   "dependencies": {
+    "@lintel/cabinet-engine": "workspace:*",
     "openapi-fetch": "^0.17.0",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "three": "^0.186.0"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.186.0",
     "@vitejs/plugin-react": "^6.1.1",
     "openapi-typescript": "^7.13.0",
     "typescript": "~6.0.3",

@@ -31,7 +31,7 @@ export function RoomScreen({ me, sel, setSel, go }: ScreenProps) {
                   <td>{r.name}</td>
                   <td>{s === null ? "—" : mm(s.lengthMm)}</td><td>{s === null ? "—" : mm(s.widthMm)}</td><td>{s === null ? "—" : mm(s.heightMm)}</td><td>{s === null ? "—" : mm(s.wallThicknessMm)}</td>
                   <td>{s === null ? "no survey" : `rev ${String(s.revisionNumber)} · ${s.source}`}</td>
-                  <td><button type="button" disabled={s === null} onClick={() => { setSel({ projectId, roomId: r.id }); go("layout"); }}>Open</button></td>
+                  <td><button type="button" disabled={s === null} onClick={() => { setSel({ projectId, roomId: r.id }); go("studio"); }}>Open</button></td>
                 </tr>
               );
             })}

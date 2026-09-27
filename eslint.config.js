@@ -15,7 +15,7 @@ const API_FORBIDDEN = {
 };
 const API_PG = { group: ["pg", "pg-*", "postgres"], message: "Only the API database layer (common/db, infrastructure) uses the PostgreSQL client." };
 
-const ENGINE_PACKAGES = ["types", "rules-engine", "geometry-engine", "catalog-engine", "hettich-engine", "design-engine", "bom-engine", "boq-engine", "pricing-engine", "drawing-engine"];
+const ENGINE_PACKAGES = ["types", "rules-engine", "geometry-engine", "catalog-engine", "hettich-engine", "design-engine", "bom-engine", "boq-engine", "pricing-engine", "drawing-engine", "cabinet-engine"];
 
 export default tseslint.config(
   { ignores: ["**/node_modules/**", "**/dist/**", "**/coverage/**"] },

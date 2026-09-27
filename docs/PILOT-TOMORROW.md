@@ -1,6 +1,6 @@
 # Pilot operational guide — the first real Lintel project
 
-**The single operational guide for the V1 pilot.** Status 2026-09-27, main `ff341a8`. Remaining blockers: `docs/PILOT-BLOCKERS.md` (B1–B4).
+**The single operational guide for the V1 pilot.** Status 2026-09-27, main `ff341a8`. Remaining blockers: `docs/PILOT-BLOCKERS.md` (B1–B4). Staging deployment inputs: `docs/DEPLOYMENT-REMAINING-INPUTS.md`.
 
 **Pilot scope (frozen):**
 - a rectangular kitchen with no openings;
@@ -22,7 +22,7 @@
 | # | Setup item | Status | Waiting for |
 |---|---|---|---|
 | 1 | Staging setup checklist | **Ready**: §4, every step with its input and owner | — |
-| 2 | Validate the separate Supabase staging project | **Not started.** No project, ref or credentials exist, and hosted access is not approved | Amit: B3 (M6-5, M6-6, the project ref, the secret-store entries) |
+| 2 | Validate the separate Supabase staging project | **Blocked (checked 2026-09-27).** Creation was refused by Supabase's Free-plan limit (2 projects, both Lintel Ops). There is no API host platform (Lintel Ops is GitHub Pages + Edge Functions). Exact inputs: `docs/DEPLOYMENT-REMAINING-INPUTS.md` | Amit: B3 (plan upgrade, hosting platform, passwords) |
 | 3 | Onboarding of the three people | **Ready**: §3 exact commands. Invitation and accept endpoints re-verified locally | Amit: B2 (names, emails); B3 (Supabase Auth on the project) |
 | 4 | Approved production-data intake | **Ready**: §1 and §2. All 19 templates validate as drafts and every one is refused as a production candidate until its values and source document are filled; no NULL can reach approval | Production team / procurement / costing: B1 |
 | 5 | Storage | **Ready (Supabase Storage preferred)**: §5. The configuration is validated at API start, and the built UI contains no secret key (checked) | Amit: B4 (confirm option (a)); B3 (the project) |

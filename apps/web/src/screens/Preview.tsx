@@ -58,7 +58,7 @@ export function ValidationBadges({ m }: { readonly m: ModelPreview }) {
 const W = 520;
 const H = 380;
 
-function Plan({ m }: { readonly m: ModelPreview }) {
+export function Plan({ m }: { readonly m: ModelPreview }) {
   const { scale: s, ox, oy } = fit(m.room.length, m.room.width, W, H, 36);
   const X = (x: number) => ox + x * s;
   const Z = (z: number) => oy + z * s;
@@ -80,7 +80,7 @@ function Plan({ m }: { readonly m: ModelPreview }) {
   );
 }
 
-function Elevation({ m }: { readonly m: ModelPreview }) {
+export function Elevation({ m }: { readonly m: ModelPreview }) {
   const { scale: s, ox, oy } = fit(m.room.length, m.room.height, W, H, 36);
   const X = (x: number) => ox + x * s;
   const Y = (y: number) => oy + (m.room.height - y) * s;

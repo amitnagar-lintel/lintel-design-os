@@ -1,0 +1,13 @@
+{
+  "name": "@lintel/cabinet-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Design Studio (D1): the typed cabinet domain model, and the compiler/decoder that bridge it to the existing recipe/component engine (@lintel/design-engine, KIT_BASE_STANDARD) with no changes to that engine.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@lintel/types": "workspace:*"
+  }
+}

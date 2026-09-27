@@ -15,7 +15,7 @@ const API_FORBIDDEN = {
 };
 const API_PG = { group: ["pg", "pg-*", "postgres"], message: "Only the API database layer (common/db, infrastructure) uses the PostgreSQL client." };
 
-const ENGINE_PACKAGES = ["types", "rules-engine", "geometry-engine", "catalog-engine", "hettich-engine", "design-engine", "bom-engine", "boq-engine", "pricing-engine", "drawing-engine"];
+const ENGINE_PACKAGES = ["types", "rules-engine", "geometry-engine", "catalog-engine", "hettich-engine", "design-engine", "bom-engine", "boq-engine", "pricing-engine", "drawing-engine", "cabinet-engine"];
 
 export default tseslint.config(
   { ignores: ["**/node_modules/**", "**/dist/**", "**/coverage/**"] },
@@ -126,11 +126,17 @@ export default tseslint.config(
   // ---------------------------------------------------------------- pilot UI (apps/web): a view over /api/v1
   {
     // The UI talks to the API only: no engines (no duplicated BOM / BOQ / pricing logic), no persistence, no database, no server framework.
+    // One narrow exception (Design Studio D1): @lintel/cabinet-engine is a pure, dependency-light domain-model
+    // and mapping package (types + compile/decode against @lintel/types only — no engine, persistence, react or
+    // rendering code, see packages/cabinet-engine/package.json). The UI reads/writes its typed CabinetInstance
+    // shape instead of duplicating the domain model in apps/web (CLAUDE.md "Do not duplicate domain models in
+    // UI packages"); it still performs zero calculation itself, only mapping to/from the API's own request and
+    // response shapes.
     files: ["apps/web/**/*.ts", "apps/web/**/*.tsx"],
     rules: {
       "no-restricted-imports": ["error", { patterns: [{
-        group: ["pg", "pg-*", "postgres", "@nestjs/*", "@lintel/*", "**/apps/api/**", "**/packages/**", "@aws-sdk/*", "aws-sdk"],
-        message: "The pilot UI is a view over /api/v1: every calculation comes from the API's engines; it imports no engine, persistence, storage or database code.",
+        group: ["pg", "pg-*", "postgres", "@nestjs/*", "@lintel/*", "!@lintel/cabinet-engine", "**/apps/api/**", "**/packages/**", "@aws-sdk/*", "aws-sdk"],
+        message: "The pilot UI is a view over /api/v1: every calculation comes from the API's engines; it imports no engine, persistence, storage or database code (the one exception, @lintel/cabinet-engine, is itself engine/persistence/react-free).",
       }] }],
     },
   },

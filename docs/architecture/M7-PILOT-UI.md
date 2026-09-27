@@ -1,16 +1,22 @@
 # M7 — minimum pilot UI
 
-Status: implemented for the V1 pilot. The code is in `apps/web`, and `apps/web/README.md` lists the commands.
+Status: implemented for the V1 pilot, then **superseded for step 4** by the Design Studio (Phase D6) — see
+`docs/architecture/DESIGN-STUDIO-D1-D6.md`. The rest of this document (architecture, sign-in, screens 1-3 and
+5-7) still describes the current code. The code is in `apps/web`, and `apps/web/README.md` lists the commands.
 
 ## 1. Scope
 
 This is exactly the pilot workflow and nothing more.
 
-**The eight screens** run in this order: Login → Project → Room → Base cabinet layout → Preview → Validation → Outputs → Issue.
+**The seven steps** run in this order: Login → Project → Room → Design Studio → Validation → Outputs → Issue.
+(Originally eight screens ending Base cabinet layout → Preview; the Design Studio pivot replaced those two with
+one Design Studio step — `docs/architecture/DESIGN-STUDIO-D1-D6.md`.)
 
 **What the UI lets people do:**
 - **Rooms:** only rectangular kitchens, with no openings.
-- **Products:** only `KIT_BASE_STANDARD`, in one run on wall A. There are no wall or tall cabinets.
+- **Products:** `KIT_BASE_STANDARD` (base cabinet, 1-2 shutters), in one run on wall A. Every other cabinet
+  family the Design Studio lists (drawer banks, sink/appliance/pull-out, wall, tall, corner) is shown but not
+  yet selectable — see the Design Studio doc for which vertical slice adds each one.
 - **Clients:** there is no client portal. Issued PDFs are downloaded and delivered offline (OD-M6 pilot boundary).
 - **Manufacturing:** none — no manufacturing release, CNC, nesting or drilling.
 

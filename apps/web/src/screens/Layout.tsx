@@ -10,19 +10,19 @@ import { api, idempotency, must, versionWithEtag } from "../api/client";
 import { arrangeRun, mm, nextFreeX } from "../geometry";
 import { Action, Badge, ErrorBox, Field, Section, useLoad } from "../ui";
 
-const PRODUCT = "KIT_BASE_STANDARD";
-const PIN_TYPES = [
+export const PRODUCT = "KIT_BASE_STANDARD";
+export const PIN_TYPES = [
   ["constructionStandardVersionId", "construction_standard"], ["planningStandardVersionId", "planning_standard"], ["edgeBandStandardVersionId", "edge_band_standard"],
   ["materialCatalogVersionId", "material_catalog"], ["finishCatalogVersionId", "finish_catalog"], ["hardwareCatalogVersionId", "hardware_catalog"],
   ["productCatalogVersionId", "product_catalog"], ["hettichDatasetVersionId", "hettich_dataset"],
 ] as const;
 type PinName = (typeof PIN_TYPES)[number][0];
-type Pins = Record<PinName, string>;
+export type Pins = Record<PinName, string>;
 
-interface Param { readonly key: string; readonly default?: unknown; readonly min?: number | null; readonly max?: number | null }
+export interface Param { readonly key: string; readonly default?: unknown; readonly min?: number | null; readonly max?: number | null }
 
 /** The newest APPROVED / LOCKED version of each pinned type, or the types that have none. */
-async function usablePins(): Promise<{ pins: Partial<Pins>; missing: string[] }> {
+export async function usablePins(): Promise<{ pins: Partial<Pins>; missing: string[] }> {
   const pins: Partial<Pins> = {};
   const missing: string[] = [];
   for (const [name, type] of PIN_TYPES) {
@@ -35,7 +35,7 @@ async function usablePins(): Promise<{ pins: Partial<Pins>; missing: string[] }>
 }
 
 /** The exact KIT_BASE_STANDARD version the pinned product catalog lists, and its parameter definitions. */
-async function pinnedProduct(productCatalogVersionId: string): Promise<{ productVersionId: string; params: Param[] } | null> {
+export async function pinnedProduct(productCatalogVersionId: string): Promise<{ productVersionId: string; params: Param[] } | null> {
   const entities = await must(api.GET("/api/v1/reference-data/{type}/entities", { params: { path: { type: "product" }, query: { code: PRODUCT } } }));
   const entity = entities.items[0];
   if (entity === undefined) return null;
@@ -143,7 +143,7 @@ function Cabinets({ version, canEdit, onChanged, go, setSelVersion }: { readonly
   };
 
   return (
-    <Section title="Base cabinets — KIT_BASE_STANDARD on wall A" aside={<button type="button" onClick={() => { setSelVersion(); go("preview"); }}>Preview →</button>}>
+    <Section title="Base cabinets — KIT_BASE_STANDARD on wall A" aside={<button type="button" onClick={() => { setSelVersion(); go("studio"); }}>Design Studio →</button>}>
       <ErrorBox error={objects.error ?? product.error} />
       {product.data === null && !product.loading && <div className="error">KIT_BASE_STANDARD is not in the pinned product catalog.</div>}
       <table>

@@ -13,11 +13,15 @@
  * Slice 2 (`BASE_DRAWER_BANK` / `KIT_BASE_DRAWER`): `drawerCount`, `frontType`, `material`, `backMaterial`,
  * `frontMaterial`, `finish`.
  *
+ * Slice 3 (`BASE_OPEN` / `KIT_BASE_OPEN`): `shelfCount`, `material`, `backMaterial`. No front at all — `front`
+ * must have zero rows — and `internals` must hold only `Shelf` entries.
+ *
  * Refuses (throws) a `CabinetInstance` outside a supported product's scope rather than silently dropping
- * data: an unknown `productCode`, a mismatched front element, more than one front row, any `internals`, or a
- * `corner` configuration.
+ * data: an unknown `productCode`, a mismatched front element, more than one front row, an `internals` entry
+ * other than `Shelf` (a `BASE_SHUTTER` or `BASE_DRAWER_BANK` cabinet compiles no internals at all — reserved
+ * for a later slice), or a `corner` configuration.
  */
-import type { CabinetInstance, DrawerBank, OverlayMode, Shutter } from "./model.js";
+import type { CabinetInstance, DrawerBank, OverlayMode, Shelf, Shutter } from "./model.js";
 
 export interface CompiledPosition {
   readonly xMm: number;
@@ -109,11 +113,29 @@ function drawerParametersOf(instance: CabinetInstance): CompiledParameters {
   };
 }
 
+function shelvesOf(instance: CabinetInstance): readonly Shelf[] {
+  if (instance.corner !== null) throw new Error("Cannot compile a corner cabinet (reserved for Slice 4)");
+  if (instance.front.rows.length > 0) throw new Error("A BASE_OPEN cabinet has no front; it cannot compile front rows");
+  return instance.internals.map((c) => {
+    if (!("shelfId" in c)) throw new Error("A BASE_OPEN cabinet only compiles shelves; found a non-shelf internal component (reserved for a later slice)");
+    return c;
+  });
+}
+
+function openParametersOf(instance: CabinetInstance): CompiledParameters {
+  return {
+    shelfCount: shelvesOf(instance).length,
+    material: instance.finish.carcassMaterialId,
+    backMaterial: instance.finish.backMaterialId,
+  };
+}
+
 /** Every parameter key belongs to exactly one product; compiling any other productCode is refused, not guessed. */
 function parametersOf(instance: CabinetInstance): CompiledParameters {
   switch (instance.recipe.productCode) {
     case "KIT_BASE_STANDARD": return shutterParametersOf(instance);
     case "KIT_BASE_DRAWER": return drawerParametersOf(instance);
+    case "KIT_BASE_OPEN": return openParametersOf(instance);
     default: throw new Error(`No compiler for product '${instance.recipe.productCode}'`);
   }
 }

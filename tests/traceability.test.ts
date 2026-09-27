@@ -15,7 +15,7 @@ describe.each([
       expect(t.designVersionId).toBe(DESIGN_VERSION.designVersionId);
       expect(t).toEqual(resolved.trace);
     }
-    expect(resolved.trace.catalogVersion).toBe("2026.09.27-m2");
+    expect(resolved.trace.catalogVersion).toBe("2026.09.28-m3");
     expect(resolved.trace.product).toEqual({ id: "KIT_BASE_STANDARD", version: "1.0.0", status: "DRAFT" });
   });
   it("links components to the source object", () => {

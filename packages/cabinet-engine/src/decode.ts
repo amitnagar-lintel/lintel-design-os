@@ -3,12 +3,14 @@
  * resolved model (`GET /api/v1/design-versions/{versionId}/model`, one entry of `objects[]`), so the Design
  * Studio always displays the same shape it edits — never a second, independently-computed geometry.
  *
- * Slice 1 decodes `SHUTTER` front components; Slice 2 adds `DRAWER_FRONT` (a `DrawerBank`, top drawer first).
- * A later slice's decoder adds internals and corner geometry as those component types start appearing in the
+ * Slice 1 decodes `SHUTTER` front components; Slice 2 adds `DRAWER_FRONT` (a `DrawerBank`, top drawer first);
+ * Slice 3 adds `KIT_BASE_OPEN`'s front-less dispatch (falls out of the existing "no shutter/drawer front
+ * components" cases, needing no new front-decoding branch) and decodes its `SHELF` components into
+ * `internals`. A later slice's decoder adds corner geometry as those component types start appearing in the
  * response. Per-drawer/-shutter hardware (`Drawer.runner`, `Handle`) stays `null`: the model preview carries
  * no resolved hardware article, only the BOM does.
  */
-import type { CabinetFront, CabinetInstance, CabinetType, Drawer, DrawerBank, FinishAssignment, FrontColumn, FrontRow, HardwareSet, HingeConfiguration, OverlayMode, Shutter } from "./model.js";
+import type { CabinetFront, CabinetInstance, CabinetType, Drawer, DrawerBank, FinishAssignment, FrontColumn, FrontRow, HardwareSet, HingeConfiguration, OverlayMode, Shelf, Shutter } from "./model.js";
 
 export interface ModelComponent {
   readonly componentId: string;
@@ -91,22 +93,45 @@ function decodeDrawerBankFront(object: ModelObject): { readonly front: CabinetFr
   return { front: { rows: [row] }, hardware: { hinges: [], runners: [], handle: null } };
 }
 
-/** Reads material/finish ids off the resolved components — never invented: carcass from a side, back from the back panel, front from whichever front type this recipe produces. */
+/**
+ * Reads material/finish ids off the resolved components — never invented: carcass from a side, back from the
+ * back panel, front from whichever front type this recipe produces. A `BASE_OPEN` cabinet has no front
+ * component at all: it reuses the carcass material (never applied to any component; see `kit-base-open.ts`)
+ * and reports no finish.
+ */
 function decodeFinish(object: ModelObject): FinishAssignment {
   const side = requireComponent(object, "SIDE_LEFT");
   const back = requireComponent(object, "BACK");
-  const front = findComponent(object, "SHUTTER") ?? requireComponent(object, "DRAWER_FRONT");
+  const front = findComponent(object, "SHUTTER") ?? findComponent(object, "DRAWER_FRONT");
   return {
     carcassMaterialId: side.materialId,
     backMaterialId: back.materialId,
-    frontMaterialId: front.materialId,
-    frontFinishId: front.finishId ?? "",
+    frontMaterialId: front?.materialId ?? side.materialId,
+    frontFinishId: front?.finishId ?? "",
   };
 }
 
-/** Which recipe-produced component types this object's front is made of, for `CabinetRecipe.frontComponentTypes`. */
-function frontComponentTypesOf(object: ModelObject): readonly ["SHUTTER"] | readonly ["DRAWER_FRONT"] {
-  return object.components.some((c) => c.componentType === "DRAWER_FRONT") ? ["DRAWER_FRONT"] : ["SHUTTER"];
+/** Which recipe-produced component types this object's front is made of, for `CabinetRecipe.frontComponentTypes`. Empty for `BASE_OPEN` (no front at all). */
+function frontComponentTypesOf(object: ModelObject): readonly ("SHUTTER" | "DRAWER_FRONT")[] {
+  if (object.components.some((c) => c.componentType === "DRAWER_FRONT")) return ["DRAWER_FRONT"];
+  if (object.components.some((c) => c.componentType === "SHUTTER")) return ["SHUTTER"];
+  return [];
+}
+
+/**
+ * Every `SHELF` component, bottom to top (Slice 3, `BASE_OPEN` only — `KITCHEN_BASE_STANDARD_V1` also
+ * produces `SHELF` components today, but Slice 1 never exposed a shelf-count control and `compile.ts`'s
+ * shutter path still refuses any `internals`; decoding them there too would break a shutter cabinet's own
+ * save, since its `shelfCount` would round-trip through a value Slice 1 never intended to carry). Recipe
+ * formulas always space shelves evenly, so a decoded shelf is always `fixed: true` — there is no per-shelf
+ * position control this slice.
+ */
+function decodeShelves(object: ModelObject): readonly Shelf[] {
+  return object.components
+    .filter((c) => c.componentType === "SHELF")
+    .slice()
+    .sort((a, b) => a.box.min.y - b.box.min.y)
+    .map((c, i) => ({ shelfId: `SHF${String(i)}`, fixed: true, heightFromBottomMm: c.box.min.y }));
 }
 
 /** Decodes one API model object into the typed `CabinetInstance` the Design Studio edits and displays. `cabinetType` comes from `library.ts` (`findAvailableCabinetType(object.productCode)`). */
@@ -122,7 +147,7 @@ export function decodeCabinetInstance(object: ModelObject, cabinetType: CabinetT
     rotationY: rotationYOf(object.transform.rotationY),
     dimensions: { widthMm: object.dimensions.width, heightMm: object.dimensions.height, depthMm: object.dimensions.depth },
     front,
-    internals: [],
+    internals: object.productCode === "KIT_BASE_OPEN" ? decodeShelves(object) : [],
     corner: null,
     finish: decodeFinish(object),
     hardware,

@@ -1,8 +1,9 @@
 # Design Studio (Phases D1-D6) — a deliberate product-direction pivot
 
-Status: Slices 1-2 (base cabinet with 1-2 shutters; all-drawer base cabinet, 2/3/4 drawers) implemented. Slices
-3-7 (shelves/internals, corner, sink/appliance/pull-out, wall/tall, cabinet runs) are not yet built;
-`packages/cabinet-engine/src/library.ts` lists every planned cabinet family and the slice that adds it.
+Status: Slices 1-3 (base cabinet with 1-2 shutters; all-drawer base cabinet, 2/3/4 drawers; open-front base
+cabinet with configurable loose shelves) implemented. Slices 4-7 (corner, sink/appliance/pull-out, wall/tall,
+cabinet runs) are not yet built; `packages/cabinet-engine/src/library.ts` lists every planned cabinet family
+and the slice that adds it.
 
 ## 1. Why this exists
 
@@ -79,4 +80,41 @@ A designer can, entirely through the browser: add a drawer-bank cabinet from the
 "Drawer count" property (2/3/4) in place of the shutter cabinet's "Front" control, change its drawer count and
 width, see the change reflected in the 3D viewport and the wall elevation (stacked drawer fronts, top to
 bottom), save it, and generate a BOM whose resolved hardware includes drawer runners. This is the definition of
-"Slice 2 is usable"; the next slice (shelves + internals) begins immediately once it holds.
+"Slice 2 is usable".
+
+## 7. What Slice 3 changed
+
+**`packages/catalog-engine`**: a new `KIT_BASE_OPEN` product and `KITCHEN_BASE_OPEN_V1` recipe — the exact same
+carcass and loose-shelf mechanism as `KITCHEN_BASE_STANDARD_V1` (sides, bottom, back, top rails, evenly spaced
+`SHELF` components; no new construction-variable codes, since all five it needs were already registered for
+the shutter recipe), with the shutter front dropped entirely: no door, no hinge, no front board or finish.
+`hardwareRuleSetId` names a rule set with zero rules (`OPEN_STANDARD`) — a database `hardware_rule_set` has
+never required at least one `hardware_rule`, so this needed no schema change, and unlike Slice 2 (nullable
+mounting columns, new construction-variable rows, widened `hettich_article`/`hettich_calculation_rule` CHECK
+constraints) **Slice 3 shipped no new migration at all**.
+
+**`packages/cabinet-engine`**: `Shelf` (D4, previously reserved) is wired end to end for `BASE_OPEN` — decoded
+from `SHELF` components into `CabinetInstance.internals`, compiled back into a `shelfCount` parameter. It is
+deliberately *not* also wired for `BASE_SHUTTER`, even though `KITCHEN_BASE_STANDARD_V1` has always produced
+`SHELF` components (via its own `shelfCount` parameter, never exposed as a Properties control since Slice 1):
+`decode.ts`'s shelf decoding is gated on `productCode === "KIT_BASE_OPEN"`, not "does this object have SHELF
+components", because a shutter cabinet's `compile.ts` path still refuses any `internals` — decoding shelves
+there too would make a shutter cabinet's own save recompile a `shelfCount` Slice 1 never intended to carry.
+Widening shutter-cabinet shelf editing to match is a scope decision for a later slice, not implied by this one.
+
+A resolved `BASE_OPEN` object shows a nonzero `ERROR` count (`STANDARD_UNKNOWN_VARIABLE`, one per
+construction-standard variable this recipe doesn't declare) because the rehearsal construction standard is one
+shared bag covering the union of every recipe's variables (`validateStandard()` requires an exact declared-set
+match per recipe, not a superset-tolerant one) — exactly the same characteristic Slice 2's drawer cabinet
+already showed at a smaller scale (2 unknown variables there vs. 10 here, since `BASE_OPEN` declares far fewer
+of the union's variables than a drawer or shutter cabinet does). It is `ERROR` severity but never `BLOCKER`:
+`canApprove` stays `true` and BOM generation is unaffected.
+
+## 8. Slice 3 acceptance test
+
+A designer can, entirely through the browser: add an open-front cabinet from the Cabinet Library, see a "Shelf
+count" property in place of a "Front"/"Drawer count" control (and no "Overlay" control at all — there is no
+door), change its shelf count and width, see the change reflected in the 3D viewport and the wall elevation (an
+open carcass with evenly spaced shelf lines, no door), save it, and generate a BOM that includes `SHELF` panels
+and no hinge or runner hardware. This is the definition of "Slice 3 is usable"; the next slice (corner cabinets)
+begins immediately once it holds.

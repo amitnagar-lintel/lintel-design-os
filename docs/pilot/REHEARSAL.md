@@ -74,7 +74,7 @@ A few values the repository leaves NULL are filled with obvious rehearsal placeh
 7. The DESIGNER submits, the DESIGN_HEAD approves (with the reviewed hash), and SALES locks.
 8. FOR_PRODUCTION outputs are generated: BOM, BOQ, Pricing, Quotation, the wall A internal elevation and the room panel schedule.
 9. SALES issues the quotation; the DESIGN_HEAD issues both drawings.
-10. The PDFs are downloaded through signed URLs, and their SHA-256 matches the stored checksum.
+10. The PDFs (both drawings and the quotation document) are downloaded through signed URLs, and their SHA-256 matches the stored checksum.
 
 **4. Consistency.** The run fails unless all of these hold:
 - every output names the same DesignVersion;

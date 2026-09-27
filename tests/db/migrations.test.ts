@@ -8,11 +8,11 @@ import { loadMigrations } from "./support/migrate.js";
 import { schemaSnapshot } from "./support/schema-snapshot.js";
 
 const SNAPSHOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "database", "schema", "design_os.schema.txt");
-const EXPECTED = ["0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008", "0009", "0010", "0011", "0012", "0013", "0014", "0015", "0016", "0017", "0018", "0019", "0020"];
+const EXPECTED = ["0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008", "0009", "0010", "0011", "0012", "0013", "0014", "0015", "0016", "0017", "0018", "0019", "0020", "0021"];
 
-describe("migrations 0001 → 0020", () => {
+describe("migrations 0001 → 0021", () => {
   const report = inject("migrationReport");
-  it("are exactly 0001 … 0020, each with a rollback", () => {
+  it("are exactly 0001 … 0021, each with a rollback", () => {
     expect(loadMigrations().map((m) => m.version)).toEqual(EXPECTED);
     expect(report.migrations).toEqual(EXPECTED);
   });

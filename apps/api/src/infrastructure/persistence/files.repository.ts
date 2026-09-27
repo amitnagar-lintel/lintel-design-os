@@ -33,6 +33,9 @@ export interface OutputFileFormatRow extends Record<string, unknown> {
   readonly kinds: string[];
 }
 
+/** The snapshot ↔ file link tables (0017 drawings, 0021 quotation documents). */
+export type LinkTable = "drawing_snapshot_file" | "quotation_snapshot_file";
+
 /** Stored files (insert-only file_object) and the drawing ↔ file links: SQL only (RLS decides visibility). */
 export const filesRepository = {
   /** The output file format registry (0017): content type, extension, order and sheet scope per format. */
@@ -57,15 +60,17 @@ export const filesRepository = {
       });
   },
 
-  async link(tx: Tx, row: { readonly org_id: string; readonly snapshot_id: string; readonly sequence: number; readonly format: string; readonly sheet_index: number | null; readonly file_object_id: string }): Promise<void> {
-    await tx.query("INSERT INTO design_os.drawing_snapshot_file (org_id, snapshot_id, sequence, format, sheet_index, file_object_id) VALUES ($1, $2, $3, $4, $5, $6)",
+  /** Link a stored file to a drawing (default) or quotation snapshot, in manifest order. */
+  async link(tx: Tx, row: { readonly org_id: string; readonly snapshot_id: string; readonly sequence: number; readonly format: string; readonly sheet_index: number | null; readonly file_object_id: string },
+    table: LinkTable = "drawing_snapshot_file"): Promise<void> {
+    await tx.query(`INSERT INTO design_os.${table} (org_id, snapshot_id, sequence, format, sheet_index, file_object_id) VALUES ($1, $2, $3, $4, $5, $6)`,
       [row.org_id, row.snapshot_id, row.sequence, row.format, row.sheet_index, row.file_object_id]);
   },
 
-  /** A drawing snapshot's files in manifest order (sequence). */
-  links(tx: Tx, snapshotId: string): Promise<DrawingFileLinkRow[]> {
+  /** A drawing (default) or quotation snapshot's files in manifest order (sequence). */
+  links(tx: Tx, snapshotId: string, table: LinkTable = "drawing_snapshot_file"): Promise<DrawingFileLinkRow[]> {
     return jsonRows<DrawingFileLinkRow>(tx, `SELECT l.snapshot_id, l.sequence, l.format, l.sheet_index, l.file_object_id, o.content_type, o.byte_size, o.checksum
-      FROM design_os.drawing_snapshot_file l JOIN design_os.file_object o ON o.id = l.file_object_id AND o.org_id = l.org_id
+      FROM design_os.${table} l JOIN design_os.file_object o ON o.id = l.file_object_id AND o.org_id = l.org_id
       WHERE l.snapshot_id = $1 ORDER BY l.sequence`, [snapshotId]);
   },
 

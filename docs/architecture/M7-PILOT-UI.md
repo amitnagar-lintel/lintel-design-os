@@ -69,7 +69,7 @@ The API enforces the same rules independently: validation-run evidence, FOR_PROD
 
 **Issued documents:**
 - **Drawings.** Issued drawing files download through short-lived signed URLs. They are fetched and saved under the drawing number.
-- **Quotation.** The issued quotation prints from its stored snapshot: lines, tax groups and totals as stored, with nothing recomputed. There is no separate quotation PDF renderer in the backend; the printed page is the document.
+- **Quotation.** Every quotation has a real PDF (migration 0021, `renderQuotationPdf` in `@lintel/pricing-engine`), generated with the quotation snapshot and sealed into its file manifest like drawing files. Cost readers download it from screen 8 through a signed URL (`GET /quotation-snapshots/{id}/files`). Sales issues through the hand-over code and receives the PDF from Costing.
 
 ## 5. Verification
 
@@ -79,6 +79,5 @@ The API enforces the same rules independently: validation-run evidence, FOR_PROD
 
 ## 6. Known limits
 
-- There is no quotation PDF file; the quotation is printed from the browser (see §4).
 - Only one run on wall A, with rotation 0. The API supports more, but the pilot scope does not.
 - Session handling is minimal: there is no refresh-token rotation, and a Supabase access token (1 h by default) needs a new sign-in after it expires.

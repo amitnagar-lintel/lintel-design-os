@@ -189,18 +189,22 @@ export async function runPilotWorkflow(http: Http, t: Tokens, input: PilotInput 
     { reason: "Pilot rehearsal issue", expectedContentHash: quotation.contentHash, pricingStandardVersionId, quotationPolicyVersionId }, idem());
   for (const d of drawings) await call("issue drawing", 201, "POST", `/api/v1/drawing-snapshots/${str(d.id)}/issue`, t.DESIGN_HEAD, { reason: "Pilot rehearsal issue", expectedContentHash: d.contentHash }, idem());
 
-  // 8. Issued PDFs: signed download URL → bytes → checksum against the stored manifest.
+  // 8. Issued PDFs (both drawings and the quotation document): signed download URL → bytes → checksum against the stored manifest.
   const pdfs: { drawingNumber: string; fileId: string; bytes: number; sha256: string; checksumVerified: boolean }[] = [];
-  for (const d of drawings) {
-    const files = (obj((await call("drawing files", 200, "GET", `/api/v1/drawing-snapshots/${str(d.id)}/files`, t.DESIGNER)).body).items as Json[] | undefined) ?? [];
+  const documents = [
+    ...drawings.map((d) => ({ name: str(obj(d.drawing).drawingNumber), path: `/api/v1/drawing-snapshots/${str(d.id)}/files`, token: t.DESIGNER })),
+    { name: `QUOTATION-R${String(quotation.revisionNumber)}`, path: `/api/v1/quotation-snapshots/${str(quotation.id)}/files`, token: t.COSTING },
+  ];
+  for (const d of documents) {
+    const files = (obj((await call(`files of ${d.name}`, 200, "GET", d.path, d.token)).body).items as Json[] | undefined) ?? [];
     const pdf = files.find((f) => f.format === "PDF" || f.contentType === "application/pdf");
-    if (pdf === undefined) throw new WorkflowError("pdf", "the issued drawing has no PDF", files);
-    const url = obj((await call("file url", 200, "GET", `/api/v1/files/${str(pdf.fileId)}/url?disposition=attachment`, t.DESIGNER)).body);
+    if (pdf === undefined) throw new WorkflowError("pdf", `${d.name} has no PDF`, files);
+    const url = obj((await call("file url", 200, "GET", `/api/v1/files/${str(pdf.fileId)}/url?disposition=attachment`, d.token)).body);
     const got = await http("GET", str(url.url));
     const sha = `sha256:${createHash("sha256").update(got.bytes).digest("hex")}`;
     const head = new TextDecoder().decode(got.bytes.slice(0, 5));
     if (got.status !== 200 || head !== "%PDF-") throw new WorkflowError("pdf", `download HTTP ${String(got.status)}, starts with ${head}`);
-    pdfs.push({ drawingNumber: str(obj(d.drawing).drawingNumber), fileId: str(pdf.fileId), bytes: got.bytes.byteLength, sha256: sha, checksumVerified: sha === str(pdf.checksum) });
+    pdfs.push({ drawingNumber: d.name, fileId: str(pdf.fileId), bytes: got.bytes.byteLength, sha256: sha, checksumVerified: sha === str(pdf.checksum) });
   }
   log("ok  PDFs downloaded");
 
@@ -225,6 +229,7 @@ export async function runPilotWorkflow(http: Http, t: Tokens, input: PilotInput 
     "no output has BLOCKERs": list.every((s) => Number(s.blockerCount) === 0),
     "the quotation and drawings qualify for issue": [quotation, ...drawings].every((s) => s.qualifiesForIssue === true),
     "every issued PDF matches its stored checksum": pdfs.every((p) => p.checksumVerified),
+    "the quotation has its sealed PDF document": pdfs.some((p) => p.drawingNumber.startsWith("QUOTATION-")),
   };
   const failed = Object.entries(consistency).filter(([, ok]) => !ok).map(([k]) => k);
   if (failed.length > 0) throw new WorkflowError("consistency", failed.join("; "), all);

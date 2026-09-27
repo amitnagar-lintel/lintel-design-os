@@ -104,7 +104,8 @@ export class OutputsService {
         if (purpose === "FOR_PRODUCTION" && blockers > 0) throw new ApiProblem("VALIDATION_BLOCKERS", `FOR_PRODUCTION requires 0 BLOCKERs (the validation of these inputs has ${String(blockers)})`);
         const drawing = "drawingType" in body ? { order: drawingOrder(body), sink: { service: this.fileService, formats: await filesRepository.formats(tx) } } : undefined;
         const sources = "sources" in body ? (body.sources ?? {}) as SnapshotSources : {};
-        const outcome = await new OutputGeneration(tx, ctx, purpose, sources, drawing).generate(kind);
+        const documentSink = kind === "QUOTATION" ? { service: this.fileService, formats: await filesRepository.formats(tx) } : undefined;
+        const outcome = await new OutputGeneration(tx, ctx, purpose, sources, drawing, documentSink).generate(kind);
         if (outcome.status === "UNAVAILABLE") {
           // Nothing of the requested kind is persisted; upstream snapshots created from the same context (and their run) are valid on their own.
           return { status: 200, body: { status: "UNAVAILABLE", kind: outcome.kind, blockers: outcome.blockers, snapshot: null, dependencies: outcome.upstream.map((p) => summary(p.row)) } };
@@ -211,6 +212,23 @@ export class OutputsService {
       const row = await outputsRepository.get(tx, "drawing_snapshot", snapshotId);
       if (row === null) throw new ApiProblem("NOT_FOUND");
       return { items: (await this.drawingOf(tx, row as unknown as SnapshotRow)).files };
+    });
+  }
+
+  /**
+   * A quotation snapshot's document files (the PDF), verified against the manifest sealed in the snapshot (0021) on
+   * every read; a quotation generated without a document has none.
+   */
+  quotationFiles(scope: RequestScope, snapshotId: string) {
+    return this.uow.run(scope, { readOnly: true, action: READ_ACTION.QUOTATION }, async (tx) => {
+      const row = (await outputsRepository.get(tx, "quotation_snapshot", snapshotId)) as unknown as SnapshotRow | null;
+      if (row === null) throw new ApiProblem("NOT_FOUND");
+      const files = (await filesRepository.links(tx, row.id, "quotation_snapshot_file")).map(fileOf);
+      const sealed = row.file_manifest_hash ?? null;
+      if ((sealed === null) !== (files.length === 0) || (sealed !== null && fileManifestHash(files.map((f) => ({ ...f, checksum: f.checksum as Sha256 }))) !== sealed)) {
+        throw new ApiProblem("STORED_OUTPUT_INVALID", `quotation snapshot ${row.id}: linked files do not match the sealed file manifest`, { context: { kind: "QUOTATION", snapshotId: row.id, reason: "FILE_MANIFEST" } });
+      }
+      return { items: files };
     });
   }
 

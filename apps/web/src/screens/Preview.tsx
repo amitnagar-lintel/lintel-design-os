@@ -2,10 +2,13 @@
  * Screen 5 — 2D / 3D preview of the API's resolved model (GET /design-versions/{id}/model): room boundary, cabinet
  * positions and dimensions, and the cabinet run. Drawing only: every coordinate comes from the engines.
  */
+import type { PointerEvent as ReactPointerEvent } from "react";
+import { useState } from "react";
 import type { ScreenProps } from "../App";
 import type { ModelPreview } from "../api/client";
 import { api, must } from "../api/client";
-import { fit, mm } from "../geometry";
+import { clampAlong, fit, footprintBox, mm, nearestWall, placeOnWall } from "../geometry";
+import type { QuarterTurn } from "../geometry";
 import { Badge, ErrorBox, Section, useLoad } from "../ui";
 
 type Obj = ModelPreview["objects"][number];
@@ -58,30 +61,116 @@ export function ValidationBadges({ m }: { readonly m: ModelPreview }) {
 const W = 520;
 const H = 380;
 
-export function Plan({ m }: { readonly m: ModelPreview }) {
+interface DragState {
+  readonly lineageId: string;
+  /** Pointer-down position minus the object's own `transform.x/z` at that moment (mm) — kept constant through the
+   * drag so the cabinet doesn't jump to the pointer, only follows its movement. */
+  readonly grabOffsetXMm: number;
+  readonly grabOffsetZMm: number;
+  /** The live wall-snapped position (always flush, `distance = 0`), recomputed on every pointer move. */
+  readonly x: number;
+  readonly z: number;
+  readonly rotationY: QuarterTurn;
+}
+
+/**
+ * Slice 6A: drag a cabinet to snap it against any of the room's 4 walls. `onMove` is called once, on pointer-up,
+ * with the final room-space position/rotation to save (never during the drag itself — every intermediate frame
+ * is purely a client-side preview via `footprintBox`, so a drag that's abandoned mid-gesture, e.g. dragged out of
+ * the SVG, never reaches the API). Omit `canEdit`/`onMove` for a read-only Plan (Screen 5's own preview).
+ */
+export function Plan({ m, canEdit = false, selectedId = null, onSelect, onMove }: {
+  readonly m: ModelPreview;
+  readonly canEdit?: boolean;
+  readonly selectedId?: string | null;
+  readonly onSelect?: (lineageId: string) => void;
+  readonly onMove?: (lineageId: string, next: { xMm: number; yMm: number; zMm: number; rotationY: QuarterTurn }) => void;
+}) {
   const { scale: s, ox, oy } = fit(m.room.length, m.room.width, W, H, 36);
   const X = (x: number) => ox + x * s;
   const Z = (z: number) => oy + z * s;
+  const [drag, setDrag] = useState<DragState | null>(null);
+
+  /** Client (pixel) coordinates → room millimetres, via the SVG's own CTM — correct regardless of how the
+   * responsive `<svg>` element is currently scaled on screen. */
+  const toRoomMm = (svg: SVGSVGElement, clientX: number, clientY: number): { x: number; z: number } => {
+    const ctm = svg.getScreenCTM();
+    if (ctm === null) return { x: 0, z: 0 };
+    const pt = svg.createSVGPoint();
+    pt.x = clientX;
+    pt.y = clientY;
+    const loc = pt.matrixTransform(ctm.inverse());
+    return { x: (loc.x - ox) / s, z: (loc.y - oy) / s };
+  };
+
+  const snappedFrom = (rawX: number, rawZ: number, widthMm: number): { x: number; z: number; rotationY: QuarterTurn } => {
+    const near = nearestWall(rawX, rawZ, m.room.length, m.room.width);
+    const wallLength = near.wallId === "A" || near.wallId === "C" ? m.room.length : m.room.width;
+    const along = clampAlong(near.along, widthMm, wallLength);
+    return placeOnWall(near.wallId, along, 0, m.room.length, m.room.width);
+  };
+
+  const onCabPointerDown = (e: ReactPointerEvent<SVGRectElement>, o: Obj): void => {
+    if (!canEdit || onMove === undefined) {
+      onSelect?.(o.lineageId);
+      return;
+    }
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const svg = e.currentTarget.ownerSVGElement;
+    if (svg === null) return;
+    const { x: px, z: pz } = toRoomMm(svg, e.clientX, e.clientY);
+    setDrag({ lineageId: o.lineageId, grabOffsetXMm: px - o.transform.x, grabOffsetZMm: pz - o.transform.z, x: o.transform.x, z: o.transform.z, rotationY: (o.transform.rotationY as QuarterTurn) });
+    onSelect?.(o.lineageId);
+  };
+
+  const onCabPointerMove = (e: ReactPointerEvent<SVGRectElement>, o: Obj): void => {
+    if (drag === null || drag.lineageId !== o.lineageId) return;
+    const svg = e.currentTarget.ownerSVGElement;
+    if (svg === null) return;
+    const { x: px, z: pz } = toRoomMm(svg, e.clientX, e.clientY);
+    const snapped = snappedFrom(px - drag.grabOffsetXMm, pz - drag.grabOffsetZMm, o.dimensions.width);
+    setDrag({ ...drag, ...snapped });
+  };
+
+  const onCabPointerUp = (e: ReactPointerEvent<SVGRectElement>, o: Obj): void => {
+    if (drag === null || drag.lineageId !== o.lineageId) return;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    const moved = drag.x !== o.transform.x || drag.z !== o.transform.z || drag.rotationY !== o.transform.rotationY;
+    if (moved) onMove?.(o.lineageId, { xMm: drag.x, yMm: o.transform.y, zMm: drag.z, rotationY: drag.rotationY });
+    setDrag(null);
+  };
+
   return (
     <svg viewBox={`0 0 ${String(W)} ${String(H)}`} role="img" aria-label="Plan view">
       <rect x={X(0)} y={Z(0)} width={m.room.length * s} height={m.room.width * s} className="room" />
       {m.room.walls.map((w) => <text key={w.wallId} className="wall-label" x={X((w.start.x + w.end.x) / 2)} y={Z((w.start.z + w.end.z) / 2)} dy={w.wallId === "A" ? -8 : w.wallId === "C" ? 16 : 4} dx={w.wallId === "B" ? 10 : w.wallId === "D" ? -18 : 0}>{w.wallId}</text>)}
       <text className="dim" x={X(m.room.length / 2)} y={Z(0) - 20} textAnchor="middle">{mm(m.room.length)}</text>
       <text className="dim" x={X(0) - 24} y={Z(m.room.width / 2)} textAnchor="middle" transform={`rotate(-90 ${String(X(0) - 24)} ${String(Z(m.room.width / 2))})`}>{mm(m.room.width)}</text>
-      {m.objects.map((o) => o.placement === null ? null : (
-        <g key={o.lineageId}>
-          <rect className={o.validation.counts.BLOCKER > 0 ? "cab bad" : "cab"} x={X(o.placement.envelope.min.x)} y={Z(o.placement.envelope.min.z)} width={o.placement.envelope.size.x * s} height={o.placement.envelope.size.z * s} />
-          <text className="cab-label" x={X(o.placement.envelope.min.x + o.placement.envelope.size.x / 2)} y={Z(o.placement.envelope.min.z + o.placement.envelope.size.z / 2)} textAnchor="middle">{o.objectCode}</text>
-          <text className="dim" x={X(o.placement.envelope.min.x + o.placement.envelope.size.x / 2)} y={Z(o.placement.envelope.min.z + o.placement.envelope.size.z) + 12} textAnchor="middle">{o.dimensions.width}</text>
-          {o.cutouts.map((cut) => {
-            const cx = o.placement === null ? 0 : o.placement.envelope.min.x + o.placement.envelope.size.x / 2 + cut.position.xMm;
-            const cz = o.placement === null ? 0 : o.placement.envelope.min.z + o.placement.envelope.size.z / 2 + cut.position.zMm;
-            return (
-              <rect key={cut.cutoutId} className="cutout" x={X(cx - cut.widthMm / 2)} y={Z(cz - cut.depthMm / 2)} width={cut.widthMm * s} height={cut.depthMm * s} />
-            );
-          })}
-        </g>
-      ))}
+      {m.objects.map((o) => {
+        if (o.placement === null) return null;
+        const dragging = drag !== null && drag.lineageId === o.lineageId;
+        const box = dragging ? footprintBox(drag.x, drag.z, drag.rotationY, o.dimensions.width, o.dimensions.depth) : { minX: o.placement.envelope.min.x, minZ: o.placement.envelope.min.z, sizeX: o.placement.envelope.size.x, sizeZ: o.placement.envelope.size.z };
+        const cx = box.minX + box.sizeX / 2;
+        const cz = box.minZ + box.sizeZ / 2;
+        return (
+          <g key={o.lineageId}>
+            <rect
+              className={[o.validation.counts.BLOCKER > 0 ? "cab bad" : "cab", o.lineageId === selectedId ? "selected" : "", dragging ? "dragging" : "", canEdit && onMove !== undefined ? "draggable" : ""].filter(Boolean).join(" ")}
+              x={X(box.minX)} y={Z(box.minZ)} width={box.sizeX * s} height={box.sizeZ * s}
+              onPointerDown={(e) => { onCabPointerDown(e, o); }}
+              onPointerMove={(e) => { onCabPointerMove(e, o); }}
+              onPointerUp={(e) => { onCabPointerUp(e, o); }}
+            />
+            <text className="cab-label" x={X(cx)} y={Z(cz)} textAnchor="middle">{o.objectCode}</text>
+            <text className="dim" x={X(cx)} y={Z(box.minZ + box.sizeZ) + 12} textAnchor="middle">{o.dimensions.width}</text>
+            {!dragging && o.cutouts.map((cut) => {
+              const cutX = cx + cut.position.xMm;
+              const cutZ = cz + cut.position.zMm;
+              return <rect key={cut.cutoutId} className="cutout" x={X(cutX - cut.widthMm / 2)} y={Z(cutZ - cut.depthMm / 2)} width={cut.widthMm * s} height={cut.depthMm * s} />;
+            })}
+          </g>
+        );
+      })}
       {m.runs.map((r) => r.wallId !== "A" ? null : <line key={r.runId} className="run" x1={X(r.start)} x2={X(r.end)} y1={Z(0) - 6} y2={Z(0) - 6} />)}
     </svg>
   );

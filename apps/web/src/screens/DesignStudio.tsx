@@ -17,7 +17,8 @@ import { CABINET_LIBRARY, compileCreate, compileUpdate, cornerPairPlacementDA, d
 import type { ScreenProps } from "../App";
 import type { ModelPreview, Schemas } from "../api/client";
 import { api, idempotency, must, versionWithEtag } from "../api/client";
-import { nextFreeX } from "../geometry";
+import { nextFreeX, placeOnWall } from "../geometry";
+import type { WallId } from "../geometry";
 import { snapshotOf, SnapshotView } from "./Outputs";
 import { usablePins } from "./Layout";
 import type { Param, Pins } from "./Layout";
@@ -274,6 +275,14 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
     refresh();
   };
 
+  /** Slice 6A: drag-to-wall-snap in the Plan view. A pure position/rotation move — never touches front/internals/
+   * finish, so it skips `compileUpdate`'s full instance round-trip entirely. */
+  const moveCabinet = async (objectId: string, position: { xMm: number; yMm: number; zMm: number }, rotationY: 0 | 90 | 180 | 270) => {
+    const { etag } = await versionWithEtag(versionId);
+    await must(api.PATCH("/api/v1/design-objects/{objectId}", { params: { path: { objectId }, header: { "If-Match": etag } }, body: { position, rotationY } }));
+    refresh();
+  };
+
   const removeCabinet = async (objectId: string) => {
     const { etag } = await versionWithEtag(versionId);
     await must(api.DELETE("/api/v1/design-objects/{objectId}", { params: { path: { objectId }, header: { "If-Match": etag } } }));
@@ -301,7 +310,15 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
               <button type="button" className={bottomTab === "BOM" ? "current" : ""} onClick={() => { setBottomTab("BOM"); }}>BOM</button>
               <button type="button" onClick={() => { setSelVersion(); go("outputs"); }}>All outputs →</button>
             </nav>
-            {m !== null && bottomTab === "PLAN" && <Plan m={m} />}
+            {m !== null && bottomTab === "PLAN" && (
+              <Plan
+                m={m} canEdit={canEdit} selectedId={selected?.lineageId ?? null} onSelect={selectObject}
+                onMove={(lineageId, next) => {
+                  const o = objects.find((x) => x.lineageId === lineageId);
+                  if (o !== undefined) void moveCabinet(o.objectId, { xMm: next.xMm, yMm: next.yMm, zMm: next.zMm }, next.rotationY);
+                }}
+              />
+            )}
             {m !== null && bottomTab === "ELEVATION" && (
               <Elevation m={m} selectedComponentId={selectedComponentId} onSelectComponent={selectComponent} />
             )}
@@ -327,6 +344,8 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
               selectedComponentId={selectedComponentId}
               onSelectComponentId={(componentId) => { setSelectedComponentId(componentId); }}
               applianceId={typeof selected.parameters.oven === "string" ? selected.parameters.oven : typeof selected.parameters.hob === "string" ? selected.parameters.hob : null}
+              placement={selected.placement}
+              room={m === null ? null : { length: m.room.length, width: m.room.width }}
             />
           ) : <p>Select a cabinet, or add one from the library.</p>}
         </aside>
@@ -365,7 +384,7 @@ function CabinetLibraryPanel({ canEdit, onAdd, onAddCornerPair }: { readonly can
 
 const DRAWER_COUNTS = [2, 3, 4] as const;
 
-function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponentId, onSelectComponentId, applianceId }: {
+function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponentId, onSelectComponentId, applianceId, placement, room }: {
   readonly instance: CabinetInstance; readonly canEdit: boolean; readonly onSave: (next: CabinetInstance) => Promise<void>; readonly onRemove: () => Promise<void>;
   /** Slice 2.1: which drawer front (by resolved `componentId`), if any, is selected in the 3D view or elevation. */
   readonly selectedComponentId: string | null;
@@ -373,6 +392,11 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
   /** Slice 5 step 3: the resolved model's `oven` parameter value (`KIT_TALL_OVEN` only), read-only — this
    * slice has no UI control for choosing a different appliance. */
   readonly applianceId: string | null;
+  /** Slice 6A: the resolved model's own placement (null when the object couldn't be placed at all — see its
+   * messages), and the room's length/width, needed to convert a chosen wall/along/distance back into a
+   * `transform.x/z/rotationY` via `placeOnWall`. Precise position editing alongside Plan-view drag-to-snap. */
+  readonly placement: Obj["placement"];
+  readonly room: { readonly length: number; readonly width: number } | null;
 }) {
   const isDrawer = instance.recipe.productCode === "KIT_BASE_DRAWER";
   const isOpen = instance.recipe.productCode === "KIT_BASE_OPEN";
@@ -401,6 +425,13 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
   /** Slice 2.1: one front height per drawer (top to bottom), kept in sync with the resolved model until edited;
    * the bank's last (bottom) entry is display-only — `save()` never sends it (see `drawerBankFront`). */
   const [drawerHeights, setDrawerHeights] = useState<string[]>(currentDrawerHeights);
+  /** Slice 6A: precise position editing, alongside Plan-view drag-to-snap. Always flush against the chosen wall
+   * (`distanceMm` defaults to the resolved model's own `distanceToWall`, editable for e.g. a filler gap) — the
+   * same `placeOnWall` inverse the Plan view's drag uses, so a saved value here resolves to the identical
+   * `transform` the engine would derive from picking that wall by dragging. */
+  const [wallId, setWallId] = useState<WallId>(placement?.wallId ?? "A");
+  const [alongMm, setAlongMm] = useState(String(placement?.alongWall.start ?? 0));
+  const [distanceMm, setDistanceMm] = useState(String(placement?.distanceToWall ?? 0));
 
   useEffect(() => {
     setWidth(String(instance.dimensions.widthMm));
@@ -415,6 +446,14 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
     setDrawerHeights(currentDrawerHeights);
     // Resync the editable fields whenever a different cabinet becomes selected.
   }, [instance.instanceId]);
+
+  useEffect(() => {
+    setWallId(placement?.wallId ?? "A");
+    setAlongMm(String(placement?.alongWall.start ?? 0));
+    setDistanceMm(String(placement?.distanceToWall ?? 0));
+    // Also resync after an external move (e.g. a Plan-view drag), which changes the placement without changing
+    // instance.instanceId.
+  }, [instance.instanceId, placement?.wallId, placement?.alongWall.start, placement?.distanceToWall]);
 
   const selectedDrawerIndex = element?.kind === "DRAWER_BANK" ? element.drawers.findIndex((d) => d.componentId === selectedComponentId) : -1;
   const selectedDrawer = selectedDrawerIndex >= 0 && element?.kind === "DRAWER_BANK" ? element.drawers[selectedDrawerIndex] : undefined;
@@ -436,8 +475,10 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
     const widthMm = Number(width);
     const heightMm = Number(height);
     const depthMm = Number(depth);
+    const moved = room === null ? null : placeOnWall(wallId, Number(alongMm), Number(distanceMm), room.length, room.width);
     await onSave({
       ...instance,
+      ...(moved === null ? {} : { position: { xMm: moved.x, yMm: instance.position.yMm, zMm: moved.z }, rotationY: moved.rotationY }),
       dimensions: { widthMm, heightMm, depthMm },
       front: noFront ? OPEN_FRONT : isDrawer ? drawerBankFront(drawerCount, overlay, widthMm, heightMm, drawerHeights.map(Number)) : shutterFront(shutterCount, overlay, widthMm, heightMm),
       internals: noFront ? shelves(Math.max(0, Math.trunc(Number(shelfCount)))) : isPullout ? pullouts(Math.max(0, Math.trunc(Number(pulloutCount)))) : isSink ? wasteBinInternals(wasteBin) : instance.internals,
@@ -451,6 +492,22 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
       <Field label="Width (mm)"><input className="num" value={width} disabled={!canEdit} onChange={(e) => { setWidth(e.target.value); }} /></Field>
       <Field label="Height (mm)"><input className="num" value={height} disabled={!canEdit} onChange={(e) => { setHeight(e.target.value); }} /></Field>
       <Field label="Depth (mm)"><input className="num" value={depth} disabled={!canEdit} onChange={(e) => { setDepth(e.target.value); }} /></Field>
+      {room === null ? null : (
+        <>
+          <h3>Position</h3>
+          <Field label="Wall">
+            <select value={wallId} disabled={!canEdit} onChange={(e) => { setWallId(e.target.value as WallId); }}>
+              <option value="A">A</option>
+              <option value="B">B</option>
+              <option value="C">C</option>
+              <option value="D">D</option>
+            </select>
+          </Field>
+          <Field label="Along wall, from left (mm)"><input className="num" value={alongMm} disabled={!canEdit} onChange={(e) => { setAlongMm(e.target.value); }} /></Field>
+          <Field label="Distance from wall (mm)"><input className="num" value={distanceMm} disabled={!canEdit} onChange={(e) => { setDistanceMm(e.target.value); }} /></Field>
+          {placement === null && <small>Not currently placed in the room — see the version&apos;s validation messages.</small>}
+        </>
+      )}
       {noFront ? (
         <Field label={isOvenTower ? "Shelf count (above oven)" : "Shelf count"}><input className="num" value={shelfCount} disabled={!canEdit} onChange={(e) => { setShelfCount(e.target.value); }} /></Field>
       ) : isDrawer ? (

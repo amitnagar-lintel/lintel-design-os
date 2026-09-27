@@ -34,7 +34,10 @@
       "SHUTTER_BACK_GAP": null,
       "DRAWER_BOX_SIDE_CLEARANCE": null,
       "DRAWER_BOX_HEIGHT_GAP": null,
-      "DRAWER_BOX_FRONT_SETBACK": null
+      "DRAWER_BOX_FRONT_SETBACK": null,
+      "PULLOUT_FRAME_HEIGHT": null,
+      "PULLOUT_FRAME_SIDE_CLEARANCE": null,
+      "PULLOUT_FRAME_DEPTH_SETBACK": null
     }
   },
   "provenance": {
@@ -123,6 +126,24 @@
       "note": null
     },
     "DRAWER_BOX_FRONT_SETBACK": {
+      "unit": "MM",
+      "source": null,
+      "evidenceRef": null,
+      "note": null
+    },
+    "PULLOUT_FRAME_HEIGHT": {
+      "unit": "MM",
+      "source": null,
+      "evidenceRef": null,
+      "note": null
+    },
+    "PULLOUT_FRAME_SIDE_CLEARANCE": {
+      "unit": "MM",
+      "source": null,
+      "evidenceRef": null,
+      "note": null
+    },
+    "PULLOUT_FRAME_DEPTH_SETBACK": {
       "unit": "MM",
       "source": null,
       "evidenceRef": null,

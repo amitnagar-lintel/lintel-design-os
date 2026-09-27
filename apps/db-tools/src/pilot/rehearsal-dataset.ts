@@ -15,6 +15,7 @@
 import { EDGE_BANDS, FINISHES, KIT_BASE_STANDARD, KITCHEN_BASE_STANDARD_V1, MATERIALS, HINGE_STANDARD,
   DRAWER_STANDARD, KIT_BASE_DRAWER, KITCHEN_BASE_DRAWER_V1,
   OPEN_STANDARD, KIT_BASE_OPEN, KITCHEN_BASE_OPEN_V1,
+  PULLOUT_STANDARD, KIT_BASE_PULLOUT, KITCHEN_BASE_PULLOUT_V1,
   TEST_FIXTURE_CONSTRUCTION_STANDARD, TEST_FIXTURE_EDGE_BAND_STANDARD, TEST_FIXTURE_PLANNING_STANDARD } from "@lintel/catalog-engine";
 import { HETTICH_TEST_FIXTURE_DATASET } from "@lintel/hettich-engine";
 import type { HettichProductionDataset, HettichProductionRecord } from "@lintel/hettich-engine";
@@ -61,6 +62,7 @@ const MATERIAL_FILL = { sheetSize: { width: 1220, height: 2440 }, grain: false, 
 const PRODUCT_LIMITS: Readonly<Record<string, readonly [number, number]>> = {
   width: [300, 1200], height: [500, 900], depth: [300, 650], carcassThickness: [16, 19], backThickness: [4, 9], shelfCount: [0, 3], shutterCount: [1, 2], drawerCount: [2, 4],
   drawerHeight1: [100, 400], drawerHeight2: [100, 400], drawerHeight3: [100, 400],
+  pulloutCount: [1, 4],
 };
 
 function hettichRecord(a: (typeof HETTICH_TEST_FIXTURE_DATASET.articles)[number]): HettichProductionRecord {
@@ -118,6 +120,7 @@ export function rehearsalDataset(): RehearsalFile[] {
   const product = withLimits(KIT_BASE_STANDARD);
   const productDrawer = withLimits(KIT_BASE_DRAWER);
   const productOpen = withLimits(KIT_BASE_OPEN);
+  const productPullout = withLimits(KIT_BASE_PULLOUT);
   const rate = TEST_FIXTURE_RATE_CARD;
   const hardwarePerUnit = Object.fromEntries(Object.entries(rate.hardwarePerUnit).map(([k, v]) => [k.replace(":FIXTURE-", ":REHEARSAL-"), v]));
   const q = TEST_FIXTURE_QUOTATION_POLICY;
@@ -140,16 +143,19 @@ export function rehearsalDataset(): RehearsalFile[] {
     // PRODUCTION_CANDIDATE may never carry. WORKING_DRAFT still submits and approves normally: nothing in the
     // database's own approval preconditions requires a hardware rule set to have at least one rule.
     intake("hardware_rule_set", OPEN_STANDARD.ruleSetId, OPEN_STANDARD, "PROCUREMENT", "PRODUCTION", { intent: "WORKING_DRAFT" }),
+    intake("hardware_rule_set", PULLOUT_STANDARD.ruleSetId, PULLOUT_STANDARD, "PROCUREMENT", "PRODUCTION"),
     intake("construction_recipe", KITCHEN_BASE_STANDARD_V1.recipeId, KITCHEN_BASE_STANDARD_V1, "DESIGN_HEAD", "PRODUCTION"),
     intake("construction_recipe", KITCHEN_BASE_DRAWER_V1.recipeId, KITCHEN_BASE_DRAWER_V1, "DESIGN_HEAD", "PRODUCTION"),
     intake("construction_recipe", KITCHEN_BASE_OPEN_V1.recipeId, KITCHEN_BASE_OPEN_V1, "DESIGN_HEAD", "PRODUCTION"),
+    intake("construction_recipe", KITCHEN_BASE_PULLOUT_V1.recipeId, KITCHEN_BASE_PULLOUT_V1, "DESIGN_HEAD", "PRODUCTION"),
     intake("product", product.productId, product, "DESIGN_HEAD", "PRODUCTION", { recipe: { entityCode: KITCHEN_BASE_STANDARD_V1.recipeId, versionNumber: 1 } }),
     intake("product", productDrawer.productId, productDrawer, "DESIGN_HEAD", "PRODUCTION", { recipe: { entityCode: KITCHEN_BASE_DRAWER_V1.recipeId, versionNumber: 1 } }),
     intake("product", productOpen.productId, productOpen, "DESIGN_HEAD", "PRODUCTION", { recipe: { entityCode: KITCHEN_BASE_OPEN_V1.recipeId, versionNumber: 1 } }),
+    intake("product", productPullout.productId, productPullout, "DESIGN_HEAD", "PRODUCTION", { recipe: { entityCode: KITCHEN_BASE_PULLOUT_V1.recipeId, versionNumber: 1 } }),
     intake("material_catalog", "REHEARSAL_MATERIAL_CATALOG", catalog("rehearsal materials", [...MATERIALS.map((m) => ["material", m.materialId] as const), ...EDGE_BANDS.map((b) => ["edge_band", b.edgeBandId] as const)]), "PROCUREMENT", "DESIGN_HEAD"),
     intake("finish_catalog", "REHEARSAL_FINISH_CATALOG", catalog("rehearsal finishes", FINISHES.map((f) => ["finish", f.finishId] as const)), "PROCUREMENT", "DESIGN_HEAD"),
-    intake("hardware_catalog", "REHEARSAL_HARDWARE_CATALOG", catalog("rehearsal hardware", [["hardware_rule_set", HINGE_STANDARD.ruleSetId], ["hardware_rule_set", DRAWER_STANDARD.ruleSetId], ["hardware_rule_set", OPEN_STANDARD.ruleSetId]]), "PROCUREMENT", "PRODUCTION"),
-    intake("product_catalog", "REHEARSAL_PRODUCT_CATALOG", catalog("rehearsal products", [["product", product.productId], ["product", productDrawer.productId], ["product", productOpen.productId]]), "DESIGN_HEAD", "PRODUCTION"),
+    intake("hardware_catalog", "REHEARSAL_HARDWARE_CATALOG", catalog("rehearsal hardware", [["hardware_rule_set", HINGE_STANDARD.ruleSetId], ["hardware_rule_set", DRAWER_STANDARD.ruleSetId], ["hardware_rule_set", OPEN_STANDARD.ruleSetId], ["hardware_rule_set", PULLOUT_STANDARD.ruleSetId]]), "PROCUREMENT", "PRODUCTION"),
+    intake("product_catalog", "REHEARSAL_PRODUCT_CATALOG", catalog("rehearsal products", [["product", product.productId], ["product", productDrawer.productId], ["product", productOpen.productId], ["product", productPullout.productId]]), "DESIGN_HEAD", "PRODUCTION"),
     intake("hettich_dataset", "REHEARSAL_HETTICH", rehearsalHettichDataset(), "PROCUREMENT", "PRODUCTION"),
     intake("pricing_standard", "REHEARSAL_PRICING_STANDARD", {
       rateCard: { ...rate, rateCardId: "REHEARSAL_RATE_CARD", status: "DRAFT", classification: "PRODUCTION", source: REHEARSAL_SOURCE, hardwarePerUnit },

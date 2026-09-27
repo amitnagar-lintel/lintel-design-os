@@ -22,7 +22,8 @@
     "ruleSets": {
       "CARCASS_STANDARD": {},
       "DRAWER_CARCASS_STANDARD": {},
-      "OPEN_CARCASS_STANDARD": {}
+      "OPEN_CARCASS_STANDARD": {},
+      "PULLOUT_CARCASS_STANDARD": {}
     }
   }
 }

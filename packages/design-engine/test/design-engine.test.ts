@@ -217,6 +217,72 @@ describe("KIT_BASE_DRAWER (Slice 2: drawer bank)", () => {
   });
 });
 
+describe("KIT_BASE_PULLOUT (Slice 5 step 1: pull-out cabinet)", () => {
+  const pulloutObj = (over: Partial<DesignObject> = {}): DesignObject => obj({ productId: "KIT_BASE_PULLOUT", dimensions: { width: 300, height: 720, depth: 560 }, ...over });
+  const run = (o: DesignObject, adapters: readonly ManufacturerAdapter[] = [fakeAdapter]) =>
+    resolveCabinet({ designVersion: dv, object: o, catalog: LINTEL_CATALOG, standard: TEST_FIXTURE_CONSTRUCTION_STANDARD, edgeBandStandard: TEST_FIXTURE_EDGE_BAND_STANDARD, adapters });
+
+  it("resolves to KIT_BASE_PULLOUT's own recipe", () => {
+    const r = run(pulloutObj());
+    expect(r.trace.recipe.id).toBe("KITCHEN_BASE_PULLOUT_V1");
+    expect(r.trace.product.id).toBe("KIT_BASE_PULLOUT");
+  });
+
+  it("generates the carcass, one shutter and one pull-out frame (2 sides + a tray) per pullout count", () => {
+    for (const pulloutCount of [1, 2, 3, 4]) {
+      const r = run(pulloutObj({ parameters: { pulloutCount, shutterCount: 1 } }));
+      expect(codes(r.validation).filter((c) => c === "COMPONENT_DIMENSION_INVALID" || c === "COMPONENT_COUNT_INVALID")).toEqual([]);
+      const counts = (type: string) => r.components.filter((c) => c.componentType === type).length;
+      expect(counts("SHUTTER")).toBe(1);
+      expect(counts("PULLOUT_FRAME_SIDE")).toBe(pulloutCount * 2);
+      expect(counts("PULLOUT_TRAY")).toBe(pulloutCount);
+      expect(counts("SIDE_LEFT") + counts("SIDE_RIGHT") + counts("BOTTOM") + counts("TOP_SUPPORT_FRONT") + counts("TOP_SUPPORT_BACK") + counts("BACK")).toBe(6);
+      expect(r.components).toHaveLength(6 + 1 + pulloutCount * 3);
+    }
+  });
+
+  it("stacks pull-out frames bottom to top without overlapping, inside the carcass width", () => {
+    const r = run(pulloutObj({ parameters: { pulloutCount: 3 } }));
+    const trays = r.components.filter((c) => c.componentType === "PULLOUT_TRAY").sort((a, b) => a.geometry.local.min.y - b.geometry.local.min.y);
+    expect(trays).toHaveLength(3);
+    for (let i = 1; i < trays.length; i++) {
+      const below = trays[i - 1]!;
+      const above = trays[i]!;
+      expect(below.geometry.local.min.y + below.geometry.local.size.y).toBeLessThanOrEqual(above.geometry.local.min.y + 1e-9);
+    }
+    for (const c of r.components.filter((x) => x.componentType === "PULLOUT_FRAME_SIDE" || x.componentType === "PULLOUT_TRAY")) {
+      expect(c.geometry.local.min.x).toBeGreaterThanOrEqual(0);
+      expect(c.geometry.local.min.x + c.geometry.local.size.x).toBeLessThanOrEqual(300);
+      expect(c.dimensions.width).toBeGreaterThan(0);
+      expect(c.dimensions.height).toBeGreaterThan(0);
+    }
+  });
+
+  it("requests one hinge per shutter and one runner per pull-out frame side, never mixed up", () => {
+    const r = run(pulloutObj({ parameters: { pulloutCount: 3, shutterCount: 1 } }));
+    expect(r.hardwareRequirements.filter((h) => h.category === "HINGE")).toHaveLength(1);
+    expect(r.hardwareRequirements.filter((h) => h.category === "RUNNER")).toHaveLength(6);
+    const runnerLinks = r.components.filter((c) => c.componentType === "PULLOUT_FRAME_SIDE").flatMap((c) => c.hardwareLinks);
+    expect(runnerLinks).toHaveLength(6);
+    expect(r.components.filter((c) => c.componentType !== "PULLOUT_FRAME_SIDE" && c.componentType !== "SHUTTER").every((c) => c.hardwareLinks.length === 0)).toBe(true);
+  });
+
+  it("blocks hardware when no adapter exists for the manufacturer, exactly like the other cabinets", () => {
+    const r = run(pulloutObj(), []);
+    expect(r.hardwareResolutions.every((h) => h.status === "UNRESOLVED")).toBe(true);
+    expect(codes(r.validation)).toContain("HARDWARE_ADAPTER_MISSING");
+  });
+
+  it("regenerates geometry (and the model fingerprint) when the pull-out count changes", async () => {
+    const { modelFingerprint } = await import("../src/index.js");
+    const two = run(pulloutObj({ parameters: { pulloutCount: 2 } }));
+    const three = run(pulloutObj({ parameters: { pulloutCount: 3 } }));
+    expect(modelFingerprint(two)).not.toBe(modelFingerprint(three));
+    expect(two.components.filter((c) => c.componentType === "PULLOUT_TRAY")).toHaveLength(2);
+    expect(three.components.filter((c) => c.componentType === "PULLOUT_TRAY")).toHaveLength(3);
+  });
+});
+
 describe("assertProductionEligible", () => {
   const ok: ValidationResult = { messages: [], counts: { BLOCKER: 0, ERROR: 0, WARNING: 0, INFO: 0 }, canApprove: true };
   const blocked: ValidationResult = { ...ok, counts: { ...ok.counts, BLOCKER: 1 }, canApprove: false };

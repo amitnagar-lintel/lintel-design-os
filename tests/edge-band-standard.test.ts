@@ -50,7 +50,7 @@ const SHELF_CHANGED: EdgeBandStandard = {
 describe("trace carries the EdgeBandStandard version", () => {
   it("records construction, edge band, product, recipe, catalog and hardware dataset versions", () => {
     const { resolved, bom, boq } = fixtureSlice();
-    expect(resolved.trace.standard).toEqual({ id: "TEST_FIXTURE_CONSTRUCTION_STANDARD", version: "0.0.2", status: "TEST_FIXTURE" });
+    expect(resolved.trace.standard).toEqual({ id: "TEST_FIXTURE_CONSTRUCTION_STANDARD", version: "0.0.3", status: "TEST_FIXTURE" });
     expect(resolved.trace.edgeBandStandard).toEqual({ id: "TEST_FIXTURE_EDGE_BAND_STANDARD", version: "0.0.1", status: "TEST_FIXTURE" });
     expect(resolved.trace.product.id).toBe("KIT_BASE_STANDARD");
     expect(resolved.trace.recipe.id).toBe("KITCHEN_BASE_STANDARD_V1");

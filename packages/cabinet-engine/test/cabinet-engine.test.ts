@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { CabinetFront, CabinetInstance, Drawer, DrawerBank, FinishAssignment, OverlayMode, Shelf, Shutter } from "../src/model.js";
-import { BASE_DRAWER_BANK_CABINET, BASE_OPEN_CABINET, BASE_SHUTTER_CABINET, CABINET_LIBRARY, findAvailableCabinetType } from "../src/library.js";
+import type { CabinetFront, CabinetInstance, Drawer, DrawerBank, FinishAssignment, OverlayMode, PullOut, Shelf, Shutter } from "../src/model.js";
+import { BASE_DRAWER_BANK_CABINET, BASE_OPEN_CABINET, BASE_PULLOUT_CABINET, BASE_SHUTTER_CABINET, CABINET_LIBRARY, findAvailableCabinetType } from "../src/library.js";
 import { compileCreate, compileUpdate } from "../src/compile.js";
 import { decodeCabinetInstance, type ModelComponent, type ModelObject } from "../src/decode.js";
 import { cornerPairPlacementDA } from "../src/corner.js";
@@ -35,10 +35,10 @@ function instance(overrides: Partial<CabinetInstance> = {}): CabinetInstance {
 }
 
 describe("library", () => {
-  const AVAILABLE_TODAY = ["BASE_SHUTTER", "BASE_DRAWER_BANK", "BASE_OPEN"];
+  const AVAILABLE_TODAY = ["BASE_SHUTTER", "BASE_DRAWER_BANK", "BASE_OPEN", "BASE_PULLOUT"];
   const AVAILABLE_CORNER_PAIR_TODAY = ["CORNER_L"];
 
-  it("lists exactly the Slice 1, Slice 2 and Slice 3 cabinet types as available", () => {
+  it("lists exactly the Slice 1, Slice 2, Slice 3 and Slice 5-step-1 cabinet types as available", () => {
     const available = CABINET_LIBRARY.filter((e) => e.availability.kind === "AVAILABLE");
     expect(available.map((e) => e.cabinetTypeId).sort()).toEqual([...AVAILABLE_TODAY].sort());
   });
@@ -542,6 +542,136 @@ describe("BASE_OPEN (Slice 3): decode", () => {
 
   it("round-trips through compileCreate back to the same parameters", () => {
     const decoded = decodeCabinetInstance(modelObject(), BASE_OPEN_CABINET);
+    const recompiled = compileCreate(decoded);
+    expect(recompiled.parameters).toEqual(modelObject().parameters);
+  });
+});
+
+describe("BASE_PULLOUT (Slice 5 step 1): compile", () => {
+  function pulloutInstance(overrides: Partial<CabinetInstance> = {}): CabinetInstance {
+    return {
+      instanceId: "i5",
+      objectCode: "BC-005",
+      lineageId: null,
+      cabinetType: BASE_PULLOUT_CABINET,
+      recipe: { recipeId: "KITCHEN_BASE_PULLOUT_V1", productCode: "KIT_BASE_PULLOUT", productVersionId: "pv5", frontComponentTypes: ["SHUTTER"] },
+      position: { xMm: 2400, yMm: 0, zMm: 0 },
+      rotationY: 0,
+      dimensions: { widthMm: 300, heightMm: 720, depthMm: 560 },
+      front: frontOf(shutter(300, 720)),
+      internals: [{ pullOutId: "PLO0", kind: "TRAY" }, { pullOutId: "PLO1", kind: "TRAY" }, { pullOutId: "PLO2", kind: "TRAY" }],
+      corner: null,
+      finish: FINISH,
+      hardware: { hinges: [], runners: [], handle: null },
+      ...overrides,
+    };
+  }
+
+  it("compiles shutterCount, pulloutCount and finish, never a drawer/shelf parameter", () => {
+    const body = compileCreate(pulloutInstance());
+    expect(body).toEqual({
+      objectCode: "BC-005",
+      objectType: "BASE_CABINET",
+      productCode: "KIT_BASE_PULLOUT",
+      productVersionId: "pv5",
+      position: { xMm: 2400, yMm: 0, zMm: 0 },
+      rotationY: 0,
+      dimensions: { widthMm: 300, heightMm: 720, depthMm: 560 },
+      parameters: {
+        shutterCount: 1, pulloutCount: 3, frontType: "OVERLAY",
+        material: "BOARD_BWP_18", backMaterial: "BOARD_BACK_6", shutterMaterial: "BOARD_HDHMR_18", finish: "LAMINATE_WHITE",
+      },
+    });
+  });
+
+  it("compiles zero pull-outs", () => {
+    expect(compileCreate(pulloutInstance({ internals: [] })).parameters.pulloutCount).toBe(0);
+  });
+
+  it("compileUpdate recomputes every field, including product", () => {
+    const body = compileUpdate(pulloutInstance());
+    expect(body.product).toEqual({ productCode: "KIT_BASE_PULLOUT", productVersionId: "pv5" });
+    expect(body.parameters.pulloutCount).toBe(3);
+  });
+
+  it("refuses a drawer-bank front (a pull-out cabinet's front is always a shutter)", () => {
+    const bank: DrawerBank = { kind: "DRAWER_BANK", widthMm: 300, overlay: "OVERLAY", drawers: [] };
+    const front: CabinetFront = { rows: [{ rowId: "R0", heightMm: 720, columns: [{ columnId: "C0", widthMm: 300, element: bank }] }] };
+    expect(() => compileCreate(pulloutInstance({ front }))).toThrow(/only compiles shutter fronts/);
+  });
+
+  it("refuses an internal component other than a pull-out", () => {
+    expect(() => compileCreate(pulloutInstance({ internals: [{ shelfId: "SHF0", fixed: true, heightFromBottomMm: null }] }))).toThrow(/non-pullout/);
+  });
+});
+
+describe("BASE_PULLOUT (Slice 5 step 1): decode", () => {
+  function component(over: Partial<ModelComponent>): ModelComponent {
+    return {
+      componentId: "c",
+      componentType: "SIDE_LEFT",
+      dimensions: { width: 560, height: 720, thickness: 18 },
+      box: { min: { x: 0, y: 0, z: 0 }, size: { x: 18, y: 720, z: 560 } },
+      materialId: "BOARD_BWP_18",
+      finishId: null,
+      finishedFaces: 0,
+      grainDirection: "HEIGHT",
+      ...over,
+    };
+  }
+
+  function modelObject(over: Partial<ModelObject> = {}): ModelObject {
+    return {
+      lineageId: "lin-5",
+      objectCode: "BC-005",
+      productCode: "KIT_BASE_PULLOUT",
+      productVersionId: "pv5",
+      parameters: { shutterCount: 1, pulloutCount: 2, frontType: "OVERLAY", material: "BOARD_BWP_18", backMaterial: "BOARD_BACK_6", shutterMaterial: "BOARD_HDHMR_18", finish: "LAMINATE_WHITE" },
+      dimensions: { width: 300, height: 720, depth: 560 },
+      transform: { x: 2400, y: 0, z: 0, rotationY: 0 },
+      components: [
+        component({ componentId: "SL", componentType: "SIDE_LEFT", materialId: "BOARD_BWP_18" }),
+        component({ componentId: "BCK", componentType: "BACK", materialId: "BOARD_BACK_6" }),
+        component({
+          componentId: "SHT0", componentType: "SHUTTER", materialId: "BOARD_HDHMR_18", finishId: "LAMINATE_WHITE",
+          dimensions: { width: 264, height: 654, thickness: 18 }, box: { min: { x: 18, y: 33, z: 566 }, size: { x: 264, y: 654, z: 18 } },
+        }),
+        // Top tray first in array order, to prove decode sorts by position, not array order.
+        component({
+          componentId: "PTR-02", componentType: "PULLOUT_TRAY", materialId: "BOARD_BACK_6",
+          dimensions: { width: 238, height: 480, thickness: 6 }, box: { min: { x: 26, y: 428, z: 32 }, size: { x: 238, y: 6, z: 480 } },
+        }),
+        component({
+          componentId: "PTR-01", componentType: "PULLOUT_TRAY", materialId: "BOARD_BACK_6",
+          dimensions: { width: 238, height: 480, thickness: 6 }, box: { min: { x: 26, y: 224, z: 32 }, size: { x: 238, y: 6, z: 480 } },
+        }),
+      ],
+      ...over,
+    };
+  }
+
+  it("decodes a shutter front (identical shape to BASE_SHUTTER)", () => {
+    const decoded = decodeCabinetInstance(modelObject(), BASE_PULLOUT_CABINET);
+    expect(decoded.front.rows).toHaveLength(1);
+    expect(decoded.front.rows[0]?.columns).toHaveLength(1);
+    expect(decoded.front.rows[0]?.columns[0]?.element.kind).toBe("SHUTTER");
+    expect(decoded.hardware.hinges).toHaveLength(1);
+  });
+
+  it("decodes PULLOUT_TRAY components into internals, bottom to top, not by component array order", () => {
+    const decoded = decodeCabinetInstance(modelObject(), BASE_PULLOUT_CABINET);
+    expect(decoded.internals).toHaveLength(2);
+    const pullouts = decoded.internals as readonly PullOut[];
+    expect(pullouts.every((p) => p.kind === "TRAY")).toBe(true);
+  });
+
+  it("decodes finish from the shutter front, exactly like BASE_SHUTTER", () => {
+    const decoded = decodeCabinetInstance(modelObject(), BASE_PULLOUT_CABINET);
+    expect(decoded.finish).toEqual({ carcassMaterialId: "BOARD_BWP_18", backMaterialId: "BOARD_BACK_6", frontMaterialId: "BOARD_HDHMR_18", frontFinishId: "LAMINATE_WHITE" });
+  });
+
+  it("round-trips through compileCreate back to the same parameters", () => {
+    const decoded = decodeCabinetInstance(modelObject(), BASE_PULLOUT_CABINET);
     const recompiled = compileCreate(decoded);
     expect(recompiled.parameters).toEqual(modelObject().parameters);
   });

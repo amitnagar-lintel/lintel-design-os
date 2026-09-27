@@ -47,5 +47,19 @@ export const TEST_FIXTURE_EDGE_BAND_STANDARD: EdgeBandStandard = {
       BACK: {},
       SHELF: { FRONT: "EDGE_ABS_0_8MM" },
     },
+    // KITCHEN_BASE_PULLOUT_V1's own rule set: the shared carcass types, SHUTTER (same as CARCASS_STANDARD),
+    // and the internal pull-out frame/tray (unbanded, same precedent as DRAWER_BOX_SIDE/DRAWER_BOTTOM: never
+    // a visible edge).
+    PULLOUT_CARCASS_STANDARD: {
+      SIDE_LEFT: { FRONT: "EDGE_ABS_0_8MM" },
+      SIDE_RIGHT: { FRONT: "EDGE_ABS_0_8MM" },
+      BOTTOM: { FRONT: "EDGE_ABS_0_8MM" },
+      TOP_SUPPORT_FRONT: { FRONT: "EDGE_ABS_0_8MM" },
+      TOP_SUPPORT_BACK: {},
+      BACK: {},
+      SHUTTER: { TOP: "EDGE_ABS_2MM", BOTTOM: "EDGE_ABS_2MM", LEFT: "EDGE_ABS_2MM", RIGHT: "EDGE_ABS_2MM" },
+      PULLOUT_FRAME_SIDE: { TOP: "EDGE_ABS_0_8MM" },
+      PULLOUT_TRAY: {},
+    },
   },
 };

@@ -57,6 +57,12 @@ export class ModelPreviewService {
               materialId: k.materialId, finishId: k.finishId, finishedFaces: k.finishedFaces, grainDirection: k.grainDirection,
             }];
           }),
+          cutouts: c.cutouts.map((cut) => ({
+            cutoutId: cut.cutoutId, target: cut.target, shape: cut.shape, widthMm: cut.widthMm, depthMm: cut.depthMm,
+            position: { ...cut.position }, cornerRadiusMm: cut.cornerRadiusMm,
+            clearance: cut.clearance.map((cr) => ({ ...cr })),
+            sourceApplianceId: cut.sourceApplianceId, edgeTreatment: cut.edgeTreatment === null ? null : { ...cut.edgeTreatment },
+          })),
           validation: { counts: { ...c.validation.counts }, canApprove: c.validation.canApprove },
           messages: messages.filter((m) => m.lineageId === c.object.objectId),
         };

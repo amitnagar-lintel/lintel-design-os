@@ -27,6 +27,28 @@ export const ModelComponent = z.strictObject({
   grainDirection: z.string(),
 });
 
+/**
+ * Design Studio Slice 5 step 6: a semantic countertop opening (never a boolean subtraction — see
+ * `@lintel/types`'s `CutoutFeature`). `position` is an offset from the cabinet footprint's own centre, in the
+ * cabinet's local frame; `{ xMm: 0, zMm: 0 }` (centred) is the only value this slice ever produces.
+ */
+export const ModelCutout = z.strictObject({
+  cutoutId: z.string(),
+  target: z.enum(["COUNTERTOP", "CABINET_TOP", "CABINET_BACK"]),
+  shape: z.literal("RECTANGLE"),
+  widthMm: z.number(),
+  depthMm: z.number(),
+  position: z.strictObject({ xMm: z.number(), zMm: z.number() }),
+  cornerRadiusMm: z.number().nullable(),
+  clearance: z.array(z.strictObject({
+    ruleId: z.string(), zone: z.enum(["INSTALLATION", "VENTILATION", "STRUCTURAL_EXCLUSION"]), axis: z.enum(["TOP", "BOTTOM", "LEFT", "RIGHT", "FRONT", "BACK"]),
+    minMm: z.number().nullable(), maxMm: z.number().nullable(),
+  })),
+  sourceApplianceId: z.string().nullable(),
+  edgeTreatment: z.record(z.string(), z.string()).nullable(),
+});
+export type ModelCutout = z.infer<typeof ModelCutout>;
+
 export const ModelObject = z.strictObject({
   /** The object row of THIS version (the id the object edit routes take). */
   objectId: Uuid,
@@ -47,6 +69,7 @@ export const ModelObject = z.strictObject({
     alongWall: z.strictObject({ start: z.number(), end: z.number() }), distanceToWall: z.number(),
   }).nullable(),
   components: z.array(ModelComponent),
+  cutouts: z.array(ModelCutout),
   validation: z.strictObject({ counts: Counts, canApprove: z.boolean() }),
   messages: z.array(ModelMessage),
 });

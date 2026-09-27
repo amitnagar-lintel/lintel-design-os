@@ -73,6 +73,13 @@ export function Plan({ m }: { readonly m: ModelPreview }) {
           <rect className={o.validation.counts.BLOCKER > 0 ? "cab bad" : "cab"} x={X(o.placement.envelope.min.x)} y={Z(o.placement.envelope.min.z)} width={o.placement.envelope.size.x * s} height={o.placement.envelope.size.z * s} />
           <text className="cab-label" x={X(o.placement.envelope.min.x + o.placement.envelope.size.x / 2)} y={Z(o.placement.envelope.min.z + o.placement.envelope.size.z / 2)} textAnchor="middle">{o.objectCode}</text>
           <text className="dim" x={X(o.placement.envelope.min.x + o.placement.envelope.size.x / 2)} y={Z(o.placement.envelope.min.z + o.placement.envelope.size.z) + 12} textAnchor="middle">{o.dimensions.width}</text>
+          {o.cutouts.map((cut) => {
+            const cx = o.placement === null ? 0 : o.placement.envelope.min.x + o.placement.envelope.size.x / 2 + cut.position.xMm;
+            const cz = o.placement === null ? 0 : o.placement.envelope.min.z + o.placement.envelope.size.z / 2 + cut.position.zMm;
+            return (
+              <rect key={cut.cutoutId} className="cutout" x={X(cx - cut.widthMm / 2)} y={Z(cz - cut.depthMm / 2)} width={cut.widthMm * s} height={cut.depthMm * s} />
+            );
+          })}
         </g>
       ))}
       {m.runs.map((r) => r.wallId !== "A" ? null : <line key={r.runId} className="run" x1={X(r.start)} x2={X(r.end)} y1={Z(0) - 6} y2={Z(0) - 6} />)}

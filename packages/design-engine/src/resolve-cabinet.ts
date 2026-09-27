@@ -1,5 +1,6 @@
 import type {
   CabinetComponent,
+  CutoutFeature,
   DataStatus,
   ResolvedApplianceReference,
   ResolvedCabinet,
@@ -105,6 +106,7 @@ export function resolveCabinet(input: ResolveCabinetInput): ResolvedCabinet {
       derived: {},
       components: [],
       appliances: [],
+      cutouts: [],
       hardwareRequirements: [],
       hardwareResolutions: [],
       geometry: { envelope: null, transform: object.transform },
@@ -127,6 +129,12 @@ export function resolveCabinet(input: ResolveCabinetInput): ResolvedCabinet {
 
   // Appliance references (Design Studio Slice 5 step 3): the join point for the bom-engine's APPLIANCE line.
   const appliances: ResolvedApplianceReference[] = [];
+  // Countertop cutouts (Design Studio Slice 5 step 6, design doc §1/§3 Option B): one per HOB-category
+  // appliance reference — a hob's worktop hole is sized from its own real installation envelope. A sink's
+  // cutout is deliberately NOT produced here: design doc §4A ties it to no Appliance and no sourced bowl
+  // dimension exists yet (CLAUDE.md forbids inventing one); it stays `sourceApplianceId: null` and un-sized
+  // until real data exists, so nothing is emitted for it rather than a guessed size.
+  const cutouts: CutoutFeature[] = [];
   for (const def of product.parameters) {
     if (def.kind !== "appliance") continue;
     const applianceId = params.parameters.values[def.key];
@@ -134,6 +142,20 @@ export function resolveCabinet(input: ResolveCabinetInput): ResolvedCabinet {
     const appliance = findAppliance(catalog, applianceId);
     if (appliance === undefined) continue;
     appliances.push({ parameterKey: def.key, applianceId, manufacturer: appliance.make, model: appliance.model });
+    if (appliance.category === "HOB" && appliance.installation !== null) {
+      cutouts.push({
+        cutoutId: `${src}-CUTOUT-${def.key}`,
+        target: "COUNTERTOP",
+        shape: "RECTANGLE",
+        widthMm: appliance.installation.widthMm,
+        depthMm: appliance.installation.depthMm,
+        position: { xMm: 0, zMm: 0 },
+        cornerRadiusMm: null,
+        clearance: appliance.installation.clearances,
+        sourceApplianceId: applianceId,
+        edgeTreatment: null,
+      });
+    }
   }
 
   // 2. Construction values: only declared, defined (non-null) values enter scope.
@@ -234,6 +256,7 @@ export function resolveCabinet(input: ResolveCabinetInput): ResolvedCabinet {
     derived: sortedRecord(formulaSet.values),
     components,
     appliances,
+    cutouts,
     hardwareRequirements: hw.requirements,
     hardwareResolutions: resolutions,
     geometry: { envelope: envelope(components.map((c) => c.geometry.local)), transform: object.transform },

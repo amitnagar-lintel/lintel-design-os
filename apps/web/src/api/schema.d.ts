@@ -1517,6 +1517,33 @@ export interface components {
                     finishedFaces: number;
                     grainDirection: string;
                 }[];
+                cutouts: {
+                    cutoutId: string;
+                    /** @enum {string} */
+                    target: "COUNTERTOP" | "CABINET_TOP" | "CABINET_BACK";
+                    /** @constant */
+                    shape: "RECTANGLE";
+                    widthMm: number;
+                    depthMm: number;
+                    position: {
+                        xMm: number;
+                        zMm: number;
+                    };
+                    cornerRadiusMm: number | null;
+                    clearance: {
+                        ruleId: string;
+                        /** @enum {string} */
+                        zone: "INSTALLATION" | "VENTILATION" | "STRUCTURAL_EXCLUSION";
+                        /** @enum {string} */
+                        axis: "TOP" | "BOTTOM" | "LEFT" | "RIGHT" | "FRONT" | "BACK";
+                        minMm: number | null;
+                        maxMm: number | null;
+                    }[];
+                    sourceApplianceId: string | null;
+                    edgeTreatment: {
+                        [key: string]: string;
+                    } | null;
+                }[];
                 validation: {
                     counts: {
                         INFO: number;

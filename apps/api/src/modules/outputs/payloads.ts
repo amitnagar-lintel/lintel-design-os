@@ -52,6 +52,7 @@ const BomItem = z.discriminatedUnion("kind", [
     ...BomBase, kind: z.literal("HARDWARE"), status: z.enum(["RESOLVED", "UNRESOLVED"]), manufacturer: str, articleNumber: str.nullable(), category: str,
     sourceRequirementIds: strings, sourceVersion: str.nullable(),
   }),
+  z.strictObject({ ...BomBase, kind: z.literal("APPLIANCE"), applianceId: str, manufacturer: str.nullable(), model: str.nullable() }),
 ]);
 const Bom = z.strictObject({ bomId: str, trace: TraceInfo, items: z.array(BomItem), incomplete: z.boolean() });
 export const RoomBomPayload = z.strictObject({

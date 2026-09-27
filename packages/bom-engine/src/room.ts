@@ -40,6 +40,7 @@ export function generateRoomBom(room: ResolvedRoom): RoomBOM {
           else add("HARDWARE", `UNRESOLVED:${item.sourceRequirementIds.join(",")}`, item.description, 0, "NOS", "UNRESOLVED", item.bomItemId);
           break;
         case "PANEL":
+        case "APPLIANCE":
           break;
       }
     }

@@ -49,7 +49,20 @@ export interface HardwareBomItem extends BomItemBase {
   readonly sourceVersion: string | null;
 }
 
-export type BOMItem = PanelBomItem | BoardBomItem | EdgeBandBomItem | FinishBomItem | HardwareBomItem;
+/**
+ * Design Studio Slice 5 (`docs/architecture/DESIGN-STUDIO-SLICE-5-SPECIAL-CABINETS.md` §8): an appliance is
+ * not hardware (it is referenced reference data, never a manufactured panel or a resolved Hettich article), so
+ * it gets its own narrow BOM kind rather than being folded into `HardwareBomItem`. `manufacturer`/`model` stay
+ * `null` until the referenced `Appliance` record itself carries them.
+ */
+export interface ApplianceBomItem extends BomItemBase {
+  readonly kind: "APPLIANCE";
+  readonly applianceId: string;
+  readonly manufacturer: string | null;
+  readonly model: string | null;
+}
+
+export type BOMItem = PanelBomItem | BoardBomItem | EdgeBandBomItem | FinishBomItem | HardwareBomItem | ApplianceBomItem;
 
 export interface BOM {
   readonly bomId: string;

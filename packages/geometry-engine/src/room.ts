@@ -66,6 +66,24 @@ export function relativeToWall(box: Box3, frame: WallFrame): { start: number; en
   return { start: clean(Math.min(...along)), end: clean(Math.max(...along)), distance: clean(Math.min(...dist)) };
 }
 
+/**
+ * The exact inverse of `wallFrame`'s `along`/`distance`: the cabinet-local origin (the `x, z` a `Transform`
+ * carries) and quarter-turn rotation that puts a cabinet's back flush against `wallId` at `alongMm` from that
+ * wall's left end and `distanceMm` from its face. Each wall's along/distance formula is affine-linear, so this
+ * holds regardless of a cabinet's own width/depth — no footprint dimensions are needed to invert it (Design
+ * Studio Slice 6A's `apps/web/src/geometry.ts` derived this same formula independently for the browser's own
+ * drag-to-wall-snap interaction; this is the canonical, engine-side copy for other packages — `corner.ts`'s
+ * room-corner placement among them — that cannot depend on `apps/web`).
+ */
+export function wallOrigin(wallId: WallId, alongMm: number, distanceMm: number, roomLength: number, roomWidth: number): { readonly x: number; readonly z: number; readonly rotationY: QuarterTurn } {
+  switch (wallId) {
+    case "A": return { x: alongMm, z: distanceMm, rotationY: 0 };
+    case "B": return { x: roomLength - distanceMm, z: alongMm, rotationY: 270 };
+    case "C": return { x: roomLength - alongMm, z: roomWidth - distanceMm, rotationY: 180 };
+    case "D": return { x: distanceMm, z: roomWidth - alongMm, rotationY: 90 };
+  }
+}
+
 export function roomWalls(L: number, W: number, H: number, thickness: number): RoomWall[] {
   return [
     { wallId: "A", start: { x: 0, z: 0 }, end: { x: L, z: 0 }, length: L, height: H, thickness },

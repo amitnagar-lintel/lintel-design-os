@@ -13,7 +13,8 @@
  */
 import { useEffect, useState } from "react";
 import type { CabinetFront, CabinetInstance, CabinetType, Drawer, DrawerBank, OverlayMode, PullOut, Shelf, Shutter } from "@lintel/cabinet-engine";
-import { CABINET_LIBRARY, compileCreate, compileUpdate, cornerPairPlacementDA, decodeCabinetInstance, findAvailableCabinetType } from "@lintel/cabinet-engine";
+import type { CornerId } from "@lintel/cabinet-engine";
+import { CABINET_LIBRARY, compileCreate, compileUpdate, cornerPairPlacement, decodeCabinetInstance, findAvailableCabinetType } from "@lintel/cabinet-engine";
 import type { ScreenProps } from "../App";
 import type { ModelPreview, Schemas } from "../api/client";
 import { api, idempotency, must, versionWithEtag } from "../api/client";
@@ -280,16 +281,18 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
     refresh();
   };
 
-  /** Slice 4: an L-corner cabinet is two ordinary `type` instances, positioned by `cornerPairPlacementDA` so
-   * their footprints meet exactly at the room's D-A corner without overlap (`corner.ts`). Two sequential
-   * creates, re-reading the version's ETag between them (the first create advances it). */
-  const addCornerPair = async (type: CabinetType) => {
+  /** Slice 4 (D-A corner only), generalised to all 4 room corners in Slice 6C: an L-corner cabinet is two
+   * ordinary `type` instances, positioned by `cornerPairPlacement` so their footprints meet exactly at the
+   * chosen room corner without overlap (`corner.ts`). Two sequential creates, re-reading the version's ETag
+   * between them (the first create advances it). */
+  const addCornerPair = async (type: CabinetType, corner: CornerId) => {
+    if (m === null) throw new Error("The room's model has not loaded yet.");
     const p = await pinnedProductByCode(version.pins.productCatalogVersionId, type.productCode);
     if (p === null) throw new Error(`The pinned product catalog does not define ${type.productCode}.`);
     const width = paramNumber(p.params, "width");
     const depth = paramNumber(p.params, "depth");
     if (width === undefined || depth === undefined) throw new Error("The pinned product does not define default width/depth.");
-    const { returnLeg, frontLeg } = cornerPairPlacementDA({ widthMm: width, depthMm: depth });
+    const { returnLeg, frontLeg } = cornerPairPlacement(corner, { widthMm: width, depthMm: depth }, { lengthMm: m.room.length, widthMm: m.room.width });
     const returnInstance = buildInstance(type, p, nextObjectCode(), returnLeg.position, returnLeg.rotationY, "INSET");
     await createObject(returnInstance);
     const frontInstance = buildInstance(type, p, nextObjectCode(1), frontLeg.position, frontLeg.rotationY, "INSET");
@@ -385,14 +388,30 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
   );
 }
 
-function CabinetLibraryPanel({ canEdit, onAdd, onAddCornerPair }: { readonly canEdit: boolean; readonly onAdd: (type: CabinetType) => Promise<void>; readonly onAddCornerPair: (type: CabinetType) => Promise<void> }) {
+const CORNERS: readonly { readonly id: CornerId; readonly label: string }[] = [
+  { id: "DA", label: "D-A" },
+  { id: "AB", label: "A-B" },
+  { id: "BC", label: "B-C" },
+  { id: "CD", label: "C-D" },
+];
+
+function CabinetLibraryPanel({ canEdit, onAdd, onAddCornerPair }: { readonly canEdit: boolean; readonly onAdd: (type: CabinetType) => Promise<void>; readonly onAddCornerPair: (type: CabinetType, corner: CornerId) => Promise<void> }) {
   const categories = ["BASE", "WALL", "TALL", "CORNER"] as const;
+  /** Slice 6C: which of the room's 4 corners the next "+ Add pair" click places at (was D-A only). */
+  const [corner, setCorner] = useState<CornerId>("DA");
   return (
     <>
       <h3>Cabinet library</h3>
       {categories.map((category) => (
         <div key={category} className="cabinet-lib-group">
           <h4>{category}</h4>
+          {category === "CORNER" && (
+            <Field label="Corner">
+              <select value={corner} disabled={!canEdit} onChange={(e) => { setCorner(e.target.value as CornerId); }}>
+                {CORNERS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+              </select>
+            </Field>
+          )}
           {CABINET_LIBRARY.filter((e) => e.category === category).map((entry) => {
             const availability = entry.availability;
             return (
@@ -402,7 +421,7 @@ function CabinetLibraryPanel({ canEdit, onAdd, onAddCornerPair }: { readonly can
                   <p>{entry.description}</p>
                 </div>
                 {availability.kind === "AVAILABLE" && <Action label="+ Add" disabled={!canEdit} run={() => onAdd(availability.cabinetType)} />}
-                {availability.kind === "AVAILABLE_CORNER_PAIR" && <Action label="+ Add pair" disabled={!canEdit} run={() => onAddCornerPair(availability.cabinetType)} />}
+                {availability.kind === "AVAILABLE_CORNER_PAIR" && <Action label="+ Add pair" disabled={!canEdit} run={() => onAddCornerPair(availability.cabinetType, corner)} />}
                 {availability.kind === "PLANNED" && <Badge tone="info">Slice {availability.slice}</Badge>}
               </div>
             );

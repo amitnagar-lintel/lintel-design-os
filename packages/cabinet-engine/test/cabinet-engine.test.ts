@@ -3,7 +3,7 @@ import type { CabinetFront, CabinetInstance, Drawer, DrawerBank, FinishAssignmen
 import { BASE_DRAWER_BANK_CABINET, BASE_OPEN_CABINET, BASE_PULLOUT_CABINET, BASE_SHUTTER_CABINET, CABINET_LIBRARY, findAvailableCabinetType } from "../src/library.js";
 import { compileCreate, compileUpdate } from "../src/compile.js";
 import { decodeCabinetInstance, type ModelComponent, type ModelObject } from "../src/decode.js";
-import { cornerPairPlacementDA } from "../src/corner.js";
+import { cornerPairPlacement, cornerPairPlacementDA } from "../src/corner.js";
 
 const FINISH: FinishAssignment = { carcassMaterialId: "BOARD_BWP_18", backMaterialId: "BOARD_BACK_6", frontMaterialId: "BOARD_HDHMR_18", frontFinishId: "LAMINATE_WHITE" };
 
@@ -679,7 +679,7 @@ describe("BASE_PULLOUT (Slice 5 step 1): decode", () => {
 
 describe("cornerPairPlacementDA (Slice 4)", () => {
   /** `@lintel/geometry-engine`'s own `toWorld` formula (room.ts), reproduced here only to prove the geometric
-   * invariant this pure function exists for — cabinet-engine has no dependency on geometry-engine. */
+   * invariant this pure function exists for, independent of that package's own internals. */
   function worldFootprint(widthMm: number, depthMm: number, position: { readonly xMm: number; readonly zMm: number }, rotationY: 0 | 90 | 180 | 270): { readonly x: readonly [number, number]; readonly z: readonly [number, number] } {
     const rad = (rotationY * Math.PI) / 180;
     const cos = Math.cos(rad);
@@ -711,6 +711,50 @@ describe("cornerPairPlacementDA (Slice 4)", () => {
       expect(returnFootprint.x[1]).toBeCloseTo(frontFootprint.x[0], 9);
       const dx = Math.max(0, returnFootprint.x[0] - frontFootprint.x[1], frontFootprint.x[0] - returnFootprint.x[1]);
       expect(dx).toBeCloseTo(0, 9);
+    }
+  });
+
+  it("cornerPairPlacementDA is exactly cornerPairPlacement(\"DA\", spec, room) for any room size (the D-A corner is the room origin regardless)", () => {
+    const spec = { widthMm: 600, depthMm: 560 };
+    expect(cornerPairPlacementDA(spec)).toEqual(cornerPairPlacement("DA", spec, { lengthMm: 4200, widthMm: 3200 }));
+    expect(cornerPairPlacementDA(spec)).toEqual(cornerPairPlacement("DA", spec, { lengthMm: 9000, widthMm: 1500 }));
+  });
+});
+
+describe("cornerPairPlacement (Slice 6C: generalised to all 4 room corners)", () => {
+  function worldFootprint(widthMm: number, depthMm: number, position: { readonly xMm: number; readonly zMm: number }, rotationY: 0 | 90 | 180 | 270): { readonly x: readonly [number, number]; readonly z: readonly [number, number] } {
+    const rad = (rotationY * Math.PI) / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    const corners = [[0, 0], [widthMm, 0], [0, depthMm], [widthMm, depthMm]].map(([px, pz]) => ({
+      x: position.xMm + (px ?? 0) * cos + (pz ?? 0) * sin,
+      z: position.zMm - (px ?? 0) * sin + (pz ?? 0) * cos,
+    }));
+    return { x: [Math.min(...corners.map((c) => c.x)), Math.max(...corners.map((c) => c.x))], z: [Math.min(...corners.map((c) => c.z)), Math.max(...corners.map((c) => c.z))] };
+  }
+
+  const room = { lengthMm: 4200, widthMm: 3200 };
+  const spec = { widthMm: 600, depthMm: 560 };
+
+  it("places the B-C corner pair flush against walls B and C, at the room's B-C corner (x=length, z=width)", () => {
+    const { returnLeg, frontLeg } = cornerPairPlacement("BC", spec, room);
+    expect(returnLeg).toEqual({ position: { xMm: 4200, yMm: 0, zMm: 2600 }, rotationY: 270 });
+    expect(frontLeg).toEqual({ position: { xMm: 3640, yMm: 0, zMm: 3200 }, rotationY: 180 });
+  });
+
+  it("touches (zero gap, zero overlap area) at every one of the 4 corners", () => {
+    for (const corner of ["AB", "BC", "CD", "DA"] as const) {
+      const { returnLeg, frontLeg } = cornerPairPlacement(corner, spec, room);
+      const returnFootprint = worldFootprint(spec.widthMm, spec.depthMm, returnLeg.position, returnLeg.rotationY);
+      const frontFootprint = worldFootprint(spec.widthMm, spec.depthMm, frontLeg.position, frontLeg.rotationY);
+      // Same invariant as design-engine's own OBJECT_COLLISION/planDistance: zero positive-area overlap (never
+      // a collision) and zero plan-distance (they actually meet, not just avoid overlapping from a distance).
+      const overlapX = Math.max(0, Math.min(returnFootprint.x[1], frontFootprint.x[1]) - Math.max(returnFootprint.x[0], frontFootprint.x[0]));
+      const overlapZ = Math.max(0, Math.min(returnFootprint.z[1], frontFootprint.z[1]) - Math.max(returnFootprint.z[0], frontFootprint.z[0]));
+      expect(overlapX * overlapZ).toBeCloseTo(0, 6);
+      const gapX = Math.max(0, returnFootprint.x[0] - frontFootprint.x[1], frontFootprint.x[0] - returnFootprint.x[1]);
+      const gapZ = Math.max(0, returnFootprint.z[0] - frontFootprint.z[1], frontFootprint.z[0] - returnFootprint.z[1]);
+      expect(Math.hypot(gapX, gapZ)).toBeCloseTo(0, 6);
     }
   });
 });

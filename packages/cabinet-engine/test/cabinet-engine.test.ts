@@ -220,7 +220,7 @@ describe("decodeCabinetInstance", () => {
 
 describe("BASE_DRAWER_BANK (Slice 2): compile", () => {
   function drawer(index: number, over: Partial<Drawer> = {}): Drawer {
-    return { kind: "DRAWER", widthMm: 802, heightMm: 210, frontThicknessMm: 18, index, runner: null, ...over };
+    return { kind: "DRAWER", widthMm: 802, heightMm: 210, frontThicknessMm: 18, index, runner: null, componentId: `DRF-${String(index)}`, boxHeightMm: 195, gapBelowMm: 3, ...over };
   }
   function bank(over: Partial<DrawerBank> = {}): DrawerBank {
     return { kind: "DRAWER_BANK", widthMm: 900, overlay: "OVERLAY", drawers: [drawer(0), drawer(1), drawer(2)], ...over };
@@ -257,13 +257,27 @@ describe("BASE_DRAWER_BANK (Slice 2): compile", () => {
       position: { xMm: 900, yMm: 0, zMm: 0 },
       rotationY: 0,
       dimensions: { widthMm: 900, heightMm: 720, depthMm: 560 },
-      parameters: { drawerCount: 3, frontType: "OVERLAY", material: "BOARD_BWP_18", backMaterial: "BOARD_BACK_6", frontMaterial: "BOARD_HDHMR_18", finish: "LAMINATE_WHITE" },
+      parameters: { drawerCount: 3, drawerHeight1: 210, drawerHeight2: 210, frontType: "OVERLAY", material: "BOARD_BWP_18", backMaterial: "BOARD_BACK_6", frontMaterial: "BOARD_HDHMR_18", finish: "LAMINATE_WHITE" },
     });
   });
 
-  it("compiles 2 and 4 drawer counts", () => {
-    expect(compileCreate(drawerInstance({ front: drawerFrontOf(bank({ drawers: [drawer(0), drawer(1)] })) })).parameters.drawerCount).toBe(2);
-    expect(compileCreate(drawerInstance({ front: drawerFrontOf(bank({ drawers: [drawer(0), drawer(1), drawer(2), drawer(3)] })) })).parameters.drawerCount).toBe(4);
+  it("compiles 2 and 4 drawer counts, with one fewer explicit drawerHeight than drawers (the last always absorbs the remainder)", () => {
+    const twoDrawers = compileCreate(drawerInstance({ front: drawerFrontOf(bank({ drawers: [drawer(0), drawer(1)] })) })).parameters;
+    expect(twoDrawers.drawerCount).toBe(2);
+    expect(twoDrawers).toMatchObject({ drawerHeight1: 210 });
+    expect(twoDrawers.drawerHeight2).toBeUndefined();
+
+    const fourDrawers = compileCreate(drawerInstance({ front: drawerFrontOf(bank({ drawers: [drawer(0), drawer(1), drawer(2), drawer(3)] })) })).parameters;
+    expect(fourDrawers.drawerCount).toBe(4);
+    expect(fourDrawers).toMatchObject({ drawerHeight1: 210, drawerHeight2: 210, drawerHeight3: 210 });
+  });
+
+  it("sends each explicit drawer's own height, not a shared default", () => {
+    const custom = compileCreate(drawerInstance({
+      front: drawerFrontOf(bank({ drawers: [drawer(0, { heightMm: 120 }), drawer(1, { heightMm: 180 }), drawer(2, { heightMm: 402 })] })),
+    })).parameters;
+    expect(custom).toMatchObject({ drawerHeight1: 120, drawerHeight2: 180 });
+    expect(custom.drawerHeight3).toBeUndefined();
   });
 
   it("carries an inset front through", () => {
@@ -308,7 +322,7 @@ describe("BASE_DRAWER_BANK (Slice 2): decode", () => {
       objectCode: "BC-002",
       productCode: "KIT_BASE_DRAWER",
       productVersionId: "pv2",
-      parameters: { drawerCount: 3, frontType: "OVERLAY", material: "BOARD_BWP_18", backMaterial: "BOARD_BACK_6", frontMaterial: "BOARD_HDHMR_18", finish: "LAMINATE_WHITE" },
+      parameters: { drawerCount: 3, drawerHeight1: 210, drawerHeight2: 210, frontType: "OVERLAY", material: "BOARD_BWP_18", backMaterial: "BOARD_BACK_6", frontMaterial: "BOARD_HDHMR_18", finish: "LAMINATE_WHITE" },
       dimensions: { width: 900, height: 720, depth: 560 },
       transform: { x: 0, y: 0, z: 0, rotationY: 0 },
       components: [
@@ -326,6 +340,20 @@ describe("BASE_DRAWER_BANK (Slice 2): decode", () => {
         component({
           componentId: "DRF-03", componentType: "DRAWER_FRONT", materialId: "BOARD_HDHMR_18", finishId: "LAMINATE_WHITE",
           dimensions: { width: 864, height: 210, thickness: 18 }, box: { min: { x: 18, y: 486, z: 566 }, size: { x: 864, y: 210, z: 18 } },
+        }),
+        // A drawer box side per drawer (Slice 2.1): same y as its front, a shorter height (the
+        // DRAWER_BOX_HEIGHT_GAP clearance). "-DBL-" in the id is exactly what decode.ts filters on.
+        component({
+          componentId: "BC-002-DBL-01", componentType: "DRAWER_BOX_SIDE", materialId: "BOARD_BWP_18",
+          dimensions: { width: 542, height: 195, thickness: 18 }, box: { min: { x: 18, y: 20, z: 32 }, size: { x: 18, y: 195, z: 542 } },
+        }),
+        component({
+          componentId: "BC-002-DBL-02", componentType: "DRAWER_BOX_SIDE", materialId: "BOARD_BWP_18",
+          dimensions: { width: 542, height: 195, thickness: 18 }, box: { min: { x: 18, y: 253, z: 32 }, size: { x: 18, y: 195, z: 542 } },
+        }),
+        component({
+          componentId: "BC-002-DBL-03", componentType: "DRAWER_BOX_SIDE", materialId: "BOARD_BWP_18",
+          dimensions: { width: 542, height: 195, thickness: 18 }, box: { min: { x: 18, y: 486, z: 32 }, size: { x: 18, y: 195, z: 542 } },
         }),
       ],
       ...over,
@@ -351,6 +379,15 @@ describe("BASE_DRAWER_BANK (Slice 2): decode", () => {
 
   it("decodes finish from the DRAWER_FRONT component", () => {
     expect(decodeCabinetInstance(modelObject(), BASE_DRAWER_BANK_CABINET).finish).toEqual(DRAWER_FRONT_FINISH);
+  });
+
+  it("Slice 2.1: decodes each drawer's componentId, box height and gap to the next drawer down", () => {
+    const decoded = decodeCabinetInstance(modelObject(), BASE_DRAWER_BANK_CABINET);
+    const bank = decoded.front.rows[0]?.columns[0]?.element as DrawerBank;
+    expect(bank.drawers.map((d) => d.componentId)).toEqual(["DRF-03", "DRF-02", "DRF-01"]);
+    expect(bank.drawers.map((d) => d.boxHeightMm)).toEqual([195, 195, 195]);
+    // Top (index 0) and middle (index 1) each gap 23mm to the drawer below; the bottom (last) has no gap below.
+    expect(bank.drawers.map((d) => d.gapBelowMm)).toEqual([23, 23, null]);
   });
 
   it("leaves per-drawer runner and the hardware set's runners/handle null (no resolved hardware in the model preview)", () => {

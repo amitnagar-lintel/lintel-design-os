@@ -80,7 +80,13 @@ export function Plan({ m }: { readonly m: ModelPreview }) {
   );
 }
 
-export function Elevation({ m }: { readonly m: ModelPreview }) {
+export function Elevation({ m, selectedComponentId, onSelectComponent }: {
+  readonly m: ModelPreview;
+  /** Slice 2.1: which component (e.g. one drawer front) is highlighted, if any. */
+  readonly selectedComponentId?: string | null;
+  /** Slice 2.1: fired when a DRAWER_FRONT rect is clicked. */
+  readonly onSelectComponent?: (lineageId: string, componentId: string, componentType: string) => void;
+}) {
   const { scale: s, ox, oy } = fit(m.room.length, m.room.height, W, H, 36);
   const X = (x: number) => ox + x * s;
   const Y = (y: number) => oy + (m.room.height - y) * s;
@@ -88,9 +94,18 @@ export function Elevation({ m }: { readonly m: ModelPreview }) {
   return (
     <svg viewBox={`0 0 ${String(W)} ${String(H)}`} role="img" aria-label="Wall A elevation">
       <rect x={X(0)} y={Y(m.room.height)} width={m.room.length * s} height={m.room.height * s} className="room" />
-      {onA.flatMap((o) => o.components.map((c) => (
-        <rect key={`${o.lineageId}-${c.componentId}`} className={c.componentType === "SHUTTER" ? "shutter" : "panel"} x={X(c.box.min.x)} y={Y(c.box.min.y + c.box.size.y)} width={c.box.size.x * s} height={c.box.size.y * s} />
-      )))}
+      {onA.flatMap((o) => o.components.map((c) => {
+        const clickable = c.componentType === "DRAWER_FRONT" && onSelectComponent !== undefined;
+        const selected = c.componentId === selectedComponentId;
+        const className = `${c.componentType === "SHUTTER" ? "shutter" : "panel"}${selected ? " selected" : ""}${clickable ? " clickable" : ""}`;
+        return (
+          <rect
+            key={`${o.lineageId}-${c.componentId}`} className={className}
+            x={X(c.box.min.x)} y={Y(c.box.min.y + c.box.size.y)} width={c.box.size.x * s} height={c.box.size.y * s}
+            onClick={clickable ? () => { onSelectComponent(o.lineageId, c.componentId, c.componentType); } : undefined}
+          />
+        );
+      }))}
       {onA.map((o) => o.placement === null ? null : (
         <g key={o.lineageId}>
           <text className="dim" x={X((o.placement.alongWall.start + o.placement.alongWall.end) / 2)} y={Y(0) + 14} textAnchor="middle">{o.dimensions.width}</text>

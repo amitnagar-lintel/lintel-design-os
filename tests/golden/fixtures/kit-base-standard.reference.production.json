@@ -68,7 +68,7 @@
       }
     ],
     "trace": {
-      "catalogVersion": "2026.09.28-m3",
+      "catalogVersion": "2026.09.29-m4",
       "dataClassification": "PRODUCTION",
       "designVersionId": "dv_001",
       "designVersionStatus": "DRAFT",
@@ -126,7 +126,7 @@
       }
     ],
     "trace": {
-      "catalogVersion": "2026.09.28-m3",
+      "catalogVersion": "2026.09.29-m4",
       "dataClassification": "PRODUCTION",
       "designVersionId": "dv_001",
       "designVersionStatus": "DRAFT",
@@ -384,7 +384,7 @@
       "W": 600
     },
     "trace": {
-      "catalogVersion": "2026.09.28-m3",
+      "catalogVersion": "2026.09.29-m4",
       "dataClassification": "PRODUCTION",
       "designVersionId": "dv_001",
       "designVersionStatus": "DRAFT",

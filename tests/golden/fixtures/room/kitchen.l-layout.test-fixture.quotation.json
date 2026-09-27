@@ -10,7 +10,7 @@
     ],
     "snapshot": {
       "classification": "TEST_FIXTURE",
-      "contentHash": "14ec803cf561e0",
+      "contentHash": "065520e4e24f84",
       "createdAt": "2026-09-26T00:00:00.000Z",
       "currency": "INR",
       "lines": [
@@ -22,7 +22,7 @@
           "lineTax": null,
           "objectCode": "OBJ-KIT-001",
           "objectId": "obj_001",
-          "priceSnapshotHash": "0a9c2b0823f4ab",
+          "priceSnapshotHash": "1e795246bfc086",
           "priceSnapshotId": "PRICE:dv_001:obj_001:TEST_FIXTURE_RATE_CARD@0.0.1:TEST_FIXTURE_PRICING_RULES@0.0.1",
           "productId": "KIT_BASE_STANDARD",
           "quantity": 1,
@@ -39,7 +39,7 @@
           "lineTax": null,
           "objectCode": "OBJ-KIT-002",
           "objectId": "obj_002",
-          "priceSnapshotHash": "0404897c062d1c",
+          "priceSnapshotHash": "102a8d5d828ba6",
           "priceSnapshotId": "PRICE:dv_001:obj_002:TEST_FIXTURE_RATE_CARD@0.0.1:TEST_FIXTURE_PRICING_RULES@0.0.1",
           "productId": "KIT_BASE_STANDARD",
           "quantity": 1,
@@ -56,7 +56,7 @@
           "lineTax": null,
           "objectCode": "OBJ-KIT-003",
           "objectId": "obj_003",
-          "priceSnapshotHash": "03364cfead25fc",
+          "priceSnapshotHash": "1a0d1561666f56",
           "priceSnapshotId": "PRICE:dv_001:obj_003:TEST_FIXTURE_RATE_CARD@0.0.1:TEST_FIXTURE_PRICING_RULES@0.0.1",
           "productId": "KIT_BASE_STANDARD",
           "quantity": 1,
@@ -73,7 +73,7 @@
           "lineTax": null,
           "objectCode": "OBJ-KIT-004",
           "objectId": "obj_004",
-          "priceSnapshotHash": "01ab6ed659522b",
+          "priceSnapshotHash": "064e16b858d877",
           "priceSnapshotId": "PRICE:dv_001:obj_004:TEST_FIXTURE_RATE_CARD@0.0.1:TEST_FIXTURE_PRICING_RULES@0.0.1",
           "productId": "KIT_BASE_STANDARD",
           "quantity": 1,
@@ -128,7 +128,7 @@
             }
           ],
           "classification": "TEST_FIXTURE",
-          "contentHash": "0a9c2b0823f4ab",
+          "contentHash": "1e795246bfc086",
           "createdAt": "2026-09-26T00:00:00.000Z",
           "currency": "INR",
           "designBlockerCount": 8,
@@ -310,7 +310,7 @@
               "unit": "PAISE"
             }
           ],
-          "modelFingerprint": "020c34a7a451ab",
+          "modelFingerprint": "063283c92764df",
           "priceSnapshotId": "PRICE:dv_001:obj_001:TEST_FIXTURE_RATE_CARD@0.0.1:TEST_FIXTURE_PRICING_RULES@0.0.1",
           "pricingRules": {
             "classification": "TEST_FIXTURE",
@@ -381,7 +381,7 @@
             "wastage": 23923
           },
           "trace": {
-            "catalogVersion": "2026.09.28-m3",
+            "catalogVersion": "2026.09.29-m4",
             "dataClassification": "TEST_FIXTURE",
             "designVersionId": "dv_001",
             "designVersionStatus": "DRAFT",
@@ -435,7 +435,7 @@
             }
           ],
           "classification": "TEST_FIXTURE",
-          "contentHash": "0404897c062d1c",
+          "contentHash": "102a8d5d828ba6",
           "createdAt": "2026-09-26T00:00:00.000Z",
           "currency": "INR",
           "designBlockerCount": 8,
@@ -617,7 +617,7 @@
               "unit": "PAISE"
             }
           ],
-          "modelFingerprint": "0e6fe94242870e",
+          "modelFingerprint": "1c5b2fe8dc2ed5",
           "priceSnapshotId": "PRICE:dv_001:obj_002:TEST_FIXTURE_RATE_CARD@0.0.1:TEST_FIXTURE_PRICING_RULES@0.0.1",
           "pricingRules": {
             "classification": "TEST_FIXTURE",
@@ -688,7 +688,7 @@
             "wastage": 27908
           },
           "trace": {
-            "catalogVersion": "2026.09.28-m3",
+            "catalogVersion": "2026.09.29-m4",
             "dataClassification": "TEST_FIXTURE",
             "designVersionId": "dv_001",
             "designVersionStatus": "DRAFT",
@@ -742,7 +742,7 @@
             }
           ],
           "classification": "TEST_FIXTURE",
-          "contentHash": "03364cfead25fc",
+          "contentHash": "1a0d1561666f56",
           "createdAt": "2026-09-26T00:00:00.000Z",
           "currency": "INR",
           "designBlockerCount": 8,
@@ -924,7 +924,7 @@
               "unit": "PAISE"
             }
           ],
-          "modelFingerprint": "1056f7d3d924f5",
+          "modelFingerprint": "01055bcfad18c3",
           "priceSnapshotId": "PRICE:dv_001:obj_003:TEST_FIXTURE_RATE_CARD@0.0.1:TEST_FIXTURE_PRICING_RULES@0.0.1",
           "pricingRules": {
             "classification": "TEST_FIXTURE",
@@ -995,7 +995,7 @@
             "wastage": 23923
           },
           "trace": {
-            "catalogVersion": "2026.09.28-m3",
+            "catalogVersion": "2026.09.29-m4",
             "dataClassification": "TEST_FIXTURE",
             "designVersionId": "dv_001",
             "designVersionStatus": "DRAFT",
@@ -1049,7 +1049,7 @@
             }
           ],
           "classification": "TEST_FIXTURE",
-          "contentHash": "01ab6ed659522b",
+          "contentHash": "064e16b858d877",
           "createdAt": "2026-09-26T00:00:00.000Z",
           "currency": "INR",
           "designBlockerCount": 8,
@@ -1231,7 +1231,7 @@
               "unit": "PAISE"
             }
           ],
-          "modelFingerprint": "02921a78ed0879",
+          "modelFingerprint": "022bde82ad63ca",
           "priceSnapshotId": "PRICE:dv_001:obj_004:TEST_FIXTURE_RATE_CARD@0.0.1:TEST_FIXTURE_PRICING_RULES@0.0.1",
           "pricingRules": {
             "classification": "TEST_FIXTURE",
@@ -1302,7 +1302,7 @@
             "wastage": 23923
           },
           "trace": {
-            "catalogVersion": "2026.09.28-m3",
+            "catalogVersion": "2026.09.29-m4",
             "dataClassification": "TEST_FIXTURE",
             "designVersionId": "dv_001",
             "designVersionStatus": "DRAFT",
@@ -1359,7 +1359,7 @@
       "revision": "A",
       "roomBomId": "ROOMBOM:dv_001:room_001",
       "roomBoqId": "ROOMBOQ:dv_001:room_001",
-      "roomFingerprint": "12a07246b88ff7",
+      "roomFingerprint": "04567807d184de",
       "taxGroups": [
         {
           "lineNos": [
@@ -1383,29 +1383,29 @@
         "totalBeforeRounding": 4258047
       },
       "trace": {
-        "catalogVersion": "2026.09.28-m3",
+        "catalogVersion": "2026.09.29-m4",
         "dataClassification": "TEST_FIXTURE",
         "designVersionId": "dv_001",
         "designVersionStatus": "DRAFT",
         "engineVersion": "0.1.0",
         "objects": [
           {
-            "modelFingerprint": "020c34a7a451ab",
+            "modelFingerprint": "063283c92764df",
             "objectCode": "OBJ-KIT-001",
             "objectId": "obj_001"
           },
           {
-            "modelFingerprint": "0e6fe94242870e",
+            "modelFingerprint": "1c5b2fe8dc2ed5",
             "objectCode": "OBJ-KIT-002",
             "objectId": "obj_002"
           },
           {
-            "modelFingerprint": "1056f7d3d924f5",
+            "modelFingerprint": "01055bcfad18c3",
             "objectCode": "OBJ-KIT-003",
             "objectId": "obj_003"
           },
           {
-            "modelFingerprint": "02921a78ed0879",
+            "modelFingerprint": "022bde82ad63ca",
             "objectCode": "OBJ-KIT-004",
             "objectId": "obj_004"
           }

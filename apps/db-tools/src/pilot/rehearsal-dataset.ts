@@ -60,6 +60,7 @@ const catalog = (label: string, members: readonly (readonly [string, string])[])
 const MATERIAL_FILL = { sheetSize: { width: 1220, height: 2440 }, grain: false, densityKgPerM3: 700, substrate: "Rehearsal substrate" } as const;
 const PRODUCT_LIMITS: Readonly<Record<string, readonly [number, number]>> = {
   width: [300, 1200], height: [500, 900], depth: [300, 650], carcassThickness: [16, 19], backThickness: [4, 9], shelfCount: [0, 3], shutterCount: [1, 2], drawerCount: [2, 4],
+  drawerHeight1: [100, 400], drawerHeight2: [100, 400], drawerHeight3: [100, 400],
 };
 
 function hettichRecord(a: (typeof HETTICH_TEST_FIXTURE_DATASET.articles)[number]): HettichProductionRecord {

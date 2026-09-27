@@ -20,7 +20,7 @@ export { validateCatalog, validateEdgeBandStandard, validateStandard } from "./v
 
 /** The V1 catalog. Versioned as a whole; any data change bumps catalogVersion. */
 export const LINTEL_CATALOG: CatalogSnapshot = {
-  catalogVersion: "2026.09.28-m3",
+  catalogVersion: "2026.09.29-m4",
   products: [KIT_BASE_STANDARD, KIT_BASE_DRAWER, KIT_BASE_OPEN],
   recipes: [KITCHEN_BASE_STANDARD_V1, KITCHEN_BASE_DRAWER_V1, KITCHEN_BASE_OPEN_V1],
   materials: MATERIALS,

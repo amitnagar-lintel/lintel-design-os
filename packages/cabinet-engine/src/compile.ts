@@ -243,6 +243,10 @@ function parametersOf(instance: CabinetInstance): CompiledParameters {
     case "KIT_BASE_PULLOUT": return pulloutParametersOf(instance);
     case "KIT_TALL_OVEN": return ovenTowerParametersOf(instance);
     case "KIT_BASE_SINK": return sinkParametersOf(instance);
+    // Slice 5 step 5 (BASE_HOB): shutter front, zero internals, identical shape to KIT_BASE_STANDARD's own —
+    // the referenced hob Appliance is never sent (stays at the recipe's own default, same precedent as
+    // KIT_TALL_OVEN's oven parameter).
+    case "KIT_BASE_HOB": return shutterParametersOf(instance);
     default: throw new Error(`No compiler for product '${instance.recipe.productCode}'`);
   }
 }

@@ -23,3 +23,31 @@ describe("BOM completeness", () => {
     }
   });
 });
+
+describe("APPLIANCE line (Design Studio Slice 5 steps 3 and 5: oven/hob appliance references)", () => {
+  it("emits one APPLIANCE line per resolved appliance reference, never rolled into any board/edge/hardware total", () => {
+    const resolved: ResolvedCabinet = {
+      ...base([]),
+      appliances: [{ parameterKey: "hob", applianceId: "HOB_REFERENCE_60CM", manufacturer: null, model: null }],
+    };
+    const bom = generateBom(resolved);
+    const items = bom.items.filter((i) => i.kind === "APPLIANCE");
+    expect(items).toEqual([{
+      kind: "APPLIANCE", bomItemId: "BOM:o:APPLIANCE:hob", description: "HOB_REFERENCE_60CM",
+      quantity: 1, unit: "NOS", sourceComponentIds: [], applianceId: "HOB_REFERENCE_60CM", manufacturer: null, model: null,
+    }]);
+    expect(bom.incomplete).toBe(false);
+  });
+
+  it("includes manufacturer and model in the description when known", () => {
+    const resolved: ResolvedCabinet = {
+      ...base([]),
+      appliances: [{ parameterKey: "oven", applianceId: "OVEN_REFERENCE_60CM", manufacturer: "ACME", model: "X1" }],
+    };
+    const bom = generateBom(resolved);
+    expect(bom.items.filter((i) => i.kind === "APPLIANCE")).toEqual([{
+      kind: "APPLIANCE", bomItemId: "BOM:o:APPLIANCE:oven", description: "OVEN_REFERENCE_60CM, ACME X1",
+      quantity: 1, unit: "NOS", sourceComponentIds: [], applianceId: "OVEN_REFERENCE_60CM", manufacturer: "ACME", model: "X1",
+    }]);
+  });
+});

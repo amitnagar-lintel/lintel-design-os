@@ -42,7 +42,7 @@ describe("rehearsal isolation", () => {
   });
   it("every rehearsal file is a valid intake file that names itself as rehearsal data", () => {
     const files = rehearsalDataset();
-    expect(files.length).toBe(36);
+    expect(files.length).toBe(40);
     // OPEN_STANDARD's and OVEN_TOWER_STANDARD's hardware_rule_sets genuinely have zero rules (an open cabinet
     // has no hardware; the oven tower has no front and no hardware defined for its bay this slice): the intake
     // validator's generic completeness heuristic cannot tell that apart from "not yet filled in" and flags it
@@ -51,7 +51,7 @@ describe("rehearsal isolation", () => {
       if (f.entityCode === "OPEN_STANDARD" || f.entityCode === "OVEN_TOWER_STANDARD") {
         return [{ code: "RULES_MISSING", level: "UNVERIFIED", message: "no hardware rules", path: "$.data.rules" }];
       }
-      if (f.entityCode === "OVEN_REFERENCE_60CM") {
+      if (f.entityCode === "OVEN_REFERENCE_60CM" || f.entityCode === "HOB_REFERENCE_60CM") {
         return [
           { code: "VALUE_UNVERIFIED", level: "UNVERIFIED", message: "make is NULL / UNVERIFIED", path: "$.data.make" },
           { code: "VALUE_UNVERIFIED", level: "UNVERIFIED", message: "model is NULL / UNVERIFIED", path: "$.data.model" },

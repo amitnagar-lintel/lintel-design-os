@@ -336,6 +336,40 @@ describe("KIT_BASE_SINK (Slice 5 step 4: sink cabinet)", () => {
   });
 });
 
+describe("KIT_BASE_HOB (Slice 5 step 5: hob cabinet)", () => {
+  const hobObj = (over: Partial<DesignObject> = {}): DesignObject => obj({ productId: "KIT_BASE_HOB", dimensions: { width: 600, height: 720, depth: 560 }, ...over });
+  const run = (o: DesignObject, adapters: readonly ManufacturerAdapter[] = [fakeAdapter]) =>
+    resolveCabinet({ designVersion: dv, object: o, catalog: LINTEL_CATALOG, standard: TEST_FIXTURE_CONSTRUCTION_STANDARD, edgeBandStandard: TEST_FIXTURE_EDGE_BAND_STANDARD, adapters });
+
+  it("resolves to KIT_BASE_HOB's own recipe", () => {
+    const r = run(hobObj());
+    expect(r.trace.recipe.id).toBe("KITCHEN_BASE_HOB_V1");
+    expect(r.trace.product.id).toBe("KIT_BASE_HOB");
+  });
+
+  it("generates the carcass with no top rails at all (hob-body clearance)", () => {
+    const r = run(hobObj({ parameters: { shutterCount: 1 } }));
+    expect(codes(r.validation).filter((c) => c === "COMPONENT_DIMENSION_INVALID" || c === "COMPONENT_COUNT_INVALID")).toEqual([]);
+    const counts = (type: string) => r.components.filter((c) => c.componentType === type).length;
+    expect(counts("SHUTTER")).toBe(1);
+    expect(counts("TOP_SUPPORT_FRONT")).toBe(0);
+    expect(counts("TOP_SUPPORT_BACK")).toBe(0);
+    expect(counts("SIDE_LEFT") + counts("SIDE_RIGHT") + counts("BOTTOM") + counts("BACK")).toBe(4);
+    expect(r.components).toHaveLength(4 + 1);
+  });
+
+  it("resolves the referenced hob appliance (the bom-engine's join point for its own APPLIANCE line)", () => {
+    const r = run(hobObj());
+    expect(r.appliances).toEqual([{ parameterKey: "hob", applianceId: "HOB_REFERENCE_60CM", manufacturer: null, model: null }]);
+  });
+
+  it("requests one hinge per shutter and no other hardware", () => {
+    const r = run(hobObj({ parameters: { shutterCount: 2 } }));
+    expect(r.hardwareRequirements.filter((h) => h.category === "HINGE")).toHaveLength(2);
+    expect(r.hardwareRequirements.filter((h) => h.category !== "HINGE")).toHaveLength(0);
+  });
+});
+
 describe("assertProductionEligible", () => {
   const ok: ValidationResult = { messages: [], counts: { BLOCKER: 0, ERROR: 0, WARNING: 0, INFO: 0 }, canApprove: true };
   const blocked: ValidationResult = { ...ok, counts: { ...ok.counts, BLOCKER: 1 }, canApprove: false };

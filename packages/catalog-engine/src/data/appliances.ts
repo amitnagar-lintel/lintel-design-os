@@ -21,4 +21,16 @@ export const APPLIANCES: readonly Appliance[] = [
     status: "DRAFT",
     source: "V1 reference value — not a Lintel-approved or manufacturer-verified appliance specification.",
   },
+  {
+    applianceId: "HOB_REFERENCE_60CM",
+    category: "HOB",
+    make: null,
+    model: null,
+    dimensions: { widthMm: 595, heightMm: 55, depthMm: 510 },
+    installation: { widthMm: 560, heightMm: 120, depthMm: 490, clearances: [] },
+    ventilation: null,
+    frontAlignment: "FLUSH",
+    status: "DRAFT",
+    source: "V1 reference value — not a Lintel-approved or manufacturer-verified appliance specification.",
+  },
 ];

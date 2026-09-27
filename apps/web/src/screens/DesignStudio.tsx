@@ -357,7 +357,7 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
               />
             )}
             {m !== null && bottomTab === "ELEVATION" && (
-              <Elevation m={m} selectedComponentId={selectedComponentId} onSelectComponent={selectComponent} />
+              <Elevation m={m} selectedId={selected?.lineageId ?? null} onSelect={selectObject} selectedComponentId={selectedComponentId} onSelectComponent={selectComponent} />
             )}
             {bottomTab === "BOM" && (
               <div className="studio-bom">

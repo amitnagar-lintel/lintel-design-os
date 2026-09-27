@@ -131,6 +131,45 @@ function drawerBankOf(instance: CabinetInstance): DrawerBank {
   return column.element;
 }
 
+/**
+ * Slice 5 step 4 (`BASE_SINK`): a shutter front identical to `shuttersOf`'s own row/column extraction, but
+ * without `shuttersOf`'s "no internals" guard — like `pulloutFrontOf`, a sink cabinet's `internals` may hold
+ * its own optional waste-bin tray behind the door.
+ */
+function sinkFrontOf(instance: CabinetInstance): readonly Shutter[] {
+  if (instance.corner !== null) throw new Error("Cannot compile a corner cabinet (reserved for Slice 4)");
+  if (instance.front.rows.length !== 1) throw new Error("Only a front with exactly one row can be compiled (multi-row fronts are reserved for a later slice)");
+  const [row] = instance.front.rows;
+  if (row === undefined || row.columns.length === 0) throw new Error("A cabinet front row must have at least one column");
+  return row.columns.map((column) => {
+    if (column.element.kind !== "SHUTTER") throw new Error(`A BASE_SINK cabinet only compiles shutter fronts; column '${column.columnId}' is a ${column.element.kind}`);
+    return column.element;
+  });
+}
+
+/** A `BASE_SINK` cabinet's `internals` holds at most one `PullOut { kind: "WASTE_BIN" }` — never a shelf, a
+ * pull-out tray, or more than one entry (this recipe has no count control, only a present/absent one). */
+function sinkHasWasteBin(instance: CabinetInstance): boolean {
+  if (instance.internals.length === 0) return false;
+  if (instance.internals.length > 1) throw new Error("A BASE_SINK cabinet compiles at most one internal (the waste-bin tray)");
+  const [only] = instance.internals;
+  if (only === undefined || !("pullOutId" in only) || only.kind !== "WASTE_BIN") throw new Error("A BASE_SINK cabinet only compiles a waste-bin internal (found a different internal component)");
+  return true;
+}
+
+function sinkParametersOf(instance: CabinetInstance): CompiledParameters {
+  const shutters = sinkFrontOf(instance);
+  return {
+    shutterCount: shutters.length,
+    frontType: shutterFrontTypeOf(shutters),
+    internalConfig: sinkHasWasteBin(instance) ? "WASTE_BIN" : "OPEN",
+    material: instance.finish.carcassMaterialId,
+    backMaterial: instance.finish.backMaterialId,
+    shutterMaterial: instance.finish.frontMaterialId,
+    finish: instance.finish.frontFinishId,
+  };
+}
+
 function shutterParametersOf(instance: CabinetInstance): CompiledParameters {
   const shutters = shuttersOf(instance);
   return {
@@ -203,6 +242,7 @@ function parametersOf(instance: CabinetInstance): CompiledParameters {
     case "KIT_BASE_OPEN": return openParametersOf(instance);
     case "KIT_BASE_PULLOUT": return pulloutParametersOf(instance);
     case "KIT_TALL_OVEN": return ovenTowerParametersOf(instance);
+    case "KIT_BASE_SINK": return sinkParametersOf(instance);
     default: throw new Error(`No compiler for product '${instance.recipe.productCode}'`);
   }
 }

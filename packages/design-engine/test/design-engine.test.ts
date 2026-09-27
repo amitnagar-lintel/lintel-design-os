@@ -283,6 +283,59 @@ describe("KIT_BASE_PULLOUT (Slice 5 step 1: pull-out cabinet)", () => {
   });
 });
 
+describe("KIT_BASE_SINK (Slice 5 step 4: sink cabinet)", () => {
+  const sinkObj = (over: Partial<DesignObject> = {}): DesignObject => obj({ productId: "KIT_BASE_SINK", dimensions: { width: 600, height: 720, depth: 560 }, ...over });
+  const run = (o: DesignObject, adapters: readonly ManufacturerAdapter[] = [fakeAdapter]) =>
+    resolveCabinet({ designVersion: dv, object: o, catalog: LINTEL_CATALOG, standard: TEST_FIXTURE_CONSTRUCTION_STANDARD, edgeBandStandard: TEST_FIXTURE_EDGE_BAND_STANDARD, adapters });
+
+  it("resolves to KIT_BASE_SINK's own recipe", () => {
+    const r = run(sinkObj());
+    expect(r.trace.recipe.id).toBe("KITCHEN_BASE_SINK_V1");
+    expect(r.trace.product.id).toBe("KIT_BASE_SINK");
+  });
+
+  it("generates the carcass with no rear top rail and no waste-bin internal by default (internalConfig OPEN)", () => {
+    const r = run(sinkObj({ parameters: { shutterCount: 1 } }));
+    expect(codes(r.validation).filter((c) => c === "COMPONENT_DIMENSION_INVALID" || c === "COMPONENT_COUNT_INVALID")).toEqual([]);
+    const counts = (type: string) => r.components.filter((c) => c.componentType === type).length;
+    expect(counts("SHUTTER")).toBe(1);
+    expect(counts("TOP_SUPPORT_BACK")).toBe(0);
+    expect(counts("PULLOUT_FRAME_SIDE")).toBe(0);
+    expect(counts("PULLOUT_TRAY")).toBe(0);
+    expect(counts("SIDE_LEFT") + counts("SIDE_RIGHT") + counts("BOTTOM") + counts("TOP_SUPPORT_FRONT") + counts("BACK")).toBe(5);
+    expect(r.components).toHaveLength(5 + 1);
+  });
+
+  it("generates a waste-bin frame (2 sides + a tray) centred in the internal height when internalConfig is WASTE_BIN", () => {
+    const r = run(sinkObj({ parameters: { internalConfig: "WASTE_BIN", shutterCount: 1 } }));
+    expect(codes(r.validation).filter((c) => c === "COMPONENT_DIMENSION_INVALID" || c === "COMPONENT_COUNT_INVALID")).toEqual([]);
+    const counts = (type: string) => r.components.filter((c) => c.componentType === type).length;
+    expect(counts("PULLOUT_FRAME_SIDE")).toBe(2);
+    expect(counts("PULLOUT_TRAY")).toBe(1);
+    const trayBottomY = r.components.find((c) => c.componentType === "PULLOUT_TRAY")!.geometry.local.min.y;
+    const carcassTop = r.scope.H as number;
+    const T = r.scope.T as number;
+    expect(trayBottomY).toBeGreaterThan(T);
+    expect(trayBottomY).toBeLessThan(carcassTop - T);
+  });
+
+  it("requests one hinge per shutter and one runner pair for the waste-bin frame only when present", () => {
+    const open = run(sinkObj({ parameters: { internalConfig: "OPEN", shutterCount: 1 } }));
+    expect(open.hardwareRequirements.filter((h) => h.category === "HINGE")).toHaveLength(1);
+    expect(open.hardwareRequirements.filter((h) => h.category === "RUNNER")).toHaveLength(0);
+    const wasteBin = run(sinkObj({ parameters: { internalConfig: "WASTE_BIN", shutterCount: 1 } }));
+    expect(wasteBin.hardwareRequirements.filter((h) => h.category === "HINGE")).toHaveLength(1);
+    expect(wasteBin.hardwareRequirements.filter((h) => h.category === "RUNNER")).toHaveLength(2);
+  });
+
+  it("regenerates geometry (and the model fingerprint) when internalConfig changes", async () => {
+    const { modelFingerprint } = await import("../src/index.js");
+    const open = run(sinkObj({ parameters: { internalConfig: "OPEN" } }));
+    const wasteBin = run(sinkObj({ parameters: { internalConfig: "WASTE_BIN" } }));
+    expect(modelFingerprint(open)).not.toBe(modelFingerprint(wasteBin));
+  });
+});
+
 describe("assertProductionEligible", () => {
   const ok: ValidationResult = { messages: [], counts: { BLOCKER: 0, ERROR: 0, WARNING: 0, INFO: 0 }, canApprove: true };
   const blocked: ValidationResult = { ...ok, counts: { ...ok.counts, BLOCKER: 1 }, canApprove: false };

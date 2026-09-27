@@ -1,8 +1,8 @@
 # Design Studio (Phases D1-D6) — a deliberate product-direction pivot
 
-Status: Slice 1 (base cabinet, 1-2 shutters) implemented. Slices 2-7 (drawer bank, shelves/internals, corner,
-sink/appliance/pull-out, wall/tall, cabinet runs) are not yet built; `packages/cabinet-engine/src/library.ts`
-lists every planned cabinet family and the slice that adds it.
+Status: Slices 1-2 (base cabinet with 1-2 shutters; all-drawer base cabinet, 2/3/4 drawers) implemented. Slices
+3-7 (shelves/internals, corner, sink/appliance/pull-out, wall/tall, cabinet runs) are not yet built;
+`packages/cabinet-engine/src/library.ts` lists every planned cabinet family and the slice that adds it.
 
 ## 1. Why this exists
 
@@ -52,5 +52,31 @@ directly (now exported for that purpose), but neither screen is reachable from t
 A designer can, entirely through the browser (no JSON, database row, CLI command or code): create a design
 version, add a base cabinet from the Cabinet Library, change its width/height/depth, change its front between
 1 and 2 shutters and between overlay and inset, see the change reflected in the 3D viewport and the wall
-elevation, save it, and generate its BOM. This is the definition of "Slice 1 is usable"; the next slice (drawer
-bank + drawer fronts) begins immediately once it holds.
+elevation, save it, and generate its BOM. This is the definition of "Slice 1 is usable".
+
+## 5. What Slice 2 changed
+
+**`packages/cabinet-engine`**: `BASE_DRAWER_BANK` (`KIT_BASE_DRAWER` / `KITCHEN_BASE_DRAWER_V1`) moves from
+`PLANNED` to a full `AVAILABLE` library entry, alongside `BASE_SHUTTER`. It compiles to and decodes from an
+all-drawer carcass of 2, 3 or 4 equal-height drawers — a single-column row whose element is one `DrawerBank` of
+stacked `Drawer`s, mirroring exactly how `BASE_SHUTTER` is a single-column row of `CabinetFront`.
+
+The hardware model widened from a single hinge-shaped rule to a `HINGE`/`MOUNTING_PLATE` vs `RUNNER`
+discriminated union (`application: "HINGED_DOOR" | "DRAWER"`), threaded through `@lintel/types`,
+`@lintel/design-engine`, `@lintel/catalog-engine`, `@lintel/hettich-engine` and `@lintel/persistence` — a
+drawer runner rule now validates, resolves and persists through the exact same paths a hinge rule already did,
+rather than a parallel drawer-only code path.
+
+Every deliberate simplification for this slice (drawer box always positioned as if inset regardless of the
+front's overlay/inset choice; box sides/back/bottom reuse the carcass/back material roles; no separate
+structural drawer-box front panel — the visible front is the box's own front wall) is documented in
+`KITCHEN_BASE_DRAWER_V1`'s own `assumptions` array in `packages/catalog-engine/src/data/kit-base-drawer.ts`, not
+repeated here.
+
+## 6. Slice 2 acceptance test
+
+A designer can, entirely through the browser: add a drawer-bank cabinet from the Cabinet Library, see a
+"Drawer count" property (2/3/4) in place of the shutter cabinet's "Front" control, change its drawer count and
+width, see the change reflected in the 3D viewport and the wall elevation (stacked drawer fronts, top to
+bottom), save it, and generate a BOM whose resolved hardware includes drawer runners. This is the definition of
+"Slice 2 is usable"; the next slice (shelves + internals) begins immediately once it holds.

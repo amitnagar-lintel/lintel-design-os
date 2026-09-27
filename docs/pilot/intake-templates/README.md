@@ -7,7 +7,7 @@ Import in the order of PILOT-TOMORROW §2: a file may reference only files that 
 
 | # | File | Author role (imports, submits) | Approver role (a different person) | Values still missing |
 |---|---|---|---|---|
-| 01 | `01-construction_standard-LINTEL_CONSTRUCTION_STANDARD.json` | PRODUCTION | DESIGN_HEAD | 12 |
+| 01 | `01-construction_standard-LINTEL_CONSTRUCTION_STANDARD.json` | PRODUCTION | DESIGN_HEAD | 15 |
 | 02 | `02-planning_standard-LINTEL_PLANNING_STANDARD.json` | PRODUCTION | DESIGN_HEAD | 6 |
 | 03 | `03-material-BOARD_BWP_18.json` | PROCUREMENT | DESIGN_HEAD | 1 |
 | 04 | `04-material-BOARD_HDHMR_18.json` | PROCUREMENT | DESIGN_HEAD | 3 |
@@ -15,7 +15,7 @@ Import in the order of PILOT-TOMORROW §2: a file may reference only files that 
 | 06 | `06-edge_band-EDGE_ABS_2MM.json` | PROCUREMENT | DESIGN_HEAD | 1 |
 | 07 | `07-edge_band-EDGE_ABS_0_8MM.json` | PROCUREMENT | DESIGN_HEAD | 1 |
 | 08 | `08-finish-LAMINATE_WHITE.json` | PROCUREMENT | DESIGN_HEAD | 0 |
-| 09 | `09-edge_band_standard-LINTEL_EDGE_BAND_STANDARD.json` | PRODUCTION | DESIGN_HEAD | 1 |
+| 09 | `09-edge_band_standard-LINTEL_EDGE_BAND_STANDARD.json` | PRODUCTION | DESIGN_HEAD | 2 |
 | 10 | `10-hardware_rule_set-HINGE_STANDARD.json` | PROCUREMENT | PRODUCTION | 0 |
 | 11 | `11-construction_recipe-KITCHEN_BASE_STANDARD_V1.json` | DESIGN_HEAD | PRODUCTION | 0 |
 | 12 | `12-product-KIT_BASE_STANDARD.json` | DESIGN_HEAD | PRODUCTION | 12 |
@@ -31,6 +31,9 @@ Import in the order of PILOT-TOMORROW §2: a file may reference only files that 
 
 - `$.data.variables.BACK_GROOVE_DEPTH` — BACK_GROOVE_DEPTH is NULL / UNVERIFIED
 - `$.data.variables.BACK_REAR_OFFSET` — BACK_REAR_OFFSET is NULL / UNVERIFIED
+- `$.data.variables.DRAWER_BOX_FRONT_SETBACK` — DRAWER_BOX_FRONT_SETBACK is NULL / UNVERIFIED
+- `$.data.variables.DRAWER_BOX_HEIGHT_GAP` — DRAWER_BOX_HEIGHT_GAP is NULL / UNVERIFIED
+- `$.data.variables.DRAWER_BOX_SIDE_CLEARANCE` — DRAWER_BOX_SIDE_CLEARANCE is NULL / UNVERIFIED
 - `$.data.variables.FRONT_BETWEEN_GAP` — FRONT_BETWEEN_GAP is NULL / UNVERIFIED
 - `$.data.variables.FRONT_FINISHED_FACES` — FRONT_FINISHED_FACES is NULL / UNVERIFIED
 - `$.data.variables.INSET_GAP` — INSET_GAP is NULL / UNVERIFIED
@@ -83,6 +86,7 @@ Nothing is NULL in the draft. Confirm the values and name the source document.
 ## 09-edge_band_standard-LINTEL_EDGE_BAND_STANDARD.json
 
 - `$.data.ruleSets.CARCASS_STANDARD` — rule set CARCASS_STANDARD defines no component type
+- `$.data.ruleSets.DRAWER_CARCASS_STANDARD` — rule set DRAWER_CARCASS_STANDARD defines no component type
 
 ## 10-hardware_rule_set-HINGE_STANDARD.json
 

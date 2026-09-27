@@ -18,10 +18,12 @@ export interface HettichArticle {
   readonly family: string;
   readonly series: string | null;
   readonly category: HardwareCategory;
-  readonly application: "HINGED_DOOR" | null;
+  readonly application: "HINGED_DOOR" | "DRAWER" | null;
   readonly mounting: HingeMounting | null;
   readonly openingAngle: number | null;
   readonly doorThicknessRange: { readonly min: Millimetres; readonly max: Millimetres } | null;
+  /** RUNNER only: the fixed nominal length this article is cut for. */
+  readonly nominalLength: Millimetres | null;
   /** Articles that must be supplied with this one (e.g. mounting plates), alternatives in preference order. */
   readonly compatibleArticles: readonly string[];
   readonly drillingPatternId: string | null;
@@ -73,13 +75,15 @@ export interface HettichProductionRecord {
   readonly description: string | null;
   readonly exactApplication: {
     readonly description: string | null;
-    readonly application: "HINGED_DOOR" | null;
+    readonly application: "HINGED_DOOR" | "DRAWER" | null;
     readonly mounting: HingeMounting | null;
   };
   readonly dimensions: Readonly<Record<string, Measured>> | null;
   readonly compatibility: {
     readonly doorThicknessRange: { readonly min: Millimetres; readonly max: Millimetres } | null;
     readonly openingAngle: number | null;
+    /** RUNNER only: the fixed nominal length this article is cut for. */
+    readonly nominalLength: Millimetres | null;
     /** Required companion articles (e.g. mounting plates); `[]` = explicitly none. */
     readonly compatibleArticles: readonly string[] | null;
     readonly notes: string | null;

@@ -22,5 +22,19 @@ export const TEST_FIXTURE_EDGE_BAND_STANDARD: EdgeBandStandard = {
       SHELF: { FRONT: "EDGE_ABS_0_8MM" },
       SHUTTER: { TOP: "EDGE_ABS_2MM", BOTTOM: "EDGE_ABS_2MM", LEFT: "EDGE_ABS_2MM", RIGHT: "EDGE_ABS_2MM" },
     },
+    // KITCHEN_BASE_DRAWER_V1's own rule set (a recipe's edgeRuleSetId names one whole set; the shared
+    // carcass component types are repeated here rather than split across two rule sets).
+    DRAWER_CARCASS_STANDARD: {
+      SIDE_LEFT: { FRONT: "EDGE_ABS_0_8MM" },
+      SIDE_RIGHT: { FRONT: "EDGE_ABS_0_8MM" },
+      BOTTOM: { FRONT: "EDGE_ABS_0_8MM" },
+      TOP_SUPPORT_FRONT: { FRONT: "EDGE_ABS_0_8MM" },
+      TOP_SUPPORT_BACK: {},
+      BACK: {},
+      DRAWER_FRONT: { TOP: "EDGE_ABS_2MM", BOTTOM: "EDGE_ABS_2MM", LEFT: "EDGE_ABS_2MM", RIGHT: "EDGE_ABS_2MM" },
+      DRAWER_BOX_SIDE: { TOP: "EDGE_ABS_0_8MM" },
+      DRAWER_BOX_BACK: {},
+      DRAWER_BOTTOM: {},
+    },
   },
 };

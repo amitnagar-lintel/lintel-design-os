@@ -1,17 +1,23 @@
 /**
- * Design Studio — Slice 1 compiler: maps a `CabinetInstance` to the exact request bodies the existing object
- * endpoints already accept — `POST /api/v1/design-versions/{versionId}/objects` (`ObjectInput`) and
+ * Design Studio compiler: maps a `CabinetInstance` to the exact request bodies the existing object endpoints
+ * already accept — `POST /api/v1/design-versions/{versionId}/objects` (`ObjectInput`) and
  * `PATCH /api/v1/design-objects/{objectId}` (`ObjectUpdate`), `apps/api/.../design-versions.schemas.ts`. No
- * engine, persistence or API change: Slice 1's only cabinet type, `BASE_SHUTTER`, compiles to the exact
- * `KIT_BASE_STANDARD` parameters `KITCHEN_BASE_STANDARD_V1` already resolves — `width`/`height`/`depth` via
- * `dimensions` (never `parameters`: the engine rejects a dimension key duplicated there), `shutterCount`,
- * `frontType`, `material`, `backMaterial`, `shutterMaterial` and `finish` via `parameters`. Carcass/back board
- * thickness and shelf count are left at the recipe's own defaults: Slice 1 has no control for them.
+ * engine, persistence or API change: every supported cabinet type compiles to parameters its own recipe
+ * already resolves — `width`/`height`/`depth` always via `dimensions` (never `parameters`: the engine rejects
+ * a dimension key duplicated there).
  *
- * Refuses (throws) a `CabinetInstance` outside Slice 1's scope rather than silently dropping data: a
- * `DrawerBank` column, more than one front row, any `internals`, or a `corner` configuration.
+ * Slice 1 (`BASE_SHUTTER` / `KIT_BASE_STANDARD`): `shutterCount`, `frontType`, `material`, `backMaterial`,
+ * `shutterMaterial`, `finish`. Carcass/back board thickness and shelf count are left at the recipe's own
+ * defaults: Slice 1 has no control for them.
+ *
+ * Slice 2 (`BASE_DRAWER_BANK` / `KIT_BASE_DRAWER`): `drawerCount`, `frontType`, `material`, `backMaterial`,
+ * `frontMaterial`, `finish`.
+ *
+ * Refuses (throws) a `CabinetInstance` outside a supported product's scope rather than silently dropping
+ * data: an unknown `productCode`, a mismatched front element, more than one front row, any `internals`, or a
+ * `corner` configuration.
  */
-import type { CabinetInstance, OverlayMode, Shutter } from "./model.js";
+import type { CabinetInstance, DrawerBank, OverlayMode, Shutter } from "./model.js";
 
 export interface CompiledPosition {
   readonly xMm: number;
@@ -49,34 +55,67 @@ export interface CompiledObjectUpdate {
 }
 
 function shuttersOf(instance: CabinetInstance): readonly Shutter[] {
-  if (instance.corner !== null) throw new Error("Slice 1 cannot compile a corner cabinet (reserved for Slice 4)");
-  if (instance.internals.length > 0) throw new Error("Slice 1 cannot compile internal components (reserved for Slice 3)");
-  if (instance.front.rows.length !== 1) throw new Error("Slice 1 only compiles a front with exactly one row (multi-row fronts are reserved for Slice 2)");
+  if (instance.corner !== null) throw new Error("Cannot compile a corner cabinet (reserved for Slice 4)");
+  if (instance.internals.length > 0) throw new Error("Cannot compile internal components (reserved for Slice 3)");
+  if (instance.front.rows.length !== 1) throw new Error("Only a front with exactly one row can be compiled (multi-row fronts are reserved for a later slice)");
   const [row] = instance.front.rows;
   if (row === undefined || row.columns.length === 0) throw new Error("A cabinet front row must have at least one column");
   return row.columns.map((column) => {
-    if (column.element.kind !== "SHUTTER") throw new Error(`Slice 1 only compiles shutter fronts; column '${column.columnId}' is a ${column.element.kind} (reserved for Slice 2)`);
+    if (column.element.kind !== "SHUTTER") throw new Error(`A BASE_SHUTTER cabinet only compiles shutter fronts; column '${column.columnId}' is a ${column.element.kind}`);
     return column.element;
   });
 }
 
-function frontTypeOf(shutters: readonly Shutter[]): OverlayMode {
+function shutterFrontTypeOf(shutters: readonly Shutter[]): OverlayMode {
   const [first, ...rest] = shutters;
   if (first === undefined) throw new Error("A cabinet front row must have at least one column");
-  if (rest.some((s) => s.overlay !== first.overlay)) throw new Error("Slice 1 requires every shutter on one cabinet to share a single overlay mode");
+  if (rest.some((s) => s.overlay !== first.overlay)) throw new Error("Every shutter on one cabinet must share a single overlay mode");
   return first.overlay;
 }
 
-function parametersOf(instance: CabinetInstance): CompiledParameters {
+function drawerBankOf(instance: CabinetInstance): DrawerBank {
+  if (instance.corner !== null) throw new Error("Cannot compile a corner cabinet (reserved for Slice 4)");
+  if (instance.internals.length > 0) throw new Error("Cannot compile internal components (reserved for Slice 3)");
+  if (instance.front.rows.length !== 1) throw new Error("Only a front with exactly one row can be compiled (multi-row fronts are reserved for a later slice)");
+  const [row] = instance.front.rows;
+  if (row === undefined || row.columns.length !== 1) throw new Error("A drawer bank front must have exactly one column");
+  const [column] = row.columns;
+  if (column === undefined || column.element.kind !== "DRAWER_BANK") throw new Error(`A BASE_DRAWER_BANK cabinet only compiles a drawer-bank front; column is a ${column?.element.kind}`);
+  if (column.element.drawers.length === 0) throw new Error("A drawer bank must have at least one drawer");
+  return column.element;
+}
+
+function shutterParametersOf(instance: CabinetInstance): CompiledParameters {
   const shutters = shuttersOf(instance);
   return {
     shutterCount: shutters.length,
-    frontType: frontTypeOf(shutters),
+    frontType: shutterFrontTypeOf(shutters),
     material: instance.finish.carcassMaterialId,
     backMaterial: instance.finish.backMaterialId,
     shutterMaterial: instance.finish.frontMaterialId,
     finish: instance.finish.frontFinishId,
   };
+}
+
+function drawerParametersOf(instance: CabinetInstance): CompiledParameters {
+  const bank = drawerBankOf(instance);
+  return {
+    drawerCount: bank.drawers.length,
+    frontType: bank.overlay,
+    material: instance.finish.carcassMaterialId,
+    backMaterial: instance.finish.backMaterialId,
+    frontMaterial: instance.finish.frontMaterialId,
+    finish: instance.finish.frontFinishId,
+  };
+}
+
+/** Every parameter key belongs to exactly one product; compiling any other productCode is refused, not guessed. */
+function parametersOf(instance: CabinetInstance): CompiledParameters {
+  switch (instance.recipe.productCode) {
+    case "KIT_BASE_STANDARD": return shutterParametersOf(instance);
+    case "KIT_BASE_DRAWER": return drawerParametersOf(instance);
+    default: throw new Error(`No compiler for product '${instance.recipe.productCode}'`);
+  }
 }
 
 /** A new `CabinetInstance` → the `POST .../objects` body. */

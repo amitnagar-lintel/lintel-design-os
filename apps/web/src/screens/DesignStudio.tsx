@@ -1,21 +1,25 @@
 /**
- * Design Studio (Phase D6, Slice 1): the primary cabinet-design experience, replacing the old "4 Base cabinets" /
+ * Design Studio (Phase D6): the primary cabinet-design experience, replacing the old "4 Base cabinets" /
  * "5 Preview" screens as the primary editing surface. Three panes plus a bottom bar: a Cabinet Library (left), a
  * live 3D viewport with a plan / elevation / BOM bottom bar (centre), and a Properties panel (right). Every shape
  * shown comes from the API's already-resolved model (`GET .../model`); this screen computes no geometry, price or
  * quantity itself — it only maps a `CabinetInstance` (`@lintel/cabinet-engine`) to and from the API's existing
  * object endpoints (`compile.ts` / `decode.ts`), the same endpoints "4 Base cabinets" always used.
+ *
+ * Slice 1 (`BASE_SHUTTER`) and Slice 2 (`BASE_DRAWER_BANK`) share this one screen: the Properties panel shows a
+ * "Front" (shutter count) control for one and a "Drawer count" control for the other, dispatched by
+ * `recipe.productCode` — never by guessing from whatever front happens to be decoded.
  */
 import { useEffect, useState } from "react";
-import type { CabinetFront, CabinetInstance, CabinetType, OverlayMode, Shutter } from "@lintel/cabinet-engine";
+import type { CabinetFront, CabinetInstance, CabinetType, Drawer, DrawerBank, OverlayMode, Shutter } from "@lintel/cabinet-engine";
 import { CABINET_LIBRARY, compileCreate, compileUpdate, decodeCabinetInstance, findAvailableCabinetType } from "@lintel/cabinet-engine";
 import type { ScreenProps } from "../App";
 import type { ModelPreview, Schemas } from "../api/client";
 import { api, idempotency, must, versionWithEtag } from "../api/client";
 import { nextFreeX } from "../geometry";
 import { snapshotOf, SnapshotView } from "./Outputs";
-import { pinnedProduct, usablePins } from "./Layout";
-import type { Pins } from "./Layout";
+import { usablePins } from "./Layout";
+import type { Param, Pins } from "./Layout";
 import { Elevation, Plan, ValidationBadges } from "./Preview";
 import { Action, Badge, ErrorBox, Field, Section, useLoad } from "../ui";
 import { Viewport3D } from "./Viewport3D";
@@ -31,16 +35,38 @@ function shutterFront(shutterCount: 1 | 2, overlay: OverlayMode, widthMm: number
   return { rows: [{ rowId: "R0", heightMm, columns }] };
 }
 
-type ProductParam = { readonly key: string; readonly default?: unknown };
+/** A placeholder drawer bank shaped correctly for `compileCreate`/`compileUpdate`: only `drawers.length` and
+ * `overlay` reach the wire (see `compile.ts`); the engine recomputes every drawer's real size and position. */
+function drawerBankFront(drawerCount: 2 | 3 | 4, overlay: OverlayMode, widthMm: number, heightMm: number): CabinetFront {
+  const drawerHeight = heightMm / drawerCount;
+  const drawers: Drawer[] = Array.from({ length: drawerCount }, (_, i) => ({ kind: "DRAWER", widthMm, heightMm: drawerHeight, frontThicknessMm: 18, index: i, runner: null }));
+  const bank: DrawerBank = { kind: "DRAWER_BANK", widthMm, overlay, drawers };
+  return { rows: [{ rowId: "R0", heightMm, columns: [{ columnId: "C0", widthMm, element: bank }] }] };
+}
 
-function paramNumber(params: readonly ProductParam[], key: string): number | undefined {
+function paramNumber(params: readonly Param[], key: string): number | undefined {
   const value = params.find((p) => p.key === key)?.default;
   return typeof value === "number" ? value : undefined;
 }
 
-function paramString(params: readonly ProductParam[], key: string): string {
+function paramString(params: readonly Param[], key: string): string {
   const value = params.find((p) => p.key === key)?.default;
   return typeof value === "string" ? value : "";
+}
+
+/** Same lookup Layout.tsx's `pinnedProduct` does, generalised to any product code (Layout.tsx's own version stays
+ * hardcoded to KIT_BASE_STANDARD, since it is frozen project-workflow infrastructure the Design Studio does not edit). */
+async function pinnedProductByCode(productCatalogVersionId: string, productCode: string): Promise<{ productVersionId: string; params: Param[] } | null> {
+  const entities = await must(api.GET("/api/v1/reference-data/{type}/entities", { params: { path: { type: "product" }, query: { code: productCode } } }));
+  const entity = entities.items[0];
+  if (entity === undefined) return null;
+  const catalog = await must(api.GET("/api/v1/reference-data/{type}/versions/{versionId}", { params: { path: { type: "product_catalog", versionId: productCatalogVersionId } } }));
+  const member = Object.values(catalog.children).flat().find((m) => m.product_id === entity.id);
+  const productVersionId = typeof member?.product_version_id === "string" ? member.product_version_id : null;
+  if (productVersionId === null) return null;
+  const product = await must(api.GET("/api/v1/reference-data/{type}/versions/{versionId}", { params: { path: { type: "product", versionId: productVersionId } } }));
+  const definition = product.content.definition as { parameters?: Param[] } | undefined;
+  return { productVersionId, params: definition?.parameters ?? [] };
 }
 
 export function DesignStudioScreen({ me, sel, setSel, go }: ScreenProps) {
@@ -105,7 +131,6 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
   const versionId = version.id;
   const [n, setN] = useState(0);
   const model = useLoad(() => must(api.GET("/api/v1/design-versions/{versionId}/model", { params: { path: { versionId } } })), `smodel:${versionId}:${String(n)}`);
-  const product = useLoad(() => pinnedProduct(version.pins.productCatalogVersionId), `sproduct:${version.pins.productCatalogVersionId}`);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [bottomTab, setBottomTab] = useState<"PLAN" | "ELEVATION" | "BOM">("PLAN");
   const [bom, setBom] = useState<Schemas["Snapshot"] | null>(null);
@@ -116,29 +141,30 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
   const refresh = () => { setN((x) => x + 1); model.reload(); };
 
   const addCabinet = async (type: CabinetType) => {
-    const p = product.data;
-    if (p === null) throw new Error("The pinned product catalog does not define this cabinet type's product.");
+    const p = await pinnedProductByCode(version.pins.productCatalogVersionId, type.productCode);
+    if (p === null) throw new Error(`The pinned product catalog does not define ${type.productCode}.`);
     const width = paramNumber(p.params, "width");
     const height = paramNumber(p.params, "height");
     const depth = paramNumber(p.params, "depth");
     if (width === undefined || height === undefined || depth === undefined) throw new Error("The pinned product does not define default width/height/depth.");
+    const isDrawer = type.productCode === "KIT_BASE_DRAWER";
     const n2 = objects.reduce((mx, o) => Math.max(mx, Number(/(\d+)$/.exec(o.objectCode)?.[1] ?? 0)), 0) + 1;
     const instance: CabinetInstance = {
       instanceId: "",
       objectCode: `BC-${String(n2).padStart(3, "0")}`,
       lineageId: null,
       cabinetType: type,
-      recipe: { recipeId: type.recipeId, productCode: type.productCode, productVersionId: p.productVersionId, frontComponentTypes: ["SHUTTER"] },
+      recipe: { recipeId: type.recipeId, productCode: type.productCode, productVersionId: p.productVersionId, frontComponentTypes: isDrawer ? ["DRAWER_FRONT"] : ["SHUTTER"] },
       position: { xMm: nextFreeX(objects.map((o) => ({ id: o.objectId, x: o.transform.x, width: o.dimensions.width }))), yMm: 0, zMm: 0 },
       rotationY: 0,
       dimensions: { widthMm: width, heightMm: height, depthMm: depth },
-      front: shutterFront(2, "OVERLAY", width, height),
+      front: isDrawer ? drawerBankFront(3, "OVERLAY", width, height) : shutterFront(2, "OVERLAY", width, height),
       internals: [],
       corner: null,
       finish: {
         carcassMaterialId: paramString(p.params, "material"),
         backMaterialId: paramString(p.params, "backMaterial"),
-        frontMaterialId: paramString(p.params, "shutterMaterial"),
+        frontMaterialId: paramString(p.params, isDrawer ? "frontMaterial" : "shutterMaterial"),
         frontFinishId: paramString(p.params, "finish"),
       },
       hardware: { hinges: [], runners: [], handle: null },
@@ -166,7 +192,7 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
 
   return (
     <Section title={`Design Studio — version ${String(version.versionNumber)}`} aside={m === null ? undefined : <ValidationBadges m={m} />}>
-      <ErrorBox error={model.error ?? product.error} />
+      <ErrorBox error={model.error} />
       {!canEdit && <p>This version is {version.status}: it can no longer be edited. Create a new DRAFT version above to change the design.</p>}
       <div className="studio">
         <aside className="studio-library">
@@ -238,14 +264,19 @@ function CabinetLibraryPanel({ canEdit, onAdd }: { readonly canEdit: boolean; re
   );
 }
 
+const DRAWER_COUNTS = [2, 3, 4] as const;
+
 function PropertiesPanel({ instance, canEdit, onSave, onRemove }: { readonly instance: CabinetInstance; readonly canEdit: boolean; readonly onSave: (next: CabinetInstance) => Promise<void>; readonly onRemove: () => Promise<void> }) {
-  const currentShutterCount = instance.front.rows[0]?.columns.length === 2 ? 2 : 1;
-  const firstShutter = instance.front.rows[0]?.columns[0]?.element;
-  const currentOverlay: OverlayMode = firstShutter?.kind === "SHUTTER" ? firstShutter.overlay : "OVERLAY";
+  const isDrawer = instance.recipe.productCode === "KIT_BASE_DRAWER";
+  const element = instance.front.rows[0]?.columns[0]?.element;
+  const currentShutterCount = !isDrawer && instance.front.rows[0]?.columns.length === 2 ? 2 : 1;
+  const currentDrawerCount = element?.kind === "DRAWER_BANK" && (DRAWER_COUNTS as readonly number[]).includes(element.drawers.length) ? (element.drawers.length as 2 | 3 | 4) : 3;
+  const currentOverlay: OverlayMode = element?.kind === "SHUTTER" || element?.kind === "DRAWER_BANK" ? element.overlay : "OVERLAY";
   const [width, setWidth] = useState(String(instance.dimensions.widthMm));
   const [height, setHeight] = useState(String(instance.dimensions.heightMm));
   const [depth, setDepth] = useState(String(instance.dimensions.depthMm));
   const [shutterCount, setShutterCount] = useState<1 | 2>(currentShutterCount);
+  const [drawerCount, setDrawerCount] = useState<2 | 3 | 4>(currentDrawerCount);
   const [overlay, setOverlay] = useState<OverlayMode>(currentOverlay);
 
   useEffect(() => {
@@ -253,6 +284,7 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove }: { readonly ins
     setHeight(String(instance.dimensions.heightMm));
     setDepth(String(instance.dimensions.depthMm));
     setShutterCount(currentShutterCount);
+    setDrawerCount(currentDrawerCount);
     setOverlay(currentOverlay);
     // Resync the editable fields whenever a different cabinet becomes selected.
   }, [instance.instanceId]);
@@ -264,7 +296,7 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove }: { readonly ins
     await onSave({
       ...instance,
       dimensions: { widthMm, heightMm, depthMm },
-      front: shutterFront(shutterCount, overlay, widthMm, heightMm),
+      front: isDrawer ? drawerBankFront(drawerCount, overlay, widthMm, heightMm) : shutterFront(shutterCount, overlay, widthMm, heightMm),
     });
   };
 
@@ -275,11 +307,19 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove }: { readonly ins
       <Field label="Width (mm)"><input className="num" value={width} disabled={!canEdit} onChange={(e) => { setWidth(e.target.value); }} /></Field>
       <Field label="Height (mm)"><input className="num" value={height} disabled={!canEdit} onChange={(e) => { setHeight(e.target.value); }} /></Field>
       <Field label="Depth (mm)"><input className="num" value={depth} disabled={!canEdit} onChange={(e) => { setDepth(e.target.value); }} /></Field>
-      <Field label="Front">
-        <select value={String(shutterCount)} disabled={!canEdit} onChange={(e) => { setShutterCount(e.target.value === "2" ? 2 : 1); }}>
-          {instance.cabinetType.supportedFronts.map((f) => <option key={f.topologyId} value={String(f.rows[0]?.columns ?? 1)}>{f.label}</option>)}
-        </select>
-      </Field>
+      {isDrawer ? (
+        <Field label="Drawer count">
+          <select value={String(drawerCount)} disabled={!canEdit} onChange={(e) => { setDrawerCount(Number(e.target.value) as 2 | 3 | 4); }}>
+            {DRAWER_COUNTS.map((n) => <option key={n} value={String(n)}>{n} drawers</option>)}
+          </select>
+        </Field>
+      ) : (
+        <Field label="Front">
+          <select value={String(shutterCount)} disabled={!canEdit} onChange={(e) => { setShutterCount(e.target.value === "2" ? 2 : 1); }}>
+            {instance.cabinetType.supportedFronts.map((f) => <option key={f.topologyId} value={String(f.rows[0]?.columns ?? 1)}>{f.label}</option>)}
+          </select>
+        </Field>
+      )}
       <Field label="Overlay">
         <select value={overlay} disabled={!canEdit} onChange={(e) => { setOverlay(e.target.value === "INSET" ? "INSET" : "OVERLAY"); }}>
           <option value="OVERLAY">Overlay</option>
@@ -296,7 +336,9 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove }: { readonly ins
       </details>
       <details>
         <summary>Hardware (rule-derived, not chosen here)</summary>
-        <p>{instance.hardware.hinges.length} hinge(s){instance.hardware.hinges[0] === undefined ? "" : `, mounting ${instance.hardware.hinges[0].mounting}`}. See the BOM tab for the full hardware list.</p>
+        {isDrawer
+          ? <p>One runner pair per drawer ({element?.kind === "DRAWER_BANK" ? element.drawers.length : 0} drawer(s)). See the BOM tab for the resolved articles.</p>
+          : <p>{instance.hardware.hinges.length} hinge(s){instance.hardware.hinges[0] === undefined ? "" : `, mounting ${instance.hardware.hinges[0].mounting}`}. See the BOM tab for the full hardware list.</p>}
       </details>
     </>
   );

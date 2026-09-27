@@ -57,6 +57,10 @@ export function validateProductionRecord(r: HettichProductionRecord): Validation
     checkSource(r.drilling.source, `${base}.drilling.source`, out);
     need(r.adjustment.ranges, "adjustment.ranges");
   }
+  if (r.category === "RUNNER") {
+    need(r.exactApplication.application, "exactApplication.application");
+    need(r.compatibility.nominalLength, "compatibility.nominalLength");
+  }
   if (r.dimensions === null || Object.keys(r.dimensions).length === 0) out.push(blocker("HETTICH_FIELD_UNVERIFIED", `${base}.dimensions is NULL / UNVERIFIED`, `${base}.dimensions`));
   need(r.compatibility.compatibleArticles, "compatibility.compatibleArticles");
   checkSource(r.installation.guide, `${base}.installation.guide`, out);
@@ -101,6 +105,7 @@ export function toEngineArticle(r: HettichProductionRecord): HettichArticle {
     mounting: r.exactApplication.mounting,
     openingAngle: r.compatibility.openingAngle,
     doorThicknessRange: r.compatibility.doorThicknessRange,
+    nominalLength: r.compatibility.nominalLength,
     compatibleArticles: r.compatibility.compatibleArticles ?? [],
     drillingPatternId: r.drilling.patternId,
     preferenceRank: r.preferenceRank ?? Number.MAX_SAFE_INTEGER,

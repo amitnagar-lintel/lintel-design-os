@@ -21,7 +21,7 @@ const ComponentType = z.enum([
   "DRAWER_FRONT", "DRAWER_BOX_SIDE", "DRAWER_BOX_FRONT", "DRAWER_BOX_BACK", "DRAWER_BOTTOM", "PLINTH", "FILLER", "END_PANEL", "KICKBOARD",
 ]);
 const EdgeSide = z.enum(["FRONT", "BACK", "TOP", "BOTTOM", "LEFT", "RIGHT"]);
-const HardwareCategory = z.enum(["HINGE", "MOUNTING_PLATE"]);
+const HardwareCategory = z.enum(["HINGE", "MOUNTING_PLATE", "RUNNER"]);
 const HingeMounting = z.enum(["FULL_OVERLAY", "HALF_OVERLAY", "INSET"]);
 
 const Rule = z.strictObject({
@@ -57,12 +57,16 @@ export const FinishSchema = z.strictObject({
 export const EdgeBandSchema = z.strictObject({
   edgeBandId: Id, name: Text, material: z.enum(["ABS", "PVC", "VENEER"]).nullable(), thickness: Mm, width: NullableNumber, status: DataStatus, source: Text,
 });
+const HingeHardwareRule = z.strictObject({
+  ruleId: Id, componentType: ComponentType, category: z.enum(["HINGE", "MOUNTING_PLATE"]), application: z.literal("HINGED_DOOR"),
+  mounting: z.strictObject({ parameterKey: Id, map: z.record(Text, HingeMounting) }), preferredManufacturer: Id,
+});
+const RunnerHardwareRule = z.strictObject({
+  ruleId: Id, componentType: ComponentType, category: z.literal("RUNNER"), application: z.literal("DRAWER"), preferredManufacturer: Id,
+});
 export const HardwareRuleSetSchema = z.strictObject({
   ruleSetId: Id, version: Id, status: DataStatus,
-  rules: z.array(z.strictObject({
-    ruleId: Id, componentType: ComponentType, category: HardwareCategory, application: z.literal("HINGED_DOOR"),
-    mounting: z.strictObject({ parameterKey: Id, map: z.record(Text, HingeMounting) }), preferredManufacturer: Id,
-  })),
+  rules: z.array(z.discriminatedUnion("application", [HingeHardwareRule, RunnerHardwareRule])),
 });
 
 // ---------------------------------------------------------------- recipe and product
@@ -102,10 +106,11 @@ const SourceReference = z.strictObject({ url: Text.nullable(), sourceDate: Text.
 const Verification = z.strictObject({ verifiedBy: Text.nullable(), verifiedAt: Text.nullable() });
 const HettichRecord = z.strictObject({
   recordId: Id, articleNumber: Text.nullable(), productFamily: Text.nullable(), series: Text.nullable(), category: HardwareCategory.nullable(), description: Text.nullable(),
-  exactApplication: z.strictObject({ description: Text.nullable(), application: z.literal("HINGED_DOOR").nullable(), mounting: HingeMounting.nullable() }),
+  exactApplication: z.strictObject({ description: Text.nullable(), application: z.enum(["HINGED_DOOR", "DRAWER"]).nullable(), mounting: HingeMounting.nullable() }),
   dimensions: z.record(Text, z.strictObject({ value: z.number(), unit: z.enum(["MM", "DEG", "KG", "N"]) })).nullable(),
   compatibility: z.strictObject({
-    doorThicknessRange: z.strictObject({ min: Mm, max: Mm }).nullable(), openingAngle: NullableNumber, compatibleArticles: z.array(Text).nullable(), notes: Text.nullable(),
+    doorThicknessRange: z.strictObject({ min: Mm, max: Mm }).nullable(), openingAngle: NullableNumber, nominalLength: NullableNumber,
+    compatibleArticles: z.array(Text).nullable(), notes: Text.nullable(),
   }),
   drilling: z.strictObject({
     patternId: Text.nullable(),

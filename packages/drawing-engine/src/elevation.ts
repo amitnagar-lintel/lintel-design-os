@@ -77,7 +77,11 @@ export function layoutFrontView(all: readonly CabinetComponent[], objectCode: st
   return { primitives: out, scale: vp.scale };
 }
 
-/** PRD §33 Front Elevation (M3 behaviour). */
+/**
+ * PRD §33 Front Elevation (M3 behaviour). Labels every front type (shutters and drawer fronts alike) with
+ * its own size; the width chain (`chainTypes`) stays shutters-only, since it assumes fronts side by side —
+ * stacked drawer fronts share one x-range and would draw overlapping chains at the same height.
+ */
 export function layoutElevation(components: readonly CabinetComponent[], objectCode: string): ElevationLayout {
-  return layoutFrontView(components, objectCode, { caption: "FRONT ELEVATION", labelTypes: ["SHUTTER"], chainTypes: ["SHUTTER"] });
+  return layoutFrontView(components, objectCode, { caption: "FRONT ELEVATION", labelTypes: ["SHUTTER", "DRAWER_FRONT"], chainTypes: ["SHUTTER"] });
 }

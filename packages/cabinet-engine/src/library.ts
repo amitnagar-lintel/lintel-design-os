@@ -2,7 +2,7 @@
  * Design Studio — Phase D2/D6: the Cabinet Library the left-hand panel lists.
  *
  * A `CabinetType` (`model.ts`) always resolves to a real, engine-backed recipe — there is no cabinet family
- * without one. That means a family this repository cannot build yet (a drawer bank, a corner unit) cannot be
+ * without one. That means a family this repository cannot build yet (a corner unit, a wall cabinet) cannot be
  * a `CabinetType` yet either. This module is where that distinction is made explicit: `CABINET_LIBRARY` lists
  * every family the Design Studio's product direction calls for (PRD-independent, Phase D2), each either
  * `AVAILABLE` (carries a real `CabinetType`) or `PLANNED` (named and categorised, but not selectable — the UI
@@ -35,7 +35,7 @@ const BASE_TWO_SHUTTER: FrontTopology = {
   rows: [{ columns: 2, element: "SHUTTER" }],
 };
 
-/** The only engine-backed `CabinetType` today: `KIT_BASE_STANDARD` / `KITCHEN_BASE_STANDARD_V1`. */
+/** `KIT_BASE_STANDARD` / `KITCHEN_BASE_STANDARD_V1` (Slice 1). */
 export const BASE_SHUTTER_CABINET: CabinetType = {
   cabinetTypeId: "BASE_SHUTTER",
   category: "BASE",
@@ -44,6 +44,30 @@ export const BASE_SHUTTER_CABINET: CabinetType = {
   productCode: "KIT_BASE_STANDARD",
   recipeId: "KITCHEN_BASE_STANDARD_V1",
   supportedFronts: [BASE_ONE_SHUTTER, BASE_TWO_SHUTTER],
+};
+
+// ---------------------------------------------------------------- Slice 2: BASE_DRAWER_BANK
+
+/**
+ * A drawer bank's front is one column (a single stack), never a row-per-drawer: `columns: 1` because the
+ * bank itself is one `FrontElement`, and drawer count is a property of the `DrawerBank` element the
+ * Properties panel edits, not of the topology grid.
+ */
+const DRAWER_BANK_TOPOLOGY: FrontTopology = {
+  topologyId: "DRAWER_BANK",
+  label: "Drawer bank",
+  rows: [{ columns: 1, element: "DRAWER" }],
+};
+
+/** `KIT_BASE_DRAWER` / `KITCHEN_BASE_DRAWER_V1` (Slice 2). */
+export const BASE_DRAWER_BANK_CABINET: CabinetType = {
+  cabinetTypeId: "BASE_DRAWER_BANK",
+  category: "BASE",
+  label: "Base cabinet — drawer bank",
+  description: "All-drawer base cabinet (2/3/4 equal-height drawers).",
+  productCode: "KIT_BASE_DRAWER",
+  recipeId: "KITCHEN_BASE_DRAWER_V1",
+  supportedFronts: [DRAWER_BANK_TOPOLOGY],
 };
 
 // ---------------------------------------------------------------- planned families (D2), by the slice that adds them
@@ -60,7 +84,13 @@ export const CABINET_LIBRARY: readonly CabinetLibraryEntry[] = [
     description: BASE_SHUTTER_CABINET.description,
     availability: { kind: "AVAILABLE", cabinetType: BASE_SHUTTER_CABINET },
   },
-  planned("BASE_DRAWER_BANK", "BASE", "Base cabinet — drawer bank", "All-drawer base cabinet (2/3/4 drawers).", 2),
+  {
+    cabinetTypeId: BASE_DRAWER_BANK_CABINET.cabinetTypeId,
+    category: BASE_DRAWER_BANK_CABINET.category,
+    label: BASE_DRAWER_BANK_CABINET.label,
+    description: BASE_DRAWER_BANK_CABINET.description,
+    availability: { kind: "AVAILABLE", cabinetType: BASE_DRAWER_BANK_CABINET },
+  },
   planned("BASE_DRAWER_SHUTTER", "BASE", "Base cabinet — 1 drawer + shutter", "One drawer over a shutter.", 2),
   planned("BASE_DRAWER2_SHUTTER", "BASE", "Base cabinet — 2 drawers + shutter", "Two drawers over a shutter.", 2),
   planned("BASE_OPEN", "BASE", "Base cabinet — open", "Open-front base carcass (no door).", 3),

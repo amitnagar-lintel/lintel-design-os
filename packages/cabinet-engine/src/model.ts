@@ -10,14 +10,15 @@
  * duplicate the existing engine (`@lintel/types`, `@lintel/design-engine`, `@lintel/rules-engine`): a
  * `CabinetInstance` compiles down to the exact `DesignObject` parameters that engine already resolves
  * (`compile.ts`), and the engine's resolved output decodes back into a `CabinetInstance` view for the UI
- * (`decode.ts`). No engine code changes for Slice 1 (base cabinet, 1–2 shutters): `KIT_BASE_STANDARD` and
- * `KITCHEN_BASE_STANDARD_V1` already resolve everything a `CabinetFront` of shutters needs.
+ * (`decode.ts`). No engine code changes for Slice 1 (base cabinet, 1–2 shutters, `KIT_BASE_STANDARD`) or
+ * Slice 2 (drawer bank, `KIT_BASE_DRAWER`): both compile to and decode from recipes that already resolve
+ * everything their own `CabinetFront` needs.
  *
  * What is defined but not yet wired to an engine (reserved for later vertical slices, D1 asks for the type even
- * where the engine does not produce it yet): `Drawer`, `DrawerBank`, `Shelf`, `Divider`, `PullOut`,
- * `ApplianceBay`, `CornerConfiguration`. Each says in its own doc comment which slice implements it. A reserved
- * type is never assembled into a `CabinetInstance` before its slice lands — `library.ts` marks exactly which
- * `CabinetType`s and front topologies are available today.
+ * where the engine does not produce it yet): `Shelf`, `Divider`, `PullOut`, `ApplianceBay`,
+ * `CornerConfiguration`. Each says in its own doc comment which slice implements it. A reserved type is never
+ * assembled into a `CabinetInstance` before its slice lands — `library.ts` marks exactly which `CabinetType`s
+ * and front topologies are available today.
  */
 import type { ComponentType, HingeMounting, Millimetres } from "@lintel/types";
 
@@ -69,8 +70,9 @@ export interface Shutter {
 }
 
 /**
- * One drawer front + box. **Reserved for Slice 2** (drawer bank + drawer fronts) — no recipe produces a
- * `Drawer` yet; `compile.ts` refuses a `CabinetFront` that contains one.
+ * One drawer front + box (Slice 2, `KIT_BASE_DRAWER` / `KITCHEN_BASE_DRAWER_V1`). `runner` stays `null`
+ * until an actual hardware resolution (the BOM, not the model preview) names a selected article — like
+ * `Handle`, a per-drawer runner is never fabricated from geometry alone.
  */
 export interface Drawer {
   readonly kind: "DRAWER";
@@ -83,11 +85,13 @@ export interface Drawer {
 }
 
 /**
- * A vertical stack of drawers occupying one front column. **Reserved for Slice 2.**
+ * A vertical stack of equal-height drawers occupying one front column (Slice 2). Every drawer in a bank
+ * shares one overlay mode: `KIT_BASE_DRAWER`'s `frontType` parameter applies to the whole bank, not per drawer.
  */
 export interface DrawerBank {
   readonly kind: "DRAWER_BANK";
   readonly widthMm: Millimetres;
+  readonly overlay: OverlayMode;
   readonly drawers: readonly Drawer[];
 }
 
@@ -108,8 +112,9 @@ export interface FrontRow {
 
 /**
  * The whole front of a cabinet: rows top to bottom, each split into columns left to right. Two side-by-side
- * shutters is one row of two columns; three stacked drawers is three rows of one column each; "1 drawer + 2
- * shutters" is a drawer row over a two-shutter row (Phase D3 examples).
+ * shutters is one row of two columns; a bank of three stacked drawers is one row of one column whose
+ * element is a `DrawerBank` of three `Drawer`s (a bare `Drawer` is never a column's element on its own); "1
+ * drawer + 2 shutters" is a one-column drawer-bank row over a two-shutter row (Phase D3 examples).
  */
 export interface CabinetFront {
   readonly rows: readonly FrontRow[];

@@ -20,7 +20,8 @@
     "description": "Lintel Space Atelier edge-band standard (to be defined by production).",
     "source": "Pending — Lintel production team",
     "ruleSets": {
-      "CARCASS_STANDARD": {}
+      "CARCASS_STANDARD": {},
+      "DRAWER_CARCASS_STANDARD": {}
     }
   }
 }

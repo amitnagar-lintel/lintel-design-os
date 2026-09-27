@@ -31,7 +31,10 @@
       "FRONT_BETWEEN_GAP": null,
       "INSET_GAP": null,
       "FRONT_FINISHED_FACES": null,
-      "SHUTTER_BACK_GAP": null
+      "SHUTTER_BACK_GAP": null,
+      "DRAWER_BOX_SIDE_CLEARANCE": null,
+      "DRAWER_BOX_HEIGHT_GAP": null,
+      "DRAWER_BOX_FRONT_SETBACK": null
     }
   },
   "provenance": {
@@ -102,6 +105,24 @@
       "note": null
     },
     "SHUTTER_BACK_GAP": {
+      "unit": "MM",
+      "source": null,
+      "evidenceRef": null,
+      "note": null
+    },
+    "DRAWER_BOX_SIDE_CLEARANCE": {
+      "unit": "MM",
+      "source": null,
+      "evidenceRef": null,
+      "note": null
+    },
+    "DRAWER_BOX_HEIGHT_GAP": {
+      "unit": "MM",
+      "source": null,
+      "evidenceRef": null,
+      "note": null
+    },
+    "DRAWER_BOX_FRONT_SETBACK": {
       "unit": "MM",
       "source": null,
       "evidenceRef": null,

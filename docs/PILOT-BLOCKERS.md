@@ -9,7 +9,7 @@ Execution steps for every item are in **`docs/PILOT-TOMORROW.md`** (the single o
 ## B1 — Real approved Lintel reference data
 
 **Blocker.** None of the 19 reference-data files holds approved Lintel values:
-- the templates contain 62 NULL values;
+- the templates contain 66 NULL values;
 - the Hettich records, the edge rules and the hardware rates have no content yet.
 
 **Why it blocks.** A DesignVersion can be approved only when all 8 pinned engineering datasets are APPROVED. Pricing and the quotation need an APPROVED PricingStandard and QuotationPolicy. The engines never invent values.

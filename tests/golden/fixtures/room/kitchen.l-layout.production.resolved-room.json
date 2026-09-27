@@ -221,7 +221,7 @@
           "W": 600
         },
         "trace": {
-          "catalogVersion": "2026.09.26-m1",
+          "catalogVersion": "2026.09.27-m2",
           "dataClassification": "PRODUCTION",
           "designVersionId": "dv_001",
           "designVersionStatus": "DRAFT",
@@ -262,7 +262,7 @@
           "canApprove": false,
           "counts": {
             "BLOCKER": 26,
-            "ERROR": 0,
+            "ERROR": 3,
             "INFO": 0,
             "WARNING": 1
           },
@@ -465,6 +465,27 @@
               "message": "Rule KBS_GROOVE_WITHIN_CARCASS could not be evaluated: Unknown variable 'BACK_GROOVE_DEPTH'",
               "ruleId": "KBS_GROOVE_WITHIN_CARCASS",
               "severity": "BLOCKER",
+              "sourceObjectId": "obj_001"
+            },
+            {
+              "code": "STANDARD_UNKNOWN_VARIABLE",
+              "message": "Variable DRAWER_BOX_FRONT_SETBACK is not declared by recipe KITCHEN_BASE_STANDARD_V1",
+              "path": "standards.LINTEL_CONSTRUCTION_STANDARD.variables.DRAWER_BOX_FRONT_SETBACK",
+              "severity": "ERROR",
+              "sourceObjectId": "obj_001"
+            },
+            {
+              "code": "STANDARD_UNKNOWN_VARIABLE",
+              "message": "Variable DRAWER_BOX_HEIGHT_GAP is not declared by recipe KITCHEN_BASE_STANDARD_V1",
+              "path": "standards.LINTEL_CONSTRUCTION_STANDARD.variables.DRAWER_BOX_HEIGHT_GAP",
+              "severity": "ERROR",
+              "sourceObjectId": "obj_001"
+            },
+            {
+              "code": "STANDARD_UNKNOWN_VARIABLE",
+              "message": "Variable DRAWER_BOX_SIDE_CLEARANCE is not declared by recipe KITCHEN_BASE_STANDARD_V1",
+              "path": "standards.LINTEL_CONSTRUCTION_STANDARD.variables.DRAWER_BOX_SIDE_CLEARANCE",
+              "severity": "ERROR",
               "sourceObjectId": "obj_001"
             },
             {
@@ -695,7 +716,7 @@
           "W": 750
         },
         "trace": {
-          "catalogVersion": "2026.09.26-m1",
+          "catalogVersion": "2026.09.27-m2",
           "dataClassification": "PRODUCTION",
           "designVersionId": "dv_001",
           "designVersionStatus": "DRAFT",
@@ -736,7 +757,7 @@
           "canApprove": false,
           "counts": {
             "BLOCKER": 26,
-            "ERROR": 0,
+            "ERROR": 3,
             "INFO": 0,
             "WARNING": 1
           },
@@ -939,6 +960,27 @@
               "message": "Rule KBS_GROOVE_WITHIN_CARCASS could not be evaluated: Unknown variable 'BACK_GROOVE_DEPTH'",
               "ruleId": "KBS_GROOVE_WITHIN_CARCASS",
               "severity": "BLOCKER",
+              "sourceObjectId": "obj_002"
+            },
+            {
+              "code": "STANDARD_UNKNOWN_VARIABLE",
+              "message": "Variable DRAWER_BOX_FRONT_SETBACK is not declared by recipe KITCHEN_BASE_STANDARD_V1",
+              "path": "standards.LINTEL_CONSTRUCTION_STANDARD.variables.DRAWER_BOX_FRONT_SETBACK",
+              "severity": "ERROR",
+              "sourceObjectId": "obj_002"
+            },
+            {
+              "code": "STANDARD_UNKNOWN_VARIABLE",
+              "message": "Variable DRAWER_BOX_HEIGHT_GAP is not declared by recipe KITCHEN_BASE_STANDARD_V1",
+              "path": "standards.LINTEL_CONSTRUCTION_STANDARD.variables.DRAWER_BOX_HEIGHT_GAP",
+              "severity": "ERROR",
+              "sourceObjectId": "obj_002"
+            },
+            {
+              "code": "STANDARD_UNKNOWN_VARIABLE",
+              "message": "Variable DRAWER_BOX_SIDE_CLEARANCE is not declared by recipe KITCHEN_BASE_STANDARD_V1",
+              "path": "standards.LINTEL_CONSTRUCTION_STANDARD.variables.DRAWER_BOX_SIDE_CLEARANCE",
+              "severity": "ERROR",
               "sourceObjectId": "obj_002"
             },
             {
@@ -1169,7 +1211,7 @@
           "W": 600
         },
         "trace": {
-          "catalogVersion": "2026.09.26-m1",
+          "catalogVersion": "2026.09.27-m2",
           "dataClassification": "PRODUCTION",
           "designVersionId": "dv_001",
           "designVersionStatus": "DRAFT",
@@ -1210,7 +1252,7 @@
           "canApprove": false,
           "counts": {
             "BLOCKER": 26,
-            "ERROR": 0,
+            "ERROR": 3,
             "INFO": 0,
             "WARNING": 1
           },
@@ -1413,6 +1455,27 @@
               "message": "Rule KBS_GROOVE_WITHIN_CARCASS could not be evaluated: Unknown variable 'BACK_GROOVE_DEPTH'",
               "ruleId": "KBS_GROOVE_WITHIN_CARCASS",
               "severity": "BLOCKER",
+              "sourceObjectId": "obj_003"
+            },
+            {
+              "code": "STANDARD_UNKNOWN_VARIABLE",
+              "message": "Variable DRAWER_BOX_FRONT_SETBACK is not declared by recipe KITCHEN_BASE_STANDARD_V1",
+              "path": "standards.LINTEL_CONSTRUCTION_STANDARD.variables.DRAWER_BOX_FRONT_SETBACK",
+              "severity": "ERROR",
+              "sourceObjectId": "obj_003"
+            },
+            {
+              "code": "STANDARD_UNKNOWN_VARIABLE",
+              "message": "Variable DRAWER_BOX_HEIGHT_GAP is not declared by recipe KITCHEN_BASE_STANDARD_V1",
+              "path": "standards.LINTEL_CONSTRUCTION_STANDARD.variables.DRAWER_BOX_HEIGHT_GAP",
+              "severity": "ERROR",
+              "sourceObjectId": "obj_003"
+            },
+            {
+              "code": "STANDARD_UNKNOWN_VARIABLE",
+              "message": "Variable DRAWER_BOX_SIDE_CLEARANCE is not declared by recipe KITCHEN_BASE_STANDARD_V1",
+              "path": "standards.LINTEL_CONSTRUCTION_STANDARD.variables.DRAWER_BOX_SIDE_CLEARANCE",
+              "severity": "ERROR",
               "sourceObjectId": "obj_003"
             },
             {
@@ -1643,7 +1706,7 @@
           "W": 600
         },
         "trace": {
-          "catalogVersion": "2026.09.26-m1",
+          "catalogVersion": "2026.09.27-m2",
           "dataClassification": "PRODUCTION",
           "designVersionId": "dv_001",
           "designVersionStatus": "DRAFT",
@@ -1684,7 +1747,7 @@
           "canApprove": false,
           "counts": {
             "BLOCKER": 26,
-            "ERROR": 0,
+            "ERROR": 3,
             "INFO": 0,
             "WARNING": 1
           },
@@ -1887,6 +1950,27 @@
               "message": "Rule KBS_GROOVE_WITHIN_CARCASS could not be evaluated: Unknown variable 'BACK_GROOVE_DEPTH'",
               "ruleId": "KBS_GROOVE_WITHIN_CARCASS",
               "severity": "BLOCKER",
+              "sourceObjectId": "obj_004"
+            },
+            {
+              "code": "STANDARD_UNKNOWN_VARIABLE",
+              "message": "Variable DRAWER_BOX_FRONT_SETBACK is not declared by recipe KITCHEN_BASE_STANDARD_V1",
+              "path": "standards.LINTEL_CONSTRUCTION_STANDARD.variables.DRAWER_BOX_FRONT_SETBACK",
+              "severity": "ERROR",
+              "sourceObjectId": "obj_004"
+            },
+            {
+              "code": "STANDARD_UNKNOWN_VARIABLE",
+              "message": "Variable DRAWER_BOX_HEIGHT_GAP is not declared by recipe KITCHEN_BASE_STANDARD_V1",
+              "path": "standards.LINTEL_CONSTRUCTION_STANDARD.variables.DRAWER_BOX_HEIGHT_GAP",
+              "severity": "ERROR",
+              "sourceObjectId": "obj_004"
+            },
+            {
+              "code": "STANDARD_UNKNOWN_VARIABLE",
+              "message": "Variable DRAWER_BOX_SIDE_CLEARANCE is not declared by recipe KITCHEN_BASE_STANDARD_V1",
+              "path": "standards.LINTEL_CONSTRUCTION_STANDARD.variables.DRAWER_BOX_SIDE_CLEARANCE",
+              "severity": "ERROR",
               "sourceObjectId": "obj_004"
             },
             {
@@ -2382,7 +2466,7 @@
       ],
       "width": 3200
     },
-    "roomFingerprint": "0ec9126b15d87d",
+    "roomFingerprint": "028c6e3effc34d",
     "runs": [
       {
         "end": 1950,
@@ -2408,29 +2492,29 @@
       }
     ],
     "trace": {
-      "catalogVersion": "2026.09.26-m1",
+      "catalogVersion": "2026.09.27-m2",
       "dataClassification": "PRODUCTION",
       "designVersionId": "dv_001",
       "designVersionStatus": "DRAFT",
       "engineVersion": "0.1.0",
       "objects": [
         {
-          "modelFingerprint": "19f35fb76d2890",
+          "modelFingerprint": "0588c13c4c802b",
           "objectCode": "OBJ-KIT-001",
           "objectId": "obj_001"
         },
         {
-          "modelFingerprint": "193c72de278730",
+          "modelFingerprint": "190e567a11464e",
           "objectCode": "OBJ-KIT-002",
           "objectId": "obj_002"
         },
         {
-          "modelFingerprint": "1b2f1441562c07",
+          "modelFingerprint": "106753ee49a428",
           "objectCode": "OBJ-KIT-003",
           "objectId": "obj_003"
         },
         {
-          "modelFingerprint": "0f3b2799264885",
+          "modelFingerprint": "12a2156264f0fc",
           "objectCode": "OBJ-KIT-004",
           "objectId": "obj_004"
         }
@@ -2449,7 +2533,7 @@
       "canApprove": false,
       "counts": {
         "BLOCKER": 108,
-        "ERROR": 0,
+        "ERROR": 12,
         "INFO": 0,
         "WARNING": 4
       },
@@ -3276,6 +3360,90 @@
           "message": "Rule KBS_GROOVE_WITHIN_CARCASS could not be evaluated: Unknown variable 'BACK_GROOVE_DEPTH'",
           "ruleId": "KBS_GROOVE_WITHIN_CARCASS",
           "severity": "BLOCKER",
+          "sourceObjectId": "obj_004"
+        },
+        {
+          "code": "STANDARD_UNKNOWN_VARIABLE",
+          "message": "Variable DRAWER_BOX_FRONT_SETBACK is not declared by recipe KITCHEN_BASE_STANDARD_V1",
+          "path": "standards.LINTEL_CONSTRUCTION_STANDARD.variables.DRAWER_BOX_FRONT_SETBACK",
+          "severity": "ERROR",
+          "sourceObjectId": "obj_001"
+        },
+        {
+          "code": "STANDARD_UNKNOWN_VARIABLE",
+          "message": "Variable DRAWER_BOX_FRONT_SETBACK is not declared by recipe KITCHEN_BASE_STANDARD_V1",
+          "path": "standards.LINTEL_CONSTRUCTION_STANDARD.variables.DRAWER_BOX_FRONT_SETBACK",
+          "severity": "ERROR",
+          "sourceObjectId": "obj_002"
+        },
+        {
+          "code": "STANDARD_UNKNOWN_VARIABLE",
+          "message": "Variable DRAWER_BOX_FRONT_SETBACK is not declared by recipe KITCHEN_BASE_STANDARD_V1",
+          "path": "standards.LINTEL_CONSTRUCTION_STANDARD.variables.DRAWER_BOX_FRONT_SETBACK",
+          "severity": "ERROR",
+          "sourceObjectId": "obj_003"
+        },
+        {
+          "code": "STANDARD_UNKNOWN_VARIABLE",
+          "message": "Variable DRAWER_BOX_FRONT_SETBACK is not declared by recipe KITCHEN_BASE_STANDARD_V1",
+          "path": "standards.LINTEL_CONSTRUCTION_STANDARD.variables.DRAWER_BOX_FRONT_SETBACK",
+          "severity": "ERROR",
+          "sourceObjectId": "obj_004"
+        },
+        {
+          "code": "STANDARD_UNKNOWN_VARIABLE",
+          "message": "Variable DRAWER_BOX_HEIGHT_GAP is not declared by recipe KITCHEN_BASE_STANDARD_V1",
+          "path": "standards.LINTEL_CONSTRUCTION_STANDARD.variables.DRAWER_BOX_HEIGHT_GAP",
+          "severity": "ERROR",
+          "sourceObjectId": "obj_001"
+        },
+        {
+          "code": "STANDARD_UNKNOWN_VARIABLE",
+          "message": "Variable DRAWER_BOX_HEIGHT_GAP is not declared by recipe KITCHEN_BASE_STANDARD_V1",
+          "path": "standards.LINTEL_CONSTRUCTION_STANDARD.variables.DRAWER_BOX_HEIGHT_GAP",
+          "severity": "ERROR",
+          "sourceObjectId": "obj_002"
+        },
+        {
+          "code": "STANDARD_UNKNOWN_VARIABLE",
+          "message": "Variable DRAWER_BOX_HEIGHT_GAP is not declared by recipe KITCHEN_BASE_STANDARD_V1",
+          "path": "standards.LINTEL_CONSTRUCTION_STANDARD.variables.DRAWER_BOX_HEIGHT_GAP",
+          "severity": "ERROR",
+          "sourceObjectId": "obj_003"
+        },
+        {
+          "code": "STANDARD_UNKNOWN_VARIABLE",
+          "message": "Variable DRAWER_BOX_HEIGHT_GAP is not declared by recipe KITCHEN_BASE_STANDARD_V1",
+          "path": "standards.LINTEL_CONSTRUCTION_STANDARD.variables.DRAWER_BOX_HEIGHT_GAP",
+          "severity": "ERROR",
+          "sourceObjectId": "obj_004"
+        },
+        {
+          "code": "STANDARD_UNKNOWN_VARIABLE",
+          "message": "Variable DRAWER_BOX_SIDE_CLEARANCE is not declared by recipe KITCHEN_BASE_STANDARD_V1",
+          "path": "standards.LINTEL_CONSTRUCTION_STANDARD.variables.DRAWER_BOX_SIDE_CLEARANCE",
+          "severity": "ERROR",
+          "sourceObjectId": "obj_001"
+        },
+        {
+          "code": "STANDARD_UNKNOWN_VARIABLE",
+          "message": "Variable DRAWER_BOX_SIDE_CLEARANCE is not declared by recipe KITCHEN_BASE_STANDARD_V1",
+          "path": "standards.LINTEL_CONSTRUCTION_STANDARD.variables.DRAWER_BOX_SIDE_CLEARANCE",
+          "severity": "ERROR",
+          "sourceObjectId": "obj_002"
+        },
+        {
+          "code": "STANDARD_UNKNOWN_VARIABLE",
+          "message": "Variable DRAWER_BOX_SIDE_CLEARANCE is not declared by recipe KITCHEN_BASE_STANDARD_V1",
+          "path": "standards.LINTEL_CONSTRUCTION_STANDARD.variables.DRAWER_BOX_SIDE_CLEARANCE",
+          "severity": "ERROR",
+          "sourceObjectId": "obj_003"
+        },
+        {
+          "code": "STANDARD_UNKNOWN_VARIABLE",
+          "message": "Variable DRAWER_BOX_SIDE_CLEARANCE is not declared by recipe KITCHEN_BASE_STANDARD_V1",
+          "path": "standards.LINTEL_CONSTRUCTION_STANDARD.variables.DRAWER_BOX_SIDE_CLEARANCE",
+          "severity": "ERROR",
           "sourceObjectId": "obj_004"
         },
         {

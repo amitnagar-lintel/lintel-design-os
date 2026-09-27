@@ -28,6 +28,17 @@ import { Viewport3D } from "./Viewport3D";
 
 type Obj = ModelPreview["objects"][number];
 
+/** Slice 6B: the selected cabinet's run membership, derived (never stored) from the resolved model's own
+ * `runs`/`relationships`. `position` is 1-based (this cabinet is the Nth of `count` in the run). */
+interface RunInfo {
+  readonly runId: string;
+  readonly wallId: string;
+  readonly count: number;
+  readonly length: number;
+  readonly position: number;
+  readonly adjacents: readonly { readonly code: string; readonly gap: number; readonly touching: boolean; readonly side: "left" | "right" }[];
+}
+
 function shutterFront(shutterCount: 1 | 2, overlay: OverlayMode, widthMm: number, heightMm: number): CabinetFront {
   const columnWidth = widthMm / shutterCount;
   const columns = Array.from({ length: shutterCount }, (_, i) => {
@@ -183,6 +194,25 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
   const selected: Obj | undefined = objects.find((o) => o.lineageId === selectedId) ?? objects[0];
   const cabinetType: CabinetType | undefined = selected === undefined ? undefined : findAvailableCabinetType(selected.productCode);
   const refresh = () => { setN((x) => x + 1); model.reload(); };
+
+  /** Slice 6B: the selected cabinet's run membership and adjacency, straight from the engine's own derived
+   * `runs`/`relationships` (see packages/design-engine/src/room.ts) — a run is emergent from geometry, not a
+   * separate entity, so there is nothing new to compute here, only to surface. */
+  const runInfo: RunInfo | null = (() => {
+    if (m === null || selected === undefined) return null;
+    const run = m.runs.find((r) => r.lineageIds.includes(selected.lineageId));
+    if (run === undefined) return null;
+    const position = run.lineageIds.indexOf(selected.lineageId) + 1;
+    const adjacents = m.relationships
+      .filter((rel) => rel.type === "ADJACENT" && rel.lineageIds.includes(selected.lineageId))
+      .map((rel) => {
+        const otherId = rel.lineageIds.find((id) => id !== selected.lineageId);
+        const other = objects.find((o) => o.lineageId === otherId);
+        const side: "left" | "right" = run.lineageIds.indexOf(otherId ?? "") < position - 1 ? "left" : "right";
+        return { code: other?.objectCode ?? "?", gap: rel.gap ?? 0, touching: rel.touching ?? false, side };
+      });
+    return { runId: run.runId, wallId: run.wallId, count: run.lineageIds.length, length: run.length, position, adjacents };
+  })();
 
   const nextObjectCode = (offset = 0) => {
     const n2 = objects.reduce((mx, o) => Math.max(mx, Number(/(\d+)$/.exec(o.objectCode)?.[1] ?? 0)), 0) + 1 + offset;
@@ -346,6 +376,7 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
               applianceId={typeof selected.parameters.oven === "string" ? selected.parameters.oven : typeof selected.parameters.hob === "string" ? selected.parameters.hob : null}
               placement={selected.placement}
               room={m === null ? null : { length: m.room.length, width: m.room.width }}
+              runInfo={runInfo}
             />
           ) : <p>Select a cabinet, or add one from the library.</p>}
         </aside>
@@ -384,7 +415,7 @@ function CabinetLibraryPanel({ canEdit, onAdd, onAddCornerPair }: { readonly can
 
 const DRAWER_COUNTS = [2, 3, 4] as const;
 
-function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponentId, onSelectComponentId, applianceId, placement, room }: {
+function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponentId, onSelectComponentId, applianceId, placement, room, runInfo }: {
   readonly instance: CabinetInstance; readonly canEdit: boolean; readonly onSave: (next: CabinetInstance) => Promise<void>; readonly onRemove: () => Promise<void>;
   /** Slice 2.1: which drawer front (by resolved `componentId`), if any, is selected in the 3D view or elevation. */
   readonly selectedComponentId: string | null;
@@ -397,6 +428,9 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
    * `transform.x/z/rotationY` via `placeOnWall`. Precise position editing alongside Plan-view drag-to-snap. */
   readonly placement: Obj["placement"];
   readonly room: { readonly length: number; readonly width: number } | null;
+  /** Slice 6B: this cabinet's run membership (null only when it isn't placed at all), read-only — a run is
+   * derived from geometry, never edited directly; a cabinet with no neighbour is simply a run of one. */
+  readonly runInfo: RunInfo | null;
 }) {
   const isDrawer = instance.recipe.productCode === "KIT_BASE_DRAWER";
   const isOpen = instance.recipe.productCode === "KIT_BASE_OPEN";
@@ -506,6 +540,17 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
           <Field label="Along wall, from left (mm)"><input className="num" value={alongMm} disabled={!canEdit} onChange={(e) => { setAlongMm(e.target.value); }} /></Field>
           <Field label="Distance from wall (mm)"><input className="num" value={distanceMm} disabled={!canEdit} onChange={(e) => { setDistanceMm(e.target.value); }} /></Field>
           {placement === null && <small>Not currently placed in the room — see the version&apos;s validation messages.</small>}
+        </>
+      )}
+      {runInfo !== null && (
+        <>
+          <h3>Run</h3>
+          <p>Wall {runInfo.wallId}: cabinet {runInfo.position} of {runInfo.count}, run length {runInfo.length} mm.</p>
+          {runInfo.adjacents.length === 0
+            ? <p>No adjacent cabinet in this run.</p>
+            : runInfo.adjacents.map((a) => (
+              <p key={a.code}>{a.side === "left" ? "←" : "→"} {a.code}: {a.touching ? "touching (gap 0 mm)" : `gap ${String(a.gap)} mm`}</p>
+            ))}
         </>
       )}
       {noFront ? (

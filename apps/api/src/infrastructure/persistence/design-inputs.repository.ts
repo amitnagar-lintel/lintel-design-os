@@ -31,6 +31,8 @@ export interface PinnedInputRows {
   readonly hardware: { readonly catalog: VersionRowWithCode | null; readonly ruleSets: { readonly version: VersionRowWithCode; readonly rules: Row[] }[] };
   readonly product: { readonly catalog: VersionRowWithCode | null; readonly products: VersionRowWithCode[]; readonly recipes: VersionRowWithCode[] };
   readonly hettich: { readonly version: VersionRowWithCode | null; readonly articles: Row[]; readonly calculationRules: Row[] };
+  /** Design Studio Slice 5 step 3: absent (both null) whenever the version has no appliance catalog pinned yet. */
+  readonly appliance: { readonly catalog: VersionRowWithCode | null; readonly appliances: VersionRowWithCode[] };
 }
 
 export interface Pins {
@@ -42,6 +44,8 @@ export interface Pins {
   readonly hardware_catalog_version_id: string;
   readonly product_catalog_version_id: string;
   readonly hettich_dataset_version_id: string;
+  /** Optional pin (`design-versions.schemas.ts` OPTIONAL_PINS): null whenever the version references no appliance. */
+  readonly appliance_catalog_version_id: string | null;
 }
 
 /** An explicitly chosen commercial version as rows (null when it is not a version of the caller's organization). */
@@ -109,6 +113,12 @@ export const designInputsRepository = {
         articles: await jsonRows<Row>(tx, "SELECT * FROM design_os.hettich_article WHERE version_id = $1 ORDER BY position", [p.hettich_dataset_version_id]),
         calculationRules: await jsonRows<Row>(tx, "SELECT * FROM design_os.hettich_calculation_rule WHERE version_id = $1 ORDER BY position", [p.hettich_dataset_version_id]),
       },
+      appliance: p.appliance_catalog_version_id === null
+        ? { catalog: null, appliances: [] }
+        : {
+            catalog: await versionWithCode(tx, "appliance_catalog_version", "appliance_catalog", p.appliance_catalog_version_id),
+            appliances: await members(tx, "appliance_catalog_version_appliance", "appliance_version_id", "appliance_version", "appliance", p.appliance_catalog_version_id),
+          },
     };
   },
 };

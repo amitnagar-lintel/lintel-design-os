@@ -21,6 +21,9 @@ export function parameterSymbols(product: ProductDefinition): string[] {
       case "enum":
         for (const v of p.values) out.push(enumFlag(p.symbol, v));
         break;
+      case "appliance":
+        out.push(`${p.symbol}_W`, `${p.symbol}_H`, `${p.symbol}_D`);
+        break;
       case "finish":
         break;
     }

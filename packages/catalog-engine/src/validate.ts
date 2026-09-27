@@ -1,7 +1,7 @@
 import type { CatalogSnapshot, ConstructionRecipe, ConstructionStandard, EdgeBandStandard, ProductDefinition, ValidationMessage } from "@lintel/types";
 import { referencedVariables } from "@lintel/rules-engine";
 import { edgeLength, grainLiesInFace } from "@lintel/geometry-engine";
-import { findEdgeBand, findFinish, findHardwareRuleSet, findMaterial, findRecipe } from "./lookup.js";
+import { findAppliance, findEdgeBand, findFinish, findHardwareRuleSet, findMaterial, findRecipe } from "./lookup.js";
 import { INSTANCE_INDEX_VARIABLE, parameterSymbols, recipeScopeSymbols } from "./symbols.js";
 
 function error(code: string, message: string, path: string): ValidationMessage {
@@ -43,6 +43,9 @@ function validateProduct(c: CatalogSnapshot, p: ProductDefinition, out: Validati
         break;
       case "finish":
         if (findFinish(c, param.default) === undefined) out.push(error("CATALOG_UNKNOWN_REFERENCE", `Unknown finish '${param.default}'`, path));
+        break;
+      case "appliance":
+        if (findAppliance(c, param.default) === undefined) out.push(error("CATALOG_UNKNOWN_REFERENCE", `Unknown appliance '${param.default}'`, path));
         break;
       case "number":
       case "integer":

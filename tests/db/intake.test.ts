@@ -104,12 +104,12 @@ describe("import", () => {
   it("writes one DRAFT version as the named author, through RLS, with provenance and an audit trail", async () => {
     const s = await importAs(constructionDraft(), "PRODUCTION");
     expect(s).toMatchObject({ outcome: "CREATED", type: "construction_standard", entityCode: "LINTEL_CONSTRUCTION_STANDARD", versionNumber: 1, author: email.PRODUCTION, operator: "ci-operator" });
-    expect(s.rows).toEqual({ construction_standard: 1, construction_standard_version: 1, construction_standard_value: 18 });
-    expect(s.findings.filter((f) => f.level === "UNVERIFIED")).toHaveLength(18);
+    expect(s.rows).toEqual({ construction_standard: 1, construction_standard_version: 1, construction_standard_value: 19 });
+    expect(s.findings.filter((f) => f.level === "UNVERIFIED")).toHaveLength(19);
     expect([s.entityId, s.versionId]).toEqual([stableUuid(w.org, "construction_standard", "LINTEL_CONSTRUCTION_STANDARD"), stableUuid(w.org, "construction_standard", "LINTEL_CONSTRUCTION_STANDARD", "1")]);
     const row = (await client.query("SELECT status::text, data_classification, created_by, content_hash, source, change_reason FROM design_os.construction_standard_version WHERE id = $1", [s.versionId])).rows[0] as Record<string, unknown>;
     expect(row).toEqual({ status: "DRAFT", data_classification: "PRODUCTION", created_by: w.users.PRODUCTION, content_hash: s.contentHash, source: LINTEL_CONSTRUCTION_STANDARD_DRAFT.source, change_reason: "Test intake" });
-    expect(await count("SELECT count(*) AS n FROM design_os.construction_standard_value WHERE version_id = $1 AND value IS NULL", [s.versionId])).toBe(18);
+    expect(await count("SELECT count(*) AS n FROM design_os.construction_standard_value WHERE version_id = $1 AND value IS NULL", [s.versionId])).toBe(19);
     const audit = (await client.query<{ actor_user_id: string; reason: string }>("SELECT DISTINCT actor_user_id, reason FROM design_os.audit_log WHERE org_id = $1 AND table_name LIKE 'construction_standard%'", [w.org])).rows;
     expect(audit).toEqual([{ actor_user_id: w.users.PRODUCTION, reason: expect.stringMatching(/^reference-data intake construction_standard LINTEL_CONSTRUCTION_STANDARD v1 \(WORKING_DRAFT\) file sha256:[0-9a-f]{64} by operator ci-operator$/) as string }]);
     expect((await client.query<{ ok: boolean }>("SELECT ok FROM design_os.verify_audit_chain($1)", [w.org])).rows[0]?.ok).toBe(true);
@@ -120,7 +120,7 @@ describe("import", () => {
     const again = await importAs(constructionDraft(), "PRODUCTION");
     expect([again.outcome, again.rows, again.versionId]).toEqual(["UNCHANGED", {}, stableUuid(w.org, "construction_standard", "LINTEL_CONSTRUCTION_STANDARD", "1")]);
     const dry = await importAs(constructionCandidate(2), "PRODUCTION", { dryRun: true });
-    expect([dry.outcome, dry.rows]).toEqual(["WOULD_CREATE", { construction_standard_version: 1, construction_standard_value: 18 }]);
+    expect([dry.outcome, dry.rows]).toEqual(["WOULD_CREATE", { construction_standard_version: 1, construction_standard_value: 19 }]);
     expect(await count("SELECT count(*) AS n FROM design_os.construction_standard_version")).toBe(1);
     expect(await count("SELECT count(*) AS n FROM design_os.audit_log")).toBe(before);
   });
@@ -207,7 +207,7 @@ describe("lifecycle: only through transition()", () => {
     // The incomplete working draft (v1) can never be put up for approval.
     const incomplete = await transitionVersion(client, "SUBMIT", { ...o, versionNumber: 1, actor: named("PRODUCTION") });
     expect(incomplete).toMatchObject({ outcome: "REFUSED", code: "INCOMPLETE_PRODUCTION_DATA" });
-    expect(incomplete.outcome === "REFUSED" && incomplete.state?.approvalProblems.length).toBe(18);
+    expect(incomplete.outcome === "REFUSED" && incomplete.state?.approvalProblems.length).toBe(19);
 
     // SUBMIT keeps the operator-named draft author.
     expect(await transitionVersion(client, "SUBMIT", { ...o, actor: named("DESIGNER") })).toMatchObject({ outcome: "REFUSED", code: "LD001" });

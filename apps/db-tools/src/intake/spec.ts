@@ -15,7 +15,7 @@
  * approval by a different, authorised person).
  */
 import { createHash } from "node:crypto";
-import { KITCHEN_BASE_DRAWER_V1, KITCHEN_BASE_OPEN_V1, KITCHEN_BASE_PULLOUT_V1, KITCHEN_BASE_STANDARD_V1, PLANNING_VARIABLES } from "@lintel/catalog-engine";
+import { KITCHEN_BASE_DRAWER_V1, KITCHEN_BASE_OPEN_V1, KITCHEN_BASE_PULLOUT_V1, KITCHEN_BASE_STANDARD_V1, KITCHEN_TALL_OVEN_V1, PLANNING_VARIABLES } from "@lintel/catalog-engine";
 import { FIXTURE_PREFIX, validateProductionRecord, validateProductionRule } from "@lintel/hettich-engine";
 import type { ConstructionStandard, EdgeBandStandard, PlanningStandard } from "@lintel/types";
 import { findTestFixtureMarker } from "@lintel/persistence";
@@ -142,8 +142,8 @@ function duplicates(values: readonly string[]): string[] {
   return [...dup].sort();
 }
 
-/** The organization's one construction standard covers every recipe's variables (currently KITCHEN_BASE_STANDARD_V1, KITCHEN_BASE_DRAWER_V1, KITCHEN_BASE_OPEN_V1 and KITCHEN_BASE_PULLOUT_V1). */
-const CONSTRUCTION_CODES = [...new Set([...KITCHEN_BASE_STANDARD_V1.constructionVariables, ...KITCHEN_BASE_DRAWER_V1.constructionVariables, ...KITCHEN_BASE_OPEN_V1.constructionVariables, ...KITCHEN_BASE_PULLOUT_V1.constructionVariables].map((v) => v.key))].sort();
+/** The organization's one construction standard covers every recipe's variables (currently KITCHEN_BASE_STANDARD_V1, KITCHEN_BASE_DRAWER_V1, KITCHEN_BASE_OPEN_V1, KITCHEN_BASE_PULLOUT_V1 and KITCHEN_TALL_OVEN_V1). */
+const CONSTRUCTION_CODES = [...new Set([...KITCHEN_BASE_STANDARD_V1.constructionVariables, ...KITCHEN_BASE_DRAWER_V1.constructionVariables, ...KITCHEN_BASE_OPEN_V1.constructionVariables, ...KITCHEN_BASE_PULLOUT_V1.constructionVariables, ...KITCHEN_TALL_OVEN_V1.constructionVariables].map((v) => v.key))].sort();
 const PLANNING_CODES = PLANNING_VARIABLES.map((v) => v.key).sort();
 
 /** Parse and validate an intake file without any database access. Deterministic: same bytes → same report. */

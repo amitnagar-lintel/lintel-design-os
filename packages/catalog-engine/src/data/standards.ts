@@ -32,6 +32,7 @@ export const LINTEL_CONSTRUCTION_STANDARD_DRAFT: ConstructionStandard = {
     PULLOUT_FRAME_HEIGHT: null,
     PULLOUT_FRAME_SIDE_CLEARANCE: null,
     PULLOUT_FRAME_DEPTH_SETBACK: null,
+    OVEN_BAY_BOTTOM_OFFSET: null,
   },
 };
 
@@ -48,5 +49,5 @@ export const LINTEL_EDGE_BAND_STANDARD_DRAFT: EdgeBandStandard = {
   description: "Lintel Space Atelier edge-band standard (to be defined by production).",
   source: "Pending — Lintel production team",
   // Edge rules not yet defined for any component type.
-  ruleSets: { CARCASS_STANDARD: {}, DRAWER_CARCASS_STANDARD: {}, OPEN_CARCASS_STANDARD: {}, PULLOUT_CARCASS_STANDARD: {} },
+  ruleSets: { CARCASS_STANDARD: {}, DRAWER_CARCASS_STANDARD: {}, OPEN_CARCASS_STANDARD: {}, PULLOUT_CARCASS_STANDARD: {}, OVEN_TOWER_CARCASS_STANDARD: {} },
 };

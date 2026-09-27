@@ -95,7 +95,7 @@ stream
 0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 136.346 Tm (2. Front view; hidden edges dashed. Dimensions are read from the resolved model, not measured from) Tj ET
 0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 124.441 Tm (   this drawing.) Tj ET
 0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 112.535 Tm (3. Derived from design version dv_001; product KIT_BASE_STANDARD v1.0.0; recipe) Tj ET
-0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 100.63 Tm (   KITCHEN_BASE_STANDARD_V1 v1.1.0; standard TEST_FIXTURE_CONSTRUCTION_STANDARD v0.0.3 \(TEST_FIXTURE\).) Tj ET
+0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 100.63 Tm (   KITCHEN_BASE_STANDARD_V1 v1.1.0; standard TEST_FIXTURE_CONSTRUCTION_STANDARD v0.0.4 \(TEST_FIXTURE\).) Tj ET
 0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 88.724 Tm (4. TEST FIXTURE data in use: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; edge band) Tj ET
 0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 76.819 Tm (   standard TEST_FIXTURE_EDGE_BAND_STANDARD; hardware dataset HETTICH_TEST_FIXTURE. Values are) Tj ET
 0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 64.913 Tm (   synthetic.) Tj ET
@@ -133,7 +133,7 @@ stream
 0 0 0 rg BT /F1 8.909 Tf 1 0 0 1 775.276 60.661 Tm (dv_001 \(DRAFT\)) Tj ET
 0 0 0 RG 0.51 w [] 0 d 651.969 56.693 m 1162.205 56.693 l S
 0 0 0 rg BT /F1 6.479 Tf 1 0 0 1 656.22 46.772 Tm (MODEL FINGERPRINT) Tj ET
-0 0 0 rg BT /F1 8.909 Tf 1 0 0 1 775.276 46.488 Tm (00bf3cc4194277) Tj ET
+0 0 0 rg BT /F1 8.909 Tf 1 0 0 1 775.276 46.488 Tm (133f36087c113e) Tj ET
 0 0 0 RG 0.51 w [] 0 d 651.969 42.52 m 1162.205 42.52 l S
 0 0 0 rg BT /F1 6.479 Tf 1 0 0 1 656.22 32.598 Tm (DATA CLASSIFICATION) Tj ET
 0 0 0 rg BT /F1 8.909 Tf 1 0 0 1 775.276 32.315 Tm (TEST_FIXTURE) Tj ET
@@ -159,7 +159,7 @@ stream
 0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 148.252 Tm (   manufacturing\).) Tj ET
 0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 136.346 Tm (2. Edge codes: F front, BK back, T top, BT bottom, L left, R right.) Tj ET
 0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 124.441 Tm (3. Derived from design version dv_001; product KIT_BASE_STANDARD v1.0.0; recipe) Tj ET
-0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 112.535 Tm (   KITCHEN_BASE_STANDARD_V1 v1.1.0; standard TEST_FIXTURE_CONSTRUCTION_STANDARD v0.0.3 \(TEST_FIXTURE\).) Tj ET
+0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 112.535 Tm (   KITCHEN_BASE_STANDARD_V1 v1.1.0; standard TEST_FIXTURE_CONSTRUCTION_STANDARD v0.0.4 \(TEST_FIXTURE\).) Tj ET
 0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 100.63 Tm (4. TEST FIXTURE data in use: construction standard TEST_FIXTURE_CONSTRUCTION_STANDARD; edge band) Tj ET
 0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 88.724 Tm (   standard TEST_FIXTURE_EDGE_BAND_STANDARD; hardware dataset HETTICH_TEST_FIXTURE. Values are) Tj ET
 0 0 0 rg BT /F1 8.099 Tf 1 0 0 1 39.685 76.819 Tm (   synthetic.) Tj ET
@@ -342,7 +342,7 @@ stream
 0 0 0 rg BT /F1 8.909 Tf 1 0 0 1 775.276 60.661 Tm (dv_001 \(DRAFT\)) Tj ET
 0 0 0 RG 0.51 w [] 0 d 651.969 56.693 m 1162.205 56.693 l S
 0 0 0 rg BT /F1 6.479 Tf 1 0 0 1 656.22 46.772 Tm (MODEL FINGERPRINT) Tj ET
-0 0 0 rg BT /F1 8.909 Tf 1 0 0 1 775.276 46.488 Tm (00bf3cc4194277) Tj ET
+0 0 0 rg BT /F1 8.909 Tf 1 0 0 1 775.276 46.488 Tm (133f36087c113e) Tj ET
 0 0 0 RG 0.51 w [] 0 d 651.969 42.52 m 1162.205 42.52 l S
 0 0 0 rg BT /F1 6.479 Tf 1 0 0 1 656.22 32.598 Tm (DATA CLASSIFICATION) Tj ET
 0 0 0 rg BT /F1 8.909 Tf 1 0 0 1 775.276 32.315 Tm (TEST_FIXTURE) Tj ET
@@ -352,7 +352,7 @@ endobj
 << /Type /Page /Parent 2 0 R /MediaBox [0 0 1190.551 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 7 0 R >>
 endobj
 9 0 obj
-<< /Title (KIT-EL-001, KIT-PS-001) /Producer (Lintel Design OS drawing-engine 0.1.0) /Subject (DRW:dv_001:obj_001:FRONT_ELEVATION:KIT-EL-001:RA fp=00bf3cc4194277 hash=1a19fde16cf902 | DRW:dv_001:obj_001:PANEL_SCHEDULE:KIT-PS-001:RA fp=00bf3cc4194277 hash=0a9a54ab04e2bf) >>
+<< /Title (KIT-EL-001, KIT-PS-001) /Producer (Lintel Design OS drawing-engine 0.1.0) /Subject (DRW:dv_001:obj_001:FRONT_ELEVATION:KIT-EL-001:RA fp=133f36087c113e hash=1730b0bf8f65df | DRW:dv_001:obj_001:PANEL_SCHEDULE:KIT-PS-001:RA fp=133f36087c113e hash=061e2fbb301278) >>
 endobj
 xref
 0 10

@@ -33,6 +33,17 @@ export interface ResolvedParameters {
   readonly provenance: Readonly<Record<string, ParameterSource>>;
 }
 
+/**
+ * One successfully resolved `"appliance"` parameter (Design Studio Slice 5 step 3): the join point the bom-engine
+ * uses to emit an `ApplianceBomItem` without needing catalog access of its own (design doc §8).
+ */
+export interface ResolvedApplianceReference {
+  readonly parameterKey: string;
+  readonly applianceId: string;
+  readonly manufacturer: string | null;
+  readonly model: string | null;
+}
+
 export interface ResolvedCabinet {
   readonly trace: TraceInfo;
   readonly object: DesignObject;
@@ -41,6 +52,7 @@ export interface ResolvedCabinet {
   readonly scope: Readonly<Record<string, ScalarValue>>;
   readonly derived: Readonly<Record<string, number>>;
   readonly components: readonly CabinetComponent[];
+  readonly appliances: readonly ResolvedApplianceReference[];
   readonly hardwareRequirements: readonly HardwareRequirement[];
   readonly hardwareResolutions: readonly HardwareResolution[];
   readonly geometry: {

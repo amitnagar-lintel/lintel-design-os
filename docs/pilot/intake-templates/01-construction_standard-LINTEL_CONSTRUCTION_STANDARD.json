@@ -37,7 +37,8 @@
       "DRAWER_BOX_FRONT_SETBACK": null,
       "PULLOUT_FRAME_HEIGHT": null,
       "PULLOUT_FRAME_SIDE_CLEARANCE": null,
-      "PULLOUT_FRAME_DEPTH_SETBACK": null
+      "PULLOUT_FRAME_DEPTH_SETBACK": null,
+      "OVEN_BAY_BOTTOM_OFFSET": null
     }
   },
   "provenance": {
@@ -144,6 +145,12 @@
       "note": null
     },
     "PULLOUT_FRAME_DEPTH_SETBACK": {
+      "unit": "MM",
+      "source": null,
+      "evidenceRef": null,
+      "note": null
+    },
+    "OVEN_BAY_BOTTOM_OFFSET": {
       "unit": "MM",
       "source": null,
       "evidenceRef": null,

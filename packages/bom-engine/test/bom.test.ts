@@ -7,6 +7,7 @@ const base = (messages: ResolvedCabinet["validation"]["messages"]): ResolvedCabi
   ({
     trace: { designVersionId: "dv", objectId: "o" },
     components: [],
+    appliances: [],
     hardwareRequirements: [],
     hardwareResolutions: [],
     validation: { messages, counts: { BLOCKER: messages.length, ERROR: 0, WARNING: 0, INFO: 0 }, canApprove: messages.length === 0 },

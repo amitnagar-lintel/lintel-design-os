@@ -48,12 +48,24 @@ export interface FinishParameterDefinition extends ParameterBase {
   readonly default: string;
 }
 
+/**
+ * Reference to an `Appliance` (Design Studio Slice 5 step 3), by id, the same way a material parameter
+ * references a material by code. Exposes the appliance's `installation` envelope (the opening it needs, not
+ * its own physical size) to formulas as three derived symbols: `{symbol}_W`, `{symbol}_H`, `{symbol}_D`
+ * (width/height/depth) — a recipe sizes the appliance-bay void from these, never from an invented dimension.
+ */
+export interface ApplianceParameterDefinition extends ParameterBase {
+  readonly kind: "appliance";
+  readonly default: string;
+}
+
 export type ParameterDefinition =
   | NumberParameterDefinition
   | IntegerParameterDefinition
   | EnumParameterDefinition
   | MaterialParameterDefinition
-  | FinishParameterDefinition;
+  | FinishParameterDefinition
+  | ApplianceParameterDefinition;
 
 /* ------------------------------------------------------------------ recipe */
 

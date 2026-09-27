@@ -200,7 +200,9 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
     const isDrawer = type.productCode === "KIT_BASE_DRAWER";
     const isOpen = type.productCode === "KIT_BASE_OPEN";
     const isPullout = type.productCode === "KIT_BASE_PULLOUT";
-    const defaultShelfCount = paramNumber(p.params, "shelfCount") ?? 2;
+    const isOvenTower = type.productCode === "KIT_TALL_OVEN";
+    const noFront = isOpen || isOvenTower;
+    const defaultShelfCount = paramNumber(p.params, isOvenTower ? "shelfCountAbove" : "shelfCount") ?? 2;
     const defaultShutterCount = (paramNumber(p.params, "shutterCount") ?? 2) === 1 ? 1 : 2;
     const defaultPulloutCount = paramNumber(p.params, "pulloutCount") ?? 3;
     return {
@@ -208,18 +210,18 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
       objectCode,
       lineageId: null,
       cabinetType: type,
-      recipe: { recipeId: type.recipeId, productCode: type.productCode, productVersionId: p.productVersionId, frontComponentTypes: isOpen ? [] : isDrawer ? ["DRAWER_FRONT"] : ["SHUTTER"] },
+      recipe: { recipeId: type.recipeId, productCode: type.productCode, productVersionId: p.productVersionId, frontComponentTypes: noFront ? [] : isDrawer ? ["DRAWER_FRONT"] : ["SHUTTER"] },
       position,
       rotationY,
       dimensions: { widthMm: width, heightMm: height, depthMm: depth },
-      front: isOpen ? OPEN_FRONT : isDrawer ? drawerBankFront(3, overlay, width, height) : shutterFront(defaultShutterCount, overlay, width, height),
-      internals: isOpen ? shelves(defaultShelfCount) : isPullout ? pullouts(defaultPulloutCount) : [],
+      front: noFront ? OPEN_FRONT : isDrawer ? drawerBankFront(3, overlay, width, height) : shutterFront(defaultShutterCount, overlay, width, height),
+      internals: noFront ? shelves(defaultShelfCount) : isPullout ? pullouts(defaultPulloutCount) : [],
       corner: null,
       finish: {
         carcassMaterialId: paramString(p.params, "material"),
         backMaterialId: paramString(p.params, "backMaterial"),
-        frontMaterialId: paramString(p.params, isOpen ? "material" : isDrawer ? "frontMaterial" : "shutterMaterial"),
-        frontFinishId: isOpen ? "" : paramString(p.params, "finish"),
+        frontMaterialId: paramString(p.params, noFront ? "material" : isDrawer ? "frontMaterial" : "shutterMaterial"),
+        frontFinishId: noFront ? "" : paramString(p.params, "finish"),
       },
       hardware: { hinges: [], runners: [], handle: null },
     };
@@ -318,6 +320,7 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
               onRemove={() => removeCabinet(selected.objectId)}
               selectedComponentId={selectedComponentId}
               onSelectComponentId={(componentId) => { setSelectedComponentId(componentId); }}
+              applianceId={typeof selected.parameters.oven === "string" ? selected.parameters.oven : null}
             />
           ) : <p>Select a cabinet, or add one from the library.</p>}
         </aside>
@@ -356,20 +359,25 @@ function CabinetLibraryPanel({ canEdit, onAdd, onAddCornerPair }: { readonly can
 
 const DRAWER_COUNTS = [2, 3, 4] as const;
 
-function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponentId, onSelectComponentId }: {
+function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponentId, onSelectComponentId, applianceId }: {
   readonly instance: CabinetInstance; readonly canEdit: boolean; readonly onSave: (next: CabinetInstance) => Promise<void>; readonly onRemove: () => Promise<void>;
   /** Slice 2.1: which drawer front (by resolved `componentId`), if any, is selected in the 3D view or elevation. */
   readonly selectedComponentId: string | null;
   readonly onSelectComponentId: (componentId: string | null) => void;
+  /** Slice 5 step 3: the resolved model's `oven` parameter value (`KIT_TALL_OVEN` only), read-only — this
+   * slice has no UI control for choosing a different appliance. */
+  readonly applianceId: string | null;
 }) {
   const isDrawer = instance.recipe.productCode === "KIT_BASE_DRAWER";
   const isOpen = instance.recipe.productCode === "KIT_BASE_OPEN";
   const isPullout = instance.recipe.productCode === "KIT_BASE_PULLOUT";
+  const isOvenTower = instance.recipe.productCode === "KIT_TALL_OVEN";
+  const noFront = isOpen || isOvenTower;
   const element = instance.front.rows[0]?.columns[0]?.element;
-  const currentShutterCount = !isDrawer && !isOpen && instance.front.rows[0]?.columns.length === 2 ? 2 : 1;
+  const currentShutterCount = !isDrawer && !noFront && instance.front.rows[0]?.columns.length === 2 ? 2 : 1;
   const currentDrawerCount = element?.kind === "DRAWER_BANK" && (DRAWER_COUNTS as readonly number[]).includes(element.drawers.length) ? (element.drawers.length as 2 | 3 | 4) : 3;
   const currentOverlay: OverlayMode = element?.kind === "SHUTTER" || element?.kind === "DRAWER_BANK" ? element.overlay : "OVERLAY";
-  const currentShelfCount = isOpen ? instance.internals.length : 0;
+  const currentShelfCount = noFront ? instance.internals.length : 0;
   const currentPulloutCount = isPullout ? instance.internals.length : 0;
   const currentDrawerHeights = element?.kind === "DRAWER_BANK" ? element.drawers.map((d) => String(d.heightMm)) : [];
   const [width, setWidth] = useState(String(instance.dimensions.widthMm));
@@ -420,8 +428,8 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
     await onSave({
       ...instance,
       dimensions: { widthMm, heightMm, depthMm },
-      front: isOpen ? OPEN_FRONT : isDrawer ? drawerBankFront(drawerCount, overlay, widthMm, heightMm, drawerHeights.map(Number)) : shutterFront(shutterCount, overlay, widthMm, heightMm),
-      internals: isOpen ? shelves(Math.max(0, Math.trunc(Number(shelfCount)))) : isPullout ? pullouts(Math.max(0, Math.trunc(Number(pulloutCount)))) : instance.internals,
+      front: noFront ? OPEN_FRONT : isDrawer ? drawerBankFront(drawerCount, overlay, widthMm, heightMm, drawerHeights.map(Number)) : shutterFront(shutterCount, overlay, widthMm, heightMm),
+      internals: noFront ? shelves(Math.max(0, Math.trunc(Number(shelfCount)))) : isPullout ? pullouts(Math.max(0, Math.trunc(Number(pulloutCount)))) : instance.internals,
     });
   };
 
@@ -432,8 +440,8 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
       <Field label="Width (mm)"><input className="num" value={width} disabled={!canEdit} onChange={(e) => { setWidth(e.target.value); }} /></Field>
       <Field label="Height (mm)"><input className="num" value={height} disabled={!canEdit} onChange={(e) => { setHeight(e.target.value); }} /></Field>
       <Field label="Depth (mm)"><input className="num" value={depth} disabled={!canEdit} onChange={(e) => { setDepth(e.target.value); }} /></Field>
-      {isOpen ? (
-        <Field label="Shelf count"><input className="num" value={shelfCount} disabled={!canEdit} onChange={(e) => { setShelfCount(e.target.value); }} /></Field>
+      {noFront ? (
+        <Field label={isOvenTower ? "Shelf count (above oven)" : "Shelf count"}><input className="num" value={shelfCount} disabled={!canEdit} onChange={(e) => { setShelfCount(e.target.value); }} /></Field>
       ) : isDrawer ? (
         <Field label="Drawer count">
           <select value={String(drawerCount)} disabled={!canEdit} onChange={(e) => { setDrawerCountAndReset(Number(e.target.value) as 2 | 3 | 4); }}>
@@ -447,7 +455,7 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
           </select>
         </Field>
       )}
-      {!isOpen && (
+      {!noFront && (
         <Field label="Overlay">
           <select value={overlay} disabled={!canEdit} onChange={(e) => { setOverlay(e.target.value === "INSET" ? "INSET" : "OVERLAY"); }}>
             <option value="OVERLAY">Overlay</option>
@@ -457,6 +465,9 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
       )}
       {isPullout && (
         <Field label="Pull-out count"><input className="num" value={pulloutCount} disabled={!canEdit} onChange={(e) => { setPulloutCount(e.target.value); }} /></Field>
+      )}
+      {isOvenTower && (
+        <Field label="Appliance"><input value={applianceId ?? "—"} disabled /></Field>
       )}
       {isDrawer && element?.kind === "DRAWER_BANK" && (
         <>
@@ -500,11 +511,11 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
       </div>
       <details>
         <summary>Finish (from the resolved model)</summary>
-        {isOpen
-          ? <p>Carcass <code>{instance.finish.carcassMaterialId}</code> · Back <code>{instance.finish.backMaterialId}</code> (no front: open cabinet)</p>
+        {noFront
+          ? <p>Carcass <code>{instance.finish.carcassMaterialId}</code> · Back <code>{instance.finish.backMaterialId}</code> (no front{isOvenTower ? " this slice" : ": open cabinet"})</p>
           : <p>Carcass <code>{instance.finish.carcassMaterialId}</code> · Back <code>{instance.finish.backMaterialId}</code> · Front <code>{instance.finish.frontMaterialId}</code> · Finish <code>{instance.finish.frontFinishId}</code></p>}
       </details>
-      {!isOpen && (
+      {!noFront && (
         <details>
           <summary>Hardware (rule-derived, not chosen here)</summary>
           {isDrawer ? (

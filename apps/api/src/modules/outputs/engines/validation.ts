@@ -8,11 +8,11 @@ import { resolveRoom } from "@lintel/design-engine";
 import type { ResolveRoomInput } from "@lintel/design-engine";
 import type { CatalogSnapshot, ResolvedRoom } from "@lintel/types";
 import type {
-  EdgeBandStandardRows, EdgeBandVersionRow, FinishVersionRow, HardwareRuleSetRows, HettichDatasetRows, MaterialVersionRow, NumericStandardRows,
+  ApplianceVersionRow, EdgeBandStandardRows, EdgeBandVersionRow, FinishVersionRow, HardwareRuleSetRows, HettichDatasetRows, MaterialVersionRow, NumericStandardRows,
   ProductVersionRow, RecipeVersionRow, RecordLifecycleStatus,
 } from "@lintel/persistence";
 import {
-  assembleCatalogSnapshot, constructionStandardFromRows, designObjectFromRow, designVersionFromRow, edgeBandFromRow, edgeBandStandardFromRows,
+  applianceFromRow, assembleCatalogSnapshot, constructionStandardFromRows, designObjectFromRow, designVersionFromRow, edgeBandFromRow, edgeBandStandardFromRows,
   engineDesignVersion, finishFromRow, hardwareRuleSetFromRows, hettichDatasetFromRows, materialFromRow, overrideFromRow, planningStandardFromRows,
   productFromRow, recipeFromRow, roomFromRows,
 } from "@lintel/persistence";
@@ -66,6 +66,10 @@ export function engineeringModel(input: EngineeringRows): { readonly input: Reso
       ...catalogRef(required(p.product.catalog, "product catalog")),
       products: p.product.products.map((r) => productFromRow(r as unknown as ProductVersionRow).value),
       recipes: p.product.recipes.map((r) => recipeFromRow(r as unknown as RecipeVersionRow).value),
+    },
+    appliance: p.appliance.catalog === null ? null : {
+      ...catalogRef(p.appliance.catalog),
+      appliances: p.appliance.appliances.map((r) => applianceFromRow(r as unknown as ApplianceVersionRow).value),
     },
   });
   const hettich = hettichDatasetFromRows({ version: required(p.hettich.version, "Hettich dataset"), articles: p.hettich.articles, calculationRules: p.hettich.calculationRules } as unknown as HettichDatasetRows).value;

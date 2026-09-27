@@ -1,5 +1,5 @@
 import type { CatalogSnapshot, DesignObject, ParameterSource, ProductDefinition, ResolvedParameters, ScalarValue, ValidationMessage } from "@lintel/types";
-import { enumFlag, findFinish, findMaterial } from "@lintel/catalog-engine";
+import { enumFlag, findAppliance, findFinish, findMaterial } from "@lintel/catalog-engine";
 
 const DIMENSION_KEYS = ["width", "height", "depth"] as const;
 
@@ -90,6 +90,22 @@ export function resolveParameters(product: ProductDefinition, object: DesignObje
           continue;
         }
         values[def.key] = finish.finishId;
+        break;
+      }
+      case "appliance": {
+        const appliance = typeof value === "string" ? findAppliance(catalog, value) : undefined;
+        if (appliance === undefined) {
+          block("APPLIANCE_UNKNOWN", def.key, `${def.label} '${String(value)}' is not in catalog ${catalog.catalogVersion}`);
+          continue;
+        }
+        if (appliance.installation === null) {
+          block("APPLIANCE_INSTALLATION_UNVERIFIED", def.key, `${def.label} '${appliance.applianceId}' has no installation envelope yet (NULL / UNVERIFIED)`);
+          continue;
+        }
+        values[def.key] = appliance.applianceId;
+        scope[`${def.symbol}_W`] = appliance.installation.widthMm;
+        scope[`${def.symbol}_H`] = appliance.installation.heightMm;
+        scope[`${def.symbol}_D`] = appliance.installation.depthMm;
         break;
       }
     }

@@ -72,6 +72,7 @@ export class ValidationService {
           edge_band_standard_version_id: v.edge_band_standard_version_id ?? "", material_catalog_version_id: v.material_catalog_version_id ?? "",
           finish_catalog_version_id: v.finish_catalog_version_id ?? "", hardware_catalog_version_id: v.hardware_catalog_version_id ?? "",
           product_catalog_version_id: v.product_catalog_version_id ?? "", hettich_dataset_version_id: v.hettich_dataset_version_id ?? "",
+          appliance_catalog_version_id: v.appliance_catalog_version_id ?? null,
         });
         const resolved = runDesignEngine({ version: v, room, revision, objects, overrides, pinned });
         // APPROVAL evidence (SUBMIT / APPROVE). OUTPUT_GENERATION runs are recorded only by output generation.

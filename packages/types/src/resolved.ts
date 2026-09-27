@@ -1,5 +1,6 @@
 import type { DataClassification, VersionRef } from "./common.js";
 import type { CabinetComponent, Box3 } from "./component.js";
+import type { CutoutFeature } from "./cutout.js";
 import type { DesignObject, DesignState, Transform } from "./design.js";
 import type { ScalarValue } from "./formula.js";
 import type { HardwareDatasetRef, HardwareRequirement, HardwareResolution } from "./hardware.js";
@@ -53,6 +54,8 @@ export interface ResolvedCabinet {
   readonly derived: Readonly<Record<string, number>>;
   readonly components: readonly CabinetComponent[];
   readonly appliances: readonly ResolvedApplianceReference[];
+  /** Design Studio Slice 5 step 6: one per sink/hob-category appliance reference. Empty for every other cabinet. */
+  readonly cutouts: readonly CutoutFeature[];
   readonly hardwareRequirements: readonly HardwareRequirement[];
   readonly hardwareResolutions: readonly HardwareResolution[];
   readonly geometry: {

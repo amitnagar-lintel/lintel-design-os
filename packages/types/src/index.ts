@@ -5,6 +5,7 @@ export * from "./catalog.js";
 export * from "./product.js";
 export * from "./design.js";
 export * from "./component.js";
+export * from "./cutout.js";
 export * from "./hardware.js";
 export * from "./resolved.js";
 export * from "./bom.js";

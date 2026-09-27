@@ -782,6 +782,7 @@
         "templateId": "SHUTTER_OVERLAY"
       }
     ],
+    "cutouts": [],
     "derived": {
       "INSET_SHUTTER_HEIGHT": 680,
       "INSET_SHUTTER_WIDTH": 278.5,

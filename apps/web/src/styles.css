@@ -41,6 +41,7 @@ svg .clickable { cursor: pointer; }
 svg .selected, svg .selected polygon { fill: #f59e0b; stroke: #92400e; stroke-width: 1.2; }
 svg .floor { fill: #eef0f3; stroke: #999; } svg .wallface { fill: #f7f8fa; stroke: #bbb; }
 svg .run { stroke: var(--ok); stroke-width: 4; }
+svg .cutout { fill: none; stroke: var(--bad); stroke-width: 1.2; stroke-dasharray: 4 3; }
 svg text { font-size: 11px; fill: #333; } svg .cab-label { font-weight: 600; } svg .wall-label { font-weight: 700; fill: var(--accent); } svg .dim { fill: var(--muted); }
 
 /* Design Studio (Phase D6): 3-pane layout + bottom bar. */

@@ -114,6 +114,7 @@
             "templateId": "BOTTOM"
           }
         ],
+        "cutouts": [],
         "derived": {
           "INTERNAL_HEIGHT": 684,
           "INTERNAL_WIDTH": 564,
@@ -638,6 +639,7 @@
             "templateId": "BOTTOM"
           }
         ],
+        "cutouts": [],
         "derived": {
           "INTERNAL_HEIGHT": 684,
           "INTERNAL_WIDTH": 714,
@@ -1162,6 +1164,7 @@
             "templateId": "BOTTOM"
           }
         ],
+        "cutouts": [],
         "derived": {
           "INTERNAL_HEIGHT": 684,
           "INTERNAL_WIDTH": 564,
@@ -1686,6 +1689,7 @@
             "templateId": "BOTTOM"
           }
         ],
+        "cutouts": [],
         "derived": {
           "INTERNAL_HEIGHT": 684,
           "INTERNAL_WIDTH": 564,

@@ -334,6 +334,11 @@ describe("KIT_BASE_SINK (Slice 5 step 4: sink cabinet)", () => {
     const wasteBin = run(sinkObj({ parameters: { internalConfig: "WASTE_BIN" } }));
     expect(modelFingerprint(open)).not.toBe(modelFingerprint(wasteBin));
   });
+
+  it("produces no COUNTERTOP cutout (Slice 5 step 6): the sink has no appliance parameter, and no sourced bowl dimension exists yet", () => {
+    const r = run(sinkObj());
+    expect(r.cutouts).toEqual([]);
+  });
 });
 
 describe("KIT_BASE_HOB (Slice 5 step 5: hob cabinet)", () => {
@@ -367,6 +372,21 @@ describe("KIT_BASE_HOB (Slice 5 step 5: hob cabinet)", () => {
     const r = run(hobObj({ parameters: { shutterCount: 2 } }));
     expect(r.hardwareRequirements.filter((h) => h.category === "HINGE")).toHaveLength(2);
     expect(r.hardwareRequirements.filter((h) => h.category !== "HINGE")).toHaveLength(0);
+  });
+
+  it("derives one COUNTERTOP cutout from the referenced hob appliance's own installation envelope (Slice 5 step 6)", () => {
+    const r = run(hobObj());
+    expect(r.cutouts).toEqual([{
+      cutoutId: "o1-CUTOUT-hob", target: "COUNTERTOP", shape: "RECTANGLE",
+      widthMm: 560, depthMm: 490, position: { xMm: 0, zMm: 0 },
+      cornerRadiusMm: null, clearance: [], sourceApplianceId: "HOB_REFERENCE_60CM", edgeTreatment: null,
+    }]);
+  });
+
+  it("produces no cutout for an OVEN-category appliance reference (Slice 5 step 6: only a HOB gets a COUNTERTOP cutout — an oven's own bay is a structural void, not a worktop hole)", () => {
+    const ovenObj = obj({ productId: "KIT_TALL_OVEN", dimensions: { width: 600, height: 2000, depth: 560 } });
+    const r = resolveCabinet({ designVersion: dv, object: ovenObj, catalog: LINTEL_CATALOG, standard: TEST_FIXTURE_CONSTRUCTION_STANDARD, edgeBandStandard: TEST_FIXTURE_EDGE_BAND_STANDARD, adapters: [fakeAdapter] });
+    expect(r.cutouts).toEqual([]);
   });
 });
 

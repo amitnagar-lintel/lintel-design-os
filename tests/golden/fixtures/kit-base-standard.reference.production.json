@@ -277,6 +277,7 @@
         "templateId": "BOTTOM"
       }
     ],
+    "cutouts": [],
     "derived": {
       "INTERNAL_HEIGHT": 684,
       "INTERNAL_WIDTH": 564,

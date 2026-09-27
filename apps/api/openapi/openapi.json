@@ -8303,6 +8303,142 @@
                     "additionalProperties": false
                   }
                 },
+                "cutouts": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "cutoutId": {
+                        "type": "string"
+                      },
+                      "target": {
+                        "type": "string",
+                        "enum": [
+                          "COUNTERTOP",
+                          "CABINET_TOP",
+                          "CABINET_BACK"
+                        ]
+                      },
+                      "shape": {
+                        "type": "string",
+                        "const": "RECTANGLE"
+                      },
+                      "widthMm": {
+                        "type": "number"
+                      },
+                      "depthMm": {
+                        "type": "number"
+                      },
+                      "position": {
+                        "type": "object",
+                        "properties": {
+                          "xMm": {
+                            "type": "number"
+                          },
+                          "zMm": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "xMm",
+                          "zMm"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "cornerRadiusMm": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "clearance": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "ruleId": {
+                              "type": "string"
+                            },
+                            "zone": {
+                              "type": "string",
+                              "enum": [
+                                "INSTALLATION",
+                                "VENTILATION",
+                                "STRUCTURAL_EXCLUSION"
+                              ]
+                            },
+                            "axis": {
+                              "type": "string",
+                              "enum": [
+                                "TOP",
+                                "BOTTOM",
+                                "LEFT",
+                                "RIGHT",
+                                "FRONT",
+                                "BACK"
+                              ]
+                            },
+                            "minMm": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "maxMm": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "ruleId",
+                            "zone",
+                            "axis",
+                            "minMm",
+                            "maxMm"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "sourceApplianceId": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "edgeTreatment": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {
+                              "type": "string"
+                            }
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "cutoutId",
+                      "target",
+                      "shape",
+                      "widthMm",
+                      "depthMm",
+                      "position",
+                      "cornerRadiusMm",
+                      "clearance",
+                      "sourceApplianceId",
+                      "edgeTreatment"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
                 "validation": {
                   "type": "object",
                   "properties": {
@@ -8423,6 +8559,7 @@
                 "transform",
                 "placement",
                 "components",
+                "cutouts",
                 "validation",
                 "messages"
               ],

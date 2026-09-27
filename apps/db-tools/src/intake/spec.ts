@@ -21,7 +21,7 @@ import type { ConstructionStandard, EdgeBandStandard, PlanningStandard } from "@
 import { findTestFixtureMarker } from "@lintel/persistence";
 import { z } from "zod";
 import {
-  ConstructionRecipeSchema, ConstructionStandardSchema, EdgeBandSchema, EdgeBandStandardSchema, FinishSchema, HardwareRuleSetSchema, HettichProductionDatasetSchema, MaterialSchema,
+  ApplianceSchema, ConstructionRecipeSchema, ConstructionStandardSchema, EdgeBandSchema, EdgeBandStandardSchema, FinishSchema, HardwareRuleSetSchema, HettichProductionDatasetSchema, MaterialSchema,
   PlanningStandardSchema, PricingRuleSetSchema, ProductDefinitionSchema, QuotationPolicySchema, RateCardSchema, ValueProvenanceSchema,
 } from "./schemas.js";
 
@@ -30,8 +30,8 @@ export const INTAKE_FORMAT = "lintel.reference-intake/v1";
 /** The types the intake accepts: every type with an existing domain model and persistence mapping. */
 export const INTAKE_TYPES = [
   "construction_standard", "planning_standard", "edge_band_standard",
-  "material", "edge_band", "finish", "hardware_rule_set", "construction_recipe", "product",
-  "material_catalog", "finish_catalog", "hardware_catalog", "product_catalog",
+  "material", "edge_band", "finish", "hardware_rule_set", "appliance", "construction_recipe", "product",
+  "material_catalog", "finish_catalog", "hardware_catalog", "appliance_catalog", "product_catalog",
   "hettich_dataset", "pricing_standard", "quotation_policy",
 ] as const;
 export type IntakeType = (typeof INTAKE_TYPES)[number];
@@ -42,15 +42,14 @@ export type IntakeType = (typeof INTAKE_TYPES)[number];
  */
 export const NOT_ACCEPTED: Readonly<Record<string, string>> = {
   hardware_item: "no approved domain model for hardware items exists yet (hardware is resolved through the Hettich dataset)",
-  appliance: "no appliance domain model exists yet (appliances are recorded off-system for the V1 pilot)",
-  appliance_catalog: "no appliance domain model exists yet",
   manufacturing_standard: "Phase 2: no ManufacturingStandard variables are defined",
 };
 
-export const CATALOG_MEMBERS: Readonly<Record<"material_catalog" | "finish_catalog" | "hardware_catalog" | "product_catalog", readonly string[]>> = {
+export const CATALOG_MEMBERS: Readonly<Record<"material_catalog" | "finish_catalog" | "hardware_catalog" | "appliance_catalog" | "product_catalog", readonly string[]>> = {
   material_catalog: ["material", "edge_band"],
   finish_catalog: ["finish"],
   hardware_catalog: ["hardware_item", "hardware_rule_set"],
+  appliance_catalog: ["appliance"],
   product_catalog: ["product"],
 };
 
@@ -91,9 +90,9 @@ const PricingData = z.strictObject({ rateCard: RateCardSchema, rules: PricingRul
 
 const DATA_SCHEMAS: Readonly<Record<IntakeType, z.ZodType>> = {
   construction_standard: ConstructionStandardSchema, planning_standard: PlanningStandardSchema, edge_band_standard: EdgeBandStandardSchema,
-  material: MaterialSchema, edge_band: EdgeBandSchema, finish: FinishSchema, hardware_rule_set: HardwareRuleSetSchema,
+  material: MaterialSchema, edge_band: EdgeBandSchema, finish: FinishSchema, hardware_rule_set: HardwareRuleSetSchema, appliance: ApplianceSchema,
   construction_recipe: ConstructionRecipeSchema, product: ProductDefinitionSchema,
-  material_catalog: CatalogData, finish_catalog: CatalogData, hardware_catalog: CatalogData, product_catalog: CatalogData,
+  material_catalog: CatalogData, finish_catalog: CatalogData, hardware_catalog: CatalogData, appliance_catalog: CatalogData, product_catalog: CatalogData,
   hettich_dataset: HettichProductionDatasetSchema, pricing_standard: PricingData, quotation_policy: QuotationPolicySchema,
 };
 
@@ -252,6 +251,13 @@ export function validateIntake(bytes: string): Validated | { readonly fileHash: 
     case "finish":
       if ((d as z.infer<typeof FinishSchema>).thickness === null) unverified("VALUE_UNVERIFIED", "$.data.thickness", "thickness is NULL / UNVERIFIED");
       break;
+    case "appliance": {
+      const a = d as z.infer<typeof ApplianceSchema>;
+      for (const [k, v] of [["make", a.make], ["model", a.model], ["dimensions", a.dimensions], ["installation", a.installation], ["ventilation", a.ventilation], ["frontAlignment", a.frontAlignment]] as const) {
+        if (v === null) unverified("VALUE_UNVERIFIED", `$.data.${k}`, `${k} is NULL / UNVERIFIED`);
+      }
+      break;
+    }
     case "hardware_rule_set": {
       const s = d as z.infer<typeof HardwareRuleSetSchema>;
       for (const x of duplicates(s.rules.map((r) => r.ruleId))) err("DUPLICATE_RECORD", "$.data.rules", `rule ${x} appears more than once`);
@@ -280,6 +286,7 @@ export function validateIntake(bytes: string): Validated | { readonly fileHash: 
     case "material_catalog":
     case "finish_catalog":
     case "hardware_catalog":
+    case "appliance_catalog":
     case "product_catalog": {
       const c = d as CatalogData;
       const allowed = CATALOG_MEMBERS[file.type];

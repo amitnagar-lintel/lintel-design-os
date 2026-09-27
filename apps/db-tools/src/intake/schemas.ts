@@ -4,7 +4,7 @@
  * database. The compile-time checks at the bottom fail the build if a schema and its domain type ever drift apart.
  */
 import type {
-  ConstructionRecipe, ConstructionStandard, EdgeBand, EdgeBandStandard, Finish, HardwareRuleSet, Material, PlanningStandard, PricingRuleSet, ProductDefinition, QuotationPolicy, RateCard,
+  Appliance, ConstructionRecipe, ConstructionStandard, EdgeBand, EdgeBandStandard, Finish, HardwareRuleSet, Material, PlanningStandard, PricingRuleSet, ProductDefinition, QuotationPolicy, RateCard,
 } from "@lintel/types";
 import type { HettichProductionDataset } from "@lintel/hettich-engine";
 import { z } from "zod";
@@ -57,6 +57,18 @@ export const FinishSchema = z.strictObject({
 });
 export const EdgeBandSchema = z.strictObject({
   edgeBandId: Id, name: Text, material: z.enum(["ABS", "PVC", "VENEER"]).nullable(), thickness: Mm, width: NullableNumber, status: DataStatus, source: Text,
+});
+
+const ClearanceRule = z.strictObject({
+  ruleId: Id, zone: z.enum(["INSTALLATION", "VENTILATION", "STRUCTURAL_EXCLUSION"]), axis: z.enum(["TOP", "BOTTOM", "LEFT", "RIGHT", "FRONT", "BACK"]),
+  minMm: NullableNumber, maxMm: NullableNumber,
+});
+const InstallationEnvelope = z.strictObject({ widthMm: Mm, heightMm: Mm, depthMm: Mm, clearances: z.array(ClearanceRule) });
+export const ApplianceSchema = z.strictObject({
+  applianceId: Id, category: z.enum(["HOB", "OVEN", "MICROWAVE", "DISHWASHER", "REFRIGERATOR", "SINK"]), make: Text.nullable(), model: Text.nullable(),
+  dimensions: z.strictObject({ widthMm: Mm, heightMm: Mm, depthMm: Mm }).nullable(),
+  installation: InstallationEnvelope.nullable(), ventilation: z.array(ClearanceRule).nullable(), frontAlignment: z.enum(["FLUSH", "RECESSED", "PROUD"]).nullable(),
+  status: DataStatus, source: Text,
 });
 const HingeHardwareRule = z.strictObject({
   ruleId: Id, componentType: ComponentType, category: z.enum(["HINGE", "MOUNTING_PLATE"]), application: z.literal("HINGED_DOOR"),
@@ -169,6 +181,7 @@ export const SCHEMAS_MATCH_DOMAIN_TYPES: readonly true[] = [
   true satisfies Mirrors<typeof MaterialSchema, Material>,
   true satisfies Mirrors<typeof FinishSchema, Finish>,
   true satisfies Mirrors<typeof EdgeBandSchema, EdgeBand>,
+  true satisfies Mirrors<typeof ApplianceSchema, Appliance>,
   true satisfies Mirrors<typeof HardwareRuleSetSchema, HardwareRuleSet>,
   true satisfies Mirrors<typeof ProductDefinitionSchema, ProductDefinition>,
   true satisfies Mirrors<typeof ConstructionRecipeSchema, ConstructionRecipe>,

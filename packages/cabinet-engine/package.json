@@ -8,6 +8,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@lintel/types": "workspace:*"
+    "@lintel/types": "workspace:*",
+    "@lintel/geometry-engine": "workspace:*"
   }
 }

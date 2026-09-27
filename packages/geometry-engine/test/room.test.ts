@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Box3, Transform } from "@lintel/types";
-import { asQuarterTurn, BACK_WALL, containment, placeBox, planDistance, relativeToWall, roomWalls, wallFrame } from "../src/index.js";
+import { asQuarterTurn, BACK_WALL, containment, placeBox, planDistance, relativeToWall, roomWalls, wallFrame, wallOrigin } from "../src/index.js";
 
 const t = (x: number, z: number, rotationY: number): Transform => ({ x, y: 0, z, rotationX: 0, rotationY, rotationZ: 0 });
 const carcass: Box3 = { min: { x: 0, y: 0, z: 0 }, size: { x: 600, y: 720, z: 560 } };
@@ -41,6 +41,12 @@ describe("wall frames", () => {
     expect(relativeToWall(onC, wallFrame("C", L, W))).toEqual({ start: 0, end: 600, distance: 0 });
     const onB = placeBox(carcass, t(4200, 0, 270));
     expect(relativeToWall(onB, wallFrame("B", L, W))).toEqual({ start: 0, end: 600, distance: 0 });
+  });
+  it("wallOrigin exactly inverts the along/distance this same suite already verified for all 4 walls", () => {
+    expect(wallOrigin("A", 1200, 0, L, W)).toEqual({ x: 1200, z: 0, rotationY: 0 });
+    expect(wallOrigin("D", 2000, 0, L, W)).toEqual({ x: 0, z: 1200, rotationY: 90 });
+    expect(wallOrigin("C", 0, 0, L, W)).toEqual({ x: 4200, z: 3200, rotationY: 180 });
+    expect(wallOrigin("B", 0, 0, L, W)).toEqual({ x: 4200, z: 0, rotationY: 270 });
   });
   it("describes the four walls", () => {
     expect(roomWalls(L, W, 3000, 150).map((w) => [w.wallId, w.length])).toEqual([

@@ -239,6 +239,9 @@ importers:
 
   packages/cabinet-engine:
     dependencies:
+      '@lintel/geometry-engine':
+        specifier: workspace:*
+        version: link:../geometry-engine
       '@lintel/types':
         specifier: workspace:*
         version: link:../types

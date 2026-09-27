@@ -239,7 +239,11 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
     const isOpen = type.productCode === "KIT_BASE_OPEN";
     const isPullout = type.productCode === "KIT_BASE_PULLOUT";
     const isOvenTower = type.productCode === "KIT_TALL_OVEN";
-    const noFront = isOpen || isOvenTower;
+    /** Slice 6C: a filler/end panel is one finished panel — no front, no internals, no hardware at all (the
+     * strictest `noFront` case: unlike KIT_BASE_OPEN/KIT_TALL_OVEN, its `finish` really is applied, never
+     * vestigial). */
+    const isPanel = type.productCode === "KIT_FILLER" || type.productCode === "KIT_END_PANEL";
+    const noFront = isOpen || isOvenTower || isPanel;
     const defaultShelfCount = paramNumber(p.params, isOvenTower ? "shelfCountAbove" : "shelfCount") ?? 2;
     const defaultShutterCount = (paramNumber(p.params, "shutterCount") ?? 2) === 1 ? 1 : 2;
     const defaultPulloutCount = paramNumber(p.params, "pulloutCount") ?? 3;
@@ -253,13 +257,13 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
       rotationY,
       dimensions: { widthMm: width, heightMm: height, depthMm: depth },
       front: noFront ? OPEN_FRONT : isDrawer ? drawerBankFront(3, overlay, width, height) : shutterFront(defaultShutterCount, overlay, width, height),
-      internals: noFront ? shelves(defaultShelfCount) : isPullout ? pullouts(defaultPulloutCount) : [],
+      internals: isPanel ? [] : noFront ? shelves(defaultShelfCount) : isPullout ? pullouts(defaultPulloutCount) : [],
       corner: null,
       finish: {
         carcassMaterialId: paramString(p.params, "material"),
         backMaterialId: paramString(p.params, "backMaterial"),
         frontMaterialId: paramString(p.params, noFront ? "material" : isDrawer ? "frontMaterial" : "shutterMaterial"),
-        frontFinishId: noFront ? "" : paramString(p.params, "finish"),
+        frontFinishId: isPanel ? paramString(p.params, "finish") : noFront ? "" : paramString(p.params, "finish"),
       },
       hardware: { hinges: [], runners: [], handle: null },
     };
@@ -396,7 +400,7 @@ const CORNERS: readonly { readonly id: CornerId; readonly label: string }[] = [
 ];
 
 function CabinetLibraryPanel({ canEdit, onAdd, onAddCornerPair }: { readonly canEdit: boolean; readonly onAdd: (type: CabinetType) => Promise<void>; readonly onAddCornerPair: (type: CabinetType, corner: CornerId) => Promise<void> }) {
-  const categories = ["BASE", "WALL", "TALL", "CORNER"] as const;
+  const categories = ["BASE", "WALL", "TALL", "CORNER", "FILLER"] as const;
   /** Slice 6C: which of the room's 4 corners the next "+ Add pair" click places at (was D-A only). */
   const [corner, setCorner] = useState<CornerId>("DA");
   return (
@@ -457,12 +461,14 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
   const isOvenTower = instance.recipe.productCode === "KIT_TALL_OVEN";
   const isSink = instance.recipe.productCode === "KIT_BASE_SINK";
   const isHob = instance.recipe.productCode === "KIT_BASE_HOB";
-  const noFront = isOpen || isOvenTower;
+  /** Slice 6C: a filler/end panel has no front, no internals, no hardware — the strictest `noFront` case. */
+  const isPanel = instance.recipe.productCode === "KIT_FILLER" || instance.recipe.productCode === "KIT_END_PANEL";
+  const noFront = isOpen || isOvenTower || isPanel;
   const element = instance.front.rows[0]?.columns[0]?.element;
   const currentShutterCount = !isDrawer && !noFront && instance.front.rows[0]?.columns.length === 2 ? 2 : 1;
   const currentDrawerCount = element?.kind === "DRAWER_BANK" && (DRAWER_COUNTS as readonly number[]).includes(element.drawers.length) ? (element.drawers.length as 2 | 3 | 4) : 3;
   const currentOverlay: OverlayMode = element?.kind === "SHUTTER" || element?.kind === "DRAWER_BANK" ? element.overlay : "OVERLAY";
-  const currentShelfCount = noFront ? instance.internals.length : 0;
+  const currentShelfCount = noFront && !isPanel ? instance.internals.length : 0;
   const currentPulloutCount = isPullout ? instance.internals.length : 0;
   const currentWasteBin = isSink && instance.internals.length > 0;
   const currentDrawerHeights = element?.kind === "DRAWER_BANK" ? element.drawers.map((d) => String(d.heightMm)) : [];
@@ -534,7 +540,7 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
       ...(moved === null ? {} : { position: { xMm: moved.x, yMm: instance.position.yMm, zMm: moved.z }, rotationY: moved.rotationY }),
       dimensions: { widthMm, heightMm, depthMm },
       front: noFront ? OPEN_FRONT : isDrawer ? drawerBankFront(drawerCount, overlay, widthMm, heightMm, drawerHeights.map(Number)) : shutterFront(shutterCount, overlay, widthMm, heightMm),
-      internals: noFront ? shelves(Math.max(0, Math.trunc(Number(shelfCount)))) : isPullout ? pullouts(Math.max(0, Math.trunc(Number(pulloutCount)))) : isSink ? wasteBinInternals(wasteBin) : instance.internals,
+      internals: isPanel ? [] : noFront ? shelves(Math.max(0, Math.trunc(Number(shelfCount)))) : isPullout ? pullouts(Math.max(0, Math.trunc(Number(pulloutCount)))) : isSink ? wasteBinInternals(wasteBin) : instance.internals,
     });
   };
 
@@ -572,7 +578,7 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
             ))}
         </>
       )}
-      {noFront ? (
+      {isPanel ? null : noFront ? (
         <Field label={isOvenTower ? "Shelf count (above oven)" : "Shelf count"}><input className="num" value={shelfCount} disabled={!canEdit} onChange={(e) => { setShelfCount(e.target.value); }} /></Field>
       ) : isDrawer ? (
         <Field label="Drawer count">
@@ -651,7 +657,9 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
       </div>
       <details>
         <summary>Finish (from the resolved model)</summary>
-        {noFront
+        {isPanel
+          ? <p>Panel <code>{instance.finish.carcassMaterialId}</code> · Finish <code>{instance.finish.frontFinishId}</code></p>
+          : noFront
           ? <p>Carcass <code>{instance.finish.carcassMaterialId}</code> · Back <code>{instance.finish.backMaterialId}</code> (no front{isOvenTower ? " this slice" : ": open cabinet"})</p>
           : <p>Carcass <code>{instance.finish.carcassMaterialId}</code> · Back <code>{instance.finish.backMaterialId}</code> · Front <code>{instance.finish.frontMaterialId}</code> · Finish <code>{instance.finish.frontFinishId}</code></p>}
       </details>

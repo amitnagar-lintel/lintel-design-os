@@ -234,6 +234,21 @@ function ovenTowerParametersOf(instance: CabinetInstance): CompiledParameters {
   };
 }
 
+/**
+ * Slice 6C (`KIT_FILLER` / `KIT_END_PANEL`): a single finished panel, no front, no internals, no corner — the
+ * strictest of every `noFront` product so far. `width`/`height`/`depth` always compile via `dimensions`
+ * (never here); only `material`/`finish` are recipe parameters.
+ */
+function panelParametersOf(instance: CabinetInstance): CompiledParameters {
+  if (instance.corner !== null) throw new Error("A filler/end panel is never a corner cabinet");
+  if (instance.front.rows.length > 0) throw new Error("A filler/end panel has no front; it cannot compile front rows");
+  if (instance.internals.length > 0) throw new Error("A filler/end panel has no internals");
+  return {
+    material: instance.finish.carcassMaterialId,
+    finish: instance.finish.frontFinishId,
+  };
+}
+
 /** Every parameter key belongs to exactly one product; compiling any other productCode is refused, not guessed. */
 function parametersOf(instance: CabinetInstance): CompiledParameters {
   switch (instance.recipe.productCode) {
@@ -247,6 +262,8 @@ function parametersOf(instance: CabinetInstance): CompiledParameters {
     // the referenced hob Appliance is never sent (stays at the recipe's own default, same precedent as
     // KIT_TALL_OVEN's oven parameter).
     case "KIT_BASE_HOB": return shutterParametersOf(instance);
+    case "KIT_FILLER": return panelParametersOf(instance);
+    case "KIT_END_PANEL": return panelParametersOf(instance);
     default: throw new Error(`No compiler for product '${instance.recipe.productCode}'`);
   }
 }

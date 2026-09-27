@@ -68,7 +68,7 @@
       }
     ],
     "trace": {
-      "catalogVersion": "2026.10.03-m8",
+      "catalogVersion": "2026.10.04-m9",
       "dataClassification": "PRODUCTION",
       "designVersionId": "dv_001",
       "designVersionStatus": "DRAFT",
@@ -126,7 +126,7 @@
       }
     ],
     "trace": {
-      "catalogVersion": "2026.10.03-m8",
+      "catalogVersion": "2026.10.04-m9",
       "dataClassification": "PRODUCTION",
       "designVersionId": "dv_001",
       "designVersionStatus": "DRAFT",
@@ -386,7 +386,7 @@
       "W": 600
     },
     "trace": {
-      "catalogVersion": "2026.10.03-m8",
+      "catalogVersion": "2026.10.04-m9",
       "dataClassification": "PRODUCTION",
       "designVersionId": "dv_001",
       "designVersionStatus": "DRAFT",

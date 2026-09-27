@@ -42,13 +42,14 @@ describe("rehearsal isolation", () => {
   });
   it("every rehearsal file is a valid intake file that names itself as rehearsal data", () => {
     const files = rehearsalDataset();
-    expect(files.length).toBe(40);
-    // OPEN_STANDARD's and OVEN_TOWER_STANDARD's hardware_rule_sets genuinely have zero rules (an open cabinet
-    // has no hardware; the oven tower has no front and no hardware defined for its bay this slice): the intake
-    // validator's generic completeness heuristic cannot tell that apart from "not yet filled in" and flags it
-    // UNVERIFIED regardless — expected and accepted (see rehearsal-dataset.ts), not a defect in either file.
+    expect(files.length).toBe(46);
+    // OPEN_STANDARD's, OVEN_TOWER_STANDARD's, FILLER_STANDARD's and END_PANEL_STANDARD's hardware_rule_sets
+    // genuinely have zero rules (an open cabinet has no hardware; the oven tower has no front and no hardware
+    // defined for its bay this slice; a filler/end panel has no hardware of any kind): the intake validator's
+    // generic completeness heuristic cannot tell that apart from "not yet filled in" and flags it UNVERIFIED
+    // regardless — expected and accepted (see rehearsal-dataset.ts), not a defect in either file.
     const expectedFindings = (f: (typeof files)[number]) => {
-      if (f.entityCode === "OPEN_STANDARD" || f.entityCode === "OVEN_TOWER_STANDARD") {
+      if (f.entityCode === "OPEN_STANDARD" || f.entityCode === "OVEN_TOWER_STANDARD" || f.entityCode === "FILLER_STANDARD" || f.entityCode === "END_PANEL_STANDARD") {
         return [{ code: "RULES_MISSING", level: "UNVERIFIED", message: "no hardware rules", path: "$.data.rules" }];
       }
       if (f.entityCode === "OVEN_REFERENCE_60CM" || f.entityCode === "HOB_REFERENCE_60CM") {

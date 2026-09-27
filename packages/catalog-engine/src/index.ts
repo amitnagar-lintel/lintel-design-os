@@ -8,6 +8,8 @@ import { KIT_BASE_PULLOUT, KITCHEN_BASE_PULLOUT_V1, PULLOUT_STANDARD } from "./d
 import { KIT_BASE_SINK, KITCHEN_BASE_SINK_V1, SINK_STANDARD } from "./data/kit-base-sink.js";
 import { HOB_STANDARD, KIT_BASE_HOB, KITCHEN_BASE_HOB_V1 } from "./data/kit-base-hob.js";
 import { KIT_TALL_OVEN, KITCHEN_TALL_OVEN_V1, OVEN_TOWER_STANDARD } from "./data/kit-tall-oven.js";
+import { FILLER_STANDARD, FILLER_STANDARD_V1, KIT_FILLER } from "./data/kit-filler.js";
+import { END_PANEL_STANDARD, END_PANEL_STANDARD_V1, KIT_END_PANEL } from "./data/kit-end-panel.js";
 
 export { EDGE_BANDS, FINISHES, MATERIALS } from "./data/materials.js";
 export { APPLIANCES } from "./data/appliances.js";
@@ -18,6 +20,8 @@ export { KIT_BASE_PULLOUT, KITCHEN_BASE_PULLOUT_V1, PULLOUT_STANDARD } from "./d
 export { KIT_BASE_SINK, KITCHEN_BASE_SINK_V1, SINK_STANDARD } from "./data/kit-base-sink.js";
 export { HOB_STANDARD, KIT_BASE_HOB, KITCHEN_BASE_HOB_V1 } from "./data/kit-base-hob.js";
 export { KIT_TALL_OVEN, KITCHEN_TALL_OVEN_V1, OVEN_TOWER_STANDARD } from "./data/kit-tall-oven.js";
+export { FILLER_STANDARD, FILLER_STANDARD_V1, KIT_FILLER } from "./data/kit-filler.js";
+export { END_PANEL_STANDARD, END_PANEL_STANDARD_V1, KIT_END_PANEL } from "./data/kit-end-panel.js";
 export { LINTEL_CONSTRUCTION_STANDARD_DRAFT, LINTEL_EDGE_BAND_STANDARD_DRAFT } from "./data/standards.js";
 export { TEST_FIXTURE_CONSTRUCTION_STANDARD } from "./fixtures/test-construction-standard.js";
 export { TEST_FIXTURE_EDGE_BAND_STANDARD } from "./fixtures/test-edge-band-standard.js";
@@ -31,12 +35,12 @@ export { validateCatalog, validateEdgeBandStandard, validateStandard } from "./v
 
 /** The V1 catalog. Versioned as a whole; any data change bumps catalogVersion. */
 export const LINTEL_CATALOG: CatalogSnapshot = {
-  catalogVersion: "2026.10.03-m8",
-  products: [KIT_BASE_STANDARD, KIT_BASE_DRAWER, KIT_BASE_OPEN, KIT_BASE_PULLOUT, KIT_TALL_OVEN, KIT_BASE_SINK, KIT_BASE_HOB],
-  recipes: [KITCHEN_BASE_STANDARD_V1, KITCHEN_BASE_DRAWER_V1, KITCHEN_BASE_OPEN_V1, KITCHEN_BASE_PULLOUT_V1, KITCHEN_TALL_OVEN_V1, KITCHEN_BASE_SINK_V1, KITCHEN_BASE_HOB_V1],
+  catalogVersion: "2026.10.04-m9",
+  products: [KIT_BASE_STANDARD, KIT_BASE_DRAWER, KIT_BASE_OPEN, KIT_BASE_PULLOUT, KIT_TALL_OVEN, KIT_BASE_SINK, KIT_BASE_HOB, KIT_FILLER, KIT_END_PANEL],
+  recipes: [KITCHEN_BASE_STANDARD_V1, KITCHEN_BASE_DRAWER_V1, KITCHEN_BASE_OPEN_V1, KITCHEN_BASE_PULLOUT_V1, KITCHEN_TALL_OVEN_V1, KITCHEN_BASE_SINK_V1, KITCHEN_BASE_HOB_V1, FILLER_STANDARD_V1, END_PANEL_STANDARD_V1],
   materials: MATERIALS,
   finishes: FINISHES,
   edgeBands: EDGE_BANDS,
-  hardwareRuleSets: [HINGE_STANDARD, DRAWER_STANDARD, OPEN_STANDARD, PULLOUT_STANDARD, OVEN_TOWER_STANDARD, SINK_STANDARD, HOB_STANDARD],
+  hardwareRuleSets: [HINGE_STANDARD, DRAWER_STANDARD, OPEN_STANDARD, PULLOUT_STANDARD, OVEN_TOWER_STANDARD, SINK_STANDARD, HOB_STANDARD, FILLER_STANDARD, END_PANEL_STANDARD],
   appliances: APPLIANCES,
 };

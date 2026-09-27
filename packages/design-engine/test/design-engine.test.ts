@@ -390,6 +390,38 @@ describe("KIT_BASE_HOB (Slice 5 step 5: hob cabinet)", () => {
   });
 });
 
+describe.each([
+  { productId: "KIT_FILLER", recipeId: "FILLER_STANDARD_V1", componentType: "FILLER" },
+  { productId: "KIT_END_PANEL", recipeId: "END_PANEL_STANDARD_V1", componentType: "END_PANEL" },
+] as const)("$productId (Slice 6C: filler / end panel)", ({ productId, recipeId, componentType }) => {
+  const panelObj = (over: Partial<DesignObject> = {}): DesignObject => obj({ productId, dimensions: { width: 100, height: 720, depth: 560 }, ...over });
+  const run = (o: DesignObject) => resolveCabinet({ designVersion: dv, object: o, catalog: LINTEL_CATALOG, standard: TEST_FIXTURE_CONSTRUCTION_STANDARD, edgeBandStandard: TEST_FIXTURE_EDGE_BAND_STANDARD, adapters: [fakeAdapter] });
+
+  it("resolves to its own recipe", () => {
+    const r = run(panelObj());
+    expect(r.trace.recipe.id).toBe(recipeId);
+    expect(r.trace.product.id).toBe(productId);
+  });
+
+  it("generates exactly one finished panel component, sized from width/height/depth, with no carcass, front, internals or hardware", () => {
+    const r = run(panelObj({ dimensions: { width: 120, height: 700, depth: 550 } }));
+    expect(codes(r.validation).filter((c) => c === "COMPONENT_DIMENSION_INVALID" || c === "COMPONENT_COUNT_INVALID")).toEqual([]);
+    expect(r.components).toHaveLength(1);
+    const panel = r.components[0]!;
+    expect(panel.componentType).toBe(componentType);
+    // A YZ-plane panel: width/height map to the template's own "width"/"height" fields (D/H), thickness to "W".
+    expect(panel.geometry.local.size).toEqual({ x: 120, y: 700, z: 550 });
+    expect(r.hardwareRequirements).toEqual([]);
+    expect(r.cutouts).toEqual([]);
+  });
+
+  it("produces no COUNTERTOP cutout and no appliance reference (a panel is never an appliance host)", () => {
+    const r = run(panelObj());
+    expect(r.cutouts).toEqual([]);
+    expect(r.appliances).toEqual([]);
+  });
+});
+
 describe("assertProductionEligible", () => {
   const ok: ValidationResult = { messages: [], counts: { BLOCKER: 0, ERROR: 0, WARNING: 0, INFO: 0 }, canApprove: true };
   const blocked: ValidationResult = { ...ok, counts: { ...ok.counts, BLOCKER: 1 }, canApprove: false };

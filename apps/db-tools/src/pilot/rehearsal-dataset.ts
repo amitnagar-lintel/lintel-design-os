@@ -18,6 +18,8 @@ import { EDGE_BANDS, FINISHES, KIT_BASE_STANDARD, KITCHEN_BASE_STANDARD_V1, MATE
   PULLOUT_STANDARD, KIT_BASE_PULLOUT, KITCHEN_BASE_PULLOUT_V1,
   SINK_STANDARD, KIT_BASE_SINK, KITCHEN_BASE_SINK_V1,
   HOB_STANDARD, KIT_BASE_HOB, KITCHEN_BASE_HOB_V1,
+  FILLER_STANDARD, KIT_FILLER, FILLER_STANDARD_V1,
+  END_PANEL_STANDARD, KIT_END_PANEL, END_PANEL_STANDARD_V1,
   APPLIANCES, OVEN_TOWER_STANDARD, KIT_TALL_OVEN, KITCHEN_TALL_OVEN_V1,
   TEST_FIXTURE_CONSTRUCTION_STANDARD, TEST_FIXTURE_EDGE_BAND_STANDARD, TEST_FIXTURE_PLANNING_STANDARD } from "@lintel/catalog-engine";
 import { HETTICH_TEST_FIXTURE_DATASET } from "@lintel/hettich-engine";
@@ -131,6 +133,11 @@ export function rehearsalDataset(): RehearsalFile[] {
   const productOven = withLimits(KIT_TALL_OVEN, { height: [1800, 2400] });
   const productSink = withLimits(KIT_BASE_SINK);
   const productHob = withLimits(KIT_BASE_HOB);
+  // KIT_FILLER/KIT_END_PANEL are single panels, not base cabinets: the shared PRODUCT_LIMITS["width"] range
+  // ([300, 1200]) is for BASE-width cabinets only and must not be applied here, the same reasoning as
+  // productOven's own height override above.
+  const productFiller = withLimits(KIT_FILLER, { width: [20, 300] });
+  const productEndPanel = withLimits(KIT_END_PANEL, { width: [10, 50] });
   const rate = TEST_FIXTURE_RATE_CARD;
   const hardwarePerUnit = Object.fromEntries(Object.entries(rate.hardwarePerUnit).map(([k, v]) => [k.replace(":FIXTURE-", ":REHEARSAL-"), v]));
   const q = TEST_FIXTURE_QUOTATION_POLICY;
@@ -164,6 +171,10 @@ export function rehearsalDataset(): RehearsalFile[] {
     intake("hardware_rule_set", OVEN_TOWER_STANDARD.ruleSetId, OVEN_TOWER_STANDARD, "PROCUREMENT", "PRODUCTION", { intent: "WORKING_DRAFT" }),
     intake("hardware_rule_set", SINK_STANDARD.ruleSetId, SINK_STANDARD, "PROCUREMENT", "PRODUCTION"),
     intake("hardware_rule_set", HOB_STANDARD.ruleSetId, HOB_STANDARD, "PROCUREMENT", "PRODUCTION"),
+    // WORKING_DRAFT, not PRODUCTION_CANDIDATE: same reasoning as OPEN_STANDARD above — a filler/end panel
+    // genuinely has zero hardware.
+    intake("hardware_rule_set", FILLER_STANDARD.ruleSetId, FILLER_STANDARD, "PROCUREMENT", "PRODUCTION", { intent: "WORKING_DRAFT" }),
+    intake("hardware_rule_set", END_PANEL_STANDARD.ruleSetId, END_PANEL_STANDARD, "PROCUREMENT", "PRODUCTION", { intent: "WORKING_DRAFT" }),
     intake("construction_recipe", KITCHEN_BASE_STANDARD_V1.recipeId, KITCHEN_BASE_STANDARD_V1, "DESIGN_HEAD", "PRODUCTION"),
     intake("construction_recipe", KITCHEN_BASE_DRAWER_V1.recipeId, KITCHEN_BASE_DRAWER_V1, "DESIGN_HEAD", "PRODUCTION"),
     intake("construction_recipe", KITCHEN_BASE_OPEN_V1.recipeId, KITCHEN_BASE_OPEN_V1, "DESIGN_HEAD", "PRODUCTION"),
@@ -171,6 +182,8 @@ export function rehearsalDataset(): RehearsalFile[] {
     intake("construction_recipe", KITCHEN_TALL_OVEN_V1.recipeId, KITCHEN_TALL_OVEN_V1, "DESIGN_HEAD", "PRODUCTION"),
     intake("construction_recipe", KITCHEN_BASE_SINK_V1.recipeId, KITCHEN_BASE_SINK_V1, "DESIGN_HEAD", "PRODUCTION"),
     intake("construction_recipe", KITCHEN_BASE_HOB_V1.recipeId, KITCHEN_BASE_HOB_V1, "DESIGN_HEAD", "PRODUCTION"),
+    intake("construction_recipe", FILLER_STANDARD_V1.recipeId, FILLER_STANDARD_V1, "DESIGN_HEAD", "PRODUCTION"),
+    intake("construction_recipe", END_PANEL_STANDARD_V1.recipeId, END_PANEL_STANDARD_V1, "DESIGN_HEAD", "PRODUCTION"),
     intake("product", product.productId, product, "DESIGN_HEAD", "PRODUCTION", { recipe: { entityCode: KITCHEN_BASE_STANDARD_V1.recipeId, versionNumber: 1 } }),
     intake("product", productDrawer.productId, productDrawer, "DESIGN_HEAD", "PRODUCTION", { recipe: { entityCode: KITCHEN_BASE_DRAWER_V1.recipeId, versionNumber: 1 } }),
     intake("product", productOpen.productId, productOpen, "DESIGN_HEAD", "PRODUCTION", { recipe: { entityCode: KITCHEN_BASE_OPEN_V1.recipeId, versionNumber: 1 } }),
@@ -178,11 +191,13 @@ export function rehearsalDataset(): RehearsalFile[] {
     intake("product", productOven.productId, productOven, "DESIGN_HEAD", "PRODUCTION", { recipe: { entityCode: KITCHEN_TALL_OVEN_V1.recipeId, versionNumber: 1 } }),
     intake("product", productSink.productId, productSink, "DESIGN_HEAD", "PRODUCTION", { recipe: { entityCode: KITCHEN_BASE_SINK_V1.recipeId, versionNumber: 1 } }),
     intake("product", productHob.productId, productHob, "DESIGN_HEAD", "PRODUCTION", { recipe: { entityCode: KITCHEN_BASE_HOB_V1.recipeId, versionNumber: 1 } }),
+    intake("product", productFiller.productId, productFiller, "DESIGN_HEAD", "PRODUCTION", { recipe: { entityCode: FILLER_STANDARD_V1.recipeId, versionNumber: 1 } }),
+    intake("product", productEndPanel.productId, productEndPanel, "DESIGN_HEAD", "PRODUCTION", { recipe: { entityCode: END_PANEL_STANDARD_V1.recipeId, versionNumber: 1 } }),
     intake("material_catalog", "REHEARSAL_MATERIAL_CATALOG", catalog("rehearsal materials", [...MATERIALS.map((m) => ["material", m.materialId] as const), ...EDGE_BANDS.map((b) => ["edge_band", b.edgeBandId] as const)]), "PROCUREMENT", "DESIGN_HEAD"),
     intake("finish_catalog", "REHEARSAL_FINISH_CATALOG", catalog("rehearsal finishes", FINISHES.map((f) => ["finish", f.finishId] as const)), "PROCUREMENT", "DESIGN_HEAD"),
     intake("appliance_catalog", "REHEARSAL_APPLIANCE_CATALOG", catalog("rehearsal appliances", APPLIANCES.map((a) => ["appliance", a.applianceId] as const)), "PROCUREMENT", "DESIGN_HEAD"),
-    intake("hardware_catalog", "REHEARSAL_HARDWARE_CATALOG", catalog("rehearsal hardware", [["hardware_rule_set", HINGE_STANDARD.ruleSetId], ["hardware_rule_set", DRAWER_STANDARD.ruleSetId], ["hardware_rule_set", OPEN_STANDARD.ruleSetId], ["hardware_rule_set", PULLOUT_STANDARD.ruleSetId], ["hardware_rule_set", OVEN_TOWER_STANDARD.ruleSetId], ["hardware_rule_set", SINK_STANDARD.ruleSetId], ["hardware_rule_set", HOB_STANDARD.ruleSetId]]), "PROCUREMENT", "PRODUCTION"),
-    intake("product_catalog", "REHEARSAL_PRODUCT_CATALOG", catalog("rehearsal products", [["product", product.productId], ["product", productDrawer.productId], ["product", productOpen.productId], ["product", productPullout.productId], ["product", productOven.productId], ["product", productSink.productId], ["product", productHob.productId]]), "DESIGN_HEAD", "PRODUCTION"),
+    intake("hardware_catalog", "REHEARSAL_HARDWARE_CATALOG", catalog("rehearsal hardware", [["hardware_rule_set", HINGE_STANDARD.ruleSetId], ["hardware_rule_set", DRAWER_STANDARD.ruleSetId], ["hardware_rule_set", OPEN_STANDARD.ruleSetId], ["hardware_rule_set", PULLOUT_STANDARD.ruleSetId], ["hardware_rule_set", OVEN_TOWER_STANDARD.ruleSetId], ["hardware_rule_set", SINK_STANDARD.ruleSetId], ["hardware_rule_set", HOB_STANDARD.ruleSetId], ["hardware_rule_set", FILLER_STANDARD.ruleSetId], ["hardware_rule_set", END_PANEL_STANDARD.ruleSetId]]), "PROCUREMENT", "PRODUCTION"),
+    intake("product_catalog", "REHEARSAL_PRODUCT_CATALOG", catalog("rehearsal products", [["product", product.productId], ["product", productDrawer.productId], ["product", productOpen.productId], ["product", productPullout.productId], ["product", productOven.productId], ["product", productSink.productId], ["product", productHob.productId], ["product", productFiller.productId], ["product", productEndPanel.productId]]), "DESIGN_HEAD", "PRODUCTION"),
     intake("hettich_dataset", "REHEARSAL_HETTICH", rehearsalHettichDataset(), "PROCUREMENT", "PRODUCTION"),
     intake("pricing_standard", "REHEARSAL_PRICING_STANDARD", {
       rateCard: { ...rate, rateCardId: "REHEARSAL_RATE_CARD", status: "DRAFT", classification: "PRODUCTION", source: REHEARSAL_SOURCE, hardwarePerUnit },

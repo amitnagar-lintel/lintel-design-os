@@ -94,5 +94,14 @@ export const TEST_FIXTURE_EDGE_BAND_STANDARD: EdgeBandStandard = {
       BACK: {},
       SHUTTER: { TOP: "EDGE_ABS_2MM", BOTTOM: "EDGE_ABS_2MM", LEFT: "EDGE_ABS_2MM", RIGHT: "EDGE_ABS_2MM" },
     },
+    // FILLER_STANDARD_V1's own rule set: the one FILLER component is a fully exposed finished panel, banded
+    // on all 4 sides (same treatment as SHUTTER above).
+    FILLER_CARCASS_STANDARD: {
+      FILLER: { TOP: "EDGE_ABS_2MM", BOTTOM: "EDGE_ABS_2MM", LEFT: "EDGE_ABS_2MM", RIGHT: "EDGE_ABS_2MM" },
+    },
+    // END_PANEL_STANDARD_V1's own rule set: same treatment as FILLER_CARCASS_STANDARD above.
+    END_PANEL_CARCASS_STANDARD: {
+      END_PANEL: { TOP: "EDGE_ABS_2MM", BOTTOM: "EDGE_ABS_2MM", LEFT: "EDGE_ABS_2MM", RIGHT: "EDGE_ABS_2MM" },
+    },
   },
 };

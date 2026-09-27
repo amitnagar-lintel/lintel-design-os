@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { CatalogSnapshot, ConstructionRecipe } from "@lintel/types";
 import {
+  END_PANEL_STANDARD_V1,
+  FILLER_STANDARD_V1,
   KIT_BASE_DRAWER,
   KIT_BASE_HOB,
   KIT_BASE_OPEN,
   KIT_BASE_PULLOUT,
   KIT_BASE_SINK,
   KIT_BASE_STANDARD,
+  KIT_END_PANEL,
+  KIT_FILLER,
   KIT_TALL_OVEN,
   KITCHEN_BASE_DRAWER_V1,
   KITCHEN_BASE_HOB_V1,
@@ -36,7 +40,7 @@ describe("LINTEL_CATALOG", () => {
     expect(validateCatalog(LINTEL_CATALOG)).toEqual([]);
   });
   it("contains the Design Studio product family (KIT_BASE_STANDARD, KIT_BASE_DRAWER, KIT_BASE_OPEN, KIT_BASE_PULLOUT, KIT_TALL_OVEN, KIT_BASE_SINK, KIT_BASE_HOB — docs/architecture/DESIGN-STUDIO-D1-D6.md's deliberate PRD §41 deviation)", () => {
-    expect(LINTEL_CATALOG.products.map((p) => p.productId)).toEqual(["KIT_BASE_STANDARD", "KIT_BASE_DRAWER", "KIT_BASE_OPEN", "KIT_BASE_PULLOUT", "KIT_TALL_OVEN", "KIT_BASE_SINK", "KIT_BASE_HOB"]);
+    expect(LINTEL_CATALOG.products.map((p) => p.productId)).toEqual(["KIT_BASE_STANDARD", "KIT_BASE_DRAWER", "KIT_BASE_OPEN", "KIT_BASE_PULLOUT", "KIT_TALL_OVEN", "KIT_BASE_SINK", "KIT_BASE_HOB", "KIT_FILLER", "KIT_END_PANEL"]);
     expect(findProduct(LINTEL_CATALOG, "KIT_BASE_STANDARD")).toBe(KIT_BASE_STANDARD);
     expect(findProduct(LINTEL_CATALOG, "KIT_BASE_DRAWER")).toBe(KIT_BASE_DRAWER);
     expect(findProduct(LINTEL_CATALOG, "KIT_BASE_OPEN")).toBe(KIT_BASE_OPEN);
@@ -44,6 +48,8 @@ describe("LINTEL_CATALOG", () => {
     expect(findProduct(LINTEL_CATALOG, "KIT_TALL_OVEN")).toBe(KIT_TALL_OVEN);
     expect(findProduct(LINTEL_CATALOG, "KIT_BASE_SINK")).toBe(KIT_BASE_SINK);
     expect(findProduct(LINTEL_CATALOG, "KIT_BASE_HOB")).toBe(KIT_BASE_HOB);
+    expect(findProduct(LINTEL_CATALOG, "KIT_FILLER")).toBe(KIT_FILLER);
+    expect(findProduct(LINTEL_CATALOG, "KIT_END_PANEL")).toBe(KIT_END_PANEL);
   });
   it("defaults the product to the PRD §42 reference cabinet", () => {
     const d = Object.fromEntries(KIT_BASE_STANDARD.parameters.map((p) => [p.key, p.default]));
@@ -136,6 +142,8 @@ describe("edge band standards", () => {
       [KITCHEN_TALL_OVEN_V1.edgeRuleSetId]: {},
       [KITCHEN_BASE_SINK_V1.edgeRuleSetId]: {},
       [KITCHEN_BASE_HOB_V1.edgeRuleSetId]: {},
+      [FILLER_STANDARD_V1.edgeRuleSetId]: {},
+      [END_PANEL_STANDARD_V1.edgeRuleSetId]: {},
     });
   });
   it("the test fixture edge band standard is labelled as such and kept separate from production", () => {

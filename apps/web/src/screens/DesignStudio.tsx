@@ -13,7 +13,7 @@
  */
 import { useEffect, useState } from "react";
 import type { CabinetFront, CabinetInstance, CabinetType, Drawer, DrawerBank, OverlayMode, Shelf, Shutter } from "@lintel/cabinet-engine";
-import { CABINET_LIBRARY, compileCreate, compileUpdate, decodeCabinetInstance, findAvailableCabinetType } from "@lintel/cabinet-engine";
+import { CABINET_LIBRARY, compileCreate, compileUpdate, cornerPairPlacementDA, decodeCabinetInstance, findAvailableCabinetType } from "@lintel/cabinet-engine";
 import type { ScreenProps } from "../App";
 import type { ModelPreview, Schemas } from "../api/client";
 import { api, idempotency, must, versionWithEtag } from "../api/client";
@@ -150,27 +150,39 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
   const cabinetType: CabinetType | undefined = selected === undefined ? undefined : findAvailableCabinetType(selected.productCode);
   const refresh = () => { setN((x) => x + 1); model.reload(); };
 
-  const addCabinet = async (type: CabinetType) => {
-    const p = await pinnedProductByCode(version.pins.productCatalogVersionId, type.productCode);
-    if (p === null) throw new Error(`The pinned product catalog does not define ${type.productCode}.`);
+  const nextObjectCode = (offset = 0) => {
+    const n2 = objects.reduce((mx, o) => Math.max(mx, Number(/(\d+)$/.exec(o.objectCode)?.[1] ?? 0)), 0) + 1 + offset;
+    return `BC-${String(n2).padStart(3, "0")}`;
+  };
+
+  /** One `CabinetInstance` of `type`, at an explicit position/rotation — shared by a lone cabinet (Slice 1-3) and
+   * each leg of a corner pair (Slice 4, `addCornerPair`). `overlay` defaults to "OVERLAY" (Slice 1's own
+   * default); a corner leg uses "INSET" instead, since an overlay front sits proud of the carcass by
+   * `SHUTTER_BACK_GAP` — enough to collide with the perpendicular leg placed flush at its exact depth
+   * (`cornerPairPlacementDA`), whatever that construction-standard value turns out to be. An inset front never
+   * projects past the carcass depth, so the two legs stay exactly touching regardless. */
+  const buildInstance = (
+    type: CabinetType, p: { readonly productVersionId: string; readonly params: Param[] }, objectCode: string,
+    position: { readonly xMm: number; readonly yMm: number; readonly zMm: number }, rotationY: 0 | 90 | 180 | 270,
+    overlay: OverlayMode = "OVERLAY",
+  ): CabinetInstance => {
     const width = paramNumber(p.params, "width");
     const height = paramNumber(p.params, "height");
     const depth = paramNumber(p.params, "depth");
     if (width === undefined || height === undefined || depth === undefined) throw new Error("The pinned product does not define default width/height/depth.");
     const isDrawer = type.productCode === "KIT_BASE_DRAWER";
     const isOpen = type.productCode === "KIT_BASE_OPEN";
-    const n2 = objects.reduce((mx, o) => Math.max(mx, Number(/(\d+)$/.exec(o.objectCode)?.[1] ?? 0)), 0) + 1;
     const defaultShelfCount = paramNumber(p.params, "shelfCount") ?? 2;
-    const instance: CabinetInstance = {
+    return {
       instanceId: "",
-      objectCode: `BC-${String(n2).padStart(3, "0")}`,
+      objectCode,
       lineageId: null,
       cabinetType: type,
       recipe: { recipeId: type.recipeId, productCode: type.productCode, productVersionId: p.productVersionId, frontComponentTypes: isOpen ? [] : isDrawer ? ["DRAWER_FRONT"] : ["SHUTTER"] },
-      position: { xMm: nextFreeX(objects.map((o) => ({ id: o.objectId, x: o.transform.x, width: o.dimensions.width }))), yMm: 0, zMm: 0 },
-      rotationY: 0,
+      position,
+      rotationY,
       dimensions: { widthMm: width, heightMm: height, depthMm: depth },
-      front: isOpen ? OPEN_FRONT : isDrawer ? drawerBankFront(3, "OVERLAY", width, height) : shutterFront(2, "OVERLAY", width, height),
+      front: isOpen ? OPEN_FRONT : isDrawer ? drawerBankFront(3, overlay, width, height) : shutterFront(2, overlay, width, height),
       internals: isOpen ? shelves(defaultShelfCount) : [],
       corner: null,
       finish: {
@@ -181,10 +193,39 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
       },
       hardware: { hinges: [], runners: [], handle: null },
     };
+  };
+
+  const createObject = async (instance: CabinetInstance) => {
     const { etag } = await versionWithEtag(versionId);
     const body = compileCreate(instance);
-    const created = await must(api.POST("/api/v1/design-versions/{versionId}/objects", { params: { path: { versionId }, header: { "If-Match": etag } }, body }));
+    return must(api.POST("/api/v1/design-versions/{versionId}/objects", { params: { path: { versionId }, header: { "If-Match": etag } }, body }));
+  };
+
+  const addCabinet = async (type: CabinetType) => {
+    const p = await pinnedProductByCode(version.pins.productCatalogVersionId, type.productCode);
+    if (p === null) throw new Error(`The pinned product catalog does not define ${type.productCode}.`);
+    const position = { xMm: nextFreeX(objects.map((o) => ({ id: o.objectId, x: o.transform.x, width: o.dimensions.width }))), yMm: 0, zMm: 0 };
+    const instance = buildInstance(type, p, nextObjectCode(), position, 0);
+    const created = await createObject(instance);
     setSelectedId(created.object.lineageId);
+    refresh();
+  };
+
+  /** Slice 4: an L-corner cabinet is two ordinary `type` instances, positioned by `cornerPairPlacementDA` so
+   * their footprints meet exactly at the room's D-A corner without overlap (`corner.ts`). Two sequential
+   * creates, re-reading the version's ETag between them (the first create advances it). */
+  const addCornerPair = async (type: CabinetType) => {
+    const p = await pinnedProductByCode(version.pins.productCatalogVersionId, type.productCode);
+    if (p === null) throw new Error(`The pinned product catalog does not define ${type.productCode}.`);
+    const width = paramNumber(p.params, "width");
+    const depth = paramNumber(p.params, "depth");
+    if (width === undefined || depth === undefined) throw new Error("The pinned product does not define default width/depth.");
+    const { returnLeg, frontLeg } = cornerPairPlacementDA({ widthMm: width, depthMm: depth });
+    const returnInstance = buildInstance(type, p, nextObjectCode(), returnLeg.position, returnLeg.rotationY, "INSET");
+    await createObject(returnInstance);
+    const frontInstance = buildInstance(type, p, nextObjectCode(1), frontLeg.position, frontLeg.rotationY, "INSET");
+    const frontCreated = await createObject(frontInstance);
+    setSelectedId(frontCreated.object.lineageId);
     refresh();
   };
 
@@ -208,7 +249,7 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
       {!canEdit && <p>This version is {version.status}: it can no longer be edited. Create a new DRAFT version above to change the design.</p>}
       <div className="studio">
         <aside className="studio-library">
-          <CabinetLibraryPanel canEdit={canEdit} onAdd={addCabinet} />
+          <CabinetLibraryPanel canEdit={canEdit} onAdd={addCabinet} onAddCornerPair={addCornerPair} />
         </aside>
         <div className="studio-center">
           <Viewport3D model={m} selectedId={selected?.lineageId ?? null} onSelect={setSelectedId} />
@@ -248,7 +289,7 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
   );
 }
 
-function CabinetLibraryPanel({ canEdit, onAdd }: { readonly canEdit: boolean; readonly onAdd: (type: CabinetType) => Promise<void> }) {
+function CabinetLibraryPanel({ canEdit, onAdd, onAddCornerPair }: { readonly canEdit: boolean; readonly onAdd: (type: CabinetType) => Promise<void>; readonly onAddCornerPair: (type: CabinetType) => Promise<void> }) {
   const categories = ["BASE", "WALL", "TALL", "CORNER"] as const;
   return (
     <>
@@ -264,9 +305,9 @@ function CabinetLibraryPanel({ canEdit, onAdd }: { readonly canEdit: boolean; re
                   <strong>{entry.label}</strong>
                   <p>{entry.description}</p>
                 </div>
-                {availability.kind === "AVAILABLE"
-                  ? <Action label="+ Add" disabled={!canEdit} run={() => onAdd(availability.cabinetType)} />
-                  : <Badge tone="info">Slice {availability.slice}</Badge>}
+                {availability.kind === "AVAILABLE" && <Action label="+ Add" disabled={!canEdit} run={() => onAdd(availability.cabinetType)} />}
+                {availability.kind === "AVAILABLE_CORNER_PAIR" && <Action label="+ Add pair" disabled={!canEdit} run={() => onAddCornerPair(availability.cabinetType)} />}
+                {availability.kind === "PLANNED" && <Badge tone="info">Slice {availability.slice}</Badge>}
               </div>
             );
           })}

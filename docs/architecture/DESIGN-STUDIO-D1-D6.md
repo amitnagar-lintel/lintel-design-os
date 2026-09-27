@@ -1,9 +1,10 @@
 # Design Studio (Phases D1-D6) — a deliberate product-direction pivot
 
-Status: Slices 1-3 (base cabinet with 1-2 shutters; all-drawer base cabinet, 2/3/4 drawers; open-front base
-cabinet with configurable loose shelves) implemented. Slices 4-7 (corner, sink/appliance/pull-out, wall/tall,
-cabinet runs) are not yet built; `packages/cabinet-engine/src/library.ts` lists every planned cabinet family
-and the slice that adds it.
+Status: Slices 1-4 (base cabinet with 1-2 shutters; all-drawer base cabinet, 2/3/4 drawers; open-front base
+cabinet with configurable loose shelves; L-corner cabinet pair) implemented. Slices 5-7
+(sink/appliance/pull-out, wall/tall, cabinet runs) — and four of Slice 4's own five corner variants
+(blind-corner, corner pull-out, corner drawer, corner sink) — are not yet built;
+`packages/cabinet-engine/src/library.ts` lists every planned cabinet family and the slice that adds it.
 
 ## 1. Why this exists
 
@@ -116,5 +117,44 @@ A designer can, entirely through the browser: add an open-front cabinet from the
 count" property in place of a "Front"/"Drawer count" control (and no "Overlay" control at all — there is no
 door), change its shelf count and width, see the change reflected in the 3D viewport and the wall elevation (an
 open carcass with evenly spaced shelf lines, no door), save it, and generate a BOM that includes `SHELF` panels
-and no hinge or runner hardware. This is the definition of "Slice 3 is usable"; the next slice (corner cabinets)
-begins immediately once it holds.
+and no hinge or runner hardware. This is the definition of "Slice 3 is usable".
+
+## 9. What Slice 4 changed
+
+**The architectural question Slice 4 exists to answer** (`model.ts`'s `CornerConfiguration` doc comment): is an
+L-corner cabinet one composite object, or two coordinated `CabinetInstance`s? `@lintel/geometry-engine` supports
+only axis-aligned boxes with one `rotationY` per whole object (confirmed by direct inspection of
+`design-engine/room.ts` and `geometry-engine/room.ts`: every component of an object is placed through that one
+`Transform`, and rotation about X/Z is refused outright) — an L-shaped carcass cannot be one object's component
+set under this geometry model. Slice 4 therefore authors a corner cabinet as **two ordinary
+`CabinetInstance`s** (ordinary `BASE_SHUTTER` cabinets, reusing `KIT_BASE_STANDARD`/`KITCHEN_BASE_STANDARD_V1`
+exactly as Slice 1 built them — no new catalog-engine product, recipe or database migration), positioned so
+their footprints meet exactly at a room corner without overlap. This reuses the engine's own `CORNER`
+relationship (`design-engine/room.ts`'s `CORNERS` loop), already derived — read-only, informational — for any
+two objects near a room corner since before this slice existed; recognising a corner pair needed no engine
+change, only correct placement from the authoring side.
+
+`packages/cabinet-engine/src/corner.ts`'s `cornerPairPlacementDA` is the placement math: the return leg sits
+against wall D (`rotationY: 90`) with its footprint hugging the D-A room corner, and the front leg sits against
+wall A (`rotationY: 0`) starting exactly where the return leg's depth ends — touching (`planDistance` between
+the two envelopes is 0), never overlapping, so `OBJECT_COLLISION` (a BLOCKER) never fires. Both legs must use
+`overlay: "INSET"`: an overlay front sits `SHUTTER_BACK_GAP` proud of its own carcass depth, which — for any
+real construction-standard value — is enough to make the return leg's shutter collide with the front leg's
+side panel; an inset front never projects past the carcass depth it was measured against, so the fix holds
+regardless of what that gap value turns out to be.
+
+**V1 scope: only the room's D-A corner.** `packages/cabinet-engine/src/library.ts` gains one new
+`CabinetLibraryEntry` availability kind, `AVAILABLE_CORNER_PAIR` (a `cabinetType` used twice, not a new
+`CabinetType`), for exactly one entry, `CORNER_L`. Generalising to the other three room corners (A-B, B-C, C-D)
+is a straightforward, real follow-up using the same `wallFrame` axes (`@lintel/geometry-engine`) — not
+implemented here because only this one geometry has been verified end to end; the other four corner variants
+(blind-corner, corner pull-out, corner drawer, corner sink) remain `PLANNED`, exactly as Slice 2 left two
+drawer/shutter variants `PLANNED` alongside its own one shipped type.
+
+## 10. Slice 4 acceptance test
+
+A designer can, entirely through the browser: click "+ Add pair" on the L-corner Cabinet Library entry and get
+two ordinary base cabinets placed at the room's D-A corner in one action, see both in the 3D viewport and the
+Plan view meeting at the corner with **0 BLOCKER** (no `OBJECT_COLLISION`), and generate a BOM for the design
+with 0 BLOCKER. This is the definition of "Slice 4 is usable"; the next slice (sink/hob/appliance/pull-out base
+cabinets) begins immediately once it holds.

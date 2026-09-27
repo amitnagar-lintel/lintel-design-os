@@ -3,6 +3,7 @@ import type { CabinetFront, CabinetInstance, Drawer, DrawerBank, FinishAssignmen
 import { BASE_DRAWER_BANK_CABINET, BASE_OPEN_CABINET, BASE_SHUTTER_CABINET, CABINET_LIBRARY, findAvailableCabinetType } from "../src/library.js";
 import { compileCreate, compileUpdate } from "../src/compile.js";
 import { decodeCabinetInstance, type ModelComponent, type ModelObject } from "../src/decode.js";
+import { cornerPairPlacementDA } from "../src/corner.js";
 
 const FINISH: FinishAssignment = { carcassMaterialId: "BOARD_BWP_18", backMaterialId: "BOARD_BACK_6", frontMaterialId: "BOARD_HDHMR_18", frontFinishId: "LAMINATE_WHITE" };
 
@@ -35,15 +36,21 @@ function instance(overrides: Partial<CabinetInstance> = {}): CabinetInstance {
 
 describe("library", () => {
   const AVAILABLE_TODAY = ["BASE_SHUTTER", "BASE_DRAWER_BANK", "BASE_OPEN"];
+  const AVAILABLE_CORNER_PAIR_TODAY = ["CORNER_L"];
 
   it("lists exactly the Slice 1, Slice 2 and Slice 3 cabinet types as available", () => {
     const available = CABINET_LIBRARY.filter((e) => e.availability.kind === "AVAILABLE");
     expect(available.map((e) => e.cabinetTypeId).sort()).toEqual([...AVAILABLE_TODAY].sort());
   });
 
+  it("lists exactly the Slice 4 cabinet type as an available corner pair", () => {
+    const pairs = CABINET_LIBRARY.filter((e) => e.availability.kind === "AVAILABLE_CORNER_PAIR");
+    expect(pairs.map((e) => e.cabinetTypeId).sort()).toEqual([...AVAILABLE_CORNER_PAIR_TODAY].sort());
+  });
+
   it("marks every other entry PLANNED with a slice number", () => {
     for (const entry of CABINET_LIBRARY) {
-      if (AVAILABLE_TODAY.includes(entry.cabinetTypeId)) continue;
+      if (AVAILABLE_TODAY.includes(entry.cabinetTypeId) || AVAILABLE_CORNER_PAIR_TODAY.includes(entry.cabinetTypeId)) continue;
       expect(entry.availability.kind).toBe("PLANNED");
       if (entry.availability.kind === "PLANNED") expect(entry.availability.slice).toBeGreaterThan(0);
     }
@@ -500,5 +507,43 @@ describe("BASE_OPEN (Slice 3): decode", () => {
     const decoded = decodeCabinetInstance(modelObject(), BASE_OPEN_CABINET);
     const recompiled = compileCreate(decoded);
     expect(recompiled.parameters).toEqual(modelObject().parameters);
+  });
+});
+
+describe("cornerPairPlacementDA (Slice 4)", () => {
+  /** `@lintel/geometry-engine`'s own `toWorld` formula (room.ts), reproduced here only to prove the geometric
+   * invariant this pure function exists for — cabinet-engine has no dependency on geometry-engine. */
+  function worldFootprint(widthMm: number, depthMm: number, position: { readonly xMm: number; readonly zMm: number }, rotationY: 0 | 90 | 180 | 270): { readonly x: readonly [number, number]; readonly z: readonly [number, number] } {
+    const rad = (rotationY * Math.PI) / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    const corners = [[0, 0], [widthMm, 0], [0, depthMm], [widthMm, depthMm]].map(([px, pz]) => ({
+      x: position.xMm + (px ?? 0) * cos + (pz ?? 0) * sin,
+      z: position.zMm - (px ?? 0) * sin + (pz ?? 0) * cos,
+    }));
+    return { x: [Math.min(...corners.map((c) => c.x)), Math.max(...corners.map((c) => c.x))], z: [Math.min(...corners.map((c) => c.z)), Math.max(...corners.map((c) => c.z))] };
+  }
+
+  it("places the return leg against wall D, back at the D-A room corner", () => {
+    const { returnLeg } = cornerPairPlacementDA({ widthMm: 600, depthMm: 560 });
+    expect(returnLeg).toEqual({ position: { xMm: 0, yMm: 0, zMm: 600 }, rotationY: 90 });
+  });
+
+  it("places the front leg against wall A, starting exactly where the return leg's depth ends", () => {
+    const { frontLeg } = cornerPairPlacementDA({ widthMm: 600, depthMm: 560 });
+    expect(frontLeg).toEqual({ position: { xMm: 560, yMm: 0, zMm: 0 }, rotationY: 0 });
+  });
+
+  it("the two legs' footprints touch (zero gap) without a positive overlap volume, for any leg width/depth", () => {
+    for (const spec of [{ widthMm: 600, depthMm: 560 }, { widthMm: 450, depthMm: 600 }, { widthMm: 900, depthMm: 500 }]) {
+      const { returnLeg, frontLeg } = cornerPairPlacementDA(spec);
+      const returnFootprint = worldFootprint(spec.widthMm, spec.depthMm, returnLeg.position, returnLeg.rotationY);
+      const frontFootprint = worldFootprint(spec.widthMm, spec.depthMm, frontLeg.position, frontLeg.rotationY);
+      // Touching along x at the return leg's depth; overlapping in z (both start at the corner) is fine (edge
+      // contact, not a positive-volume collision) since the x ranges only just meet.
+      expect(returnFootprint.x[1]).toBeCloseTo(frontFootprint.x[0], 9);
+      const dx = Math.max(0, returnFootprint.x[0] - frontFootprint.x[1], frontFootprint.x[0] - returnFootprint.x[1]);
+      expect(dx).toBeCloseTo(0, 9);
+    }
   });
 });

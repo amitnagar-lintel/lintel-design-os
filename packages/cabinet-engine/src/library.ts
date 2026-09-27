@@ -18,6 +18,12 @@ export interface CabinetLibraryEntry {
   readonly description: string;
   readonly availability:
     | { readonly kind: "AVAILABLE"; readonly cabinetType: CabinetType }
+    /**
+     * Slice 4: a corner cabinet is authored as two ordinary `cabinetType` instances (`corner.ts`'s
+     * `cornerPairPlacementDA`), never a single bent object — the geometry model has no way to express one
+     * (see `model.ts`'s `CornerConfiguration` doc comment).
+     */
+    | { readonly kind: "AVAILABLE_CORNER_PAIR"; readonly cabinetType: CabinetType }
     | { readonly kind: "PLANNED"; readonly slice: number };
 }
 
@@ -133,7 +139,13 @@ export const CABINET_LIBRARY: readonly CabinetLibraryEntry[] = [
   planned("TALL_OVEN_TOWER", "TALL", "Oven tower", "Full-height cabinet housing a built-in oven.", 6),
   planned("TALL_MICROWAVE_TOWER", "TALL", "Microwave tower", "Full-height cabinet housing a built-in microwave.", 6),
   planned("TALL_UTILITY", "TALL", "Utility tower", "Full-height utility/appliance cabinet.", 6),
-  planned("CORNER_L", "CORNER", "L-corner cabinet", "Two-leg corner base cabinet.", 4),
+  {
+    cabinetTypeId: "CORNER_L",
+    category: "CORNER",
+    label: "L-corner cabinet",
+    description: "Two ordinary base cabinets, one per wall, meeting at the room's D-A corner without overlap.",
+    availability: { kind: "AVAILABLE_CORNER_PAIR", cabinetType: BASE_SHUTTER_CABINET },
+  },
   planned("CORNER_BLIND", "CORNER", "Blind-corner cabinet", "Corner base cabinet with a blind (unreachable) leg.", 4),
   planned("CORNER_PULLOUT", "CORNER", "Corner pull-out cabinet", "Corner base cabinet with a rotating/pull-out internal.", 4),
   planned("CORNER_DRAWER", "CORNER", "Corner drawer cabinet", "Corner base cabinet with corner drawer boxes.", 4),

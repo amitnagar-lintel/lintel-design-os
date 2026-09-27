@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { CabinetFront, CabinetInstance, Drawer, DrawerBank, FinishAssignment, OverlayMode, Shutter } from "../src/model.js";
-import { BASE_DRAWER_BANK_CABINET, BASE_SHUTTER_CABINET, CABINET_LIBRARY, findAvailableCabinetType } from "../src/library.js";
+import type { CabinetFront, CabinetInstance, Drawer, DrawerBank, FinishAssignment, OverlayMode, Shelf, Shutter } from "../src/model.js";
+import { BASE_DRAWER_BANK_CABINET, BASE_OPEN_CABINET, BASE_SHUTTER_CABINET, CABINET_LIBRARY, findAvailableCabinetType } from "../src/library.js";
 import { compileCreate, compileUpdate } from "../src/compile.js";
 import { decodeCabinetInstance, type ModelComponent, type ModelObject } from "../src/decode.js";
 
@@ -34,9 +34,9 @@ function instance(overrides: Partial<CabinetInstance> = {}): CabinetInstance {
 }
 
 describe("library", () => {
-  const AVAILABLE_TODAY = ["BASE_SHUTTER", "BASE_DRAWER_BANK"];
+  const AVAILABLE_TODAY = ["BASE_SHUTTER", "BASE_DRAWER_BANK", "BASE_OPEN"];
 
-  it("lists exactly the Slice 1 and Slice 2 cabinet types as available", () => {
+  it("lists exactly the Slice 1, Slice 2 and Slice 3 cabinet types as available", () => {
     const available = CABINET_LIBRARY.filter((e) => e.availability.kind === "AVAILABLE");
     expect(available.map((e) => e.cabinetTypeId).sort()).toEqual([...AVAILABLE_TODAY].sort());
   });
@@ -52,6 +52,7 @@ describe("library", () => {
   it("resolves each product code to its own cabinet type and nothing else", () => {
     expect(findAvailableCabinetType("KIT_BASE_STANDARD")).toBe(BASE_SHUTTER_CABINET);
     expect(findAvailableCabinetType("KIT_BASE_DRAWER")).toBe(BASE_DRAWER_BANK_CABINET);
+    expect(findAvailableCabinetType("KIT_BASE_OPEN")).toBe(BASE_OPEN_CABINET);
     expect(findAvailableCabinetType("KIT_WARDROBE")).toBeUndefined();
   });
 
@@ -61,6 +62,11 @@ describe("library", () => {
 
   it("offers one drawer-bank front topology (drawer count is a bank property, not a topology)", () => {
     expect(BASE_DRAWER_BANK_CABINET.supportedFronts.map((f) => f.topologyId)).toEqual(["DRAWER_BANK"]);
+  });
+
+  it("offers one no-front topology for the open cabinet (zero rows, not a row of zero columns)", () => {
+    expect(BASE_OPEN_CABINET.supportedFronts.map((f) => f.topologyId)).toEqual(["OPEN_NO_FRONT"]);
+    expect(BASE_OPEN_CABINET.supportedFronts[0]?.rows).toEqual([]);
   });
 });
 
@@ -349,6 +355,149 @@ describe("BASE_DRAWER_BANK (Slice 2): decode", () => {
 
   it("round-trips through compileCreate back to the same parameters", () => {
     const decoded = decodeCabinetInstance(modelObject(), BASE_DRAWER_BANK_CABINET);
+    const recompiled = compileCreate(decoded);
+    expect(recompiled.parameters).toEqual(modelObject().parameters);
+  });
+});
+
+describe("BASE_OPEN (Slice 3): compile", () => {
+  function shelf(index: number, over: Partial<Shelf> = {}): Shelf {
+    return { shelfId: `SHF${String(index)}`, fixed: true, heightFromBottomMm: null, ...over };
+  }
+  function openInstance(overrides: Partial<CabinetInstance> = {}): CabinetInstance {
+    return {
+      instanceId: "i3",
+      objectCode: "BC-003",
+      lineageId: null,
+      cabinetType: BASE_OPEN_CABINET,
+      recipe: { recipeId: "KITCHEN_BASE_OPEN_V1", productCode: "KIT_BASE_OPEN", productVersionId: "pv3", frontComponentTypes: [] },
+      position: { xMm: 1800, yMm: 0, zMm: 0 },
+      rotationY: 0,
+      dimensions: { widthMm: 600, heightMm: 720, depthMm: 560 },
+      front: { rows: [] },
+      internals: [shelf(0), shelf(1)],
+      corner: null,
+      finish: { carcassMaterialId: "BOARD_BWP_18", backMaterialId: "BOARD_BACK_6", frontMaterialId: "BOARD_BWP_18", frontFinishId: "" },
+      hardware: { hinges: [], runners: [], handle: null },
+      ...overrides,
+    };
+  }
+
+  it("compiles an open cabinet with no front parameters at all", () => {
+    const body = compileCreate(openInstance());
+    expect(body).toEqual({
+      objectCode: "BC-003",
+      objectType: "BASE_CABINET",
+      productCode: "KIT_BASE_OPEN",
+      productVersionId: "pv3",
+      position: { xMm: 1800, yMm: 0, zMm: 0 },
+      rotationY: 0,
+      dimensions: { widthMm: 600, heightMm: 720, depthMm: 560 },
+      parameters: { shelfCount: 2, material: "BOARD_BWP_18", backMaterial: "BOARD_BACK_6" },
+    });
+  });
+
+  it("compiles zero shelves", () => {
+    expect(compileCreate(openInstance({ internals: [] })).parameters.shelfCount).toBe(0);
+  });
+
+  it("compileUpdate recomputes every field, including product", () => {
+    const body = compileUpdate(openInstance());
+    expect(body.product).toEqual({ productCode: "KIT_BASE_OPEN", productVersionId: "pv3" });
+    expect(body.parameters.shelfCount).toBe(2);
+  });
+
+  it("refuses a non-empty front (an open cabinet has no front)", () => {
+    expect(() => compileCreate(openInstance({ front: frontOf(shutter(600, 720)) }))).toThrow(/no front/);
+  });
+
+  it("refuses an internal component other than a shelf", () => {
+    expect(() => compileCreate(openInstance({ internals: [{ dividerId: "D1", positionMm: 300 }] }))).toThrow(/non-shelf/);
+  });
+});
+
+describe("BASE_OPEN (Slice 3): decode", () => {
+  function component(over: Partial<ModelComponent>): ModelComponent {
+    return {
+      componentId: "c",
+      componentType: "SIDE_LEFT",
+      dimensions: { width: 560, height: 720, thickness: 18 },
+      box: { min: { x: 0, y: 0, z: 0 }, size: { x: 18, y: 720, z: 560 } },
+      materialId: "BOARD_BWP_18",
+      finishId: null,
+      finishedFaces: 0,
+      grainDirection: "HEIGHT",
+      ...over,
+    };
+  }
+
+  function modelObject(over: Partial<ModelObject> = {}): ModelObject {
+    return {
+      lineageId: "lin-3",
+      objectCode: "BC-003",
+      productCode: "KIT_BASE_OPEN",
+      productVersionId: "pv3",
+      parameters: { shelfCount: 2, material: "BOARD_BWP_18", backMaterial: "BOARD_BACK_6" },
+      dimensions: { width: 600, height: 720, depth: 560 },
+      transform: { x: 1800, y: 0, z: 0, rotationY: 0 },
+      components: [
+        component({ componentId: "SL", componentType: "SIDE_LEFT", materialId: "BOARD_BWP_18" }),
+        component({ componentId: "BCK", componentType: "BACK", materialId: "BOARD_BACK_6" }),
+        // Top shelf first in array order, to prove decode sorts by position, not array order.
+        component({
+          componentId: "SHF-02", componentType: "SHELF", materialId: "BOARD_BWP_18",
+          dimensions: { width: 564, height: 480, thickness: 18 }, box: { min: { x: 18, y: 470, z: 32 }, size: { x: 564, y: 18, z: 480 } },
+        }),
+        component({
+          componentId: "SHF-01", componentType: "SHELF", materialId: "BOARD_BWP_18",
+          dimensions: { width: 564, height: 480, thickness: 18 }, box: { min: { x: 18, y: 232, z: 32 }, size: { x: 564, y: 18, z: 480 } },
+        }),
+      ],
+      ...over,
+    };
+  }
+
+  it("decodes zero front rows and no resolved hardware", () => {
+    const decoded = decodeCabinetInstance(modelObject(), BASE_OPEN_CABINET);
+    expect(decoded.front.rows).toEqual([]);
+    expect(decoded.hardware).toEqual({ hinges: [], runners: [], handle: null });
+  });
+
+  it("decodes SHELF components into internals, bottom to top, not by component array order", () => {
+    const decoded = decodeCabinetInstance(modelObject(), BASE_OPEN_CABINET);
+    expect(decoded.internals).toHaveLength(2);
+    const [first, second] = decoded.internals as readonly Shelf[];
+    expect(first?.heightFromBottomMm).toBe(232);
+    expect(second?.heightFromBottomMm).toBe(470);
+    expect(decoded.internals.every((s) => "fixed" in s && s.fixed)).toBe(true);
+  });
+
+  it("does not decode SHELF components into internals for a shutter cabinet (unchanged Slice 1 behaviour)", () => {
+    const shutterObject: ModelObject = {
+      lineageId: "lin-1s", objectCode: "BC-001", productCode: "KIT_BASE_STANDARD", productVersionId: "pv1",
+      parameters: { shutterCount: 1, frontType: "OVERLAY", material: "BOARD_BWP_18", backMaterial: "BOARD_BACK_6", shutterMaterial: "BOARD_HDHMR_18", finish: "LAMINATE_WHITE" },
+      dimensions: { width: 600, height: 720, depth: 560 },
+      transform: { x: 0, y: 0, z: 0, rotationY: 0 },
+      components: [
+        component({ componentId: "SL", componentType: "SIDE_LEFT", materialId: "BOARD_BWP_18" }),
+        component({ componentId: "BCK", componentType: "BACK", materialId: "BOARD_BACK_6" }),
+        component({ componentId: "SHF-01", componentType: "SHELF", materialId: "BOARD_BWP_18" }),
+        component({
+          componentId: "SHT0", componentType: "SHUTTER", materialId: "BOARD_HDHMR_18", finishId: "LAMINATE_WHITE",
+          dimensions: { width: 564, height: 654, thickness: 18 }, box: { min: { x: 18, y: 33, z: 566 }, size: { x: 564, y: 654, z: 18 } },
+        }),
+      ],
+    };
+    expect(decodeCabinetInstance(shutterObject, BASE_SHUTTER_CABINET).internals).toEqual([]);
+  });
+
+  it("decodes finish reusing the carcass material for the (nonexistent) front, no finish", () => {
+    const decoded = decodeCabinetInstance(modelObject(), BASE_OPEN_CABINET);
+    expect(decoded.finish).toEqual({ carcassMaterialId: "BOARD_BWP_18", backMaterialId: "BOARD_BACK_6", frontMaterialId: "BOARD_BWP_18", frontFinishId: "" });
+  });
+
+  it("round-trips through compileCreate back to the same parameters", () => {
+    const decoded = decodeCabinetInstance(modelObject(), BASE_OPEN_CABINET);
     const recompiled = compileCreate(decoded);
     expect(recompiled.parameters).toEqual(modelObject().parameters);
   });

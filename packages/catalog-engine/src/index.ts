@@ -2,10 +2,12 @@ import type { CatalogSnapshot } from "@lintel/types";
 import { EDGE_BANDS, FINISHES, MATERIALS } from "./data/materials.js";
 import { HINGE_STANDARD, KIT_BASE_STANDARD, KITCHEN_BASE_STANDARD_V1 } from "./data/kit-base-standard.js";
 import { DRAWER_STANDARD, KIT_BASE_DRAWER, KITCHEN_BASE_DRAWER_V1 } from "./data/kit-base-drawer.js";
+import { KIT_BASE_OPEN, KITCHEN_BASE_OPEN_V1, OPEN_STANDARD } from "./data/kit-base-open.js";
 
 export { EDGE_BANDS, FINISHES, MATERIALS } from "./data/materials.js";
 export { HINGE_STANDARD, KIT_BASE_STANDARD, KITCHEN_BASE_STANDARD_V1 } from "./data/kit-base-standard.js";
 export { DRAWER_STANDARD, KIT_BASE_DRAWER, KITCHEN_BASE_DRAWER_V1 } from "./data/kit-base-drawer.js";
+export { KIT_BASE_OPEN, KITCHEN_BASE_OPEN_V1, OPEN_STANDARD } from "./data/kit-base-open.js";
 export { LINTEL_CONSTRUCTION_STANDARD_DRAFT, LINTEL_EDGE_BAND_STANDARD_DRAFT } from "./data/standards.js";
 export { TEST_FIXTURE_CONSTRUCTION_STANDARD } from "./fixtures/test-construction-standard.js";
 export { TEST_FIXTURE_EDGE_BAND_STANDARD } from "./fixtures/test-edge-band-standard.js";
@@ -18,11 +20,11 @@ export { validateCatalog, validateEdgeBandStandard, validateStandard } from "./v
 
 /** The V1 catalog. Versioned as a whole; any data change bumps catalogVersion. */
 export const LINTEL_CATALOG: CatalogSnapshot = {
-  catalogVersion: "2026.09.27-m2",
-  products: [KIT_BASE_STANDARD, KIT_BASE_DRAWER],
-  recipes: [KITCHEN_BASE_STANDARD_V1, KITCHEN_BASE_DRAWER_V1],
+  catalogVersion: "2026.09.28-m3",
+  products: [KIT_BASE_STANDARD, KIT_BASE_DRAWER, KIT_BASE_OPEN],
+  recipes: [KITCHEN_BASE_STANDARD_V1, KITCHEN_BASE_DRAWER_V1, KITCHEN_BASE_OPEN_V1],
   materials: MATERIALS,
   finishes: FINISHES,
   edgeBands: EDGE_BANDS,
-  hardwareRuleSets: [HINGE_STANDARD, DRAWER_STANDARD],
+  hardwareRuleSets: [HINGE_STANDARD, DRAWER_STANDARD, OPEN_STANDARD],
 };

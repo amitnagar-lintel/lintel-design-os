@@ -70,6 +70,26 @@ export const BASE_DRAWER_BANK_CABINET: CabinetType = {
   supportedFronts: [DRAWER_BANK_TOPOLOGY],
 };
 
+// ---------------------------------------------------------------- Slice 3: BASE_OPEN
+
+/** An open-front cabinet has no door: zero rows, not a row of zero-width columns. */
+const OPEN_NO_FRONT: FrontTopology = {
+  topologyId: "OPEN_NO_FRONT",
+  label: "Open (no door)",
+  rows: [],
+};
+
+/** `KIT_BASE_OPEN` / `KITCHEN_BASE_OPEN_V1` (Slice 3). */
+export const BASE_OPEN_CABINET: CabinetType = {
+  cabinetTypeId: "BASE_OPEN",
+  category: "BASE",
+  label: "Base cabinet — open",
+  description: "Open-front base carcass (no door), with configurable loose shelves.",
+  productCode: "KIT_BASE_OPEN",
+  recipeId: "KITCHEN_BASE_OPEN_V1",
+  supportedFronts: [OPEN_NO_FRONT],
+};
+
 // ---------------------------------------------------------------- planned families (D2), by the slice that adds them
 
 function planned(cabinetTypeId: string, category: CabinetCategory, label: string, description: string, slice: number): CabinetLibraryEntry {
@@ -91,9 +111,15 @@ export const CABINET_LIBRARY: readonly CabinetLibraryEntry[] = [
     description: BASE_DRAWER_BANK_CABINET.description,
     availability: { kind: "AVAILABLE", cabinetType: BASE_DRAWER_BANK_CABINET },
   },
+  {
+    cabinetTypeId: BASE_OPEN_CABINET.cabinetTypeId,
+    category: BASE_OPEN_CABINET.category,
+    label: BASE_OPEN_CABINET.label,
+    description: BASE_OPEN_CABINET.description,
+    availability: { kind: "AVAILABLE", cabinetType: BASE_OPEN_CABINET },
+  },
   planned("BASE_DRAWER_SHUTTER", "BASE", "Base cabinet — 1 drawer + shutter", "One drawer over a shutter.", 2),
   planned("BASE_DRAWER2_SHUTTER", "BASE", "Base cabinet — 2 drawers + shutter", "Two drawers over a shutter.", 2),
-  planned("BASE_OPEN", "BASE", "Base cabinet — open", "Open-front base carcass (no door).", 3),
   planned("BASE_SINK", "BASE", "Sink cabinet", "Base cabinet with a sink cut-out.", 5),
   planned("BASE_HOB", "BASE", "Hob cabinet", "Base cabinet with a hob cut-out.", 5),
   planned("BASE_APPLIANCE", "BASE", "Appliance cabinet", "Base cabinet housing a built-in appliance.", 5),

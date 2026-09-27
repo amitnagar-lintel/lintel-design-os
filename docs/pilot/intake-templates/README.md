@@ -15,7 +15,7 @@ Import in the order of PILOT-TOMORROW §2: a file may reference only files that 
 | 06 | `06-edge_band-EDGE_ABS_2MM.json` | PROCUREMENT | DESIGN_HEAD | 1 |
 | 07 | `07-edge_band-EDGE_ABS_0_8MM.json` | PROCUREMENT | DESIGN_HEAD | 1 |
 | 08 | `08-finish-LAMINATE_WHITE.json` | PROCUREMENT | DESIGN_HEAD | 0 |
-| 09 | `09-edge_band_standard-LINTEL_EDGE_BAND_STANDARD.json` | PRODUCTION | DESIGN_HEAD | 2 |
+| 09 | `09-edge_band_standard-LINTEL_EDGE_BAND_STANDARD.json` | PRODUCTION | DESIGN_HEAD | 3 |
 | 10 | `10-hardware_rule_set-HINGE_STANDARD.json` | PROCUREMENT | PRODUCTION | 0 |
 | 11 | `11-construction_recipe-KITCHEN_BASE_STANDARD_V1.json` | DESIGN_HEAD | PRODUCTION | 0 |
 | 12 | `12-product-KIT_BASE_STANDARD.json` | DESIGN_HEAD | PRODUCTION | 12 |
@@ -87,6 +87,7 @@ Nothing is NULL in the draft. Confirm the values and name the source document.
 
 - `$.data.ruleSets.CARCASS_STANDARD` — rule set CARCASS_STANDARD defines no component type
 - `$.data.ruleSets.DRAWER_CARCASS_STANDARD` — rule set DRAWER_CARCASS_STANDARD defines no component type
+- `$.data.ruleSets.OPEN_CARCASS_STANDARD` — rule set OPEN_CARCASS_STANDARD defines no component type
 
 ## 10-hardware_rule_set-HINGE_STANDARD.json
 

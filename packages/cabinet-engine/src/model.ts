@@ -10,15 +10,15 @@
  * duplicate the existing engine (`@lintel/types`, `@lintel/design-engine`, `@lintel/rules-engine`): a
  * `CabinetInstance` compiles down to the exact `DesignObject` parameters that engine already resolves
  * (`compile.ts`), and the engine's resolved output decodes back into a `CabinetInstance` view for the UI
- * (`decode.ts`). No engine code changes for Slice 1 (base cabinet, 1–2 shutters, `KIT_BASE_STANDARD`) or
- * Slice 2 (drawer bank, `KIT_BASE_DRAWER`): both compile to and decode from recipes that already resolve
- * everything their own `CabinetFront` needs.
+ * (`decode.ts`). No engine code changes for Slice 1 (base cabinet, 1–2 shutters, `KIT_BASE_STANDARD`), Slice 2
+ * (drawer bank, `KIT_BASE_DRAWER`) or Slice 3 (open front + shelves, `KIT_BASE_OPEN`): all three compile to
+ * and decode from recipes that already resolve everything their own `CabinetFront` / internals need.
  *
- * What is defined but not yet wired to an engine (reserved for later vertical slices, D1 asks for the type even
- * where the engine does not produce it yet): `Shelf`, `Divider`, `PullOut`, `ApplianceBay`,
- * `CornerConfiguration`. Each says in its own doc comment which slice implements it. A reserved type is never
- * assembled into a `CabinetInstance` before its slice lands — `library.ts` marks exactly which `CabinetType`s
- * and front topologies are available today.
+ * `Shelf` (Slice 3, `KIT_BASE_OPEN` / `KITCHEN_BASE_OPEN_V1`) is wired end to end. What remains defined but not
+ * yet wired to an engine (reserved for later vertical slices, D1 asks for the type even where the engine does
+ * not produce it yet): `Divider`, `PullOut`, `ApplianceBay`, `CornerConfiguration`. Each says in its own doc
+ * comment which slice implements it. A reserved type is never assembled into a `CabinetInstance` before its
+ * slice lands — `library.ts` marks exactly which `CabinetType`s and front topologies are available today.
  */
 import type { ComponentType, HingeMounting, Millimetres } from "@lintel/types";
 
@@ -120,9 +120,15 @@ export interface CabinetFront {
   readonly rows: readonly FrontRow[];
 }
 
-// ---------------------------------------------------------------- internals (Phase D4 — reserved)
+// ---------------------------------------------------------------- internals (Phase D4)
 
-/** **Reserved for Slice 3.** An adjustable or fixed shelf inside the carcass. */
+/**
+ * A loose shelf inside the carcass (Slice 3, `KIT_BASE_OPEN` / `KITCHEN_BASE_OPEN_V1`; also produced —
+ * though not yet exposed as an editable Properties control — by `KITCHEN_BASE_STANDARD_V1`'s own
+ * `shelfCount` parameter). `heightFromBottomMm` stays `null` until a resolved model decodes it: the recipe
+ * always spaces shelves evenly, so `fixed` is `true` for every decoded shelf — there is no per-shelf position
+ * control this slice.
+ */
 export interface Shelf {
   readonly shelfId: string;
   readonly fixed: boolean;

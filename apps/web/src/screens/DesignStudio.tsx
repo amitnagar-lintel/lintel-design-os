@@ -6,12 +6,13 @@
  * quantity itself — it only maps a `CabinetInstance` (`@lintel/cabinet-engine`) to and from the API's existing
  * object endpoints (`compile.ts` / `decode.ts`), the same endpoints "4 Base cabinets" always used.
  *
- * Slice 1 (`BASE_SHUTTER`) and Slice 2 (`BASE_DRAWER_BANK`) share this one screen: the Properties panel shows a
- * "Front" (shutter count) control for one and a "Drawer count" control for the other, dispatched by
- * `recipe.productCode` — never by guessing from whatever front happens to be decoded.
+ * Slice 1 (`BASE_SHUTTER`), Slice 2 (`BASE_DRAWER_BANK`) and Slice 3 (`BASE_OPEN`) share this one screen: the
+ * Properties panel shows a "Front" (shutter count) control, a "Drawer count" control, or a "Shelf count"
+ * control (with no front control at all — an open cabinet has no door), dispatched by `recipe.productCode` —
+ * never by guessing from whatever front happens to be decoded.
  */
 import { useEffect, useState } from "react";
-import type { CabinetFront, CabinetInstance, CabinetType, Drawer, DrawerBank, OverlayMode, Shutter } from "@lintel/cabinet-engine";
+import type { CabinetFront, CabinetInstance, CabinetType, Drawer, DrawerBank, OverlayMode, Shelf, Shutter } from "@lintel/cabinet-engine";
 import { CABINET_LIBRARY, compileCreate, compileUpdate, decodeCabinetInstance, findAvailableCabinetType } from "@lintel/cabinet-engine";
 import type { ScreenProps } from "../App";
 import type { ModelPreview, Schemas } from "../api/client";
@@ -42,6 +43,15 @@ function drawerBankFront(drawerCount: 2 | 3 | 4, overlay: OverlayMode, widthMm: 
   const drawers: Drawer[] = Array.from({ length: drawerCount }, (_, i) => ({ kind: "DRAWER", widthMm, heightMm: drawerHeight, frontThicknessMm: 18, index: i, runner: null }));
   const bank: DrawerBank = { kind: "DRAWER_BANK", widthMm, overlay, drawers };
   return { rows: [{ rowId: "R0", heightMm, columns: [{ columnId: "C0", widthMm, element: bank }] }] };
+}
+
+/** An open cabinet has no front at all: zero rows, never a row of zero-width columns. */
+const OPEN_FRONT: CabinetFront = { rows: [] };
+
+/** A placeholder shelf list shaped correctly for `compileCreate`/`compileUpdate`: only `.length` reaches the
+ * wire (see `compile.ts`); the engine recomputes every shelf's real position from the recipe's even-spacing formula. */
+function shelves(shelfCount: number): readonly Shelf[] {
+  return Array.from({ length: shelfCount }, (_, i) => ({ shelfId: `SHF${String(i)}`, fixed: true, heightFromBottomMm: null }));
 }
 
 function paramNumber(params: readonly Param[], key: string): number | undefined {
@@ -148,24 +158,26 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
     const depth = paramNumber(p.params, "depth");
     if (width === undefined || height === undefined || depth === undefined) throw new Error("The pinned product does not define default width/height/depth.");
     const isDrawer = type.productCode === "KIT_BASE_DRAWER";
+    const isOpen = type.productCode === "KIT_BASE_OPEN";
     const n2 = objects.reduce((mx, o) => Math.max(mx, Number(/(\d+)$/.exec(o.objectCode)?.[1] ?? 0)), 0) + 1;
+    const defaultShelfCount = paramNumber(p.params, "shelfCount") ?? 2;
     const instance: CabinetInstance = {
       instanceId: "",
       objectCode: `BC-${String(n2).padStart(3, "0")}`,
       lineageId: null,
       cabinetType: type,
-      recipe: { recipeId: type.recipeId, productCode: type.productCode, productVersionId: p.productVersionId, frontComponentTypes: isDrawer ? ["DRAWER_FRONT"] : ["SHUTTER"] },
+      recipe: { recipeId: type.recipeId, productCode: type.productCode, productVersionId: p.productVersionId, frontComponentTypes: isOpen ? [] : isDrawer ? ["DRAWER_FRONT"] : ["SHUTTER"] },
       position: { xMm: nextFreeX(objects.map((o) => ({ id: o.objectId, x: o.transform.x, width: o.dimensions.width }))), yMm: 0, zMm: 0 },
       rotationY: 0,
       dimensions: { widthMm: width, heightMm: height, depthMm: depth },
-      front: isDrawer ? drawerBankFront(3, "OVERLAY", width, height) : shutterFront(2, "OVERLAY", width, height),
-      internals: [],
+      front: isOpen ? OPEN_FRONT : isDrawer ? drawerBankFront(3, "OVERLAY", width, height) : shutterFront(2, "OVERLAY", width, height),
+      internals: isOpen ? shelves(defaultShelfCount) : [],
       corner: null,
       finish: {
         carcassMaterialId: paramString(p.params, "material"),
         backMaterialId: paramString(p.params, "backMaterial"),
-        frontMaterialId: paramString(p.params, isDrawer ? "frontMaterial" : "shutterMaterial"),
-        frontFinishId: paramString(p.params, "finish"),
+        frontMaterialId: paramString(p.params, isOpen ? "material" : isDrawer ? "frontMaterial" : "shutterMaterial"),
+        frontFinishId: isOpen ? "" : paramString(p.params, "finish"),
       },
       hardware: { hinges: [], runners: [], handle: null },
     };
@@ -268,16 +280,19 @@ const DRAWER_COUNTS = [2, 3, 4] as const;
 
 function PropertiesPanel({ instance, canEdit, onSave, onRemove }: { readonly instance: CabinetInstance; readonly canEdit: boolean; readonly onSave: (next: CabinetInstance) => Promise<void>; readonly onRemove: () => Promise<void> }) {
   const isDrawer = instance.recipe.productCode === "KIT_BASE_DRAWER";
+  const isOpen = instance.recipe.productCode === "KIT_BASE_OPEN";
   const element = instance.front.rows[0]?.columns[0]?.element;
-  const currentShutterCount = !isDrawer && instance.front.rows[0]?.columns.length === 2 ? 2 : 1;
+  const currentShutterCount = !isDrawer && !isOpen && instance.front.rows[0]?.columns.length === 2 ? 2 : 1;
   const currentDrawerCount = element?.kind === "DRAWER_BANK" && (DRAWER_COUNTS as readonly number[]).includes(element.drawers.length) ? (element.drawers.length as 2 | 3 | 4) : 3;
   const currentOverlay: OverlayMode = element?.kind === "SHUTTER" || element?.kind === "DRAWER_BANK" ? element.overlay : "OVERLAY";
+  const currentShelfCount = instance.internals.length;
   const [width, setWidth] = useState(String(instance.dimensions.widthMm));
   const [height, setHeight] = useState(String(instance.dimensions.heightMm));
   const [depth, setDepth] = useState(String(instance.dimensions.depthMm));
   const [shutterCount, setShutterCount] = useState<1 | 2>(currentShutterCount);
   const [drawerCount, setDrawerCount] = useState<2 | 3 | 4>(currentDrawerCount);
   const [overlay, setOverlay] = useState<OverlayMode>(currentOverlay);
+  const [shelfCount, setShelfCount] = useState(String(currentShelfCount));
 
   useEffect(() => {
     setWidth(String(instance.dimensions.widthMm));
@@ -286,6 +301,7 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove }: { readonly ins
     setShutterCount(currentShutterCount);
     setDrawerCount(currentDrawerCount);
     setOverlay(currentOverlay);
+    setShelfCount(String(currentShelfCount));
     // Resync the editable fields whenever a different cabinet becomes selected.
   }, [instance.instanceId]);
 
@@ -296,7 +312,8 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove }: { readonly ins
     await onSave({
       ...instance,
       dimensions: { widthMm, heightMm, depthMm },
-      front: isDrawer ? drawerBankFront(drawerCount, overlay, widthMm, heightMm) : shutterFront(shutterCount, overlay, widthMm, heightMm),
+      front: isOpen ? OPEN_FRONT : isDrawer ? drawerBankFront(drawerCount, overlay, widthMm, heightMm) : shutterFront(shutterCount, overlay, widthMm, heightMm),
+      internals: isOpen ? shelves(Math.max(0, Math.trunc(Number(shelfCount)))) : instance.internals,
     });
   };
 
@@ -307,7 +324,9 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove }: { readonly ins
       <Field label="Width (mm)"><input className="num" value={width} disabled={!canEdit} onChange={(e) => { setWidth(e.target.value); }} /></Field>
       <Field label="Height (mm)"><input className="num" value={height} disabled={!canEdit} onChange={(e) => { setHeight(e.target.value); }} /></Field>
       <Field label="Depth (mm)"><input className="num" value={depth} disabled={!canEdit} onChange={(e) => { setDepth(e.target.value); }} /></Field>
-      {isDrawer ? (
+      {isOpen ? (
+        <Field label="Shelf count"><input className="num" value={shelfCount} disabled={!canEdit} onChange={(e) => { setShelfCount(e.target.value); }} /></Field>
+      ) : isDrawer ? (
         <Field label="Drawer count">
           <select value={String(drawerCount)} disabled={!canEdit} onChange={(e) => { setDrawerCount(Number(e.target.value) as 2 | 3 | 4); }}>
             {DRAWER_COUNTS.map((n) => <option key={n} value={String(n)}>{n} drawers</option>)}
@@ -320,26 +339,32 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove }: { readonly ins
           </select>
         </Field>
       )}
-      <Field label="Overlay">
-        <select value={overlay} disabled={!canEdit} onChange={(e) => { setOverlay(e.target.value === "INSET" ? "INSET" : "OVERLAY"); }}>
-          <option value="OVERLAY">Overlay</option>
-          <option value="INSET">Inset</option>
-        </select>
-      </Field>
+      {!isOpen && (
+        <Field label="Overlay">
+          <select value={overlay} disabled={!canEdit} onChange={(e) => { setOverlay(e.target.value === "INSET" ? "INSET" : "OVERLAY"); }}>
+            <option value="OVERLAY">Overlay</option>
+            <option value="INSET">Inset</option>
+          </select>
+        </Field>
+      )}
       <div className="row">
         <Action kind="primary" label="Save" disabled={!canEdit} run={save} />
         <Action kind="danger" label="Remove" disabled={!canEdit} run={onRemove} />
       </div>
       <details>
         <summary>Finish (from the resolved model)</summary>
-        <p>Carcass <code>{instance.finish.carcassMaterialId}</code> · Back <code>{instance.finish.backMaterialId}</code> · Front <code>{instance.finish.frontMaterialId}</code> · Finish <code>{instance.finish.frontFinishId}</code></p>
+        {isOpen
+          ? <p>Carcass <code>{instance.finish.carcassMaterialId}</code> · Back <code>{instance.finish.backMaterialId}</code> (no front: open cabinet)</p>
+          : <p>Carcass <code>{instance.finish.carcassMaterialId}</code> · Back <code>{instance.finish.backMaterialId}</code> · Front <code>{instance.finish.frontMaterialId}</code> · Finish <code>{instance.finish.frontFinishId}</code></p>}
       </details>
-      <details>
-        <summary>Hardware (rule-derived, not chosen here)</summary>
-        {isDrawer
-          ? <p>One runner pair per drawer ({element?.kind === "DRAWER_BANK" ? element.drawers.length : 0} drawer(s)). See the BOM tab for the resolved articles.</p>
-          : <p>{instance.hardware.hinges.length} hinge(s){instance.hardware.hinges[0] === undefined ? "" : `, mounting ${instance.hardware.hinges[0].mounting}`}. See the BOM tab for the full hardware list.</p>}
-      </details>
+      {!isOpen && (
+        <details>
+          <summary>Hardware (rule-derived, not chosen here)</summary>
+          {isDrawer
+            ? <p>One runner pair per drawer ({element?.kind === "DRAWER_BANK" ? element.drawers.length : 0} drawer(s)). See the BOM tab for the resolved articles.</p>
+            : <p>{instance.hardware.hinges.length} hinge(s){instance.hardware.hinges[0] === undefined ? "" : `, mounting ${instance.hardware.hinges[0].mounting}`}. See the BOM tab for the full hardware list.</p>}
+        </details>
+      )}
     </>
   );
 }

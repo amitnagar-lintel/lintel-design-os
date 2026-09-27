@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="420mm" height="297mm" viewBox="0 0 420 297" data-drawing-id="DRW:dv_001:obj_001:FRONT_ELEVATION:KIT-EL-001:RA" data-drawing-type="FRONT_ELEVATION" data-status="PRELIMINARY" data-design-version="dv_001" data-model-fingerprint="17664049f86572" data-classification="TEST_FIXTURE" data-content-hash="1571a7be5eba7d" data-sheet="1/1">
+<svg xmlns="http://www.w3.org/2000/svg" width="420mm" height="297mm" viewBox="0 0 420 297" data-drawing-id="DRW:dv_001:obj_001:FRONT_ELEVATION:KIT-EL-001:RA" data-drawing-type="FRONT_ELEVATION" data-status="PRELIMINARY" data-design-version="dv_001" data-model-fingerprint="1f8c34691489ab" data-classification="TEST_FIXTURE" data-content-hash="14539bccbaff24" data-sheet="1/1">
 <title>KIT-EL-001 FRONT ELEVATION - OBJ-KIT-001 (PRELIMINARY)</title>
 <rect x="0" y="0" width="420" height="297" fill="#ffffff"/>
 <g id="WATERMARK" fill="#d9534f" stroke="#d9534f" opacity="0.25" font-family="Helvetica, Arial, sans-serif" stroke-linecap="round">
@@ -133,7 +133,7 @@
 <text stroke="none" x="273.5" y="275.6" font-size="3.143" text-anchor="start">dv_001 (DRAFT)</text>
 <line fill="none" x1="230" y1="277" x2="410" y2="277" stroke-width="0.18"/>
 <text stroke="none" x="231.5" y="280.5" font-size="2.286" text-anchor="start">MODEL FINGERPRINT</text>
-<text stroke="none" x="273.5" y="280.6" font-size="3.143" text-anchor="start">17664049f86572</text>
+<text stroke="none" x="273.5" y="280.6" font-size="3.143" text-anchor="start">1f8c34691489ab</text>
 <line fill="none" x1="230" y1="282" x2="410" y2="282" stroke-width="0.18"/>
 <text stroke="none" x="231.5" y="285.5" font-size="2.286" text-anchor="start">DATA CLASSIFICATION</text>
 <text stroke="none" x="273.5" y="285.6" font-size="3.143" text-anchor="start">TEST_FIXTURE</text>

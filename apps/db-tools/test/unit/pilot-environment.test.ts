@@ -42,10 +42,15 @@ describe("rehearsal isolation", () => {
   });
   it("every rehearsal file is a valid intake file that names itself as rehearsal data", () => {
     const files = rehearsalDataset();
-    expect(files.length).toBe(22);
+    expect(files.length).toBe(25);
+    // OPEN_STANDARD's hardware_rule_set genuinely has zero rules (an open cabinet has no hardware): the intake
+    // validator's generic completeness heuristic cannot tell that apart from "not yet filled in" and flags it
+    // UNVERIFIED regardless — expected and accepted (see rehearsal-dataset.ts), not a defect in this one file.
+    const expectedFindings = (f: (typeof files)[number]) =>
+      f.entityCode === "OPEN_STANDARD" ? [{ code: "RULES_MISSING", level: "UNVERIFIED", message: "no hardware rules", path: "$.data.rules" }] : [];
     for (const f of files) {
       const v = validateIntake(JSON.stringify(f.file));
-      expect([f.type, f.entityCode, v.accepted, v.findings]).toEqual([f.type, f.entityCode, true, []]);
+      expect([f.type, f.entityCode, v.accepted, v.findings]).toEqual([f.type, f.entityCode, true, expectedFindings(f)]);
       expect(String(f.file.source)).toContain(REHEARSAL_MARKER);
       expect(f.author).not.toBe(f.approver);
     }

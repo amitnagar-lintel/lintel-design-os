@@ -74,9 +74,7 @@ function compareArticles(a: HettichArticle, b: HettichArticle): number {
   return a.preferenceRank - b.preferenceRank || (a.articleNumber < b.articleNumber ? -1 : a.articleNumber > b.articleNumber ? 1 : 0);
 }
 
-/** PRD §26: fitting situation → compatibility engine → valid articles (ranked). Pure. */
-export function findCompatibleArticles(data: UsableHettichData, requirement: HardwareRequirement): CompatibilityResult {
-  const s = requirement.fittingSituation;
+function findCompatibleHingeArticles(data: UsableHettichData, requirement: HardwareRequirement, s: Extract<FittingSituation, { application: "HINGED_DOOR" }>): CompatibilityResult {
   const rejected: Record<string, string> = {};
   const compatible: HettichArticle[] = [];
   for (const a of data.articles) {
@@ -98,14 +96,48 @@ export function findCompatibleArticles(data: UsableHettichData, requirement: Har
   return { compatible: compatible.sort(compareArticles), rejected };
 }
 
+/** A runner must physically fit: its fixed nominal length must not exceed the drawer box's own depth. */
+function findCompatibleRunnerArticles(data: UsableHettichData, requirement: HardwareRequirement, s: Extract<FittingSituation, { application: "DRAWER" }>): CompatibilityResult {
+  const rejected: Record<string, string> = {};
+  const compatible: HettichArticle[] = [];
+  for (const a of data.articles) {
+    if (a.category !== requirement.category) continue;
+    if (a.application !== s.application) {
+      rejected[a.articleNumber] = `application ${String(a.application)} ≠ ${s.application}`;
+    } else if (a.nominalLength === null) {
+      rejected[a.articleNumber] = "nominal length not defined in dataset";
+    } else if (a.nominalLength > s.boxDepth) {
+      rejected[a.articleNumber] = `nominal length ${a.nominalLength} exceeds box depth ${s.boxDepth}`;
+    } else {
+      compatible.push(a);
+    }
+  }
+  // Longest length that still fits extends the drawer furthest; ties fall back to preferenceRank.
+  return { compatible: compatible.sort((x, y) => (y.nominalLength ?? 0) - (x.nominalLength ?? 0) || compareArticles(x, y)), rejected };
+}
+
+/** PRD §26/§28: fitting situation → compatibility engine → valid articles (ranked). Pure. */
+export function findCompatibleArticles(data: UsableHettichData, requirement: HardwareRequirement): CompatibilityResult {
+  const s = requirement.fittingSituation;
+  return s.application === "HINGED_DOOR" ? findCompatibleHingeArticles(data, requirement, s) : findCompatibleRunnerArticles(data, requirement, s);
+}
+
 export function fittingScope(s: FittingSituation): Record<string, ScalarValue> {
+  if (s.application === "HINGED_DOOR") {
+    const scope: Record<string, ScalarValue> = {
+      DOOR_WIDTH: s.doorWidth,
+      DOOR_HEIGHT: s.doorHeight,
+      DOOR_THICKNESS: s.doorThickness,
+    };
+    if (s.doorWeightKg !== null) scope.DOOR_WEIGHT = s.doorWeightKg;
+    if (s.openingAngleRequired !== null) scope.OPENING_ANGLE = s.openingAngleRequired;
+    return scope;
+  }
   const scope: Record<string, ScalarValue> = {
-    DOOR_WIDTH: s.doorWidth,
-    DOOR_HEIGHT: s.doorHeight,
-    DOOR_THICKNESS: s.doorThickness,
+    BOX_DEPTH: s.boxDepth,
+    BOX_HEIGHT: s.boxHeight,
   };
-  if (s.doorWeightKg !== null) scope.DOOR_WEIGHT = s.doorWeightKg;
-  if (s.openingAngleRequired !== null) scope.OPENING_ANGLE = s.openingAngleRequired;
+  if (s.boxWeightKg !== null) scope.BOX_WEIGHT = s.boxWeightKg;
   return scope;
 }
 
@@ -178,7 +210,9 @@ export function resolveWithData(data: UsableHettichData, requirement: HardwareRe
   const primary = compatible[0];
   const candidates = compatible.map((a) => a.articleNumber);
   if (primary === undefined) {
-    return unresolved("HARDWARE_NO_COMPATIBLE_ARTICLE", `No compatible Hettich ${requirement.category} for ${requirement.sourceComponentId} (${requirement.fittingSituation.mounting}, door ${requirement.fittingSituation.doorThickness} mm)`);
+    const s = requirement.fittingSituation;
+    const context = s.application === "HINGED_DOOR" ? `${s.mounting}, door ${s.doorThickness} mm` : `box depth ${s.boxDepth} mm`;
+    return unresolved("HARDWARE_NO_COMPATIBLE_ARTICLE", `No compatible Hettich ${requirement.category} for ${requirement.sourceComponentId} (${context})`);
   }
   const qty = calculateQuantity(data, primary, requirement.fittingSituation);
   if (!qty.ok) return unresolved("HARDWARE_QUANTITY_UNRESOLVED", `${primary.articleNumber}: ${qty.reason}`, candidates);

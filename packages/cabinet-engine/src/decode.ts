@@ -1,12 +1,14 @@
 /**
- * Design Studio — Slice 1 decoder: the reverse of `compile.ts`. Builds a `CabinetInstance` from the API's
- * already-resolved model (`GET /api/v1/design-versions/{versionId}/model`, one entry of `objects[]`), so the
- * Design Studio always displays the same shape it edits — never a second, independently-computed geometry.
- * Slice 1 decodes only `SHUTTER` front components and the carcass/back/front material and finish they and the
- * carcass components already carry; a later slice's decoder adds drawers, internals and corner geometry as
- * those component types start appearing in the response.
+ * Design Studio decoder: the reverse of `compile.ts`. Builds a `CabinetInstance` from the API's already-
+ * resolved model (`GET /api/v1/design-versions/{versionId}/model`, one entry of `objects[]`), so the Design
+ * Studio always displays the same shape it edits — never a second, independently-computed geometry.
+ *
+ * Slice 1 decodes `SHUTTER` front components; Slice 2 adds `DRAWER_FRONT` (a `DrawerBank`, top drawer first).
+ * A later slice's decoder adds internals and corner geometry as those component types start appearing in the
+ * response. Per-drawer/-shutter hardware (`Drawer.runner`, `Handle`) stays `null`: the model preview carries
+ * no resolved hardware article, only the BOM does.
  */
-import type { CabinetFront, CabinetInstance, CabinetType, FinishAssignment, FrontColumn, FrontRow, HardwareSet, HingeConfiguration, Shutter } from "./model.js";
+import type { CabinetFront, CabinetInstance, CabinetType, Drawer, DrawerBank, FinishAssignment, FrontColumn, FrontRow, HardwareSet, HingeConfiguration, OverlayMode, Shutter } from "./model.js";
 
 export interface ModelComponent {
   readonly componentId: string;
@@ -39,7 +41,11 @@ function rotationYOf(value: number): 0 | 90 | 180 | 270 {
   return match;
 }
 
-function hingeConfigurationOf(overlay: "OVERLAY" | "INSET"): HingeConfiguration {
+function overlayOf(object: ModelObject): OverlayMode {
+  return object.parameters.frontType === "INSET" ? "INSET" : "OVERLAY";
+}
+
+function hingeConfigurationOf(overlay: OverlayMode): HingeConfiguration {
   return { mounting: overlay === "OVERLAY" ? "FULL_OVERLAY" : "INSET", openingAngle: null };
 }
 
@@ -54,41 +60,64 @@ function requireComponent(object: ModelObject, componentType: string): ModelComp
 }
 
 /** Builds `front` and its hinge configurations from the object's `SHUTTER` components, left to right. */
-function decodeShutterFront(object: ModelObject): { readonly front: CabinetFront; readonly hinges: readonly HingeConfiguration[] } {
-  const overlay: "OVERLAY" | "INSET" = object.parameters.frontType === "INSET" ? "INSET" : "OVERLAY";
+function decodeShutterFront(object: ModelObject): { readonly front: CabinetFront; readonly hardware: HardwareSet } {
+  const overlay = overlayOf(object);
   const shutterComponents = object.components.filter((c) => c.componentType === "SHUTTER").slice().sort((a, b) => a.box.min.x - b.box.min.x);
-  if (shutterComponents.length === 0) return { front: { rows: [] }, hinges: [] };
+  if (shutterComponents.length === 0) return { front: { rows: [] }, hardware: { hinges: [], runners: [], handle: null } };
   const columns: FrontColumn[] = shutterComponents.map((c, i) => {
     const shutter: Shutter = { kind: "SHUTTER", widthMm: c.dimensions.width, heightMm: c.dimensions.height, overlay, hinge: hingeConfigurationOf(overlay) };
     return { columnId: `C${String(i)}`, widthMm: c.dimensions.width, element: shutter };
   });
   const row: FrontRow = { rowId: "R0", heightMm: object.dimensions.height, columns };
-  return { front: { rows: [row] }, hinges: columns.map((c) => (c.element as Shutter).hinge) };
+  const hinges = columns.map((c) => (c.element as Shutter).hinge);
+  return { front: { rows: [row] }, hardware: { hinges, runners: [], handle: null } };
 }
 
-/** Reads material/finish ids off the resolved components — never invented: carcass from a side, back from the back panel, front from a shutter. */
+/** Builds `front` from the object's `DRAWER_FRONT` components, top drawer first (index 0). */
+function decodeDrawerBankFront(object: ModelObject): { readonly front: CabinetFront; readonly hardware: HardwareSet } {
+  const overlay = overlayOf(object);
+  const frontComponents = object.components.filter((c) => c.componentType === "DRAWER_FRONT").slice().sort((a, b) => b.box.min.y - a.box.min.y);
+  if (frontComponents.length === 0) return { front: { rows: [] }, hardware: { hinges: [], runners: [], handle: null } };
+  const drawers: Drawer[] = frontComponents.map((c, index) => ({
+    kind: "DRAWER",
+    widthMm: c.dimensions.width,
+    heightMm: c.dimensions.height,
+    frontThicknessMm: c.dimensions.thickness,
+    index,
+    runner: null,
+  }));
+  const bank: DrawerBank = { kind: "DRAWER_BANK", widthMm: object.dimensions.width, overlay, drawers };
+  const row: FrontRow = { rowId: "R0", heightMm: object.dimensions.height, columns: [{ columnId: "C0", widthMm: bank.widthMm, element: bank }] };
+  return { front: { rows: [row] }, hardware: { hinges: [], runners: [], handle: null } };
+}
+
+/** Reads material/finish ids off the resolved components — never invented: carcass from a side, back from the back panel, front from whichever front type this recipe produces. */
 function decodeFinish(object: ModelObject): FinishAssignment {
   const side = requireComponent(object, "SIDE_LEFT");
   const back = requireComponent(object, "BACK");
-  const shutter = requireComponent(object, "SHUTTER");
+  const front = findComponent(object, "SHUTTER") ?? requireComponent(object, "DRAWER_FRONT");
   return {
     carcassMaterialId: side.materialId,
     backMaterialId: back.materialId,
-    frontMaterialId: shutter.materialId,
-    frontFinishId: shutter.finishId ?? "",
+    frontMaterialId: front.materialId,
+    frontFinishId: front.finishId ?? "",
   };
+}
+
+/** Which recipe-produced component types this object's front is made of, for `CabinetRecipe.frontComponentTypes`. */
+function frontComponentTypesOf(object: ModelObject): readonly ["SHUTTER"] | readonly ["DRAWER_FRONT"] {
+  return object.components.some((c) => c.componentType === "DRAWER_FRONT") ? ["DRAWER_FRONT"] : ["SHUTTER"];
 }
 
 /** Decodes one API model object into the typed `CabinetInstance` the Design Studio edits and displays. `cabinetType` comes from `library.ts` (`findAvailableCabinetType(object.productCode)`). */
 export function decodeCabinetInstance(object: ModelObject, cabinetType: CabinetType): CabinetInstance {
-  const { front, hinges } = decodeShutterFront(object);
-  const hardware: HardwareSet = { hinges, runners: [], handle: null };
+  const { front, hardware } = frontComponentTypesOf(object)[0] === "DRAWER_FRONT" ? decodeDrawerBankFront(object) : decodeShutterFront(object);
   return {
     instanceId: object.lineageId,
     objectCode: object.objectCode,
     lineageId: object.lineageId,
     cabinetType,
-    recipe: { recipeId: cabinetType.recipeId, productCode: object.productCode, productVersionId: object.productVersionId, frontComponentTypes: ["SHUTTER"] },
+    recipe: { recipeId: cabinetType.recipeId, productCode: object.productCode, productVersionId: object.productVersionId, frontComponentTypes: frontComponentTypesOf(object) },
     position: { xMm: object.transform.x, yMm: object.transform.y, zMm: object.transform.z },
     rotationY: rotationYOf(object.transform.rotationY),
     dimensions: { widthMm: object.dimensions.width, heightMm: object.dimensions.height, depthMm: object.dimensions.depth },

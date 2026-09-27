@@ -26,5 +26,8 @@ export const TEST_FIXTURE_CONSTRUCTION_STANDARD: ConstructionStandard = {
     FRONT_FINISHED_FACES: 2,
     // Synthetic; deliberately different from the 2 mm industry benchmark so it cannot be mistaken for it.
     SHUTTER_BACK_GAP: 1,
+    DRAWER_BOX_SIDE_CLEARANCE: 26,
+    DRAWER_BOX_HEIGHT_GAP: 15,
+    DRAWER_BOX_FRONT_SETBACK: 20,
   },
 };

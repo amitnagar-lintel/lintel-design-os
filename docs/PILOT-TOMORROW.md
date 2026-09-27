@@ -47,7 +47,7 @@
 
 ## 1. Real Lintel reference-data intake
 
-**Templates.** The templates are `docs/pilot/intake-templates/01…19-*.json`. Every value still missing is listed per file in `docs/pilot/intake-templates/README.md` (62 NULL values). Beyond those 62, three items need content the templates cannot list value by value:
+**Templates.** The templates are `docs/pilot/intake-templates/01…19-*.json`. Every value still missing is listed per file in `docs/pilot/intake-templates/README.md` (66 NULL values). Beyond those 66, three items need content the templates cannot list value by value:
 - the Hettich records and the hinge quantity rule (17);
 - the edge rules for 8 component types (09);
 - one per-unit rate per Hettich article (18).

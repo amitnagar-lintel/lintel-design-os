@@ -121,6 +121,7 @@ function validateRecipe(c: CatalogSnapshot, p: ProductDefinition, r: Constructio
     out.push(error("CATALOG_UNKNOWN_REFERENCE", `Unknown hardware rule set '${r.hardwareRuleSetId}'`, `${base}.hardwareRuleSetId`));
   } else {
     for (const rule of hw.rules) {
+      if (rule.application !== "HINGED_DOOR") continue;
       const param = p.parameters.find((x) => x.key === rule.mounting.parameterKey);
       if (param?.kind !== "enum") {
         out.push(error("CATALOG_UNKNOWN_REFERENCE", `Hardware rule ${rule.ruleId} mounting parameter '${rule.mounting.parameterKey}' is not an enum`, `hardwareRuleSets.${hw.ruleSetId}`));

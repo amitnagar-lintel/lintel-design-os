@@ -5,7 +5,7 @@
  * Expected numbers are computed by hand from the recipe formulas.
  */
 import { describe, expect, it } from "vitest";
-import type { CatalogSnapshot } from "@lintel/types";
+import type { CatalogSnapshot, HingeFittingSituation } from "@lintel/types";
 import { KIT_BASE_STANDARD, LINTEL_CATALOG, TEST_FIXTURE_CONSTRUCTION_STANDARD, TEST_FIXTURE_EDGE_BAND_STANDARD } from "@lintel/catalog-engine";
 import { HETTICH_PRODUCTION_DATASET, HETTICH_TEST_FIXTURE_DATASET, createHettichAdapter } from "@lintel/hettich-engine";
 import { modelFingerprint, resolveCabinet } from "@lintel/design-engine";
@@ -16,6 +16,12 @@ import { bomItem, codes, comp, dims, pos } from "./support/helpers.js";
 
 const hw = (r: ReturnType<typeof fixtureSlice>) =>
   r.bom.items.filter((i) => i.kind === "HARDWARE").map((i) => [i.articleNumber, i.quantity]);
+
+/** Every fitting situation in this file is a shutter's hinge (KIT_BASE_STANDARD has no drawers). */
+function hinge(s: { readonly application: string }): HingeFittingSituation {
+  if (s.application !== "HINGED_DOOR") throw new Error(`expected a HINGED_DOOR fitting situation, got ${s.application}`);
+  return s as HingeFittingSituation;
+}
 
 describe("Test A — reference cabinet 600 × 720 × 560, two overlay shutters", () => {
   const { resolved, bom, boq } = fixtureSlice();
@@ -64,11 +70,11 @@ describe("Test A — reference cabinet 600 × 720 × 560, two overlay shutters",
     expect(comp(resolved, "OBJ-KIT-001-SL").grainDirection).toBe("HEIGHT");
   });
   it("resolves hinges through the Hettich adapter from the fitting situation", () => {
-    expect(resolved.hardwareRequirements.map((r) => [r.requirementId, r.fittingSituation.mounting, r.fittingSituation.doorWidth, r.fittingSituation.doorHeight])).toEqual([
+    expect(resolved.hardwareRequirements.map((r) => [r.requirementId, hinge(r.fittingSituation).mounting, hinge(r.fittingSituation).doorWidth, hinge(r.fittingSituation).doorHeight])).toEqual([
       ["OBJ-KIT-001-SHT-L-HINGE", "FULL_OVERLAY", 297, 717],
       ["OBJ-KIT-001-SHT-R-HINGE", "FULL_OVERLAY", 297, 717],
     ]);
-    expect(resolved.hardwareRequirements[0]?.fittingSituation.doorWeightKg).toBeNull(); // no density in catalog → not assumed
+    expect(hinge(resolved.hardwareRequirements[0]!.fittingSituation).doorWeightKg).toBeNull(); // no density in catalog → not assumed
     expect(hw({ resolved, bom, boq })).toEqual([
       ["FIXTURE-HINGE-FO-A", 4],
       ["FIXTURE-PLATE-A", 4],
@@ -162,7 +168,7 @@ describe("Test D — overlay → inset", () => {
     expect(after.resolved.geometry.envelope?.size).toEqual({ x: 600, y: 720, z: 560 });
   });
   it("re-runs Hettich compatibility and selects the inset article", () => {
-    expect(after.resolved.hardwareRequirements.every((r) => r.fittingSituation.mounting === "INSET")).toBe(true);
+    expect(after.resolved.hardwareRequirements.every((r) => hinge(r.fittingSituation).mounting === "INSET")).toBe(true);
     expect(hw(after)).toEqual([
       ["FIXTURE-HINGE-IN-A", 4],
       ["FIXTURE-PLATE-A", 4],

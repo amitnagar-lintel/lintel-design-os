@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { CabinetFront, CabinetInstance, FinishAssignment, OverlayMode, Shutter } from "../src/model.js";
-import { BASE_SHUTTER_CABINET, CABINET_LIBRARY, findAvailableCabinetType } from "../src/library.js";
+import type { CabinetFront, CabinetInstance, Drawer, DrawerBank, FinishAssignment, OverlayMode, Shutter } from "../src/model.js";
+import { BASE_DRAWER_BANK_CABINET, BASE_SHUTTER_CABINET, CABINET_LIBRARY, findAvailableCabinetType } from "../src/library.js";
 import { compileCreate, compileUpdate } from "../src/compile.js";
 import { decodeCabinetInstance, type ModelComponent, type ModelObject } from "../src/decode.js";
 
@@ -34,27 +34,33 @@ function instance(overrides: Partial<CabinetInstance> = {}): CabinetInstance {
 }
 
 describe("library", () => {
-  it("lists BASE_SHUTTER as the only available cabinet type", () => {
+  const AVAILABLE_TODAY = ["BASE_SHUTTER", "BASE_DRAWER_BANK"];
+
+  it("lists exactly the Slice 1 and Slice 2 cabinet types as available", () => {
     const available = CABINET_LIBRARY.filter((e) => e.availability.kind === "AVAILABLE");
-    expect(available).toHaveLength(1);
-    expect(available[0]?.cabinetTypeId).toBe("BASE_SHUTTER");
+    expect(available.map((e) => e.cabinetTypeId).sort()).toEqual([...AVAILABLE_TODAY].sort());
   });
 
   it("marks every other entry PLANNED with a slice number", () => {
     for (const entry of CABINET_LIBRARY) {
-      if (entry.cabinetTypeId === "BASE_SHUTTER") continue;
+      if (AVAILABLE_TODAY.includes(entry.cabinetTypeId)) continue;
       expect(entry.availability.kind).toBe("PLANNED");
       if (entry.availability.kind === "PLANNED") expect(entry.availability.slice).toBeGreaterThan(0);
     }
   });
 
-  it("resolves KIT_BASE_STANDARD to BASE_SHUTTER_CABINET and nothing else", () => {
+  it("resolves each product code to its own cabinet type and nothing else", () => {
     expect(findAvailableCabinetType("KIT_BASE_STANDARD")).toBe(BASE_SHUTTER_CABINET);
+    expect(findAvailableCabinetType("KIT_BASE_DRAWER")).toBe(BASE_DRAWER_BANK_CABINET);
     expect(findAvailableCabinetType("KIT_WARDROBE")).toBeUndefined();
   });
 
   it("offers 1- and 2-shutter front topologies", () => {
     expect(BASE_SHUTTER_CABINET.supportedFronts.map((f) => f.topologyId)).toEqual(["BASE_1_SHUTTER", "BASE_2_SHUTTER"]);
+  });
+
+  it("offers one drawer-bank front topology (drawer count is a bank property, not a topology)", () => {
+    expect(BASE_DRAWER_BANK_CABINET.supportedFronts.map((f) => f.topologyId)).toEqual(["DRAWER_BANK"]);
   });
 });
 
@@ -102,8 +108,8 @@ describe("compileCreate / compileUpdate", () => {
     expect(() => compileCreate(instance({ front: twoRows }))).toThrow(/one row/);
   });
 
-  it("refuses a drawer bank column", () => {
-    const front: CabinetFront = { rows: [{ rowId: "R0", heightMm: 720, columns: [{ columnId: "C0", widthMm: 600, element: { kind: "DRAWER_BANK", widthMm: 600, drawers: [] } }] }] };
+  it("refuses a drawer bank column on a BASE_SHUTTER cabinet", () => {
+    const front: CabinetFront = { rows: [{ rowId: "R0", heightMm: 720, columns: [{ columnId: "C0", widthMm: 600, element: { kind: "DRAWER_BANK", widthMm: 600, overlay: "OVERLAY", drawers: [] } }] }] };
     expect(() => compileCreate(instance({ front }))).toThrow(/DRAWER_BANK/);
   });
 
@@ -196,5 +202,154 @@ describe("decodeCabinetInstance", () => {
     const recompiled = compileCreate(decoded);
     expect(recompiled.parameters).toEqual(modelObject().parameters);
     expect(recompiled.dimensions).toEqual({ widthMm: 600, heightMm: 720, depthMm: 560 });
+  });
+});
+
+describe("BASE_DRAWER_BANK (Slice 2): compile", () => {
+  function drawer(index: number, over: Partial<Drawer> = {}): Drawer {
+    return { kind: "DRAWER", widthMm: 802, heightMm: 210, frontThicknessMm: 18, index, runner: null, ...over };
+  }
+  function bank(over: Partial<DrawerBank> = {}): DrawerBank {
+    return { kind: "DRAWER_BANK", widthMm: 900, overlay: "OVERLAY", drawers: [drawer(0), drawer(1), drawer(2)], ...over };
+  }
+  function drawerFrontOf(b: DrawerBank): CabinetFront {
+    return { rows: [{ rowId: "R0", heightMm: 720, columns: [{ columnId: "C0", widthMm: b.widthMm, element: b }] }] };
+  }
+  function drawerInstance(overrides: Partial<CabinetInstance> = {}): CabinetInstance {
+    return {
+      instanceId: "i2",
+      objectCode: "BC-002",
+      lineageId: null,
+      cabinetType: BASE_DRAWER_BANK_CABINET,
+      recipe: { recipeId: "KITCHEN_BASE_DRAWER_V1", productCode: "KIT_BASE_DRAWER", productVersionId: "pv2", frontComponentTypes: ["DRAWER_FRONT"] },
+      position: { xMm: 900, yMm: 0, zMm: 0 },
+      rotationY: 0,
+      dimensions: { widthMm: 900, heightMm: 720, depthMm: 560 },
+      front: drawerFrontOf(bank()),
+      internals: [],
+      corner: null,
+      finish: { carcassMaterialId: "BOARD_BWP_18", backMaterialId: "BOARD_BACK_6", frontMaterialId: "BOARD_HDHMR_18", frontFinishId: "LAMINATE_WHITE" },
+      hardware: { hinges: [], runners: [], handle: null },
+      ...overrides,
+    };
+  }
+
+  it("compiles a 3-drawer bank", () => {
+    const body = compileCreate(drawerInstance());
+    expect(body).toEqual({
+      objectCode: "BC-002",
+      objectType: "BASE_CABINET",
+      productCode: "KIT_BASE_DRAWER",
+      productVersionId: "pv2",
+      position: { xMm: 900, yMm: 0, zMm: 0 },
+      rotationY: 0,
+      dimensions: { widthMm: 900, heightMm: 720, depthMm: 560 },
+      parameters: { drawerCount: 3, frontType: "OVERLAY", material: "BOARD_BWP_18", backMaterial: "BOARD_BACK_6", frontMaterial: "BOARD_HDHMR_18", finish: "LAMINATE_WHITE" },
+    });
+  });
+
+  it("compiles 2 and 4 drawer counts", () => {
+    expect(compileCreate(drawerInstance({ front: drawerFrontOf(bank({ drawers: [drawer(0), drawer(1)] })) })).parameters.drawerCount).toBe(2);
+    expect(compileCreate(drawerInstance({ front: drawerFrontOf(bank({ drawers: [drawer(0), drawer(1), drawer(2), drawer(3)] })) })).parameters.drawerCount).toBe(4);
+  });
+
+  it("carries an inset front through", () => {
+    expect(compileCreate(drawerInstance({ front: drawerFrontOf(bank({ overlay: "INSET" })) })).parameters.frontType).toBe("INSET");
+  });
+
+  it("compileUpdate recomputes every field, including product", () => {
+    const body = compileUpdate(drawerInstance());
+    expect(body.product).toEqual({ productCode: "KIT_BASE_DRAWER", productVersionId: "pv2" });
+    expect(body.parameters.drawerCount).toBe(3);
+  });
+
+  it("refuses an empty drawer bank", () => {
+    expect(() => compileCreate(drawerInstance({ front: drawerFrontOf(bank({ drawers: [] })) }))).toThrow(/at least one drawer/);
+  });
+
+  it("refuses a shutter column on a BASE_DRAWER_BANK cabinet", () => {
+    const front: CabinetFront = { rows: [{ rowId: "R0", heightMm: 720, columns: [{ columnId: "C0", widthMm: 900, element: shutter(900, 720) }] }] };
+    expect(() => compileCreate(drawerInstance({ front }))).toThrow(/drawer-bank front/);
+  });
+});
+
+describe("BASE_DRAWER_BANK (Slice 2): decode", () => {
+  function component(over: Partial<ModelComponent>): ModelComponent {
+    return {
+      componentId: "c",
+      componentType: "SIDE_LEFT",
+      dimensions: { width: 560, height: 720, thickness: 18 },
+      box: { min: { x: 0, y: 0, z: 0 }, size: { x: 18, y: 720, z: 560 } },
+      materialId: "BOARD_BWP_18",
+      finishId: null,
+      finishedFaces: 0,
+      grainDirection: "HEIGHT",
+      ...over,
+    };
+  }
+  const DRAWER_FRONT_FINISH: FinishAssignment = { carcassMaterialId: "BOARD_BWP_18", backMaterialId: "BOARD_BACK_6", frontMaterialId: "BOARD_HDHMR_18", frontFinishId: "LAMINATE_WHITE" };
+
+  function modelObject(over: Partial<ModelObject> = {}): ModelObject {
+    return {
+      lineageId: "lin-2",
+      objectCode: "BC-002",
+      productCode: "KIT_BASE_DRAWER",
+      productVersionId: "pv2",
+      parameters: { drawerCount: 3, frontType: "OVERLAY", material: "BOARD_BWP_18", backMaterial: "BOARD_BACK_6", frontMaterial: "BOARD_HDHMR_18", finish: "LAMINATE_WHITE" },
+      dimensions: { width: 900, height: 720, depth: 560 },
+      transform: { x: 0, y: 0, z: 0, rotationY: 0 },
+      components: [
+        component({ componentId: "SL", componentType: "SIDE_LEFT", materialId: "BOARD_BWP_18" }),
+        component({ componentId: "BCK", componentType: "BACK", materialId: "BOARD_BACK_6" }),
+        // Bottom drawer first in array order, to prove decode sorts by position, not array order.
+        component({
+          componentId: "DRF-01", componentType: "DRAWER_FRONT", materialId: "BOARD_HDHMR_18", finishId: "LAMINATE_WHITE",
+          dimensions: { width: 864, height: 210, thickness: 18 }, box: { min: { x: 18, y: 20, z: 566 }, size: { x: 864, y: 210, z: 18 } },
+        }),
+        component({
+          componentId: "DRF-02", componentType: "DRAWER_FRONT", materialId: "BOARD_HDHMR_18", finishId: "LAMINATE_WHITE",
+          dimensions: { width: 864, height: 210, thickness: 18 }, box: { min: { x: 18, y: 253, z: 566 }, size: { x: 864, y: 210, z: 18 } },
+        }),
+        component({
+          componentId: "DRF-03", componentType: "DRAWER_FRONT", materialId: "BOARD_HDHMR_18", finishId: "LAMINATE_WHITE",
+          dimensions: { width: 864, height: 210, thickness: 18 }, box: { min: { x: 18, y: 486, z: 566 }, size: { x: 864, y: 210, z: 18 } },
+        }),
+      ],
+      ...over,
+    };
+  }
+
+  it("decodes a drawer bank as a single-column front row", () => {
+    const decoded = decodeCabinetInstance(modelObject(), BASE_DRAWER_BANK_CABINET);
+    const row = decoded.front.rows[0];
+    expect(row?.columns).toHaveLength(1);
+    const element = row?.columns[0]?.element;
+    expect(element?.kind).toBe("DRAWER_BANK");
+  });
+
+  it("orders drawers top to bottom (index 0 = highest y), not by component array order", () => {
+    const decoded = decodeCabinetInstance(modelObject(), BASE_DRAWER_BANK_CABINET);
+    const bank = decoded.front.rows[0]?.columns[0]?.element as DrawerBank;
+    expect(bank.drawers.map((d) => d.index)).toEqual([0, 1, 2]);
+    // The component with the highest box.min.y (DRF-03, y=486) is decoded first (index 0).
+    expect(bank.drawers[0]?.heightMm).toBe(210);
+    expect(bank.drawers).toHaveLength(3);
+  });
+
+  it("decodes finish from the DRAWER_FRONT component", () => {
+    expect(decodeCabinetInstance(modelObject(), BASE_DRAWER_BANK_CABINET).finish).toEqual(DRAWER_FRONT_FINISH);
+  });
+
+  it("leaves per-drawer runner and the hardware set's runners/handle null (no resolved hardware in the model preview)", () => {
+    const decoded = decodeCabinetInstance(modelObject(), BASE_DRAWER_BANK_CABINET);
+    const bank = decoded.front.rows[0]?.columns[0]?.element as DrawerBank;
+    expect(bank.drawers.every((d) => d.runner === null)).toBe(true);
+    expect(decoded.hardware).toEqual({ hinges: [], runners: [], handle: null });
+  });
+
+  it("round-trips through compileCreate back to the same parameters", () => {
+    const decoded = decodeCabinetInstance(modelObject(), BASE_DRAWER_BANK_CABINET);
+    const recompiled = compileCreate(decoded);
+    expect(recompiled.parameters).toEqual(modelObject().parameters);
   });
 });

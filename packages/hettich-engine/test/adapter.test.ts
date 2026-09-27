@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { FittingSituation, HardwareRequirement } from "@lintel/types";
+import type { HardwareRequirement, HingeFittingSituation, RunnerFittingSituation } from "@lintel/types";
 import type { HettichFixtureDataset } from "../src/index.js";
 import { HETTICH_PRODUCTION_DATASET, HETTICH_TEST_FIXTURE_DATASET, calculateQuantity, createHettichAdapter, findCompatibleArticles, usableData } from "../src/index.js";
 
 const FIXTURE = usableData(HETTICH_TEST_FIXTURE_DATASET);
 
-const situation = (over: Partial<FittingSituation> = {}): FittingSituation => ({
+const situation = (over: Partial<HingeFittingSituation> = {}): HingeFittingSituation => ({
   application: "HINGED_DOOR",
   cabinetType: "BASE_CABINET",
   componentType: "SHUTTER",
@@ -19,7 +19,7 @@ const situation = (over: Partial<FittingSituation> = {}): FittingSituation => ({
   availableDepth: 560,
   ...over,
 });
-const requirement = (over: Partial<FittingSituation> = {}): HardwareRequirement => ({
+const requirement = (over: Partial<HingeFittingSituation> = {}): HardwareRequirement => ({
   requirementId: "OBJ-KIT-001-SHT-L-HINGE",
   sourceObjectId: "obj_001",
   sourceComponentId: "OBJ-KIT-001-SHT-L",
@@ -27,6 +27,27 @@ const requirement = (over: Partial<FittingSituation> = {}): HardwareRequirement 
   category: "HINGE",
   preferredManufacturer: "HETTICH",
   fittingSituation: situation(over),
+});
+
+const runnerSituation = (over: Partial<RunnerFittingSituation> = {}): RunnerFittingSituation => ({
+  application: "DRAWER",
+  cabinetType: "BASE_CABINET",
+  componentType: "DRAWER_BOX_SIDE",
+  boxDepth: 480,
+  boxHeight: 150,
+  boxMaterialId: "BOARD_BWP_18",
+  boxWeightKg: null,
+  availableDepth: 560,
+  ...over,
+});
+const runnerRequirement = (over: Partial<RunnerFittingSituation> = {}): HardwareRequirement => ({
+  requirementId: "OBJ-KIT-002-DBL-01-RUNNER",
+  sourceObjectId: "obj_002",
+  sourceComponentId: "OBJ-KIT-002-DBL-01",
+  hardwareRuleId: "RUNNER_DRAWER_BOX",
+  category: "RUNNER",
+  preferredManufacturer: "HETTICH",
+  fittingSituation: runnerSituation(over),
 });
 
 describe("PRODUCTION dataset (empty until source-verified records exist)", () => {
@@ -103,5 +124,30 @@ describe("adapter resolution (test fixture data)", () => {
   });
   it("is deterministic", () => {
     expect(adapter.resolve(requirement())).toEqual(adapter.resolve(requirement()));
+  });
+});
+
+describe("runner compatibility (drawer boxes, PRD §28)", () => {
+  it("rejects a runner longer than the box depth, ranks the longest fit first otherwise", () => {
+    const { compatible, rejected } = findCompatibleArticles(FIXTURE, runnerRequirement({ boxDepth: 450 }));
+    expect(compatible.map((a) => a.articleNumber)).toEqual(["FIXTURE-RUNNER-400-A"]);
+    expect(rejected["FIXTURE-RUNNER-500-A"]).toMatch(/nominal length 500 exceeds box depth 450/);
+  });
+  it("picks the longest runner that still fits, then preference rank", () => {
+    const { compatible } = findCompatibleArticles(FIXTURE, runnerRequirement({ boxDepth: 550 }));
+    expect(compatible.map((a) => a.articleNumber)).toEqual(["FIXTURE-RUNNER-500-A", "FIXTURE-RUNNER-500-B", "FIXTURE-RUNNER-400-A"]);
+  });
+  it("resolves a runner pair (quantity 2) from the rule set, flags non-authoritative data", () => {
+    const adapter = createHettichAdapter(HETTICH_TEST_FIXTURE_DATASET);
+    const r = adapter.resolve(runnerRequirement({ boxDepth: 550 }));
+    expect(r.status).toBe("RESOLVED");
+    expect(r.lines.map((l) => [l.articleNumber, l.category, l.quantity])).toEqual([["FIXTURE-RUNNER-500-A", "RUNNER", 2]]);
+    expect(r.messages.map((m) => m.code)).toEqual(["HARDWARE_DATA_NOT_AUTHORITATIVE"]);
+  });
+  it("reports no runner fitting a very shallow box as UNRESOLVED", () => {
+    const adapter = createHettichAdapter(HETTICH_TEST_FIXTURE_DATASET);
+    const r = adapter.resolve(runnerRequirement({ boxDepth: 100 }));
+    expect(r.status).toBe("UNRESOLVED");
+    expect(r.messages.map((m) => m.code)).toContain("HARDWARE_NO_COMPATIBLE_ARTICLE");
   });
 });

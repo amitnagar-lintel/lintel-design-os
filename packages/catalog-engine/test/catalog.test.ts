@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { CatalogSnapshot, ConstructionRecipe } from "@lintel/types";
 import {
+  KIT_BASE_DRAWER,
   KIT_BASE_STANDARD,
+  KITCHEN_BASE_DRAWER_V1,
   KITCHEN_BASE_STANDARD_V1,
   LINTEL_CATALOG,
   LINTEL_CONSTRUCTION_STANDARD_DRAFT,
@@ -23,9 +25,10 @@ describe("LINTEL_CATALOG", () => {
   it("is structurally valid", () => {
     expect(validateCatalog(LINTEL_CATALOG)).toEqual([]);
   });
-  it("contains only KIT_BASE_STANDARD in V1 (PRD §41)", () => {
-    expect(LINTEL_CATALOG.products.map((p) => p.productId)).toEqual(["KIT_BASE_STANDARD"]);
+  it("contains the Design Studio product family (KIT_BASE_STANDARD, KIT_BASE_DRAWER — docs/architecture/DESIGN-STUDIO-D1-D6.md's deliberate PRD §41 deviation)", () => {
+    expect(LINTEL_CATALOG.products.map((p) => p.productId)).toEqual(["KIT_BASE_STANDARD", "KIT_BASE_DRAWER"]);
     expect(findProduct(LINTEL_CATALOG, "KIT_BASE_STANDARD")).toBe(KIT_BASE_STANDARD);
+    expect(findProduct(LINTEL_CATALOG, "KIT_BASE_DRAWER")).toBe(KIT_BASE_DRAWER);
   });
   it("defaults the product to the PRD §42 reference cabinet", () => {
     const d = Object.fromEntries(KIT_BASE_STANDARD.parameters.map((p) => [p.key, p.default]));
@@ -74,15 +77,25 @@ describe("validateCatalog detects bad data", () => {
   });
 });
 
+// Both recipes now share one construction standard; a recipe only ever needs the subset of
+// variables it declares, so validateStandard is checked per recipe against that subset.
+const declaredSubset = (standard: typeof TEST_FIXTURE_CONSTRUCTION_STANDARD, recipe: ConstructionRecipe): typeof TEST_FIXTURE_CONSTRUCTION_STANDARD => ({
+  ...standard,
+  variables: Object.fromEntries(recipe.constructionVariables.map((v) => [v.key, standard.variables[v.key] ?? null])),
+});
+
 describe("construction standards", () => {
   it("the Lintel draft standard defines no values yet (nothing invented)", () => {
     expect(LINTEL_CONSTRUCTION_STANDARD_DRAFT.status).toBe("DRAFT");
     expect(Object.values(LINTEL_CONSTRUCTION_STANDARD_DRAFT.variables).every((v) => v === null)).toBe(true);
-    expect(Object.keys(LINTEL_CONSTRUCTION_STANDARD_DRAFT.variables).sort()).toEqual(KITCHEN_BASE_STANDARD_V1.constructionVariables.map((v) => v.key).sort());
+    const declaredKeys = new Set([...KITCHEN_BASE_STANDARD_V1.constructionVariables, ...KITCHEN_BASE_DRAWER_V1.constructionVariables].map((v) => v.key));
+    expect(Object.keys(LINTEL_CONSTRUCTION_STANDARD_DRAFT.variables).sort()).toEqual([...declaredKeys].sort());
   });
-  it("both standards are consistent with the recipe", () => {
-    expect(validateStandard(KITCHEN_BASE_STANDARD_V1, LINTEL_CONSTRUCTION_STANDARD_DRAFT)).toEqual([]);
-    expect(validateStandard(KITCHEN_BASE_STANDARD_V1, TEST_FIXTURE_CONSTRUCTION_STANDARD)).toEqual([]);
+  it("both standards are consistent with every recipe", () => {
+    for (const recipe of [KITCHEN_BASE_STANDARD_V1, KITCHEN_BASE_DRAWER_V1]) {
+      expect(validateStandard(recipe, declaredSubset(LINTEL_CONSTRUCTION_STANDARD_DRAFT, recipe))).toEqual([]);
+      expect(validateStandard(recipe, declaredSubset(TEST_FIXTURE_CONSTRUCTION_STANDARD, recipe))).toEqual([]);
+    }
   });
   it("carries no edge rules: those belong to the separate EdgeBandStandard", () => {
     for (const s of [LINTEL_CONSTRUCTION_STANDARD_DRAFT, TEST_FIXTURE_CONSTRUCTION_STANDARD]) expect(Object.keys(s).sort()).toEqual(["description", "source", "standardId", "status", "variables", "version"]);
@@ -91,23 +104,29 @@ describe("construction standards", () => {
     expect(TEST_FIXTURE_CONSTRUCTION_STANDARD.status).toBe("TEST_FIXTURE");
   });
   it("detects variables the recipe does not declare", () => {
-    const bad = { ...TEST_FIXTURE_CONSTRUCTION_STANDARD, variables: { ...TEST_FIXTURE_CONSTRUCTION_STANDARD.variables, MAGIC: 5 } };
-    expect(validateStandard(KITCHEN_BASE_STANDARD_V1, bad).map((m) => m.code)).toEqual(["STANDARD_UNKNOWN_VARIABLE"]);
+    const bad = declaredSubset(TEST_FIXTURE_CONSTRUCTION_STANDARD, KITCHEN_BASE_STANDARD_V1);
+    const withMagic = { ...bad, variables: { ...bad.variables, MAGIC: 5 } };
+    expect(validateStandard(KITCHEN_BASE_STANDARD_V1, withMagic).map((m) => m.code)).toEqual(["STANDARD_UNKNOWN_VARIABLE"]);
   });
 });
 
 describe("edge band standards", () => {
   it("the Lintel draft edge band standard defines no edge rules yet (nothing invented)", () => {
     expect(LINTEL_EDGE_BAND_STANDARD_DRAFT.status).toBe("DRAFT");
-    expect(LINTEL_EDGE_BAND_STANDARD_DRAFT.ruleSets).toEqual({ [KITCHEN_BASE_STANDARD_V1.edgeRuleSetId]: {} });
+    expect(LINTEL_EDGE_BAND_STANDARD_DRAFT.ruleSets).toEqual({
+      [KITCHEN_BASE_STANDARD_V1.edgeRuleSetId]: {},
+      [KITCHEN_BASE_DRAWER_V1.edgeRuleSetId]: {},
+    });
   });
   it("the test fixture edge band standard is labelled as such and kept separate from production", () => {
     expect(TEST_FIXTURE_EDGE_BAND_STANDARD.status).toBe("TEST_FIXTURE");
     expect(TEST_FIXTURE_EDGE_BAND_STANDARD.standardId).not.toBe(LINTEL_EDGE_BAND_STANDARD_DRAFT.standardId);
   });
-  it("both edge band standards are consistent with the recipe and catalog", () => {
-    expect(validateEdgeBandStandard(LINTEL_CATALOG, KITCHEN_BASE_STANDARD_V1, LINTEL_EDGE_BAND_STANDARD_DRAFT)).toEqual([]);
-    expect(validateEdgeBandStandard(LINTEL_CATALOG, KITCHEN_BASE_STANDARD_V1, TEST_FIXTURE_EDGE_BAND_STANDARD)).toEqual([]);
+  it("both edge band standards are consistent with every recipe and the catalog", () => {
+    for (const recipe of [KITCHEN_BASE_STANDARD_V1, KITCHEN_BASE_DRAWER_V1]) {
+      expect(validateEdgeBandStandard(LINTEL_CATALOG, recipe, LINTEL_EDGE_BAND_STANDARD_DRAFT)).toEqual([]);
+      expect(validateEdgeBandStandard(LINTEL_CATALOG, recipe, TEST_FIXTURE_EDGE_BAND_STANDARD)).toEqual([]);
+    }
   });
   it("detects invalid edge sides and unknown edge bands", () => {
     const bad = { ...TEST_FIXTURE_EDGE_BAND_STANDARD, ruleSets: { CARCASS_STANDARD: { SIDE_LEFT: { LEFT: "EDGE_ABS_2MM" }, SHELF: { FRONT: "NOPE" } } } };

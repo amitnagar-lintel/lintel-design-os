@@ -113,6 +113,88 @@ describe("resolveCabinet guards", () => {
   });
 });
 
+describe("KIT_BASE_DRAWER (Slice 2: drawer bank)", () => {
+  const drawerObj = (over: Partial<DesignObject> = {}): DesignObject => obj({ productId: "KIT_BASE_DRAWER", dimensions: { width: 900, height: 720, depth: 560 }, ...over });
+  const run = (o: DesignObject, adapters: readonly ManufacturerAdapter[] = [fakeAdapter]) =>
+    resolveCabinet({ designVersion: dv, object: o, catalog: LINTEL_CATALOG, standard: TEST_FIXTURE_CONSTRUCTION_STANDARD, edgeBandStandard: TEST_FIXTURE_EDGE_BAND_STANDARD, adapters });
+
+  it("resolves to KIT_BASE_DRAWER's own recipe", () => {
+    const r = run(drawerObj());
+    expect(r.trace.recipe.id).toBe("KITCHEN_BASE_DRAWER_V1");
+    expect(r.trace.product.id).toBe("KIT_BASE_DRAWER");
+  });
+
+  it("generates the full carcass plus one front/box per drawer, for every allowed drawer count", () => {
+    for (const drawerCount of [2, 3, 4]) {
+      const r = run(drawerObj({ parameters: { drawerCount } }));
+      expect(codes(r.validation).filter((c) => c === "COMPONENT_DIMENSION_INVALID" || c === "COMPONENT_COUNT_INVALID")).toEqual([]);
+      const counts = (type: string) => r.components.filter((c) => c.componentType === type).length;
+      expect(counts("DRAWER_FRONT")).toBe(drawerCount);
+      expect(counts("DRAWER_BOX_SIDE")).toBe(drawerCount * 2);
+      expect(counts("DRAWER_BOX_BACK")).toBe(drawerCount);
+      expect(counts("DRAWER_BOTTOM")).toBe(drawerCount);
+      expect(counts("SIDE_LEFT") + counts("SIDE_RIGHT") + counts("BOTTOM") + counts("TOP_SUPPORT_FRONT") + counts("TOP_SUPPORT_BACK") + counts("BACK")).toBe(6);
+      expect(r.components).toHaveLength(6 + drawerCount * 5);
+    }
+  });
+
+  it("stacks drawer fronts bottom to top without overlapping, inside the carcass width", () => {
+    const r = run(drawerObj({ parameters: { drawerCount: 3 } }));
+    const fronts = r.components.filter((c) => c.componentType === "DRAWER_FRONT").sort((a, b) => a.geometry.local.min.y - b.geometry.local.min.y);
+    expect(fronts).toHaveLength(3);
+    for (let i = 1; i < fronts.length; i++) {
+      const below = fronts[i - 1]!;
+      const above = fronts[i]!;
+      expect(below.geometry.local.min.y + below.geometry.local.size.y).toBeLessThanOrEqual(above.geometry.local.min.y + 1e-9);
+    }
+    for (const f of fronts) {
+      expect(f.geometry.local.min.x).toBeGreaterThanOrEqual(0);
+      expect(f.geometry.local.min.x + f.geometry.local.size.x).toBeLessThanOrEqual(900);
+    }
+  });
+
+  it("switches every front from overlay to inset together (Slice 2 equivalent of PRD §43 test D)", () => {
+    const overlay = run(drawerObj({ parameters: { frontType: "OVERLAY" } })).components.filter((c) => c.componentType === "DRAWER_FRONT");
+    const inset = run(drawerObj({ parameters: { frontType: "INSET" } })).components.filter((c) => c.componentType === "DRAWER_FRONT");
+    expect(overlay.every((c) => c.geometry.local.min.z > 560)).toBe(true);
+    expect(inset.every((c) => c.geometry.local.min.z < 560)).toBe(true);
+  });
+
+  it("regenerates geometry (and the model fingerprint) when the drawer count changes", async () => {
+    const { modelFingerprint } = await import("../src/index.js");
+    const three = run(drawerObj({ parameters: { drawerCount: 3 } }));
+    const four = run(drawerObj({ parameters: { drawerCount: 4 } }));
+    expect(modelFingerprint(three)).not.toBe(modelFingerprint(four));
+    expect(three.components.filter((c) => c.componentType === "DRAWER_FRONT")).toHaveLength(3);
+    expect(four.components.filter((c) => c.componentType === "DRAWER_FRONT")).toHaveLength(4);
+  });
+
+  it("requests a runner for every drawer box side (PRD §28), never for the fronts or the carcass", () => {
+    const r = run(drawerObj({ parameters: { drawerCount: 3 } }));
+    const runnerLinks = r.components.filter((c) => c.componentType === "DRAWER_BOX_SIDE").flatMap((c) => c.hardwareLinks);
+    expect(runnerLinks).toHaveLength(6);
+    expect(r.components.filter((c) => c.componentType !== "DRAWER_BOX_SIDE").every((c) => c.hardwareLinks.length === 0)).toBe(true);
+    expect(r.hardwareRequirements.filter((h) => h.category === "RUNNER")).toHaveLength(6);
+    expect(r.hardwareRequirements.every((h) => h.category !== "HINGE")).toBe(true);
+  });
+
+  it("blocks hardware when no adapter exists for the manufacturer, exactly like the shutter cabinet", () => {
+    const r = run(drawerObj(), []);
+    expect(r.hardwareResolutions.every((h) => h.status === "UNRESOLVED")).toBe(true);
+    expect(codes(r.validation)).toContain("HARDWARE_ADAPTER_MISSING");
+  });
+
+  it("keeps the drawer box within the carcass and off the top rail", () => {
+    const r = run(drawerObj({ parameters: { drawerCount: 4 } }));
+    const topRail = r.components.find((c) => c.componentType === "TOP_SUPPORT_BACK")!;
+    for (const c of r.components.filter((x) => x.componentType === "DRAWER_BOX_SIDE" || x.componentType === "DRAWER_BOX_BACK" || x.componentType === "DRAWER_BOTTOM")) {
+      expect(c.geometry.local.min.y + c.geometry.local.size.y).toBeLessThanOrEqual(topRail.geometry.local.min.y + 1e-9);
+      expect(c.dimensions.width).toBeGreaterThan(0);
+      expect(c.dimensions.height).toBeGreaterThan(0);
+    }
+  });
+});
+
 describe("assertProductionEligible", () => {
   const ok: ValidationResult = { messages: [], counts: { BLOCKER: 0, ERROR: 0, WARNING: 0, INFO: 0 }, canApprove: true };
   const blocked: ValidationResult = { ...ok, counts: { ...ok.counts, BLOCKER: 1 }, canApprove: false };

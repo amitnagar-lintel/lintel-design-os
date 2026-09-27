@@ -63,7 +63,7 @@ export function syntheticHettichDataset(base: HettichProductionDataset, over: { 
       description: SYNTHETIC_SOURCE,
       exactApplication: { description: SYNTHETIC_MARKER, application: "HINGED_DOOR", mounting: "FULL_OVERLAY" },
       dimensions: { SYNTHETIC: { value: 1, unit: "MM" } },
-      compatibility: { doorThicknessRange: { min: 1, max: 2 }, openingAngle: 1, compatibleArticles: [], notes: SYNTHETIC_MARKER },
+      compatibility: { doorThicknessRange: { min: 1, max: 2 }, openingAngle: 1, nominalLength: null, compatibleArticles: [], notes: SYNTHETIC_MARKER },
       drilling: { patternId: "DBTEST-PATTERN", holes: [{ face: "X", datum: "Y", x: 1, y: 1, diameter: 1, depth: 1 }], source },
       installation: { guide: source, notes: null },
       adjustment: { ranges: { SYNTHETIC: { min: 0, max: 1, unit: "MM" } }, notes: null },

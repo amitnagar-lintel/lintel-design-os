@@ -170,8 +170,9 @@ export interface HardwareRuleRow {
   readonly component_type: ComponentType;
   readonly category: HardwareCategory;
   readonly application: HardwareRule["application"];
-  readonly mounting_parameter_key: string;
-  readonly mounting_map: Readonly<Record<string, HingeMounting>>;
+  /** `null` for a `RunnerHardwareRule`: a drawer has no mounting mode to map. */
+  readonly mounting_parameter_key: string | null;
+  readonly mounting_map: Readonly<Record<string, HingeMounting>> | null;
   readonly preferred_manufacturer: string;
 }
 
@@ -190,8 +191,8 @@ export function hardwareRuleSetToRows(s: HardwareRuleSet, meta: VersionMeta, ctx
     component_type: r.componentType,
     category: r.category,
     application: r.application,
-    mounting_parameter_key: r.mounting.parameterKey,
-    mounting_map: r.mounting.map,
+    mounting_parameter_key: r.application === "HINGED_DOOR" ? r.mounting.parameterKey : null,
+    mounting_map: r.application === "HINGED_DOOR" ? r.mounting.map : null,
     preferred_manufacturer: r.preferredManufacturer,
   }));
   const content = omit(s, "status");
@@ -209,14 +210,14 @@ function hardwareRuleSetValue(rows: HardwareRuleSetRows): HardwareRuleSet {
   const rules: HardwareRule[] = ordered.map((r) => {
     if (seen.has(r.rule_code)) throw new MappingError(`duplicate hardware rule ${r.rule_code}`);
     seen.add(r.rule_code);
-    return {
-      ruleId: r.rule_code,
-      componentType: r.component_type,
-      category: r.category,
-      application: r.application,
-      mounting: { parameterKey: r.mounting_parameter_key, map: r.mounting_map },
-      preferredManufacturer: r.preferred_manufacturer,
-    };
+    if (r.application === "HINGED_DOOR") {
+      if (r.mounting_parameter_key === null || r.mounting_map === null) throw new MappingError(`hardware rule ${r.rule_code}: a HINGED_DOOR rule requires a mounting map`);
+      return {
+        ruleId: r.rule_code, componentType: r.component_type, category: r.category as "HINGE" | "MOUNTING_PLATE", application: "HINGED_DOOR",
+        mounting: { parameterKey: r.mounting_parameter_key, map: r.mounting_map }, preferredManufacturer: r.preferred_manufacturer,
+      };
+    }
+    return { ruleId: r.rule_code, componentType: r.component_type, category: "RUNNER", application: "DRAWER", preferredManufacturer: r.preferred_manufacturer };
   });
   return { ruleSetId: rows.version.entity_code, version: requireLabel(rows.version), status: engineCalculationStatus(e.status), rules };
 }

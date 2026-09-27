@@ -2,14 +2,14 @@ import type { DataClassification, Millimetres } from "./common.js";
 import type { ComponentType } from "./component.js";
 import type { ValidationMessage } from "./validation.js";
 
-export type HardwareCategory = "HINGE" | "MOUNTING_PLATE";
+export type HardwareCategory = "HINGE" | "MOUNTING_PLATE" | "RUNNER";
 export type HingeMounting = "FULL_OVERLAY" | "HALF_OVERLAY" | "INSET";
 
 /**
  * PRD §26 — built from construction context; users never pick a generic fitting first.
  * `null` = unknown (e.g. no density in the catalog → weight unknown).
  */
-export interface FittingSituation {
+export interface HingeFittingSituation {
   readonly application: "HINGED_DOOR";
   readonly cabinetType: "BASE_CABINET";
   readonly componentType: ComponentType;
@@ -22,6 +22,20 @@ export interface FittingSituation {
   readonly openingAngleRequired: number | null;
   readonly availableDepth: Millimetres;
 }
+
+/** PRD §28 — drawer runner selection, built from the drawer box's own construction context. */
+export interface RunnerFittingSituation {
+  readonly application: "DRAWER";
+  readonly cabinetType: "BASE_CABINET";
+  readonly componentType: ComponentType;
+  readonly boxDepth: Millimetres;
+  readonly boxHeight: Millimetres;
+  readonly boxMaterialId: string;
+  readonly boxWeightKg: number | null;
+  readonly availableDepth: Millimetres;
+}
+
+export type FittingSituation = HingeFittingSituation | RunnerFittingSituation;
 
 export interface HardwareRequirement {
   /** Deterministic, e.g. OBJ-KIT-001-SHT-L-HINGE. */

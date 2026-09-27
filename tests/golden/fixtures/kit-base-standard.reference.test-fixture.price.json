@@ -21,7 +21,7 @@
         }
       ],
       "classification": "TEST_FIXTURE",
-      "contentHash": "10ba63fe4263dd",
+      "contentHash": "0db4060e35968f",
       "createdAt": "2026-09-26T00:00:00.000Z",
       "currency": "INR",
       "designBlockerCount": 8,
@@ -203,7 +203,7 @@
           "unit": "PAISE"
         }
       ],
-      "modelFingerprint": "00cd3107b27b23",
+      "modelFingerprint": "04fcfc94ff20d9",
       "priceSnapshotId": "PRICE:dv_001:obj_001:TEST_FIXTURE_RATE_CARD@0.0.1:TEST_FIXTURE_PRICING_RULES@0.0.1",
       "pricingRules": {
         "classification": "TEST_FIXTURE",
@@ -274,7 +274,7 @@
         "wastage": 23923
       },
       "trace": {
-        "catalogVersion": "2026.09.26-m1",
+        "catalogVersion": "2026.09.27-m2",
         "dataClassification": "TEST_FIXTURE",
         "designVersionId": "dv_001",
         "designVersionStatus": "DRAFT",

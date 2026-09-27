@@ -34,7 +34,7 @@ export interface SectionLayout {
 
 /** Default cut: through the centre of the leftmost front if any, otherwise mid-width. */
 export function defaultCutX(components: readonly CabinetComponent[]): number {
-  const fronts = components.filter((c) => c.componentType === "SHUTTER").sort((a, b) => a.geometry.local.min.x - b.geometry.local.min.x);
+  const fronts = components.filter((c) => c.componentType === "SHUTTER" || c.componentType === "DRAWER_FRONT").sort((a, b) => a.geometry.local.min.x - b.geometry.local.min.x);
   const f = fronts[0];
   if (f !== undefined) return f.geometry.local.min.x + f.geometry.local.size.x / 2;
   const xs = components.flatMap((c) => [c.geometry.local.min.x, c.geometry.local.min.x + c.geometry.local.size.x]);
@@ -80,7 +80,7 @@ export function layoutSideSection(components: readonly CabinetComponent[], objec
   const cz1 = Math.max(...carcass.map((c) => c.geometry.local.min.z + c.geometry.local.size.z));
   if (carcass.length > 0) dim.h(cz0, cz1, b.y0, 10, cz1 - cz0);
   if (Math.abs(b.x0 - cz0) > EPS || Math.abs(b.x1 - cz1) > EPS) dim.h(b.x0, b.x1, b.y0, 18, b.x1 - b.x0); // overall depth incl. fronts
-  const front = [...crossing, ...beyond].filter((c) => c.componentType === "SHUTTER").sort((a, c) => a.geometry.local.min.x - c.geometry.local.min.x)[0];
+  const front = [...crossing, ...beyond].filter((c) => c.componentType === "SHUTTER" || c.componentType === "DRAWER_FRONT").sort((a, c) => a.geometry.local.min.x - c.geometry.local.min.x)[0];
   if (front !== undefined && carcass.length > 0) {
     const fz0 = front.geometry.local.min.z;
     const fz1 = fz0 + front.geometry.local.size.z;

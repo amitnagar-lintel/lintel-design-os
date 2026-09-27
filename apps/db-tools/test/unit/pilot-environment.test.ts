@@ -42,7 +42,7 @@ describe("rehearsal isolation", () => {
   });
   it("every rehearsal file is a valid intake file that names itself as rehearsal data", () => {
     const files = rehearsalDataset();
-    expect(files.length).toBe(19);
+    expect(files.length).toBe(22);
     for (const f of files) {
       const v = validateIntake(JSON.stringify(f.file));
       expect([f.type, f.entityCode, v.accepted, v.findings]).toEqual([f.type, f.entityCode, true, []]);

@@ -278,7 +278,7 @@
             }
           ],
           "trace": {
-            "catalogVersion": "2026.09.26-m1",
+            "catalogVersion": "2026.09.27-m2",
             "dataClassification": "TEST_FIXTURE",
             "designVersionId": "dv_001",
             "designVersionStatus": "DRAFT",
@@ -594,7 +594,7 @@
             }
           ],
           "trace": {
-            "catalogVersion": "2026.09.26-m1",
+            "catalogVersion": "2026.09.27-m2",
             "dataClassification": "TEST_FIXTURE",
             "designVersionId": "dv_001",
             "designVersionStatus": "DRAFT",
@@ -910,7 +910,7 @@
             }
           ],
           "trace": {
-            "catalogVersion": "2026.09.26-m1",
+            "catalogVersion": "2026.09.27-m2",
             "dataClassification": "TEST_FIXTURE",
             "designVersionId": "dv_001",
             "designVersionStatus": "DRAFT",
@@ -1226,7 +1226,7 @@
             }
           ],
           "trace": {
-            "catalogVersion": "2026.09.26-m1",
+            "catalogVersion": "2026.09.27-m2",
             "dataClassification": "TEST_FIXTURE",
             "designVersionId": "dv_001",
             "designVersionStatus": "DRAFT",
@@ -1270,7 +1270,7 @@
         }
       ],
       "roomBomId": "ROOMBOM:dv_001:room_001",
-      "roomFingerprint": "034053d406e9ee",
+      "roomFingerprint": "0756af598bd35a",
       "totals": [
         {
           "description": "BOARD_BACK_6 board, net area",
@@ -1394,29 +1394,29 @@
         }
       ],
       "trace": {
-        "catalogVersion": "2026.09.26-m1",
+        "catalogVersion": "2026.09.27-m2",
         "dataClassification": "TEST_FIXTURE",
         "designVersionId": "dv_001",
         "designVersionStatus": "DRAFT",
         "engineVersion": "0.1.0",
         "objects": [
           {
-            "modelFingerprint": "00cd3107b27b23",
+            "modelFingerprint": "04fcfc94ff20d9",
             "objectCode": "OBJ-KIT-001",
             "objectId": "obj_001"
           },
           {
-            "modelFingerprint": "101afbdd7103ad",
+            "modelFingerprint": "0642c86ba331cf",
             "objectCode": "OBJ-KIT-002",
             "objectId": "obj_002"
           },
           {
-            "modelFingerprint": "11eb7538a03bec",
+            "modelFingerprint": "1815eef00cd52a",
             "objectCode": "OBJ-KIT-003",
             "objectId": "obj_003"
           },
           {
-            "modelFingerprint": "0f7029d0d94387",
+            "modelFingerprint": "1bceb5cfb18159",
             "objectCode": "OBJ-KIT-004",
             "objectId": "obj_004"
           }
@@ -1521,7 +1521,7 @@
             }
           ],
           "trace": {
-            "catalogVersion": "2026.09.26-m1",
+            "catalogVersion": "2026.09.27-m2",
             "dataClassification": "TEST_FIXTURE",
             "designVersionId": "dv_001",
             "designVersionStatus": "DRAFT",
@@ -1583,7 +1583,7 @@
             }
           ],
           "trace": {
-            "catalogVersion": "2026.09.26-m1",
+            "catalogVersion": "2026.09.27-m2",
             "dataClassification": "TEST_FIXTURE",
             "designVersionId": "dv_001",
             "designVersionStatus": "DRAFT",
@@ -1645,7 +1645,7 @@
             }
           ],
           "trace": {
-            "catalogVersion": "2026.09.26-m1",
+            "catalogVersion": "2026.09.27-m2",
             "dataClassification": "TEST_FIXTURE",
             "designVersionId": "dv_001",
             "designVersionStatus": "DRAFT",
@@ -1707,7 +1707,7 @@
             }
           ],
           "trace": {
-            "catalogVersion": "2026.09.26-m1",
+            "catalogVersion": "2026.09.27-m2",
             "dataClassification": "TEST_FIXTURE",
             "designVersionId": "dv_001",
             "designVersionStatus": "DRAFT",
@@ -1752,31 +1752,31 @@
       ],
       "roomBomId": "ROOMBOM:dv_001:room_001",
       "roomBoqId": "ROOMBOQ:dv_001:room_001",
-      "roomFingerprint": "034053d406e9ee",
+      "roomFingerprint": "0756af598bd35a",
       "trace": {
-        "catalogVersion": "2026.09.26-m1",
+        "catalogVersion": "2026.09.27-m2",
         "dataClassification": "TEST_FIXTURE",
         "designVersionId": "dv_001",
         "designVersionStatus": "DRAFT",
         "engineVersion": "0.1.0",
         "objects": [
           {
-            "modelFingerprint": "00cd3107b27b23",
+            "modelFingerprint": "04fcfc94ff20d9",
             "objectCode": "OBJ-KIT-001",
             "objectId": "obj_001"
           },
           {
-            "modelFingerprint": "101afbdd7103ad",
+            "modelFingerprint": "0642c86ba331cf",
             "objectCode": "OBJ-KIT-002",
             "objectId": "obj_002"
           },
           {
-            "modelFingerprint": "11eb7538a03bec",
+            "modelFingerprint": "1815eef00cd52a",
             "objectCode": "OBJ-KIT-003",
             "objectId": "obj_003"
           },
           {
-            "modelFingerprint": "0f7029d0d94387",
+            "modelFingerprint": "1bceb5cfb18159",
             "objectCode": "OBJ-KIT-004",
             "objectId": "obj_004"
           }

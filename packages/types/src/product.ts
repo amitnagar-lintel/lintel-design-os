@@ -1,7 +1,7 @@
 import type { DataStatus, Millimetres } from "./common.js";
 import type { FormulaDefinition, RuleDefinition } from "./formula.js";
 import type { ComponentType, EdgeSide, GrainDirection, PanelPlane } from "./component.js";
-import type { HardwareCategory, HingeMounting } from "./hardware.js";
+import type { HingeMounting } from "./hardware.js";
 
 /* ------------------------------------------------------------------ parameters */
 
@@ -161,15 +161,26 @@ export interface EdgeBandStandard {
 
 /* ------------------------------------------------------------------ hardware rules */
 
-export interface HardwareRule {
+export interface HingeHardwareRule {
   readonly ruleId: string;
   readonly componentType: ComponentType;
-  readonly category: HardwareCategory;
+  readonly category: "HINGE" | "MOUNTING_PLATE";
   readonly application: "HINGED_DOOR";
   /** Maps a product enum parameter (e.g. frontType) to a hinge mounting. */
   readonly mounting: { readonly parameterKey: string; readonly map: Readonly<Record<string, HingeMounting>> };
   readonly preferredManufacturer: string;
 }
+
+/** PRD §28 — every drawer box side gets a runner; no per-parameter mounting map (a drawer has no mounting mode). */
+export interface RunnerHardwareRule {
+  readonly ruleId: string;
+  readonly componentType: ComponentType;
+  readonly category: "RUNNER";
+  readonly application: "DRAWER";
+  readonly preferredManufacturer: string;
+}
+
+export type HardwareRule = HingeHardwareRule | RunnerHardwareRule;
 
 export interface HardwareRuleSet {
   readonly ruleSetId: string;

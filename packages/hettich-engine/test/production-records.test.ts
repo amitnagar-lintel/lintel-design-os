@@ -19,7 +19,7 @@ const complete: HettichProductionRecord = {
   description: "Test-only record shape",
   exactApplication: { description: "test", application: "HINGED_DOOR", mounting: "FULL_OVERLAY" },
   dimensions: { testDimension: { value: 1, unit: "MM" } },
-  compatibility: { doorThicknessRange: { min: 15, max: 24 }, openingAngle: 110, compatibleArticles: [], notes: null },
+  compatibility: { doorThicknessRange: { min: 15, max: 24 }, openingAngle: 110, nominalLength: null, compatibleArticles: [], notes: null },
   drilling: { patternId: "TEST-PATTERN", holes: [{ face: "test", datum: "test", x: 1, y: 1, diameter: 1, depth: 1 }], source: SRC },
   installation: { guide: SRC, notes: null },
   adjustment: { ranges: { test: { min: 0, max: 1, unit: "MM" } }, notes: null },

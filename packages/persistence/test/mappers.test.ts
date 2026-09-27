@@ -75,7 +75,7 @@ const meta = (over: Partial<VersionMeta> = {}): VersionMeta => ({
 describe("standards map to rows and back without loss (production drafts)", () => {
   it("ConstructionStandard: every NULL value stays NULL", () => {
     const rows = constructionStandardToRows(LINTEL_CONSTRUCTION_STANDARD_DRAFT, meta(), CTX);
-    expect(rows.values).toHaveLength(12);
+    expect(rows.values).toHaveLength(15);
     expect(rows.values.every((v) => v.value === null)).toBe(true);
     expect(rows.version).toMatchObject({ entity_code: "LINTEL_CONSTRUCTION_STANDARD", version_label: "0.2.0", status: "DRAFT", data_classification: "PRODUCTION", org_id: "org_lintel" });
     expect(constructionStandardFromRows(rows).value).toEqual(LINTEL_CONSTRUCTION_STANDARD_DRAFT);
@@ -85,7 +85,7 @@ describe("standards map to rows and back without loss (production drafts)", () =
   });
   it("EdgeBandStandard keeps an existing but empty rule set (rules not yet defined)", () => {
     const rows = edgeBandStandardToRows(LINTEL_EDGE_BAND_STANDARD_DRAFT, meta(), CTX);
-    expect(rows.ruleSets.map((s) => s.rule_set_code)).toEqual(["CARCASS_STANDARD"]);
+    expect(rows.ruleSets.map((s) => s.rule_set_code)).toEqual(["CARCASS_STANDARD", "DRAWER_CARCASS_STANDARD"]);
     expect(rows.rules).toEqual([]);
     expect(edgeBandStandardFromRows(rows).value).toEqual(LINTEL_EDGE_BAND_STANDARD_DRAFT);
   });

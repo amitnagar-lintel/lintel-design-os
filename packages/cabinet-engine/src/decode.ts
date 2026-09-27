@@ -161,6 +161,15 @@ function decodePullOuts(object: ModelObject): readonly PullOut[] {
     .map((_, i) => ({ pullOutId: `PLO${String(i)}`, kind: "TRAY" as const }));
 }
 
+/**
+ * `BASE_SINK`'s own optional internal (Slice 5 step 4): a `PULLOUT_TRAY` component is present exactly when
+ * `internalConfig` was `"WASTE_BIN"` — decoded as a single reserved `PullOut { kind: "WASTE_BIN" }`, never a
+ * `"TRAY"` (that kind is `BASE_PULLOUT`'s own, a different recipe and a different meaning).
+ */
+function decodeWasteBin(object: ModelObject): readonly PullOut[] {
+  return object.components.some((c) => c.componentType === "PULLOUT_TRAY") ? [{ pullOutId: "WB0", kind: "WASTE_BIN" as const }] : [];
+}
+
 /** Decodes one API model object into the typed `CabinetInstance` the Design Studio edits and displays. `cabinetType` comes from `library.ts` (`findAvailableCabinetType(object.productCode)`). */
 export function decodeCabinetInstance(object: ModelObject, cabinetType: CabinetType): CabinetInstance {
   const { front, hardware } = frontComponentTypesOf(object)[0] === "DRAWER_FRONT" ? decodeDrawerBankFront(object) : decodeShutterFront(object);
@@ -174,7 +183,10 @@ export function decodeCabinetInstance(object: ModelObject, cabinetType: CabinetT
     rotationY: rotationYOf(object.transform.rotationY),
     dimensions: { widthMm: object.dimensions.width, heightMm: object.dimensions.height, depthMm: object.dimensions.depth },
     front,
-    internals: object.productCode === "KIT_BASE_OPEN" || object.productCode === "KIT_TALL_OVEN" ? decodeShelves(object) : object.productCode === "KIT_BASE_PULLOUT" ? decodePullOuts(object) : [],
+    internals: object.productCode === "KIT_BASE_OPEN" || object.productCode === "KIT_TALL_OVEN" ? decodeShelves(object)
+      : object.productCode === "KIT_BASE_PULLOUT" ? decodePullOuts(object)
+      : object.productCode === "KIT_BASE_SINK" ? decodeWasteBin(object)
+      : [],
     corner: null,
     finish: decodeFinish(object),
     hardware,

@@ -35,7 +35,7 @@ function instance(overrides: Partial<CabinetInstance> = {}): CabinetInstance {
 }
 
 describe("library", () => {
-  const AVAILABLE_TODAY = ["BASE_SHUTTER", "BASE_DRAWER_BANK", "BASE_OPEN", "BASE_PULLOUT", "TALL_OVEN_TOWER"];
+  const AVAILABLE_TODAY = ["BASE_SHUTTER", "BASE_DRAWER_BANK", "BASE_OPEN", "BASE_PULLOUT", "TALL_OVEN_TOWER", "BASE_SINK"];
   const AVAILABLE_CORNER_PAIR_TODAY = ["CORNER_L"];
 
   it("lists exactly the Slice 1, Slice 2, Slice 3 and Slice 5-step-1 cabinet types as available", () => {

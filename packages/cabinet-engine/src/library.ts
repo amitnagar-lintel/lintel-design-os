@@ -111,6 +111,22 @@ export const BASE_PULLOUT_CABINET: CabinetType = {
   supportedFronts: [BASE_ONE_SHUTTER, BASE_TWO_SHUTTER],
 };
 
+// ---------------------------------------------------------------- Slice 5 step 4: BASE_SINK
+
+/** `KIT_BASE_SINK` / `KITCHEN_BASE_SINK_V1` (Slice 5 step 4). A shutter front, identical to
+ * `BASE_SHUTTER_CABINET`'s own topologies — the optional waste-bin tray is internal (`internalConfig`,
+ * decoded as a `PullOut { kind: "WASTE_BIN" }`, already reserved in `model.ts`), never part of the front
+ * topology grid. The countertop's own future sink cutout (Slice 5 step 6) is not this cabinet's concern. */
+export const BASE_SINK_CABINET: CabinetType = {
+  cabinetTypeId: "BASE_SINK",
+  category: "BASE",
+  label: "Sink cabinet",
+  description: "Base cabinet with no rear top rail (plumbing clearance) and an optional internal waste-bin tray.",
+  productCode: "KIT_BASE_SINK",
+  recipeId: "KITCHEN_BASE_SINK_V1",
+  supportedFronts: [BASE_ONE_SHUTTER, BASE_TWO_SHUTTER],
+};
+
 // ---------------------------------------------------------------- Slice 5 step 3: TALL_OVEN_TOWER
 
 /** `KIT_TALL_OVEN` / `KITCHEN_TALL_OVEN_V1` (Slice 5 step 3). Front-less like `BASE_OPEN_CABINET`: no front
@@ -155,7 +171,13 @@ export const CABINET_LIBRARY: readonly CabinetLibraryEntry[] = [
   },
   planned("BASE_DRAWER_SHUTTER", "BASE", "Base cabinet — 1 drawer + shutter", "One drawer over a shutter.", 2),
   planned("BASE_DRAWER2_SHUTTER", "BASE", "Base cabinet — 2 drawers + shutter", "Two drawers over a shutter.", 2),
-  planned("BASE_SINK", "BASE", "Sink cabinet", "Base cabinet with a sink cut-out.", 5),
+  {
+    cabinetTypeId: BASE_SINK_CABINET.cabinetTypeId,
+    category: BASE_SINK_CABINET.category,
+    label: BASE_SINK_CABINET.label,
+    description: BASE_SINK_CABINET.description,
+    availability: { kind: "AVAILABLE", cabinetType: BASE_SINK_CABINET },
+  },
   planned("BASE_HOB", "BASE", "Hob cabinet", "Base cabinet with a hob cut-out.", 5),
   planned("BASE_APPLIANCE", "BASE", "Appliance cabinet", "Base cabinet housing a built-in appliance.", 5),
   {

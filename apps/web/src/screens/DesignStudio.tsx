@@ -76,6 +76,12 @@ function pullouts(pulloutCount: number): readonly PullOut[] {
   return Array.from({ length: pulloutCount }, (_, i) => ({ pullOutId: `PLO${String(i)}`, kind: "TRAY" }));
 }
 
+/** `BASE_SINK`'s own optional internal (Slice 5 step 4): at most one `PullOut { kind: "WASTE_BIN" }` — presence,
+ * not count, reaches the wire (see `compile.ts`'s `sinkHasWasteBin`). */
+function wasteBinInternals(present: boolean): readonly PullOut[] {
+  return present ? [{ pullOutId: "WB0", kind: "WASTE_BIN" }] : [];
+}
+
 function paramNumber(params: readonly Param[], key: string): number | undefined {
   const value = params.find((p) => p.key === key)?.default;
   return typeof value === "number" ? value : undefined;
@@ -372,6 +378,7 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
   const isOpen = instance.recipe.productCode === "KIT_BASE_OPEN";
   const isPullout = instance.recipe.productCode === "KIT_BASE_PULLOUT";
   const isOvenTower = instance.recipe.productCode === "KIT_TALL_OVEN";
+  const isSink = instance.recipe.productCode === "KIT_BASE_SINK";
   const noFront = isOpen || isOvenTower;
   const element = instance.front.rows[0]?.columns[0]?.element;
   const currentShutterCount = !isDrawer && !noFront && instance.front.rows[0]?.columns.length === 2 ? 2 : 1;
@@ -379,6 +386,7 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
   const currentOverlay: OverlayMode = element?.kind === "SHUTTER" || element?.kind === "DRAWER_BANK" ? element.overlay : "OVERLAY";
   const currentShelfCount = noFront ? instance.internals.length : 0;
   const currentPulloutCount = isPullout ? instance.internals.length : 0;
+  const currentWasteBin = isSink && instance.internals.length > 0;
   const currentDrawerHeights = element?.kind === "DRAWER_BANK" ? element.drawers.map((d) => String(d.heightMm)) : [];
   const [width, setWidth] = useState(String(instance.dimensions.widthMm));
   const [height, setHeight] = useState(String(instance.dimensions.heightMm));
@@ -388,6 +396,7 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
   const [overlay, setOverlay] = useState<OverlayMode>(currentOverlay);
   const [shelfCount, setShelfCount] = useState(String(currentShelfCount));
   const [pulloutCount, setPulloutCount] = useState(String(currentPulloutCount));
+  const [wasteBin, setWasteBin] = useState(currentWasteBin);
   /** Slice 2.1: one front height per drawer (top to bottom), kept in sync with the resolved model until edited;
    * the bank's last (bottom) entry is display-only — `save()` never sends it (see `drawerBankFront`). */
   const [drawerHeights, setDrawerHeights] = useState<string[]>(currentDrawerHeights);
@@ -401,6 +410,7 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
     setOverlay(currentOverlay);
     setShelfCount(String(currentShelfCount));
     setPulloutCount(String(currentPulloutCount));
+    setWasteBin(currentWasteBin);
     setDrawerHeights(currentDrawerHeights);
     // Resync the editable fields whenever a different cabinet becomes selected.
   }, [instance.instanceId]);
@@ -429,7 +439,7 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
       ...instance,
       dimensions: { widthMm, heightMm, depthMm },
       front: noFront ? OPEN_FRONT : isDrawer ? drawerBankFront(drawerCount, overlay, widthMm, heightMm, drawerHeights.map(Number)) : shutterFront(shutterCount, overlay, widthMm, heightMm),
-      internals: noFront ? shelves(Math.max(0, Math.trunc(Number(shelfCount)))) : isPullout ? pullouts(Math.max(0, Math.trunc(Number(pulloutCount)))) : instance.internals,
+      internals: noFront ? shelves(Math.max(0, Math.trunc(Number(shelfCount)))) : isPullout ? pullouts(Math.max(0, Math.trunc(Number(pulloutCount)))) : isSink ? wasteBinInternals(wasteBin) : instance.internals,
     });
   };
 
@@ -468,6 +478,14 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
       )}
       {isOvenTower && (
         <Field label="Appliance"><input value={applianceId ?? "—"} disabled /></Field>
+      )}
+      {isSink && (
+        <Field label="Internal">
+          <select value={wasteBin ? "WASTE_BIN" : "OPEN"} disabled={!canEdit} onChange={(e) => { setWasteBin(e.target.value === "WASTE_BIN"); }}>
+            <option value="OPEN">Open (no internal)</option>
+            <option value="WASTE_BIN">Waste-bin tray</option>
+          </select>
+        </Field>
       )}
       {isDrawer && element?.kind === "DRAWER_BANK" && (
         <>
@@ -522,6 +540,8 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
             <p>One runner pair per drawer ({element?.kind === "DRAWER_BANK" ? element.drawers.length : 0} drawer(s)). See the BOM tab for the resolved articles.</p>
           ) : isPullout ? (
             <p>{instance.hardware.hinges.length} hinge(s), one runner pair per pull-out frame ({instance.internals.length} frame(s)). See the BOM tab for the resolved articles.</p>
+          ) : isSink ? (
+            <p>{instance.hardware.hinges.length} hinge(s){instance.internals.length > 0 ? ", one runner pair for the waste-bin tray" : ""}. See the BOM tab for the resolved articles.</p>
           ) : (
             <p>{instance.hardware.hinges.length} hinge(s){instance.hardware.hinges[0] === undefined ? "" : `, mounting ${instance.hardware.hinges[0].mounting}`}. See the BOM tab for the full hardware list.</p>
           )}

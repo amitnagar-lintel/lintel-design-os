@@ -42,7 +42,7 @@ describe("rehearsal isolation", () => {
   });
   it("every rehearsal file is a valid intake file that names itself as rehearsal data", () => {
     const files = rehearsalDataset();
-    expect(files.length).toBe(33);
+    expect(files.length).toBe(36);
     // OPEN_STANDARD's and OVEN_TOWER_STANDARD's hardware_rule_sets genuinely have zero rules (an open cabinet
     // has no hardware; the oven tower has no front and no hardware defined for its bay this slice): the intake
     // validator's generic completeness heuristic cannot tell that apart from "not yet filled in" and flags it

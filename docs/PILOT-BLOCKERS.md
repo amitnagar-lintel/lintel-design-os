@@ -130,17 +130,14 @@ In the pilot workflow itself:
 
 ---
 
-## B5 — Quotation document format
+## B5 — Quotation document format: RESOLVED (2026-09-27)
 
-**Blocker.** No backend quotation PDF renderer exists. The UI prints the issued quotation from its stored snapshot: lines, tax groups and totals as stored.
+Every quotation now carries a system-generated PDF:
+- **Deterministic**, and **sealed** into the quotation snapshot's file manifest (migration 0021), with the same database check as drawing PDFs.
+- **Immutable** before and after issue.
+- **Downloaded** on UI screen 8 by cost readers.
 
-**Why it blocks.** Only if the client must receive a Lintel-branded quotation PDF produced by the system. Drawings are real PDF files and are not affected.
-
-**What Amit must provide.** Say whether the browser-printed quotation (saved as PDF from the print dialog) is acceptable for the pilot. If it is not, provide the required quotation layout: letterhead, terms, bank details, validity.
-
-**Next action.** If the print is acceptable, nothing. Otherwise, a quotation PDF renderer is a new engineering task.
-
-**Where work resumes.** UI, screen 8 "Issue", then "Print quotation".
+Details: `docs/PILOT-TOMORROW.md` §A. No action is needed.
 
 ---
 

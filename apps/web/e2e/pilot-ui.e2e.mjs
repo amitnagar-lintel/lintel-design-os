@@ -142,11 +142,19 @@ for (let i = 0; i < 2; i++) {
 }
 await page.waitForTimeout(1500);
 const download = page.waitForEvent("download", { timeout: 10000 });
-await page.getByRole("button", { name: /^Download PDF/ }).first().click();
+await page.locator("tbody tr", { hasText: /DRAWING/ }).first().getByRole("button", { name: /^Download PDF/ }).click();
 const file = await (await download).path();
 const pdf = readFileSync(file);
 const head = pdf.subarray(0, 5).toString();
 if (head !== "%PDF-") throw new Error(`downloaded file is not a PDF (${head})`);
+// The issued quotation document (PDF sealed with the quotation snapshot), downloaded by Costing.
+await as("COSTING");
+await step("8 Issue");
+await page.waitForTimeout(1500);
+const qDownload = page.waitForEvent("download", { timeout: 10000 });
+await page.locator("tr", { hasText: "QUOTATION" }).getByRole("button", { name: /^Download PDF/ }).click();
+const qpdf = readFileSync(await (await qDownload).path());
+if (qpdf.subarray(0, 5).toString() !== "%PDF-" || !qpdf.toString("latin1").includes("GRAND TOTAL")) throw new Error("the quotation download is not the quotation PDF");
 await shot("8-issue");
-console.log(`UI E2E PASSED: ${String(pdf.byteLength)}-byte PDF downloaded; screenshots in ${SHOTS}`);
+console.log(`UI E2E PASSED: drawing PDF ${String(pdf.byteLength)} bytes, quotation PDF ${String(qpdf.byteLength)} bytes; screenshots in ${SHOTS}`);
 await browser.close();

@@ -7,6 +7,7 @@ import {
 } from "@lintel/persistence";
 import type { FileService } from "@lintel/storage";
 import { buildStorageKey, sha256Of } from "@lintel/storage";
+import type { Sha256 } from "@lintel/storage";
 import type { ValidationMessage } from "@lintel/types";
 import { stableStringify } from "@lintel/types";
 import type { PermissionAction } from "../../common/auth/permissions.js";
@@ -21,7 +22,7 @@ import { outputsRepository } from "../../infrastructure/persistence/outputs.repo
 import { roomBom } from "./engines/bom.js";
 import { roomBoq } from "./engines/boq.js";
 import { roomPricing } from "./engines/pricing.js";
-import { roomQuotation } from "./engines/quotation.js";
+import { quotationDocument, roomQuotation } from "./engines/quotation.js";
 import type { DrawingRequest } from "./engines/drawing.js";
 import { drawOutput, renderDrawingFiles } from "./engines/drawing.js";
 import type { OutputExecutionContext, OutputKind } from "./output-context.js";
@@ -115,6 +116,8 @@ export class OutputGeneration {
     private readonly named: SnapshotSources = {},
     /** DRAWING requests only: the drawing to generate and where its files go. */
     private readonly drawing?: { readonly order: DrawingOrder; readonly sink: FileSink },
+    /** QUOTATION requests only: where the quotation document (PDF) goes. */
+    private readonly documentSink?: FileSink,
   ) {}
 
   async generate(kind: OutputKind): Promise<Outcome> {
@@ -160,11 +163,12 @@ export class OutputGeneration {
     } catch (e) {
       throw e instanceof MappingError ? refusal(e) : e;
     }
-    const row = snapshotToRow(record, { orgId: this.ctx.orgId });
+    // A quotation's document manifest is sealed into its row exactly like a drawing's (0021).
+    const row: SnapshotRow = { ...snapshotToRow(record, { orgId: this.ctx.orgId }), ...(produced.documentManifestHash === undefined ? {} : { file_manifest_hash: produced.documentManifestHash }) };
     if ((await outputsRepository.insert(this.tx, SNAPSHOT_TABLE[kind], row as unknown as Readonly<Record<string, unknown>>)) === "identity_conflict") {
       throw new ApiProblem("CONCURRENT_MODIFICATION", `a concurrent request generated the same ${kind} output; retry to reuse it`);
     }
-    if (produced.files !== undefined) await this.storeFiles(row.id, produced.files);
+    if (produced.files !== undefined) await this.storeFiles(row.id, produced.files, kind === "QUOTATION" ? "quotation" : "drawing");
     return this.remember(row, true);
   }
 
@@ -185,11 +189,11 @@ export class OutputGeneration {
   }
 
   /** Every rendered file, in manifest order: by the registry's format order, then sheet (plan §13). */
-  private prepareFiles(rendered: ReturnType<typeof renderDrawingFiles>): PreparedFile[] {
-    const formats = this.drawing?.sink.formats ?? [];
+  private prepareFiles(rendered: ReturnType<typeof renderDrawingFiles>, kind: "DRAWING" | "QUOTATION" = "DRAWING"): PreparedFile[] {
+    const formats = (kind === "DRAWING" ? this.drawing?.sink : this.documentSink)?.formats ?? [];
     const withFormat = rendered.map((f) => {
-      const format = formats.find((r) => r.code === f.format && r.kinds.includes("DRAWING"));
-      if (format === undefined || format.sheet_scoped !== (f.sheetIndex !== null)) throw new ApiProblem("INTERNAL", `file format ${f.format} is not registered for drawings`);
+      const format = formats.find((r) => r.code === f.format && r.kinds.includes(kind));
+      if (format === undefined || format.sheet_scoped !== (f.sheetIndex !== null)) throw new ApiProblem("INTERNAL", `file format ${f.format} is not registered for ${kind}`);
       return { f, format };
     }).sort((a, b) => a.format.sort_order - b.format.sort_order || (a.f.sheetIndex ?? -1) - (b.f.sheetIndex ?? -1));
     return withFormat.map(({ f, format }, i) => ({
@@ -203,12 +207,13 @@ export class OutputGeneration {
    * file_object (reused when the identical content is already recorded) and link it in manifest order. The database
    * checks at commit that the links are exactly the sealed manifest (check_drawing_manifest).
    */
-  private async storeFiles(snapshotId: string, files: readonly PreparedFile[]): Promise<void> {
-    const sink = this.drawing?.sink;
-    if (sink === undefined) throw new ApiProblem("INTERNAL", "no file storage for drawing files");
+  private async storeFiles(snapshotId: string, files: readonly PreparedFile[], of: "drawing" | "quotation"): Promise<void> {
+    const sink = of === "drawing" ? this.drawing?.sink : this.documentSink;
+    if (sink === undefined) throw new ApiProblem("INTERNAL", `no file storage for ${of} files`);
     for (const f of files) {
       const key = buildStorageKey({
-        orgId: this.ctx.orgId, projectId: this.ctx.version.project_id, designVersionId: this.ctx.version.id, kind: "drawing", fileId: f.checksum.slice("sha256:".length), extension: f.extension,
+        orgId: this.ctx.orgId, projectId: this.ctx.version.project_id, designVersionId: this.ctx.version.id, kind: of === "drawing" ? "drawing" : "document",
+        fileId: f.checksum.slice("sha256:".length), extension: f.extension,
       });
       const stored = await sink.service.store(key, f.bytes, f.contentType);
       const existing = await filesRepository.byKey(this.tx, sink.service.providerId, key);
@@ -216,7 +221,8 @@ export class OutputGeneration {
       const object = existing ?? await filesRepository.insert(this.tx, {
         org_id: this.ctx.orgId, provider_id: sink.service.providerId, storage_key: key, content_type: stored.contentType, byte_size: stored.byteSize, checksum: stored.checksum, created_by: this.ctx.actorId,
       });
-      await filesRepository.link(this.tx, { org_id: this.ctx.orgId, snapshot_id: snapshotId, sequence: f.sequence, format: f.format, sheet_index: f.sheetIndex, file_object_id: object.id });
+      await filesRepository.link(this.tx, { org_id: this.ctx.orgId, snapshot_id: snapshotId, sequence: f.sequence, format: f.format, sheet_index: f.sheetIndex, file_object_id: object.id },
+        of === "drawing" ? "drawing_snapshot_file" : "quotation_snapshot_file");
     }
   }
 
@@ -317,7 +323,7 @@ export class OutputGeneration {
   /** Run the kind's output engine on the context's resolved room and the exact upstream payloads. */
   private async produce(kind: OutputKind, up: { readonly bom?: Produced; readonly boq?: Produced; readonly pricing?: Produced }): Promise<{
     readonly payload: unknown; readonly blockerCount: number; readonly warningCount: number; readonly outputComplete: boolean; readonly revisionNumber?: number;
-    readonly drawing?: DrawingIdentity; readonly files?: readonly PreparedFile[];
+    readonly drawing?: DrawingIdentity; readonly files?: readonly PreparedFile[]; readonly documentManifestHash?: Sha256;
   }> {
     const { resolved, catalog, createdAt } = this.ctx;
     const validation = resolved.validation.counts;
@@ -355,7 +361,10 @@ export class OutputGeneration {
           resolved, catalog, boq: boqOf(), pricing: pricingOf(), quotationPolicy, revision: String(revisionNumber), createdAt,
         });
         if (r.status === "UNAVAILABLE") throw this.unavailable(kind, r.blockers, "pricingSnapshotId");
-        return { payload: r.snapshot, ...counted(r.messages), outputComplete: true, revisionNumber };
+        // The quotation document (PDF) from the sealed quotation and the project / client records, sealed by its manifest.
+        const records = await outputsRepository.quotationDocumentRecords(this.tx, this.ctx.version.id);
+        const files = this.prepareFiles([quotationDocument(r.snapshot, records, revisionNumber, this.purpose, this.ctx.version.id)], "QUOTATION");
+        return { payload: r.snapshot, ...counted(r.messages), outputComplete: true, revisionNumber, files, documentManifestHash: fileManifestHash(files) };
       }
       case "DRAWING": {
         const order = this.drawing?.order;

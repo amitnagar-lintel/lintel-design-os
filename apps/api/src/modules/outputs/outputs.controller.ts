@@ -135,6 +135,13 @@ export class OutputsController {
     return this.outputs.get(s, "QUOTATION", p.snapshotId);
   }
 
+  /** A quotation snapshot's document (PDF) in manifest order (verified against the sealed file manifest). */
+  @ApiDoc({ summary: "A quotation snapshot's document files (PDF) in manifest order", responses: { 200: SnapshotFiles } })
+  @Get("quotation-snapshots/:snapshotId/files") @RequiresAction("output.read.cost")
+  quotationFiles(@Scope() s: RequestScope, @Param(new SchemaPipe(SnapshotIdParam, "params")) p: S) {
+    return this.outputs.quotationFiles(s, p.snapshotId);
+  }
+
   @ApiDoc({ summary: "Detailed staleness of a Quotation snapshot", responses: { 200: DetailedStaleness } })
   @Get("quotation-snapshots/:snapshotId/staleness") @RequiresAction("output.read.cost")
   stalenessQuotation(@Scope() s: RequestScope, @Param(new SchemaPipe(SnapshotIdParam, "params")) p: S) {

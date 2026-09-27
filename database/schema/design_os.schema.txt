@@ -1179,6 +1179,13 @@ column: quotation_snapshot.warning_count integer NOT NULL
 column: quotation_snapshot.output_complete boolean NOT NULL
 column: quotation_snapshot.boq_snapshot_id uuid NOT NULL
 column: quotation_snapshot.pricing_snapshot_id uuid NOT NULL
+column: quotation_snapshot.file_manifest_hash text
+column: quotation_snapshot_file.org_id uuid NOT NULL
+column: quotation_snapshot_file.snapshot_id uuid NOT NULL
+column: quotation_snapshot_file.sequence integer NOT NULL
+column: quotation_snapshot_file.format text NOT NULL
+column: quotation_snapshot_file.sheet_index integer
+column: quotation_snapshot_file.file_object_id uuid NOT NULL
 column: rate_card_line.org_id uuid NOT NULL
 column: rate_card_line.version_id uuid NOT NULL
 column: rate_card_line.measure text NOT NULL
@@ -2274,6 +2281,7 @@ constraint: design_os.quotation_policy_version quotation_policy_version_tax_roun
 constraint: design_os.quotation_policy_version quotation_policy_version_tax_rounding_mode_check CHECK ((tax_rounding_mode = ANY (ARRAY['HALF_UP'::text, 'HALF_EVEN'::text, 'DOWN'::text, 'UP'::text])))
 constraint: design_os.quotation_policy_version quotation_policy_version_version_number_check CHECK ((version_number >= 1))
 constraint: design_os.quotation_policy_version quotation_policy_version_version_number_unique UNIQUE (org_id, entity_id, version_number)
+constraint: design_os.quotation_snapshot check_quotation_manifest TRIGGER DEFERRABLE INITIALLY DEFERRED
 constraint: design_os.quotation_snapshot quotation_snapshot_appliance_fk FOREIGN KEY (org_id, appliance_catalog_version_id) REFERENCES design_os.appliance_catalog_version(org_id, id)
 constraint: design_os.quotation_snapshot quotation_snapshot_blocker_count_check CHECK ((blocker_count >= 0))
 constraint: design_os.quotation_snapshot quotation_snapshot_boq_source_fk FOREIGN KEY (org_id, boq_snapshot_id) REFERENCES design_os.boq_snapshot(org_id, id)
@@ -2294,6 +2302,7 @@ constraint: design_os.quotation_snapshot quotation_snapshot_engine_fingerprint_c
 constraint: design_os.quotation_snapshot quotation_snapshot_engine_name_check CHECK ((engine_name = 'quotation'::text))
 constraint: design_os.quotation_snapshot quotation_snapshot_engine_name_fkey FOREIGN KEY (engine_name) REFERENCES design_os.output_engine(name)
 constraint: design_os.quotation_snapshot quotation_snapshot_engine_version_check CHECK ((btrim(engine_version) <> ''::text))
+constraint: design_os.quotation_snapshot quotation_snapshot_file_manifest_hash_check CHECK ((file_manifest_hash ~ '^sha256:[0-9a-f]{64}$'::text))
 constraint: design_os.quotation_snapshot quotation_snapshot_finish_fk FOREIGN KEY (org_id, finish_catalog_version_id) REFERENCES design_os.finish_catalog_version(org_id, id)
 constraint: design_os.quotation_snapshot quotation_snapshot_hardware_fk FOREIGN KEY (org_id, hardware_catalog_version_id) REFERENCES design_os.hardware_catalog_version(org_id, id)
 constraint: design_os.quotation_snapshot quotation_snapshot_hettich_fk FOREIGN KEY (org_id, hettich_dataset_version_id) REFERENCES design_os.hettich_dataset_version(org_id, id)
@@ -2317,6 +2326,14 @@ constraint: design_os.quotation_snapshot quotation_snapshot_revision_number_chec
 constraint: design_os.quotation_snapshot quotation_snapshot_revision_unique UNIQUE (design_version_id, revision_number)
 constraint: design_os.quotation_snapshot quotation_snapshot_validation_run_fk FOREIGN KEY (org_id, validation_run_id) REFERENCES design_os.validation_run(org_id, id)
 constraint: design_os.quotation_snapshot quotation_snapshot_warning_count_check CHECK ((warning_count >= 0))
+constraint: design_os.quotation_snapshot_file check_quotation_manifest TRIGGER DEFERRABLE INITIALLY DEFERRED
+constraint: design_os.quotation_snapshot_file quotation_snapshot_file_file_fk FOREIGN KEY (org_id, file_object_id) REFERENCES design_os.file_object(org_id, id)
+constraint: design_os.quotation_snapshot_file quotation_snapshot_file_format_fk FOREIGN KEY (format) REFERENCES design_os.output_file_format(code)
+constraint: design_os.quotation_snapshot_file quotation_snapshot_file_pkey PRIMARY KEY (snapshot_id, sequence)
+constraint: design_os.quotation_snapshot_file quotation_snapshot_file_sequence_check CHECK ((sequence >= 1))
+constraint: design_os.quotation_snapshot_file quotation_snapshot_file_sheet_index_check CHECK ((sheet_index IS NULL))
+constraint: design_os.quotation_snapshot_file quotation_snapshot_file_snapshot_fk FOREIGN KEY (org_id, snapshot_id) REFERENCES design_os.quotation_snapshot(org_id, id)
+constraint: design_os.quotation_snapshot_file quotation_snapshot_file_unique UNIQUE (snapshot_id, format)
 constraint: design_os.rate_card_line rate_card_line_measure_check CHECK ((measure = ANY (ARRAY['BOARD_M2'::text, 'EDGE_M'::text, 'FINISH_M2'::text, 'HARDWARE_UNIT'::text])))
 constraint: design_os.rate_card_line rate_card_line_pkey PRIMARY KEY (version_id, measure, item_key)
 constraint: design_os.rate_card_line rate_card_line_rate_paise_check CHECK ((rate_paise >= 0))
@@ -2637,6 +2654,8 @@ index: CREATE UNIQUE INDEX quotation_policy_version_org_entity_id_unique ON desi
 index: CREATE UNIQUE INDEX quotation_policy_version_org_id_unique ON design_os.quotation_policy_version USING btree (org_id, id)
 index: CREATE UNIQUE INDEX quotation_policy_version_pkey ON design_os.quotation_policy_version USING btree (id)
 index: CREATE UNIQUE INDEX quotation_policy_version_version_number_unique ON design_os.quotation_policy_version USING btree (org_id, entity_id, version_number)
+index: CREATE UNIQUE INDEX quotation_snapshot_file_pkey ON design_os.quotation_snapshot_file USING btree (snapshot_id, sequence)
+index: CREATE UNIQUE INDEX quotation_snapshot_file_unique ON design_os.quotation_snapshot_file USING btree (snapshot_id, format)
 index: CREATE UNIQUE INDEX quotation_snapshot_identity ON design_os.quotation_snapshot USING btree (org_id, design_version_id, purpose, input_hash, input_revision, dependency_set_hash, engine_fingerprint, commercial_input_hash, boq_snapshot_id, pricing_snapshot_id)
 index: CREATE UNIQUE INDEX quotation_snapshot_org_id_unique ON design_os.quotation_snapshot USING btree (org_id, id)
 index: CREATE UNIQUE INDEX quotation_snapshot_pkey ON design_os.quotation_snapshot USING btree (id)
@@ -2667,6 +2686,8 @@ index: CREATE UNIQUE INDEX versioned_table_version_table_key ON design_os.versio
 trigger: CREATE CONSTRAINT TRIGGER check_drawing_manifest AFTER INSERT ON design_os.drawing_snapshot DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION design_os.check_drawing_manifest()
 trigger: CREATE CONSTRAINT TRIGGER check_drawing_manifest AFTER INSERT ON design_os.drawing_snapshot_file DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION design_os.check_drawing_manifest()
 trigger: CREATE CONSTRAINT TRIGGER check_output_run_referenced AFTER INSERT ON design_os.validation_run DEFERRABLE INITIALLY DEFERRED FOR EACH ROW WHEN ((new.purpose = 'OUTPUT_GENERATION'::text)) EXECUTE FUNCTION design_os.check_output_run_referenced()
+trigger: CREATE CONSTRAINT TRIGGER check_quotation_manifest AFTER INSERT ON design_os.quotation_snapshot DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION design_os.check_quotation_manifest()
+trigger: CREATE CONSTRAINT TRIGGER check_quotation_manifest AFTER INSERT ON design_os.quotation_snapshot_file DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION design_os.check_quotation_manifest()
 trigger: CREATE CONSTRAINT TRIGGER idempotency_must_complete AFTER INSERT OR UPDATE ON design_os.idempotency_record DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION design_os.check_idempotency_completed()
 trigger: CREATE TRIGGER audit_row AFTER INSERT OR DELETE OR UPDATE ON design_os.app_user FOR EACH ROW EXECUTE FUNCTION design_os.audit_row()
 trigger: CREATE TRIGGER audit_row AFTER INSERT OR DELETE OR UPDATE ON design_os.appliance FOR EACH ROW EXECUTE FUNCTION design_os.audit_row()
@@ -2747,6 +2768,7 @@ trigger: CREATE TRIGGER audit_row AFTER INSERT OR DELETE OR UPDATE ON design_os.
 trigger: CREATE TRIGGER audit_row AFTER INSERT OR DELETE OR UPDATE ON design_os.quotation_policy FOR EACH ROW EXECUTE FUNCTION design_os.audit_row()
 trigger: CREATE TRIGGER audit_row AFTER INSERT OR DELETE OR UPDATE ON design_os.quotation_policy_version FOR EACH ROW EXECUTE FUNCTION design_os.audit_row()
 trigger: CREATE TRIGGER audit_row AFTER INSERT OR DELETE OR UPDATE ON design_os.quotation_snapshot FOR EACH ROW EXECUTE FUNCTION design_os.audit_row()
+trigger: CREATE TRIGGER audit_row AFTER INSERT OR DELETE OR UPDATE ON design_os.quotation_snapshot_file FOR EACH ROW EXECUTE FUNCTION design_os.audit_row()
 trigger: CREATE TRIGGER audit_row AFTER INSERT OR DELETE OR UPDATE ON design_os.rate_card_line FOR EACH ROW EXECUTE FUNCTION design_os.audit_row()
 trigger: CREATE TRIGGER audit_row AFTER INSERT OR DELETE OR UPDATE ON design_os.recipe_version FOR EACH ROW EXECUTE FUNCTION design_os.audit_row()
 trigger: CREATE TRIGGER audit_row AFTER INSERT OR DELETE OR UPDATE ON design_os.relationship_override FOR EACH ROW EXECUTE FUNCTION design_os.audit_row()
@@ -2760,6 +2782,7 @@ trigger: CREATE TRIGGER bump_input_revision AFTER INSERT OR DELETE OR UPDATE ON 
 trigger: CREATE TRIGGER bump_input_revision AFTER INSERT OR DELETE OR UPDATE ON design_os.relationship_override FOR EACH ROW EXECUTE FUNCTION design_os.bump_input_revision()
 trigger: CREATE TRIGGER check_issue BEFORE INSERT ON design_os.drawing_issue FOR EACH ROW EXECUTE FUNCTION design_os.check_issue('drawing_snapshot')
 trigger: CREATE TRIGGER check_issue BEFORE INSERT ON design_os.quotation_issue FOR EACH ROW EXECUTE FUNCTION design_os.check_issue('quotation_snapshot')
+trigger: CREATE TRIGGER check_quotation_file BEFORE INSERT ON design_os.quotation_snapshot_file FOR EACH ROW EXECUTE FUNCTION design_os.check_quotation_file()
 trigger: CREATE TRIGGER check_snapshot_file BEFORE INSERT ON design_os.drawing_snapshot_file FOR EACH ROW EXECUTE FUNCTION design_os.check_snapshot_file()
 trigger: CREATE TRIGGER check_snapshot_provenance BEFORE INSERT ON design_os.bom_snapshot FOR EACH ROW EXECUTE FUNCTION design_os.check_snapshot_provenance()
 trigger: CREATE TRIGGER check_snapshot_provenance BEFORE INSERT ON design_os.boq_snapshot FOR EACH ROW EXECUTE FUNCTION design_os.check_snapshot_provenance()
@@ -2787,6 +2810,7 @@ trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.out
 trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.pricing_snapshot FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
 trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.quotation_issue FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
 trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.quotation_snapshot FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
+trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.quotation_snapshot_file FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
 trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.room_revision FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
 trigger: CREATE TRIGGER forbid_mutation BEFORE DELETE OR UPDATE ON design_os.validation_run FOR EACH ROW EXECUTE FUNCTION design_os.forbid_mutation()
 trigger: CREATE TRIGGER forbid_truncate BEFORE TRUNCATE ON design_os.audit_log FOR EACH STATEMENT EXECUTE FUNCTION design_os.forbid_truncate()
@@ -2857,6 +2881,8 @@ function: check_drawing_manifest() -> trigger SECURITY DEFINER search_path=desig
 function: check_idempotency_completed() -> trigger SECURITY DEFINER search_path=pg_catalog, pg_temp owner=design_os_owner src=875de1c9e46e8d69138c77e6342d7267
 function: check_issue() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=6909bd62fa9313081599df103850ac7e
 function: check_output_run_referenced() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=eecbe7504741a62021bac8cbd52f65ca
+function: check_quotation_file() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=2c9a51113e5770ca65e09d51cc14136a
+function: check_quotation_manifest() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=31f978cffe8d8e2aa2a1ba0f31e6e4c6
 function: check_snapshot_file() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=b6806bca395dbf8d4173b5497a6928cb
 function: check_snapshot_provenance() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=75f4abedc5dcb600e80af61a936c79b9
 function: check_snapshot_sources() -> trigger SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=94c6526f52339b13fb26a2a913408cf7
@@ -2866,6 +2892,7 @@ function: client_allowed_actions() -> text[] owner=design_os_owner src=93e330c95
 function: client_can_read_file(p_file uuid) -> boolean SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=9f1356f7fa459d2c96626903c00926a0
 function: commercial_input_hash(p_pricing uuid, p_pricing_hash text, p_policy uuid, p_policy_hash text) -> text owner=design_os_owner src=f9cd9b527ecbc81b878407903de69cd4
 function: complete_idempotency(p_record_id uuid, p_response_status smallint, p_response_body jsonb, p_resource_type text, p_resource_id uuid) -> void SECURITY DEFINER search_path=pg_catalog, pg_temp owner=design_os_owner src=8f6cdb29df8b46f1161d3b6ff5025e94
+function: cost_reader_can_read_file(p_file uuid) -> boolean SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=6dd8f9cf72a41c5b2bbbbb14346b338d
 function: create_catalog_member_table(p_domain text, p_item text) -> void owner=design_os_owner src=291af56c181c38a207ebfa414b7a127f
 function: create_catalog_version_table(p_domain text) -> void owner=design_os_owner src=e8d51ab1c8effe4718825e4b96aff155
 function: create_entity_table(p_name text) -> void owner=design_os_owner src=cf6232eba644481d8982f09a48b1b360
@@ -2906,6 +2933,7 @@ function: lock_issued_commercial_versions() -> trigger SECURITY DEFINER search_p
 function: maintain_input_revision() -> trigger owner=design_os_owner src=1deb73c62c6e914b0d8a84b0f8949edb
 function: output_dependency_hashes(p_design_version uuid, p_pricing_standard uuid, p_quotation_policy uuid) -> jsonb SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=52460580adee4eea400d10c0a3f92e2f
 function: products_outside_catalog(p_org uuid, p_design_version uuid, p_catalog_version uuid) -> uuid[] SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=b39a84a40d4d7f8d1df79a469812bc14
+function: quotation_file_manifest_hash(p_snapshot uuid) -> text SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=6f4cb91c0cda0c2217b0e34d464c7c46
 function: record_decision(p_org uuid, p_subject_type text, p_id uuid, p_action text, p_actor uuid, p_reason text, p_prev design_os.record_lifecycle_status, p_new design_os.record_lifecycle_status, p_hash text, p_request uuid) -> void owner=design_os_owner src=e5a66bb9c859daa3e0911043b62c3505
 function: record_validation_run(p_purpose text, p_design_version_id uuid, p_input_hash text, p_engine_name text, p_engine_version text, p_engine_build text, p_engine_fingerprint text, p_engine_closure jsonb, p_blocker_count integer, p_warning_count integer, p_messages jsonb, p_content_hash text) -> uuid SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=394329782668bac595eeb64c7e2717e1
 function: reference_approval_problems(p_subject_type text, p_id uuid) -> TABLE(problem_code text, problem_message text) SECURITY DEFINER search_path=design_os, pg_temp owner=design_os_owner src=8f34305c035a74d3bbf50ff57d894bca
@@ -3013,6 +3041,7 @@ table: quotation_issue owner=design_os_owner rls=true
 table: quotation_policy owner=design_os_owner rls=true
 table: quotation_policy_version owner=design_os_owner rls=true
 table: quotation_snapshot owner=design_os_owner rls=true
+table: quotation_snapshot_file owner=design_os_owner rls=true
 table: rate_card_line owner=design_os_owner rls=true
 table: recipe_version owner=design_os_owner rls=true
 table: relationship_override owner=design_os_owner rls=true
@@ -3121,7 +3150,7 @@ policy: edge_band_version ref_read SELECT design_os_api USING ((org_id = design_
 policy: edge_band_version ref_update UPDATE design_os_api USING ((org_id = design_os.current_org_id()) AND design_os.has_permission('material_catalog.author'::text)) CHECK ((org_id = design_os.current_org_id()) AND design_os.has_permission('material_catalog.author'::text))
 policy: error_code registry_read SELECT design_os_api USING true CHECK -
 policy: file_object file_insert INSERT design_os_api USING - CHECK ((org_id = design_os.current_org_id()) AND design_os.is_internal() AND (created_by = design_os.current_user_id()) AND (design_os.has_permission('output.generate.engineering'::text) OR design_os.has_permission('manufacturing.release'::text)))
-policy: file_object file_read SELECT design_os_api USING ((org_id = design_os.current_org_id()) AND ((design_os.is_internal() AND design_os.has_permission('output.read.production'::text)) OR design_os.client_can_read_file(id))) CHECK -
+policy: file_object file_read SELECT design_os_api USING ((org_id = design_os.current_org_id()) AND ((design_os.is_internal() AND design_os.has_permission('output.read.production'::text)) OR design_os.client_can_read_file(id) OR design_os.cost_reader_can_read_file(id))) CHECK -
 policy: finish ref_delete DELETE design_os_api USING ((org_id = design_os.current_org_id()) AND design_os.has_permission('finish_catalog.author'::text)) CHECK -
 policy: finish ref_insert INSERT design_os_api USING - CHECK ((org_id = design_os.current_org_id()) AND design_os.has_permission('finish_catalog.author'::text))
 policy: finish ref_read SELECT design_os_api USING ((org_id = design_os.current_org_id()) AND design_os.is_internal() AND design_os.has_permission('reference.read'::text)) CHECK -
@@ -3318,6 +3347,8 @@ policy: quotation_policy_version ref_update UPDATE design_os_api USING ((org_id 
 policy: quotation_snapshot snapshot_insert INSERT design_os_api USING - CHECK (design_os.is_internal() AND design_os.can_access_project(design_os.design_version_project(design_version_id)) AND design_os.has_permission('output.generate.commercial'::text) AND (created_by = design_os.current_user_id()))
 policy: quotation_snapshot snapshot_read SELECT design_os_api USING (design_os.is_internal() AND design_os.can_access_project(design_os.design_version_project(design_version_id)) AND design_os.has_permission('output.read.cost'::text)) CHECK -
 policy: quotation_snapshot snapshot_read_issued SELECT design_os_api USING (design_os.is_issued((kind)::text, id) AND design_os.can_access_project(design_os.design_version_project(design_version_id)) AND design_os.has_permission('output.read.issued'::text)) CHECK -
+policy: quotation_snapshot_file link_insert INSERT design_os_api USING - CHECK ((org_id = design_os.current_org_id()) AND design_os.is_internal() AND design_os.has_permission('output.generate.commercial'::text))
+policy: quotation_snapshot_file link_read SELECT design_os_api USING ((org_id = design_os.current_org_id()) AND design_os.is_internal() AND design_os.has_permission('output.read.cost'::text)) CHECK -
 policy: rate_card_line ref_delete DELETE design_os_api USING ((org_id = design_os.current_org_id()) AND design_os.has_permission('pricing_standard.author'::text)) CHECK -
 policy: rate_card_line ref_insert INSERT design_os_api USING - CHECK ((org_id = design_os.current_org_id()) AND design_os.has_permission('pricing_standard.author'::text))
 policy: rate_card_line ref_read SELECT design_os_api USING ((org_id = design_os.current_org_id()) AND design_os.is_internal() AND design_os.has_permission('reference.read'::text)) CHECK -
@@ -3620,6 +3651,8 @@ grant: design_os_api quotation_policy_version INSERT
 grant: design_os_api quotation_policy_version SELECT
 grant: design_os_api quotation_snapshot INSERT
 grant: design_os_api quotation_snapshot SELECT
+grant: design_os_api quotation_snapshot_file INSERT
+grant: design_os_api quotation_snapshot_file SELECT
 grant: design_os_api rate_card_line DELETE
 grant: design_os_api rate_card_line INSERT
 grant: design_os_api rate_card_line SELECT
@@ -4121,6 +4154,7 @@ routine_grant: design_os_api claims EXECUTE
 routine_grant: design_os_api client_allowed_actions EXECUTE
 routine_grant: design_os_api client_can_read_file EXECUTE
 routine_grant: design_os_api complete_idempotency EXECUTE
+routine_grant: design_os_api cost_reader_can_read_file EXECUTE
 routine_grant: design_os_api current_auth_email EXECUTE
 routine_grant: design_os_api current_memberships EXECUTE
 routine_grant: design_os_api current_org_id EXECUTE

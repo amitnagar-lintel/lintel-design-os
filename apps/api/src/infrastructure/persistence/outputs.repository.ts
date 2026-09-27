@@ -22,6 +22,17 @@ const VERSION_TABLE: Readonly<Record<string, string>> = {
   quotation_policy_version_id: "quotation_policy_version", manufacturing_standard_version_id: "manufacturing_standard_version",
 };
 
+export interface QuotationDocumentRecords extends Record<string, unknown> {
+  readonly project_code: string;
+  readonly project_name: string;
+  readonly site_address: Record<string, string> | null;
+  readonly client_code: string | null;
+  readonly client_name: string | null;
+  readonly client_contact: Record<string, string> | null;
+  readonly version_number: number;
+  readonly room_name: string;
+}
+
 export const outputsRepository = {
   /** Engineering (and chosen commercial) dependency content hashes, computed by the database (0017). */
   dependencyHashes(tx: Tx, designVersionId: string, pricingStandardVersionId: string | null, quotationPolicyVersionId: string | null): Promise<Record<string, string>> {
@@ -84,6 +95,16 @@ export const outputsRepository = {
         coalesce((SELECT u.display_name FROM design_os.app_user u WHERE u.id = v.created_by), v.created_by::text) AS designer,
         CASE WHEN v.approved_by IS NULL THEN NULL ELSE coalesce((SELECT u.display_name FROM design_os.app_user u WHERE u.id = v.approved_by), v.approved_by::text) END AS checker
       FROM design_os.design_version v JOIN design_os.project p ON p.id = v.project_id WHERE v.id = $1`, [designVersionId]);
+  },
+
+  /** Quotation document facts from records: project, site, client (NULL when the reader may not see the client), version number. */
+  quotationDocumentRecords(tx: Tx, designVersionId: string): Promise<QuotationDocumentRecords> {
+    return tx.one<QuotationDocumentRecords>(`SELECT p.project_code, p.name AS project_name, p.site_address, c.client_code, c.name AS client_name, c.contact AS client_contact,
+        v.version_number, r.name AS room_name
+      FROM design_os.design_version v JOIN design_os.project p ON p.id = v.project_id
+        JOIN design_os.room_revision rr ON rr.id = v.room_revision_id JOIN design_os.room r ON r.id = rr.room_id
+        LEFT JOIN design_os.client c ON c.id = p.client_id AND c.org_id = p.org_id
+      WHERE v.id = $1`, [designVersionId]);
   },
 
   hasPermission(tx: Tx, action: string): Promise<boolean> {

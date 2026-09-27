@@ -5224,6 +5224,70 @@
         "x-lintel-identity": "INTERNAL"
       }
     },
+    "/api/v1/quotation-snapshots/{snapshotId}/files": {
+      "get": {
+        "operationId": "Outputs_quotationFiles",
+        "summary": "A quotation snapshot's document files (PDF) in manifest order",
+        "tags": [
+          "Outputs"
+        ],
+        "parameters": [
+          {
+            "name": "snapshotId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "X-Org",
+            "in": "header",
+            "required": false,
+            "description": "The organization to act in (required when the caller belongs to several)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotFiles"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "RFC 9457 problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-lintel-access": {
+          "actions": [
+            "output.read.cost"
+          ]
+        },
+        "x-lintel-identity": "INTERNAL"
+      }
+    },
     "/api/v1/quotation-snapshots/{snapshotId}/issue": {
       "get": {
         "operationId": "Issues_quotationIssue",

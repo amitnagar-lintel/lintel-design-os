@@ -1,13 +1,12 @@
 /**
  * Screen 8 — issue (the existing issue workflow): a FOR_PRODUCTION quotation (SALES) and FOR_PRODUCTION drawings
- * (DESIGN_HEAD) of a LOCKED design version with no BLOCKER. Issued drawing PDFs download through short-lived signed
- * URLs. The issued quotation prints from its stored snapshot (no client portal: documents are delivered offline).
+ * (DESIGN_HEAD) of a LOCKED design version with no BLOCKER. The issued drawings' PDFs and the quotation document (a
+ * PDF generated and sealed with the quotation snapshot) download through short-lived signed URLs. No client portal:
+ * documents are delivered offline.
  */
 import { useState } from "react";
 import type { ScreenProps } from "../App";
-import type { Schemas } from "../api/client";
 import { api, idempotency, must } from "../api/client";
-import { inr } from "../geometry";
 import { Action, Badge, ErrorBox, Field, Section, useLoad } from "../ui";
 import { latestCommercial, parseHandOver, snapshotOf } from "./Outputs";
 import type { HandOver } from "./Outputs";
@@ -41,7 +40,7 @@ export function IssueScreen({ me, sel }: ScreenProps) {
         {salesOnly && (
           <div className="card inner">
             <h3>Issue a quotation handed over by Costing</h3>
-            <p>Your role issues quotations but does not read cost outputs. Paste the hand-over code shown with the FOR_PRODUCTION quotation (Outputs screen, Costing).</p>
+            <p>Your role issues quotations but does not read cost outputs. Paste the hand-over code shown with the FOR_PRODUCTION quotation (Outputs screen, Costing). After the issue, Costing (or Finance / Design head) downloads the quotation PDF on this screen and hands it over.</p>
             <Field label="Hand-over code"><input value={code} onChange={(e) => { setCode(e.target.value); setCodeError(null); try { setHandOver(e.target.value.trim() === "" ? null : parseHandOver(e.target.value)); } catch (x) { setHandOver(null); setCodeError(x); } }} /></Field>
             <ErrorBox error={codeError} />
             {issuedNote !== null && <p><Badge tone="ok">{issuedNote}</Badge></p>}
@@ -81,7 +80,7 @@ export function IssueScreen({ me, sel }: ScreenProps) {
                       setN((x) => x + 1);
                     }} />}
                     {isIssued && s.kind === "DRAWING" && <DrawingFiles snapshotId={s.id} name={s.drawing === undefined ? s.id : `${s.drawing.drawingNumber}-${s.drawing.drawingRevision}`} />}
-                    {isIssued && s.kind === "QUOTATION" && <Action label="Print quotation" run={async () => { printQuotation(await snapshotOf("QUOTATION", s.id)); }} />}
+                    {isIssued && s.kind === "QUOTATION" && <DrawingFiles kind="QUOTATION" snapshotId={s.id} name={`QUOTATION-${s.id.slice(0, 8)}-R${String(s.revisionNumber ?? 1)}`} />}
                   </td>
                 </tr>
               );
@@ -94,15 +93,18 @@ export function IssueScreen({ me, sel }: ScreenProps) {
   );
 }
 
-function DrawingFiles({ snapshotId, name }: { readonly snapshotId: string; readonly name: string }) {
-  const files = useLoad(() => must(api.GET("/api/v1/drawing-snapshots/{snapshotId}/files", { params: { path: { snapshotId } } })), `files:${snapshotId}`);
+/** The sealed files of an issued drawing or quotation (the quotation document PDF), downloaded through signed URLs. */
+function DrawingFiles({ snapshotId, name, kind = "DRAWING" }: { readonly snapshotId: string; readonly name: string; readonly kind?: "DRAWING" | "QUOTATION" }) {
+  const files = useLoad(() => must(kind === "DRAWING"
+    ? api.GET("/api/v1/drawing-snapshots/{snapshotId}/files", { params: { path: { snapshotId } } })
+    : api.GET("/api/v1/quotation-snapshots/{snapshotId}/files", { params: { path: { snapshotId } } })), `files:${kind}:${snapshotId}`);
   return (
     <span>
       <ErrorBox error={files.error} />
       {(files.data?.items ?? []).map((f) => (
         <Action key={f.fileId} label={`Download ${f.format}${f.sheetIndex === null ? "" : ` sheet ${String(f.sheetIndex + 1)}`}`} run={async () => {
           const u = await must(api.GET("/api/v1/files/{fileId}/url", { params: { path: { fileId: f.fileId }, query: { disposition: "attachment" } } }));
-          // A short-lived signed URL (never stored); saved under the drawing's own number.
+          // A short-lived signed URL (never stored); saved under the document's own number.
           const file = await fetch(u.url);
           if (!file.ok) throw new Error(`Download failed (HTTP ${String(file.status)})`);
           const a = document.createElement("a");
@@ -116,21 +118,4 @@ function DrawingFiles({ snapshotId, name }: { readonly snapshotId: string; reado
       ))}
     </span>
   );
-}
-
-/** A printable view of the issued quotation snapshot (its stored lines and totals; nothing recomputed). */
-function printQuotation(s: Schemas["Snapshot"]): void {
-  const p = (s.payload ?? {}) as { lines?: Record<string, unknown>[]; totals?: Record<string, unknown>; taxGroups?: Record<string, unknown>[]; currency?: string };
-  const esc = (v: unknown) => (v === undefined ? "" : typeof v === "string" ? v : JSON.stringify(v)).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c] ?? c);
-  const money = (k: string, v: unknown) => (typeof v === "number" && /paise|total|amount|tax|price/i.test(k) ? inr(v) : esc(v));
-  const rows = (items: Record<string, unknown>[] | undefined) => (items ?? []).map((l) => `<tr>${Object.entries(l).filter(([, v]) => typeof v !== "object").map(([k, v]) => `<td>${money(k, v)}</td>`).join("")}</tr>`).join("");
-  const head = (items: Record<string, unknown>[] | undefined) => Object.entries(items?.[0] ?? {}).filter(([, v]) => typeof v !== "object").map(([k]) => `<th>${esc(k)}</th>`).join("");
-  const html = `<!doctype html><meta charset="utf-8"><title>Quotation ${esc(s.id)}</title>
-<style>body{font:13px system-ui;margin:24px}table{border-collapse:collapse;margin:12px 0}td,th{border:1px solid #999;padding:4px 8px;text-align:left}</style>
-<h1>Quotation</h1><p>Snapshot ${esc(s.id)} · revision ${esc(s.revisionNumber ?? 1)} · design version ${esc(s.designVersionId)} · content ${esc(s.contentHash)}</p>
-<h2>Lines</h2><table><tr>${head(p.lines)}</tr>${rows(p.lines)}</table>
-<h2>Tax</h2><table><tr>${head(p.taxGroups)}</tr>${rows(p.taxGroups)}</table>
-<h2>Totals</h2><table>${Object.entries(p.totals ?? {}).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${money(k, v)}</td></tr>`).join("")}</table>
-<script>window.onload = () => window.print();</script>`;
-  window.open(URL.createObjectURL(new Blob([html], { type: "text/html" })), "_blank");
 }

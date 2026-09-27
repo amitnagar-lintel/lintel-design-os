@@ -50,6 +50,25 @@ describe("pilot rehearsal (LOCAL, synthetic rehearsal data)", () => {
     expect(report.designStatus).toBe("LOCKED");
     expect(report.validation.blockers).toBe(0);
     expect(Object.values(report.consistency).every(Boolean)).toBe(true);
-    expect(report.pdfs.length).toBe(2);
+    expect(report.pdfs.length).toBe(3);
+
+    // The quotation document is sealed into the snapshot like a drawing's files: immutable, and nothing can be added.
+    const quotationId = report.issued.quotation;
+    const admin = new pg.Client({ connectionString: inject("raceDbUrl") });
+    await admin.connect();
+    try {
+      const [q] = (await admin.query<{ file_manifest_hash: string | null }>("SELECT file_manifest_hash FROM design_os.quotation_snapshot WHERE id = $1", [quotationId])).rows;
+      expect(q?.file_manifest_hash).toMatch(/^sha256:[0-9a-f]{64}$/);
+      const [link] = (await admin.query<{ org_id: string; file_object_id: string }>("SELECT org_id, file_object_id FROM design_os.quotation_snapshot_file WHERE snapshot_id = $1", [quotationId])).rows;
+      await expect(admin.query("UPDATE design_os.quotation_snapshot_file SET sequence = 2 WHERE snapshot_id = $1", [quotationId])).rejects.toThrow();
+      await expect(admin.query("DELETE FROM design_os.quotation_snapshot_file WHERE snapshot_id = $1", [quotationId])).rejects.toThrow();
+      await admin.query("BEGIN");
+      await admin.query("INSERT INTO design_os.quotation_snapshot_file (org_id, snapshot_id, sequence, format, file_object_id) VALUES ($1, $2, 2, 'SVG', $3)", [link!.org_id, quotationId, link!.file_object_id])
+        .then(() => admin.query("COMMIT")).then(() => { throw new Error("an extra link was accepted"); }, async (e: unknown) => { await admin.query("ROLLBACK"); expect(String(e)).toMatch(/not valid for quotations|manifest/); });
+    } finally {
+      await admin.end();
+    }
+    // Cost readers only: a designer (production reader) cannot list the quotation's document.
+    expect((await http("GET", `/api/v1/quotation-snapshots/${quotationId}/files`, { token: tokens.DESIGNER })).status).toBe(403);
   });
 });

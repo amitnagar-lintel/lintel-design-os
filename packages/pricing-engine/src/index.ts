@@ -17,3 +17,5 @@ export type { PriceRoomInput, RoomPricingResult } from "./room-price.js";
 export { roundRational } from "./rounding.js";
 export { LINTEL_PRODUCTION_QUOTATION_POLICY } from "./data/quotation-policy.js";
 export { TEST_FIXTURE_QUOTATION_POLICY } from "./fixtures/test-quotation-policy.js";
+export { inrText, pdfAscii, renderQuotationPdf } from "./quotation-pdf.js";
+export type { QuotationDocumentHeader } from "./quotation-pdf.js";

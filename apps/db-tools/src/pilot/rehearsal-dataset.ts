@@ -112,10 +112,10 @@ export function rehearsalDataset(): RehearsalFile[] {
   const construction = { ...TEST_FIXTURE_CONSTRUCTION_STANDARD, standardId: "REHEARSAL_CONSTRUCTION_STANDARD", status: "DRAFT", source: REHEARSAL_SOURCE, description: `${REHEARSAL_MARKER}: construction values` };
   const planning = { ...TEST_FIXTURE_PLANNING_STANDARD, standardId: "REHEARSAL_PLANNING_STANDARD", status: "DRAFT", source: REHEARSAL_SOURCE, description: `${REHEARSAL_MARKER}: planning values` };
   const edgeRules = { ...TEST_FIXTURE_EDGE_BAND_STANDARD, standardId: "REHEARSAL_EDGE_BAND_STANDARD", status: "DRAFT", source: REHEARSAL_SOURCE, description: `${REHEARSAL_MARKER}: edge rules` };
-  const withLimits = (def: ProductDefinition): ProductDefinition => ({
+  const withLimits = (def: ProductDefinition, overrides?: Readonly<Record<string, readonly [number, number]>>): ProductDefinition => ({
     ...def,
     parameters: def.parameters.map((p) => {
-      const lim = PRODUCT_LIMITS[p.key];
+      const lim = overrides?.[p.key] ?? PRODUCT_LIMITS[p.key];
       return (p.kind === "number" || p.kind === "integer") && lim !== undefined ? { ...p, min: lim[0], max: lim[1] } : p;
     }),
   });
@@ -123,7 +123,10 @@ export function rehearsalDataset(): RehearsalFile[] {
   const productDrawer = withLimits(KIT_BASE_DRAWER);
   const productOpen = withLimits(KIT_BASE_OPEN);
   const productPullout = withLimits(KIT_BASE_PULLOUT);
-  const productOven = withLimits(KIT_TALL_OVEN);
+  // KIT_TALL_OVEN is a tall cabinet (default height 2000 mm): the shared PRODUCT_LIMITS["height"] range
+  // ([500, 900]) is for BASE-height cabinets only and must not be applied here, or the product's own default
+  // height is rejected as out of range before the object can ever be resolved.
+  const productOven = withLimits(KIT_TALL_OVEN, { height: [1800, 2400] });
   const rate = TEST_FIXTURE_RATE_CARD;
   const hardwarePerUnit = Object.fromEntries(Object.entries(rate.hardwarePerUnit).map(([k, v]) => [k.replace(":FIXTURE-", ":REHEARSAL-"), v]));
   const q = TEST_FIXTURE_QUOTATION_POLICY;

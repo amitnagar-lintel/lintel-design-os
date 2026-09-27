@@ -1,265 +1,364 @@
-# Pilot — what to do tomorrow
+# Pilot operational guide — the first real Lintel project
 
-For Amit. Status 2026-09-27. Blocker details are in `docs/PILOT-BLOCKERS.md` (B1–B4).
+**The single operational guide for the V1 pilot.** Status 2026-09-27, main `92c3ca9`. Remaining blockers: `docs/PILOT-BLOCKERS.md` (B1–B4).
 
-## A. What is ready
+**Pilot scope (frozen):**
+- a rectangular kitchen with no openings;
+- base cabinets only (`KIT_BASE_STANDARD`);
+- the chain Project → Room → Design → DesignVersion → Validation → BOM → BOQ → Pricing → Quotation → Drawings → Issue;
+- the quotation PDF and drawing PDFs, delivered to the client offline.
 
-| Area | Ready | How to see it |
+**Not in scope:** wall or tall cabinets, irregular rooms, manufacturing / CNC, client portal, advanced CAD.
+
+**Rules that never bend:**
+- **No invented values.** No Lintel production value is invented, defaulted or copied from test data. Every value comes from a named source document, and a second person approves it.
+- **Every pin approved.** A DesignVersion can be **approved** only when **all 8 engineering datasets it pins are APPROVED or LOCKED** (§2).
+- **Separation of duties.** The author of a record can never approve it. Approvals are made with the approver's own Supabase Auth sign-in.
+
+---
+
+## 0. Who provides what
+
+| Who | Provides | Where it is used |
 |---|---|---|
-| Database | Migrations 0001–0021; migration runner with the environment guard (never a pooler; `--confirm` for staging / production) | `pnpm -s db:migrate status` (with `MIGRATION_DATABASE_URL`) |
-| Organization and people | `db:org init` (first ADMIN); invitations and acceptance through the API | `pnpm -s db:org init …`; UI screen 2 |
-| Reference data | Read API; intake CLI with validate → import → submit → approve. The approver must present their own Supabase Auth token; the author can never approve | `pnpm -s db:intake validate --file …` |
-| Readiness | `GET /api/v1/ready`, `GET /api/v1/readiness`, audit read, Sentry, rate limits | `pnpm pilot:check` |
-| Engines through the API | Resolved model, validation, BOM, BOQ, Pricing, Quotation, drawings (PDF + SVG), issue, signed PDF download | `pnpm pilot:rehearse` |
-| **Quotation PDF** | Generated with every quotation, deterministic, sealed into the snapshot's file manifest (the same database check as drawing PDFs), immutable before and after issue. Downloaded on screen 8 | UI screen 8 → QUOTATION row → "Download PDF" |
-| UI | Eight screens: Login, Project, Room, Base cabinets, Preview (2D + 3D), Validation, Outputs, Issue | `pnpm pilot:demo`, then http://127.0.0.1:5173 |
-| Proof | LOCAL rehearsal: real engines, 0 BLOCKERs, LOCKED design, FOR_PRODUCTION outputs, quotation and 2 drawings issued, **3 PDFs** (2 drawings + quotation) verified by checksum. Every output traced to the same DesignVersion, input hash and exact pins | `.pilot/rehearsal-report.json` after `pnpm pilot:rehearse` |
+| **Amit** | The 3 people and their roles (§3) | §3, B2 |
+| **Amit** | Approval of hosted access (gate M6-6) and the ops owner's dated confirmation of gate items 1–8 (M6-5) | §4, B3 |
+| **Amit** | The storage credential decision: option (a) or (b) (§5) | §5, B4 |
+| **Production team** (PRODUCTION / DESIGN_HEAD) | Construction values, planning values, product limits, edge-band rules, recipe confirmation, with source documents | §1 files 01, 02, 09, 11, 12 |
+| **Procurement** (PROCUREMENT) | Board, edge-band and finish properties; Hettich records from official Hettich sources | §1 files 03–08, 10, 13–15, 17 |
+| **Costing** (COSTING), approved by **Finance** (FINANCE) | Rates, pricing rules, tax rates, rounding, discount policy | §1 files 18, 19 |
+| **Engineering** | Staging and production setup, migrations, deployment, readiness checks | §4–§6 |
 
-**What "ready" does not cover.** The real pilot is **not** ready. There is no approved Lintel data (B1), no named approvers (B2) and no hosted Supabase (B3). The LOCAL demo uses synthetic rehearsal data (`LOCAL REHEARSAL ONLY`) that can never reach staging or production.
+---
 
-### The quotation PDF
+## 1. Real Lintel reference-data intake
 
-**When it is made.** It is generated in the same request that generates the quotation (Costing, screen 7). It is built from the sealed quotation and the project and client records.
+**Templates.** The templates are `docs/pilot/intake-templates/01…19-*.json`. Every value still missing is listed per file in `docs/pilot/intake-templates/README.md` (62 NULL values). Beyond those 62, three items need content the templates cannot list value by value:
+- the Hettich records and the hinge quantity rule (17);
+- the edge rules for 8 component types (09);
+- one per-unit rate per Hettich article (18).
 
-**What it contains:**
-- the client name, code and contact;
-- the project name, code and site;
-- the room and design version;
-- the quotation number `Q-<project code>-R<revision>` and its revision;
-- every line: item, quantity, rate excluding tax, tax %, taxable amount;
-- the tax groups;
-- the totals, from taxable amount to grand total;
-- the terms the quotation model holds: currency, tax policy and rates, rounding, discount policy, and the exact quotation policy, rate card and pricing rules versions.
+**Preparing one file:**
+1. Copy the template to a working folder **outside the repository**.
+2. Replace every `null` with the sourced value.
+3. Set `"intent": "PRODUCTION_CANDIDATE"`.
+4. Set `sourceRef.documentTitle` and `sourceRef.sourceDate` (YYYY-MM-DD).
+5. Files 01 and 02 only: fill `provenance.<VARIABLE>.source` and `.evidenceRef` for every value.
+6. Validate offline (no database needed) until it prints `ACCEPTED`:
+   ```sh
+   pnpm -s db:intake validate --file <file>
+   ```
 
-Nothing is recomputed and nothing is added that the model does not hold.
+**What each file needs:**
 
-**Integrity:**
-- **Deterministic.** The same quotation and records always give the same bytes.
-- **Sealed.** It is stored content-addressed, and its SHA-256 is part of the file manifest sealed in the quotation snapshot (migration 0021). The database refuses, at commit, any link that does not match the manifest. Links are insert-only, so the PDF cannot change before or after issue.
+| # | File | Type (`--type`) | Entity (`--entity`) | Values to provide | Author → approver | Stage |
+|---|---|---|---|---|---|---|
+| 01 | `01-construction_standard-LINTEL_CONSTRUCTION_STANDARD.json` | construction_standard | LINTEL_CONSTRUCTION_STANDARD | 12 mm values: BACK_GROOVE_DEPTH, BACK_REAR_OFFSET, TOP_RAIL_WIDTH, SHELF_FRONT_SETBACK, SHELF_SIDE_CLEARANCE, OVERLAY_EDGE_GAP, OVERLAY_TOP_GAP, OVERLAY_BOTTOM_GAP, FRONT_BETWEEN_GAP, INSET_GAP, FRONT_FINISHED_FACES, SHUTTER_BACK_GAP; each with source + evidence | PRODUCTION → DESIGN_HEAD | A |
+| 02 | `02-planning_standard-LINTEL_PLANNING_STANDARD.json` | planning_standard | LINTEL_PLANNING_STANDARD | 6 mm values: MIN_WALL_CLEARANCE, MIN_CABINET_GAP, MAX_GAP_WITHOUT_FILLER, FILLER_THRESHOLD, MAX_RUN_LENGTH, SERVICE_VOID_REAR; each with source + evidence | PRODUCTION → DESIGN_HEAD | A |
+| 03 | `03-material-BOARD_BWP_18.json` | material | BOARD_BWP_18 | density | PROCUREMENT → DESIGN_HEAD | B |
+| 04 | `04-material-BOARD_HDHMR_18.json` | material | BOARD_HDHMR_18 | sheet size, grain, density | PROCUREMENT → DESIGN_HEAD | B |
+| 05 | `05-material-BOARD_BACK_6.json` | material | BOARD_BACK_6 | substrate, sheet size, grain, density | PROCUREMENT → DESIGN_HEAD | B |
+| 06 | `06-edge_band-EDGE_ABS_2MM.json` | edge_band | EDGE_ABS_2MM | width | PROCUREMENT → DESIGN_HEAD | B |
+| 07 | `07-edge_band-EDGE_ABS_0_8MM.json` | edge_band | EDGE_ABS_0_8MM | width | PROCUREMENT → DESIGN_HEAD | B |
+| 08 | `08-finish-LAMINATE_WHITE.json` | finish | LAMINATE_WHITE | confirm (1 mm) + source | PROCUREMENT → DESIGN_HEAD | B |
+| 09 | `09-edge_band_standard-LINTEL_EDGE_BAND_STANDARD.json` | edge_band_standard | LINTEL_EDGE_BAND_STANDARD | Rule set CARCASS_STANDARD: for SIDE_LEFT, SIDE_RIGHT, BOTTOM, TOP_SUPPORT_FRONT, TOP_SUPPORT_BACK, BACK, SHELF and SHUTTER, which edges (FRONT / BACK / TOP / BOTTOM / LEFT / RIGHT) get which band; `{}` = none | PRODUCTION → DESIGN_HEAD | B |
+| 10 | `10-hardware_rule_set-HINGE_STANDARD.json` | hardware_rule_set | HINGE_STANDARD | confirm + source | PROCUREMENT → PRODUCTION | B |
+| 11 | `11-construction_recipe-KITCHEN_BASE_STANDARD_V1.json` | construction_recipe | KITCHEN_BASE_STANDARD_V1 | confirm + source | DESIGN_HEAD → PRODUCTION | A (needed by 12) |
+| 12 | `12-product-KIT_BASE_STANDARD.json` | product | KIT_BASE_STANDARD | min / max of width, height, depth, carcass thickness, back thickness; max shelf count; max shutter count; confirm defaults | DESIGN_HEAD → PRODUCTION | A |
+| 13 | `13-material_catalog-LINTEL_MATERIAL_CATALOG.json` | material_catalog | LINTEL_MATERIAL_CATALOG | confirm members | PROCUREMENT → DESIGN_HEAD | B |
+| 14 | `14-finish_catalog-LINTEL_FINISH_CATALOG.json` | finish_catalog | LINTEL_FINISH_CATALOG | confirm members | PROCUREMENT → DESIGN_HEAD | B |
+| 15 | `15-hardware_catalog-LINTEL_HARDWARE_CATALOG.json` | hardware_catalog | LINTEL_HARDWARE_CATALOG | confirm members | PROCUREMENT → PRODUCTION | B |
+| 16 | `16-product_catalog-LINTEL_PRODUCT_CATALOG.json` | product_catalog | LINTEL_PRODUCT_CATALOG | confirm members | DESIGN_HEAD → PRODUCTION | B |
+| 17 | `17-hettich_dataset-HETTICH_PRODUCTION.json` | hettich_dataset | HETTICH_PRODUCTION | One complete record per article used, from official Hettich sources (hettich.com URLs, licence OFFICIAL_PUBLIC or AUTHORISED): the full-overlay hinge, the inset hinge (if inset fronts are offered) and the mounting plate. Plus the hinge quantity rule (door-height bands → count). Field list: `docs/catalog/production-data/04-hardware-standards.md` | PROCUREMENT → PRODUCTION | B |
+| 18 | `18-pricing_standard-LINTEL_PRICING_STANDARD.json` | pricing_standard | LINTEL_PRICING_STANDARD | Rates in paise: per m² for the 3 boards and LAMINATE_WHITE; per metre for the 2 edge bands; per unit `HETTICH:<article>` for each article in 17. Rules: manufacturing-cost formula, wastage % (board / edge band / finish), overhead %, margin basis, margin %, GST % | COSTING → FINANCE | C |
+| 19 | `19-quotation_policy-LINTEL_PRODUCTION_QUOTATION_POLICY.json` | quotation_policy | LINTEL_PRODUCTION_QUOTATION_POLICY | tax rates (code → %); tax rate for KITCHEN_BASE; tax policy; rounding of tax and grand total (mode + increment in paise); discount policy | COSTING → FINANCE | C |
 
-**Who can download it.** People who can read cost outputs: Costing, Finance, Design head, Admin. They use screen 8, QUOTATION row, "Download PDF", which fetches a 5-minute signed URL. The checksum is re-verified on every read.
+**Stages:**
+- **A** — the values that drive geometry and every validation check.
+- **B** — completes the pinned catalogs and Hettich, and makes the production BOM possible.
+- **C** — needed only for pricing, the quotation and quotation issue.
 
-### The Costing → Sales hand-over (kept for the pilot; no permission change)
+**The first design approval needs A and B.**
 
-**Why.** By the existing role grants:
-- Sales may **issue** a quotation (`quotation.issue`) but may **not read** cost outputs (`output.read.cost`);
-- Costing may read and generate them, but not issue.
-
-The pilot keeps this separation unchanged.
-
-**Steps:**
-1. **Costing, screen 7 Outputs.** Generate the FOR_PRODUCTION Quotation. Click **View** on the QUOTATION row and copy the **hand-over code** under the totals. The code carries four values:
-   - the snapshot id;
-   - the reviewed content hash;
-   - the PricingStandard version;
-   - the QuotationPolicy version.
-2. **Costing sends the code to Sales** by any channel. It is not a secret: it only names the exact quotation.
-3. **Sales, screen 8 Issue.** Enter the issue reason, paste the code into **"Hand-over code"**, check the four values shown, and click **Issue quotation**. The API issues exactly that content: it refuses if the hash or the commercial versions differ, and the issue locks the pricing standard and quotation policy versions.
-4. **Costing (or Finance / Design head), screen 8 Issue.** The QUOTATION row shows ISSUED. Click **Download PDF** and hand the PDF to Sales for the client. There is no client portal; delivery is offline.
-
-## B. What to enter tomorrow
-
-**1. Reference values into the 19 intake templates, in the order of section C (group A first).** Copy `docs/pilot/intake-templates/*.json` to a working folder outside the repository. For each file:
-- replace every `null` listed in `docs/pilot/intake-templates/README.md`;
-- set `"intent": "PRODUCTION_CANDIDATE"`;
-- set `sourceRef.documentTitle` and `sourceRef.sourceDate` (YYYY-MM-DD);
-- for files 01 and 02, fill `provenance.<VARIABLE>.source` and `.evidenceRef` for every value.
-
-**2. People.** Three names and work emails, assigned to roles as in `PILOT-BLOCKERS.md` B2.
-
-**3. Decisions:**
-- B3: approve hosted access (M6-6) and create the staging project;
-- B4: storage key, (a) or (b).
-
-**4. For the first real project (when B1–B3 are cleared), entered in the UI:**
-
-| Screen | Fields |
-|---|---|
-| 2 Project | Client name, client code, phone, email; project name, project code, site address |
-| 3 Room | Width along wall A, depth, height, wall thickness (mm); survey source |
-| 4 Base cabinets | Width of each cabinet, left to right |
-| 7 Outputs | Drawing number (A–Z, 0–9, `-`) and revision |
-| 8 Issue | Issue reason; for Sales, the hand-over code |
-
-## C. Required reference datasets, by stage
-
-**Common to all 19 files.** Every file must end APPROVED (or LOCKED). Each needs:
-- `intent: PRODUCTION_CANDIDATE`;
-- `sourceRef.documentTitle` and `sourceRef.sourceDate`;
-- a value or confirmation for every field named below.
-
-Author and approver must be different people (roles as in `PILOT-BLOCKERS.md` B2). "Dependencies" means the files that must already be APPROVED before this one can be imported as a production candidate.
-
-**The database rule behind the grouping.** A design version is **approved** only when all 8 datasets it pins are APPROVED or LOCKED:
-- construction, planning and edge-band standards;
-- material, finish, hardware and product catalogs;
-- the Hettich dataset.
-
-So the first design approval needs groups A **and** B. Group A comes first because its values drive the cabinet geometry and every validation check the designer sees. Group B completes the pins and the production BOM. Group C is needed only for pricing, the quotation and its issue.
-
-### Group A — required before the first design approval (geometry and validation)
-
-| Dataset | Template | Fields Lintel must provide | Author → approver | Dependencies | If missing, the pilot is blocked at |
-|---|---|---|---|---|---|
-| Construction | `01-construction_standard-LINTEL_CONSTRUCTION_STANDARD.json` | 12 values (mm) with source and evidence for each: BACK_GROOVE_DEPTH, BACK_REAR_OFFSET, TOP_RAIL_WIDTH, SHELF_FRONT_SETBACK, SHELF_SIDE_CLEARANCE, OVERLAY_EDGE_GAP, OVERLAY_TOP_GAP, OVERLAY_BOTTOM_GAP, FRONT_BETWEEN_GAP, INSET_GAP, FRONT_FINISHED_FACES, SHUTTER_BACK_GAP | PRODUCTION → DESIGN_HEAD | none | Screen 4 onward. No design version can be created (no approved pin); panel sizes cannot be computed |
-| Planning | `02-planning_standard-LINTEL_PLANNING_STANDARD.json` | 6 values (mm) with source and evidence for each: MIN_WALL_CLEARANCE, MIN_CABINET_GAP, MAX_GAP_WITHOUT_FILLER, FILLER_THRESHOLD, MAX_RUN_LENGTH, SERVICE_VOID_REAR | PRODUCTION → DESIGN_HEAD | none | Screen 4 onward. No design version; run, gap and clearance checks cannot run |
-| Product limits | `12-product-KIT_BASE_STANDARD.json` | Min and max of width, height, depth, carcass thickness and back thickness; max shelf count; max shutter count (12 values). Confirm defaults W 600, H 720, D 560, T 18, TB 6, 1 shelf, 2 shutters, OVERLAY | DESIGN_HEAD → PRODUCTION | **Recipe `11-construction_recipe-KITCHEN_BASE_STANDARD_V1.json`** (group B) must be approved first | Screen 4. KIT_BASE_STANDARD cannot be offered; cabinet sizes cannot be validated |
-
-### Group B — required before production output (and, by the rule above, before the first design approval)
-
-| Dataset | Template | Fields Lintel must provide | Author → approver | Dependencies | If missing, the pilot is blocked at |
-|---|---|---|---|---|---|
-| Materials | `03-material-BOARD_BWP_18.json`, `04-material-BOARD_HDHMR_18.json`, `05-material-BOARD_BACK_6.json`; catalog `13-material_catalog-LINTEL_MATERIAL_CATALOG.json` | BWP 18: density. HDHMR 18: sheet size, grain, density. Back 6 mm: substrate, sheet size, grain, density. The catalog lists the 3 boards and 2 edge bands (confirm) | PROCUREMENT → DESIGN_HEAD | Catalog 13 needs 03–07 approved | Design approval (pin missing); BOM material lines; component material BLOCKERs |
-| Finishes | `08-finish-LAMINATE_WHITE.json`; catalog `14-finish_catalog-LINTEL_FINISH_CATALOG.json` | Confirm LAMINATE_WHITE (1 mm) and its source; catalog lists it (confirm) | PROCUREMENT → DESIGN_HEAD | Catalog 14 needs 08 | Design approval (pin missing); finish on shutters |
-| Edge band | `06-edge_band-EDGE_ABS_2MM.json`, `07-edge_band-EDGE_ABS_0_8MM.json`; standard `09-edge_band_standard-LINTEL_EDGE_BAND_STANDARD.json` | Width of each band. For the standard, rule set CARCASS_STANDARD: which edges (FRONT / BACK / TOP / BOTTOM / LEFT / RIGHT) of SIDE_LEFT, SIDE_RIGHT, BOTTOM, TOP_SUPPORT_FRONT, TOP_SUPPORT_BACK, BACK, SHELF and SHUTTER get which band; `{}` = none | PROCUREMENT → DESIGN_HEAD (bands); PRODUCTION → DESIGN_HEAD (standard) | Standard 09 needs 06–07 | Design approval (pin missing); EDGE_RULES_UNDEFINED BLOCKERs; edge-band lengths in the BOM |
-| Hardware | `10-hardware_rule_set-HINGE_STANDARD.json`; catalog `15-hardware_catalog-LINTEL_HARDWARE_CATALOG.json` | Confirm the hinge rule (shutters → hinged door; OVERLAY → full overlay, INSET → inset) and the catalog | PROCUREMENT → PRODUCTION | Catalog 15 needs 10 | Design approval (pin missing); hinge requirements of shutters cannot be derived |
-| Product / Recipes | `11-construction_recipe-KITCHEN_BASE_STANDARD_V1.json`; catalog `16-product_catalog-LINTEL_PRODUCT_CATALOG.json` | Confirm the recipe (components, formulas, 6 rules) as it is; catalog lists KIT_BASE_STANDARD v1 | DESIGN_HEAD → PRODUCTION | 12 needs 11; catalog 16 needs 12 | Product limits (group A) cannot be approved; design approval (pin missing) |
-| Hettich | `17-hettich_dataset-HETTICH_PRODUCTION.json` | One complete record per article used, from official Hettich sources: full-overlay hinge, inset hinge (if inset is offered), mounting plate. Each record needs:<br>• article number, family, description, application and mounting;<br>• door-thickness range and opening angle;<br>• compatible articles;<br>• drilling pattern and holes, with source;<br>• installation guide, adjustment ranges and dimensions;<br>• accessories, CAD reference (hettich.com), source URL and date;<br>• licence, verifiedBy, verifiedAt, preference rank.<br>Plus the hinge quantity rule (door-height bands → count) with source | PROCUREMENT → PRODUCTION | none | Design approval (pin missing); every hinge UNRESOLVED; FOR_PRODUCTION BOM refused as incomplete |
-
-### Group C — required before commercial issue
-
-| Dataset | Template | Fields Lintel must provide | Author → approver | Dependencies | If missing, the pilot is blocked at |
-|---|---|---|---|---|---|
-| Pricing Standard | `18-pricing_standard-LINTEL_PRICING_STANDARD.json` | Rates in paise: per m² for BOARD_BWP_18, BOARD_HDHMR_18, BOARD_BACK_6 and LAMINATE_WHITE; per metre for EDGE_ABS_2MM and EDGE_ABS_0_8MM; per unit for every Hettich article in 17, keyed `HETTICH:<article>`. Rules: manufacturing-cost formula; wastage % (board, edge band, finish); overhead %; margin basis (MARKUP_ON_COST or MARGIN_ON_PRICE); margin %; GST % | COSTING → FINANCE | Article numbers from 17 (for the hardware rates) | Screen 7 Pricing and Quotation: UNAVAILABLE / no approved PricingStandard; nothing to issue |
-| Quotation Policy | `19-quotation_policy-LINTEL_PRODUCTION_QUOTATION_POLICY.json` | Tax rates (code → %); the tax rate for category KITCHEN_BASE; tax policy (PER_LINE or PER_RATE_GROUP); rounding of tax and of the grand total (mode + increment in paise); discount policy (NONE unless decided) | COSTING → FINANCE | none | Screen 7 Quotation and screen 8 quotation issue; no quotation PDF |
-
-## D. Datasets missing or unapproved (today: all of them)
-
-- **All 19 files** are missing as approved data in every hosted environment; no hosted environment exists yet (B3).
-- **62 values are NULL** (listed per file in `docs/pilot/intake-templates/README.md`):
-  - 12 construction values;
-  - 6 planning values;
-  - 8 board properties;
-  - 2 edge-band widths;
-  - 12 product limits;
-  - 14 pricing values;
-  - 6 quotation-policy values;
-  - 1 empty edge-band rule set;
-  - 1 empty Hettich dataset.
-- **Beyond those 62, these need content:**
-  - every Hettich record and the quantity rule (17);
-  - the edge rules for 8 component types (09);
-  - a per-unit rate `HETTICH:<article>` per Hettich article (18).
-- **Files with nothing NULL still need** a named source document and the approver's approval: 08, 10, 11, 13–16.
-
-## E. Exact commands and screens
-
-**LOCAL (your machine: Node ≥ 22.12, pnpm 10, PostgreSQL 17 on localhost).**
-
-Set up once:
+**Commands for one file.** Run these from the repository root, against the target environment (§4 / §6), after the organization and people exist (§3). The author must be an active member holding the author role:
 ```sh
-git pull && pnpm install
-export PILOT_POSTGRES_URL=postgresql://postgres@127.0.0.1:5432/postgres   # your local admin connection
-```
-
-The automated rehearsal:
-```sh
-pnpm pilot:rehearse
-```
-It prints `rehearsal PASSED …`, and writes `.pilot/rehearsal-report.json` and `.pilot/rehearsal-pdfs/*.pdf` (2 drawings + the quotation).
-
-The demo, which runs until Ctrl-C:
-```sh
-pnpm pilot:demo --reset
-```
-Then open http://127.0.0.1:5173. On screen 1, paste `.pilot/tokens/SALES.txt`, then `SITE_ENGINEER`, `DESIGNER`, `DESIGN_HEAD` and `COSTING`.
-
-In a second terminal while the demo runs:
-```sh
-pnpm pilot:check       # must print READY (LOCAL)
-pnpm pilot:ui-e2e      # optional: browser walkthrough of all 8 screens (needs Chromium)
-```
-
-**Reference-data intake (staging or production, after B3).**
-
-Settings come from the secret store. Never paste secrets into the repository or chat.
-```sh
-export MIGRATION_DATABASE_URL='<direct connection>'
+export MIGRATION_DATABASE_URL='<direct connection, from the secret store>'
 export AUTH_ISSUER=https://<ref>.supabase.co/auth/v1
 export AUTH_JWKS_URL=https://<ref>.supabase.co/auth/v1/.well-known/jwks.json
+ENV=production; REF=<project ref>; ORG=LINTEL
+
+# 1. the author imports and submits
+pnpm -s db:intake import --file <file> --env $ENV --confirm $REF --org $ORG --as <author email> --operator "<your name>"
+pnpm -s db:intake submit --env $ENV --confirm $REF --org $ORG --type <type> --entity <ENTITY> --version 1 --as <author email> --operator "<your name>" --reason "<source document, why>"
+
+# 2. read the content hash the approver will approve
+pnpm -s db:intake status --org $ORG --type <type> --entity <ENTITY> --version 1
+
+# 3. the approver (a different person) signs in and saves their own access token (valid about 1 hour)
+curl -s -X POST "https://$REF.supabase.co/auth/v1/token?grant_type=password" \
+  -H "apikey: <publishable key>" -H "content-type: application/json" \
+  -d '{"email":"<approver email>","password":"<their password>"}' \
+  | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(JSON.parse(s).access_token))' > approver.token
+
+# 4. the approver approves exactly the reviewed content
+pnpm -s db:intake approve --env $ENV --confirm $REF --org $ORG --type <type> --entity <ENTITY> --version 1 \
+  --access-token-file approver.token --operator "<your name>" --reason "<why>" --expected-content-hash <sha256:… from step 2>
+rm approver.token
 ```
 
-For each file, in C-order (A, then B, then C; inside a group, dependencies first):
+If an approval is refused, `db:intake status` lists the database's exact reason under `PROBLEM`, for example a dependency that is not yet approved.
+
+---
+
+## 2. Approval sequence of the 8 engineering datasets
+
+A DesignVersion pins exactly these 8. **Each must be APPROVED before the design can be approved.** Approve the members first; a catalog can be approved only after every member it lists.
+
+| Order | Engineering dataset (pinned) | Approve first (members / dependencies) | Stage |
+|---|---|---|---|
+| 1 | Construction standard (01) | none | A |
+| 2 | Planning standard (02) | none | A |
+| 3 | Product catalog (16) | recipe 11 → product 12 | A (11, 12) + B (16) |
+| 4 | Material catalog (13) | boards 03, 04, 05; edge bands 06, 07 | B |
+| 5 | Edge-band standard (09) | edge bands 06, 07 | B |
+| 6 | Finish catalog (14) | finish 08 | B |
+| 7 | Hardware catalog (15) | hinge rule set 10 | B |
+| 8 | Hettich dataset (17) | none | B |
+
+**The full import order:**
+
+01 → 02 → 11 → 12 → 03 → 04 → 05 → 06 → 07 → 08 → 09 → 10 → 13 → 14 → 15 → 16 → 17 → 18 → 19.
+
+**Check after each stage:** `pnpm pilot:check` (§6). Each `data.<type>` line turns PASS.
+
+---
+
+## 3. Organization and user setup
+
+**1. People (Amit decides; B2).** Three different people, so that no author ever approves their own record:
+
+| Person | Roles |
+|---|---|
+| Person 1 | ADMIN, DESIGN_HEAD, FINANCE |
+| Person 2 | PRODUCTION, COSTING, DESIGNER |
+| Person 3 | PROCUREMENT, SALES, SITE_ENGINEER |
+
+These roles satisfy every author → approver pair in §1:
+
+| Records | Author → approver |
+|---|---|
+| Standards | P2 → P1 |
+| Materials, finishes, material and finish catalogs | P3 → P1 |
+| Hardware, Hettich | P3 → P2 |
+| Recipe, product, product catalog | P1 → P2 |
+| Pricing, quotation policy | P2 → P1 |
+| Design | P2 submits → P1 approves |
+
+**2. Supabase Auth accounts.** In the Supabase dashboard of the environment, open **Authentication → Users** and create or invite each person with their work email. Each person confirms their email and sets a password.
+
+**3. The organization and first ADMIN.** Run once per environment:
 ```sh
-pnpm -s db:intake validate --file <file>
-pnpm -s db:intake import  --file <file> --env <staging|production> --confirm <ref> --org <CODE> --as <author email> --operator <your name>
-pnpm -s db:intake submit  --env <env> --confirm <ref> --org <CODE> --type <type> --entity <ENTITY> --version 1 --as <author email> --operator <your name> --reason "<why>"
-pnpm -s db:intake status  --org <CODE> --type <type> --entity <ENTITY> --version 1      # note the content hash
+pnpm -s db:org init --env production --confirm $REF --code LINTEL --name "Lintel" \
+  --admin-email <Person 1 email> --admin-name "<Person 1 name>" --operator "<your name>"
 ```
 
-The approver signs in to Supabase Auth, saves their access token to a file, and runs:
+**4. Accepting invitations:**
+1. Person 1 signs in to the pilot UI. Screen 2 then works for them; the ADMIN invitation is accepted through the API, `POST /api/v1/me/invitations/{id}/accept`.
+2. Person 1 invites Persons 2 and 3 with their roles: `POST /api/v1/org/invitations` with `{email, displayName, roles[]}`.
+3. Each person signs in and accepts.
+
+**5. Check:** `pnpm pilot:check --org LINTEL` shows `data.organization PASS` (1 active ADMIN).
+
+---
+
+## 4. Hosted Supabase staging setup (after B3: gates M6-5 and M6-6)
+
+**1. Create the project.** A **separate** Supabase project for Design OS staging, in the Mumbai region. It is not a branch of the Lintel Ops project.
+
+**2. Secret store** (never in the repository, image, logs or chat):
+
+| Variable | Value |
+|---|---|
+| `MIGRATION_DATABASE_URL` | Direct connection `postgresql://postgres:…@db.<ref>.supabase.co:5432/postgres`. Deploy job only; **never a pooler** |
+| `DATABASE_URL` | API runtime: login role `design_os_api_login` (NOINHERIT, member of `design_os_api`, no DDL), pooler allowed |
+| `AUTH_ISSUER` | `https://<ref>.supabase.co/auth/v1` |
+| `AUTH_JWKS_URL` | `https://<ref>.supabase.co/auth/v1/.well-known/jwks.json` |
+| `CURSOR_SECRET` | 32+ random characters, per environment |
+| `BUILD_REVISION` | the deployed commit SHA (the API refuses to start without it) |
+| `ENGINE_MANIFEST_PATH` | the file written at build time by `pnpm engines:manifest <path>` |
+| `CORS_ORIGINS` | the UI origin |
+| `TRUST_PROXY_HOPS` | the number of proxies in front of the API |
+| `RATE_LIMIT_*` | every limit, set explicitly |
+| `SENTRY_DSN`, `SENTRY_ENVIRONMENT=staging` | the staging Sentry project |
+| Storage | per §5 |
+
+**3. Migrations and gate item 9.** Engineering runs:
 ```sh
-pnpm -s db:intake approve --env <env> --confirm <ref> --org <CODE> --type <type> --entity <ENTITY> --version 1 --access-token-file <file> --operator <your name> --reason "<why>" --expected-content-hash <sha256:… from status>
+pg_dump --schema=design_os "$MIGRATION_DATABASE_URL" > before-migrate.sql      # kept 30 days
+pnpm -s db:migrate up --env staging --confirm <staging ref>
+pnpm -s db:migrate status --check
+```
+Then gate item 9 (plan §1.2): roles, `auth.users` grants, SECURITY DEFINER behaviour, RLS. Create `design_os_api_login` and grant it `design_os_api`.
+
+**4. Deploy.**
+- **API:** `pnpm --filter @lintel/api start`, with the variables above.
+- **UI:** built with the **publishable** key only:
+  ```sh
+  VITE_SUPABASE_URL=https://<ref>.supabase.co VITE_SUPABASE_PUBLISHABLE_KEY=<sb_publishable_…> pnpm web:build
+  ```
+- **Hosting:** serve `apps/web/dist` so that `/api/*` on the UI origin is forwarded to the API. The UI calls `/api/v1` on its own origin.
+
+**5. Staging rehearsal.**
+1. Create a staging-only test organization.
+2. Walk the §7 workflow with staging test users.
+3. Run `PILOT_ENV=STAGING pnpm pilot:check --confirm <staging ref> --org <TEST ORG>`.
+
+The LOCAL rehearsal data (`pilot:demo` / `pilot:rehearse`) is **never** loaded into staging; the tools refuse any non-local database.
+
+**Production (M6-11).** Same steps on the production project, plus:
+- PITR enabled, and a restore drill passed before the first issue;
+- `pg_dump` before every migration.
+
+---
+
+## 5. Storage credential setup (after B4)
+
+Until B4 is decided, the API stores files on its own persistent disk:
+- `FILE_STORAGE=local`;
+- `FILE_STORAGE_ROOT=<persistent path>`;
+- `FILE_URL_SECRET` (32+ characters);
+- `FILE_URL_BASE=<public API origin>`.
+
+This is acceptable for staging. For production, the disk must be persistent and backed up.
+
+**Option (a): Supabase Storage with one secret key, used for Storage only.**
+1. On the project, create the **private** bucket `design-os-outputs`:
+   - not public;
+   - file-size limit 20 MB;
+   - allowed MIME types `application/pdf` and `image/svg+xml`.
+2. Put these in the API's secret store:
+   - `FILE_STORAGE=supabase`;
+   - `SUPABASE_URL=https://<ref>.supabase.co`;
+   - `SUPABASE_STORAGE_BUCKET=design-os-outputs`;
+   - `SUPABASE_STORAGE_KEY=<sb_secret_…>`.
+
+   This key is never given to the UI or any browser. Rotate it after the pilot.
+3. Verify:
+   - generate a drawing and a quotation;
+   - confirm the objects appear in the bucket;
+   - download both PDFs from screen 8;
+   - re-generate and confirm the request is idempotent (reused).
+4. Configure the nightly bucket copy. Issued files are not covered by database PITR.
+
+**Option (b): S3 access keys with a SigV4 signer.** This needs about one engineering day before hosted storage can be used. Until then, run with `FILE_STORAGE=local`.
+
+---
+
+## 6. Production readiness check
+
+Run all four; each must pass before the first real project:
+```sh
+# 1. migrations exactly up to date (exit 0)
+MIGRATION_DATABASE_URL='<prod direct>' pnpm -s db:migrate status --check
+
+# 2. API up and consistent (HTTP 200, "ready")
+curl -s https://<api origin>/api/v1/ready
+
+# 3. the full pilot gate (prints READY (PRODUCTION); exit 0)
+PILOT_ENV=PRODUCTION MIGRATION_DATABASE_URL='<prod direct>' PILOT_API_URL=https://<api origin> PILOT_WEB_URL=https://<ui origin> \
+PILOT_ACCESS_TOKEN="$(cat admin.token)" pnpm pilot:check --confirm <prod ref> --org LINTEL
 ```
 
-## F. Blockers that need your approval or business data
+`pilot:check` requires, as **BLOCKING**:
+- the database connection and migrations up to date;
+- the organization with an ADMIN;
+- every required dataset APPROVED or LOCKED: the 8 engineering pins plus the pricing standard and quotation policy;
+- no rehearsal data in the environment;
+- `/ready` and `/readiness` READY;
+- the UI reachable, and UI → API connectivity.
 
-| # | You must | Blocks |
-|---|---|---|
-| B1 | Provide and approve the 19 reference-data files (section C): 62 NULL values, plus the Hettich records, edge rules and hardware rates, each with its source | Every real output |
-| B2 | Name 3 people and assign their roles as in B2 | Every approval |
-| B3 | Confirm ops items 1–8 (M6-5), approve hosted access (M6-6), create the separate staging project, provide its settings through the secret store | Real sign-in and any hosted run |
-| B4 | Choose the Storage credential: (a) secret key for Storage only, or (b) S3 keys + SigV4 | Hosted PDF storage |
+`PILOT_ACCESS_TOKEN` is an ADMIN, DESIGN_HEAD or FINANCE access token, obtained like `approver.token` in §1.
 
-The quotation document (former B5) is resolved: a real, sealed quotation PDF now exists.
+**Check 4: a dry run with a test project in the LINTEL organization.** Steps 1–5 of §7, up to "0 BLOCKER" on screen 6. This is the real proof that the approved Lintel data resolves the reference cabinet with 0 BLOCKERs. Do not approve or issue it; delete nothing, and name it "Readiness check".
 
-## G. The first real pilot — exact sequence
+---
 
-**Stage 1. Decisions (Amit)**
-1. Send the 3 people and their roles (B2).
-2. Choose storage (a) or (b) (B4).
-3. Get the ops owner's dated confirmation of gate items 1–8 (M6-5).
-4. Approve hosted access (M6-6).
+## 7. First-project workflow (pilot UI)
 
-**Stage 2. Staging (engineering, after M6-6)**
-1. Create the separate Design OS staging project (Mumbai). Put its settings in the staging secret store.
-2. `pnpm -s db:migrate up --env staging --confirm <staging ref>`.
-3. Run gate item 9 (M6-7) and deploy the API and UI to staging (M6-8).
-4. Run the LOCAL rehearsal flow on staging with a staging-only test organization.
-5. `PILOT_ENV=STAGING pnpm pilot:check --confirm <staging ref> --org <TEST ORG>`.
+Sign in on the pilot UI with Supabase Auth. People switch with the selector at the top right.
 
-**Stage 3. Production (engineering + Amit, M6-11)**
-1. `pnpm -s db:migrate up --env production --confirm <prod ref>`.
-2. Enable PITR and pass the restore drill.
-3. Deploy the API and UI.
+| Step | Screen | Who | Action |
+|---|---|---|---|
+| 1 | 2 Project | P3 (SALES) | Create the client (name, code, phone, email) and the project (name, code, site address). Add P2 as DESIGNER and COSTING, and P1 as DESIGN_HEAD, to the project team |
+| 2 | 3 Room | P3 (SITE_ENGINEER) | Enter the surveyed kitchen: width along wall A, depth, height, wall thickness (mm), survey source. Open it |
+| 3 | 4 Base cabinets | P2 (DESIGNER) | Create the design, then "Create version (pinned to approved data)". Add KIT_BASE_STANDARD cabinets left to right with their widths; "Arrange run" |
+| 4 | 5 Preview | P2 | Check the plan, the wall A elevation and the 3D view |
+| 5 | 6 Validation | P2 | "Run APPROVAL validation": it must show 0 BLOCKER. Then "Submit" |
+| 6 | 6 Validation | P1 (DESIGN_HEAD) | "Approve" (approves exactly the reviewed content) |
+| 7 | 6 Validation | P3 (SALES) | "Lock for issue" |
+| 8 | 7 Outputs | P2 (DESIGNER) | Purpose FOR_PRODUCTION; drawing number (e.g. the project code) and revision A. Generate BOM, BOQ, "Drawing: wall A elevation", "Drawing: panel schedule" |
+| 9 | 7 Outputs | P2 (COSTING) | Purpose FOR_PRODUCTION; generate Pricing and Quotation (the quotation PDF is generated and sealed with it). "View" the quotation and copy the **hand-over code** |
+| 10 | 8 Issue | P3 (SALES) | Enter the reason, paste the hand-over code, check the four values, then "Issue quotation" |
+| 11 | 8 Issue | P1 (DESIGN_HEAD) | Enter the reason and issue both drawings |
+| 12 | 8 Issue | P1 (or P2) | "Download PDF" for each drawing and for the quotation |
+| 13 | offline | P3 | Send the PDFs to the client (no client portal) |
 
-**Stage 4. Organization and people (production)**
-1. `pnpm -s db:org init --env production --confirm <prod ref> --code LINTEL --name "Lintel" --admin-email <Person 1 email> --admin-name "<Person 1>" --operator <you>`.
-2. Person 1 signs in on the pilot UI (Supabase Auth). They accept the ADMIN invitation, then invite Persons 2 and 3 with their roles (B2).
-3. Persons 2 and 3 sign in and accept.
+**Why the hand-over code.** By the existing grants, Sales may issue a quotation but may not read cost outputs. Costing reads and generates them but may not issue. The code carries four values:
+- the quotation snapshot id;
+- its reviewed content hash;
+- the PricingStandard version;
+- the QuotationPolicy version.
 
-**Stage 5. Reference data, in section C order (production, commands in E)**
-1. **Group A:** 01, 02, then recipe 11, then 12.
-2. **Group B:** 03–08, 09, 10, 13, 14, 15, 16, 17.
-3. **Group C:** 18, 19.
+Sales issues exactly that content; the API refuses any mismatch. The code is not a secret.
 
-After each group, run `PILOT_ENV=PRODUCTION pnpm pilot:check --confirm <prod ref> --org LINTEL`. Its `data.*` lines turn PASS. After group C it must print `READY (PRODUCTION)`.
+**The quotation PDF contains:**
+- client, project, site, room and design version;
+- quotation number `Q-<project code>-R<revision>`;
+- every line: quantity, rate excluding tax, tax %, taxable amount;
+- tax groups and totals;
+- the terms the quotation policy holds.
 
-**Stage 6. The first project (pilot UI, production)**
-1. **Screen 2.** Person 3 (SALES) creates the client and project, and adds Person 2 (DESIGNER, COSTING) and Person 1 (DESIGN_HEAD) to the project team.
-2. **Screen 3.** Person 3 (SITE_ENGINEER) enters the surveyed kitchen: width along wall A, depth, height, wall thickness, survey source.
-3. **Screen 4.** Person 2 (DESIGNER) creates the design and version, adds the KIT_BASE_STANDARD cabinets left to right, and clicks "Arrange run".
-4. **Screen 5.** Check the plan, the elevation and the 3D view.
-5. **Screen 6.**
-   - Person 2 runs the APPROVAL validation. It must show 0 BLOCKER. Person 2 then submits.
-   - Person 1 (DESIGN_HEAD) approves.
-   - Person 3 (SALES) locks for issue.
-6. **Screen 7.** Choose purpose FOR_PRODUCTION.
-   - Person 2 (DESIGNER) generates the BOM, the BOQ and both drawings: the wall A elevation and the panel schedule, with a drawing number and revision A.
-   - Person 2 (COSTING) generates Pricing and the Quotation. They click View on the quotation and copy the hand-over code.
-7. **Screen 8.**
-   - Person 3 (SALES) pastes the hand-over code, enters the reason and clicks "Issue quotation".
-   - Person 1 (DESIGN_HEAD) issues both drawings.
-   - Person 1 (or Person 2) downloads the drawing PDFs and the quotation PDF.
+**Integrity:**
+- **Deterministic:** the same inputs give the same bytes.
+- **Sealed:** it is sealed into the quotation snapshot's file manifest with the same database check as drawing PDFs, and is immutable before and after issue.
+- **Downloaded** through 5-minute signed URLs, with the checksum verified on every read.
 
-**Stage 7. Delivery (offline).** Send the downloaded PDFs to the client. There is no client portal.
+**If something is refused.** The UI shows the API's problem code and message. The common ones:
 
-## First three actions tomorrow
+| Code | Meaning |
+|---|---|
+| `VALIDATION_BLOCKERS` | The design has BLOCKERs; screen 6 lists them |
+| `DEPENDENCY_NOT_APPROVED` | A pinned dataset is not approved (§2) |
+| `SEPARATION_OF_DUTIES` | The same person tried to author and approve |
+| `ISSUE_PRECONDITIONS_FAILED` | The version is not LOCKED, or the output is not FOR_PRODUCTION |
 
-1. **About 30 minutes.** Run `pnpm pilot:rehearse`, then `pnpm pilot:demo --reset`. Walk screens 1 → 8 with the rehearsal tokens, including the hand-over and the quotation PDF download.
-2. **Stage 1 decisions:**
-   - send the 3 names and emails;
-   - choose storage (a) or (b);
-   - request the ops confirmation of items 1–8;
-   - approve M6-6.
-3. **With the production team,** fill group A: templates 01 (construction), 02 (planning), 11 (recipe, confirm) and 12 (product limits), with sourced values. Run `pnpm -s db:intake validate --file <file>` until each prints `ACCEPTED`.
+---
+
+## 8. Practise locally first (rehearsal data only)
+
+On any machine with Node ≥ 22.12, pnpm 10 and PostgreSQL 17:
+```sh
+pnpm install
+export PILOT_POSTGRES_URL=postgresql://postgres@127.0.0.1:5432/postgres
+pnpm pilot:rehearse         # automated end-to-end: prints "rehearsal PASSED"; PDFs in .pilot/rehearsal-pdfs/
+pnpm pilot:demo --reset     # API + UI at http://127.0.0.1:5173; paste tokens from .pilot/tokens/<ROLE>.txt
+pnpm pilot:check            # in a second terminal: READY (LOCAL)
+```
+
+The rehearsal data is synthetic (`LOCAL REHEARSAL ONLY`), exists only on this machine, and can never be loaded into staging or production.
+
+---
+
+## First three actions
+
+1. **Amit — decisions:**
+   - name Persons 1–3 (§3, B2);
+   - obtain the ops confirmation of items 1–8 and approve M6-6 (§4, B3);
+   - choose storage (a) or (b) (§5, B4).
+2. **Production team — stage A data:**
+   - fill templates 01, 02, 11 and 12 with sourced values;
+   - run `pnpm -s db:intake validate --file <file>` until each prints `ACCEPTED`.
+3. **Engineering — after M6-6:**
+   - create the staging project;
+   - run §4 steps 2–5;
+   - `pilot:check` on staging.

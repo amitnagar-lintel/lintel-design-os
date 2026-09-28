@@ -120,6 +120,19 @@ describe("planning standard checks", () => {
     expect(roomCodes(fixtureRoom([cabinet("OBJ-KIT-001", 600, { x: 10 })], { planning: withPlanning({ MIN_WALL_CLEARANCE: 20 }) }))).toContain("WALL_CLEARANCE_BELOW_MINIMUM");
     expect(roomCodes(fixtureRoom([cabinet("OBJ-KIT-001", 600, { z: 10 })], { planning: withPlanning({ SERVICE_VOID_REAR: 25 }) }))).toContain("SERVICE_VOID_BELOW_MINIMUM");
   });
+  it("Slice 6E: warns CABINET_GAP_NOT_TOUCHING for a small near-miss gap, but never alongside a BLOCKER-level gap code for the same pair", () => {
+    expect(roomCodes(fixtureRoom(gapLayout(0)))).not.toContain("CABINET_GAP_NOT_TOUCHING"); // touching: no warning
+    expect(roomCodes(fixtureRoom(gapLayout(2)))).toEqual(expect.arrayContaining(["GAP_BELOW_MINIMUM"])); // below minimum: BLOCKER only, no WARNING piled on top
+    expect(roomCodes(fixtureRoom(gapLayout(2)))).not.toContain("CABINET_GAP_NOT_TOUCHING");
+    expect(roomCodes(fixtureRoom(gapLayout(5)))).toContain("CABINET_GAP_NOT_TOUCHING"); // within tolerance: no BLOCKER, but still a near-miss
+    const m = fixtureRoom(gapLayout(5)).validation.messages.find((x) => x.code === "CABINET_GAP_NOT_TOUCHING");
+    expect(m).toMatchObject({ severity: "WARNING", sourceObjectId: "obj_001" });
+    expect(m?.message).toMatch(/OBJ-KIT-001 ↔ OBJ-KIT-002.*5 mm/);
+  });
+  it("suppresses CABINET_GAP_NOT_TOUCHING for a pair with an audited INTENTIONAL_GAP override", () => {
+    const ov: RelationshipOverride = { overrideId: "OV-4", version: 1, type: "INTENTIONAL_GAP", objectIds: ["obj_001", "obj_002"], reason: "Dishwasher opening", author: "test designer", createdAt: "2026-09-26" };
+    expect(roomCodes(fixtureRoom(gapLayout(5), { overrides: [ov] }))).not.toContain("CABINET_GAP_NOT_TOUCHING");
+  });
   it("reports only the planning values the layout needs when they are NULL", () => {
     const needed = (r: ResolvedRoom) => r.validation.messages.filter((m) => m.code === "PLANNING_VALUE_UNDEFINED").map((m) => m.path);
     expect(needed(productionRoom())).toEqual(["planning.variables.MAX_RUN_LENGTH", "planning.variables.MIN_WALL_CLEARANCE", "planning.variables.SERVICE_VOID_REAR"]);

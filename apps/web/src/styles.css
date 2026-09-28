@@ -36,7 +36,13 @@ pre { max-height: 420px; overflow: auto; background: #f4f6f9; padding: 8px; font
 code { font-size: 12px; }
 svg { width: 100%; height: auto; background: #fbfcfe; border: 1px solid var(--line); border-radius: 6px; }
 svg .room { fill: #fff; stroke: #222; stroke-width: 3; }
-svg .cab { fill: #dce8fb; stroke: var(--accent); stroke-width: 1.5; } svg .cab.bad { fill: #fbdcdc; stroke: var(--bad); }
+/* A real floor plan's floor is a warm neutral (architectural drawing paper), not stark white, and the room
+   boundary itself is now drawn by the wall bands below — the floor rect needs no bold stroke of its own. */
+svg .plan-floor { fill: #faf8f4; stroke: #ddd8cc; stroke-width: 1; }
+svg .wall { fill: #33363d; }
+svg .grid { stroke: #e8e4da; stroke-width: 1; }
+svg .dimline line { stroke: #666; stroke-width: 1; } svg .dimline text { fill: #555; font-size: 10px; }
+svg .cab { fill: #dbe7f9; stroke: var(--accent); stroke-width: 1.5; rx: 2px; } svg .cab.bad { fill: #fbdcdc; stroke: var(--bad); }
 svg .panel, svg .panel polygon { fill: #e8dcc8; stroke: #6d5a3c; stroke-width: .6; } svg .shutter, svg .shutter polygon { fill: #f7f7f2; stroke: #444; stroke-width: .6; }
 svg .clickable { cursor: pointer; }
 svg .selected, svg .selected polygon { fill: #f59e0b; stroke: #92400e; stroke-width: 1.2; }

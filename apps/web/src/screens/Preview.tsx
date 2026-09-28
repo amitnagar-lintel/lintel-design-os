@@ -58,8 +58,12 @@ export function ValidationBadges({ m }: { readonly m: ModelPreview }) {
   return <span>{c.BLOCKER > 0 ? <Badge tone="bad">{c.BLOCKER} BLOCKER</Badge> : <Badge tone="ok">0 BLOCKER</Badge>} <Badge tone={c.ERROR > 0 ? "bad" : "ok"}>{c.ERROR} ERROR</Badge> <Badge tone={c.WARNING > 0 ? "warn" : "ok"}>{c.WARNING} WARNING</Badge></span>;
 }
 
-const W = 520;
-const H = 380;
+const W = 640;
+const H = 460;
+/** Room-boundary padding (px): the fixed inner canvas margin the room itself is fitted into (`fit`'s own `pad`)
+ * has to leave enough room outside the interior wall face for the wall band itself, the dimension line and its
+ * label — see `Plan`'s own `PAD`. */
+const PAD = 56;
 
 interface DragState {
   readonly lineageId: string;
@@ -71,6 +75,32 @@ interface DragState {
   readonly x: number;
   readonly z: number;
   readonly rotationY: QuarterTurn;
+}
+
+/** A short architectural dimension line — a line between two points with a perpendicular tick at each end (the
+ * convention real floor-plan drawings use instead of arrowheads) and a centred label — purely a drawing
+ * convention: `mm` is never computed here, only the room/wall length the caller already has. */
+function DimensionLine({ axis, atPx, fromPx, toPx, mmValue }: { readonly axis: "x" | "z"; readonly atPx: number; readonly fromPx: number; readonly toPx: number; readonly mmValue: number }) {
+  const TICK = 5;
+  const mid = (fromPx + toPx) / 2;
+  if (axis === "x") {
+    return (
+      <g className="dimline">
+        <line x1={fromPx} y1={atPx} x2={toPx} y2={atPx} />
+        <line x1={fromPx} y1={atPx - TICK} x2={fromPx} y2={atPx + TICK} />
+        <line x1={toPx} y1={atPx - TICK} x2={toPx} y2={atPx + TICK} />
+        <text x={mid} y={atPx - 5} textAnchor="middle">{mm(mmValue)}</text>
+      </g>
+    );
+  }
+  return (
+    <g className="dimline">
+      <line x1={atPx} y1={fromPx} x2={atPx} y2={toPx} />
+      <line x1={atPx - TICK} y1={fromPx} x2={atPx + TICK} y2={fromPx} />
+      <line x1={atPx - TICK} y1={toPx} x2={atPx + TICK} y2={toPx} />
+      <text x={atPx} y={mid} textAnchor="middle" transform={`rotate(-90 ${String(atPx)} ${String(mid)})`}>{mm(mmValue)}</text>
+    </g>
+  );
 }
 
 /**
@@ -86,10 +116,11 @@ export function Plan({ m, canEdit = false, selectedId = null, onSelect, onMove }
   readonly onSelect?: (lineageId: string) => void;
   readonly onMove?: (lineageId: string, next: { xMm: number; yMm: number; zMm: number; rotationY: QuarterTurn }) => void;
 }) {
-  const { scale: s, ox, oy } = fit(m.room.length, m.room.width, W, H, 36);
+  const { scale: s, ox, oy } = fit(m.room.length, m.room.width, W, H, PAD);
   const X = (x: number) => ox + x * s;
   const Z = (z: number) => oy + z * s;
   const [drag, setDrag] = useState<DragState | null>(null);
+  const thicknessOf = (id: WallId): number => m.room.walls.find((w) => w.wallId === id)?.thickness ?? m.room.wallThickness;
 
   /** Client (pixel) coordinates → room millimetres, via the SVG's own CTM — correct regardless of how the
    * responsive `<svg>` element is currently scaled on screen. */
@@ -143,12 +174,36 @@ export function Plan({ m, canEdit = false, selectedId = null, onSelect, onMove }
     setDrag(null);
   };
 
+  // A real floor-plan reads as: a filled floor, thick wall bands drawn at each wall's own real thickness (never
+  // a thin outline standing in for a wall), a faint scale grid, and dimension lines with tick marks outside the
+  // walls — all of it drawn straight from the resolved model's own `room.walls[].thickness`/`length`, nothing
+  // invented here.
+  const tA = thicknessOf("A");
+  const tB = thicknessOf("B");
+  const tC = thicknessOf("C");
+  const tD = thicknessOf("D");
+  const GRID_MM = 500;
+  const gridXs: number[] = [];
+  for (let gx = GRID_MM; gx < m.room.length; gx += GRID_MM) gridXs.push(gx);
+  const gridZs: number[] = [];
+  for (let gz = GRID_MM; gz < m.room.width; gz += GRID_MM) gridZs.push(gz);
+
   return (
     <svg viewBox={`0 0 ${String(W)} ${String(H)}`} role="img" aria-label="Plan view">
-      <rect x={X(0)} y={Z(0)} width={m.room.length * s} height={m.room.width * s} className="room" />
-      {m.room.walls.map((w) => <text key={w.wallId} className="wall-label" x={X((w.start.x + w.end.x) / 2)} y={Z((w.start.z + w.end.z) / 2)} dy={w.wallId === "A" ? -8 : w.wallId === "C" ? 16 : 4} dx={w.wallId === "B" ? 10 : w.wallId === "D" ? -18 : 0}>{w.wallId}</text>)}
-      <text className="dim" x={X(m.room.length / 2)} y={Z(0) - 20} textAnchor="middle">{mm(m.room.length)}</text>
-      <text className="dim" x={X(0) - 24} y={Z(m.room.width / 2)} textAnchor="middle" transform={`rotate(-90 ${String(X(0) - 24)} ${String(Z(m.room.width / 2))})`}>{mm(m.room.width)}</text>
+      <rect x={X(0)} y={Z(0)} width={m.room.length * s} height={m.room.width * s} className="room plan-floor" />
+      {gridXs.map((gx) => <line key={`gx${String(gx)}`} className="grid" x1={X(gx)} y1={Z(0)} x2={X(gx)} y2={Z(m.room.width)} />)}
+      {gridZs.map((gz) => <line key={`gz${String(gz)}`} className="grid" x1={X(0)} y1={Z(gz)} x2={X(m.room.length)} y2={Z(gz)} />)}
+      {/* Wall bands: each wall's own real thickness, extending outward from the room's interior face (where
+          cabinets sit flush) — not a placeholder outline. */}
+      <rect className="wall" x={X(0)} y={Z(-tA)} width={m.room.length * s} height={tA * s} />
+      <rect className="wall" x={X(0)} y={Z(m.room.width)} width={m.room.length * s} height={tC * s} />
+      <rect className="wall" x={X(-tD)} y={Z(0)} width={tD * s} height={m.room.width * s} />
+      <rect className="wall" x={X(m.room.length)} y={Z(0)} width={tB * s} height={m.room.width * s} />
+      {m.room.walls.map((w) => <text key={w.wallId} className="wall-label" x={X((w.start.x + w.end.x) / 2)} y={Z((w.start.z + w.end.z) / 2)} dy={w.wallId === "A" ? -tA * s - 4 : w.wallId === "C" ? tC * s + 12 : 4} dx={w.wallId === "B" ? tB * s + 10 : w.wallId === "D" ? -tD * s - 14 : 0}>{w.wallId}</text>)}
+      <DimensionLine axis="x" atPx={Z(-tA) - 14} fromPx={X(0)} toPx={X(m.room.length)} mmValue={m.room.length} />
+      <DimensionLine axis="x" atPx={Z(m.room.width + tC) + 14} fromPx={X(0)} toPx={X(m.room.length)} mmValue={m.room.length} />
+      <DimensionLine axis="z" atPx={X(-tD) - 14} fromPx={Z(0)} toPx={Z(m.room.width)} mmValue={m.room.width} />
+      <DimensionLine axis="z" atPx={X(m.room.length + tB) + 14} fromPx={Z(0)} toPx={Z(m.room.width)} mmValue={m.room.width} />
       {m.objects.map((o) => {
         if (o.placement === null) return null;
         const dragging = drag !== null && drag.lineageId === o.lineageId;
@@ -174,15 +229,19 @@ export function Plan({ m, canEdit = false, selectedId = null, onSelect, onMove }
           </g>
         );
       })}
-      {/* Slice 6B: one run indicator per wall (was wall A only), a few px outside the wall's own face. */}
+      {/* Slice 6B: one run indicator per wall (was wall A only), just outside that wall's own band — the offset
+          scales with the wall's real thickness (drawn above) so the indicator is never hidden under it. */}
       {m.runs.map((r) => {
         const wall = m.room.walls.find((w) => w.wallId === r.wallId);
         if (wall === undefined || wall.length <= 0) return null;
         const along = (t: number) => ({ x: wall.start.x + (t / wall.length) * (wall.end.x - wall.start.x), z: wall.start.z + (t / wall.length) * (wall.end.z - wall.start.z) });
         const p1 = along(r.start);
         const p2 = along(r.end);
-        const OUTWARD_PX: Record<"A" | "B" | "C" | "D", readonly [number, number]> = { A: [0, -6], B: [6, 0], C: [0, 6], D: [-6, 0] };
-        const [dx, dz] = OUTWARD_PX[r.wallId];
+        const OUTWARD_UNIT: Record<"A" | "B" | "C" | "D", readonly [number, number]> = { A: [0, -1], B: [1, 0], C: [0, 1], D: [-1, 0] };
+        const [ux, uz] = OUTWARD_UNIT[r.wallId];
+        const offsetPx = thicknessOf(r.wallId) * s + 4;
+        const dx = ux * offsetPx;
+        const dz = uz * offsetPx;
         return <line key={r.runId} className="run" x1={X(p1.x) + dx} y1={Z(p1.z) + dz} x2={X(p2.x) + dx} y2={Z(p2.z) + dz} />;
       })}
     </svg>

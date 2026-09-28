@@ -254,6 +254,7 @@ export function resolveRoom(input: ResolveRoomInput): ResolvedRoom {
     const max = value("MAX_RUN_LENGTH");
     if (max !== null && r.length > max + EPS) roomMsg("RUN_TOO_LONG", "BLOCKER", `${r.runId} is ${r.length} mm long; maximum ${max} mm`);
   }
+  const gapFlagged = new Set<string>();
   for (const pair of adjacentPairs) {
     if (pair.gap <= EPS) continue; // touching (or overlapping → collision)
     if (gapOverrides.has(pairKey(pair.left.objectId, pair.right.objectId))) continue;
@@ -262,13 +263,27 @@ export function resolveRoom(input: ResolveRoomInput): ResolvedRoom {
     const maxGap = value("MAX_GAP_WITHOUT_FILLER");
     if (minGap === null || maxGap === null) continue;
     if (pair.gap < minGap - EPS) {
+      gapFlagged.add(pairKey(pair.left.objectId, pair.right.objectId));
       roomMsg("GAP_BELOW_MINIMUM", "BLOCKER", `${label}: gap ${pair.gap} mm is below the minimum ${minGap} mm`, { sourceObjectId: pair.left.objectId });
     } else if (pair.gap > maxGap + EPS) {
       const threshold = value("FILLER_THRESHOLD");
       if (threshold === null) continue;
+      gapFlagged.add(pairKey(pair.left.objectId, pair.right.objectId));
       if (pair.gap < threshold - EPS) roomMsg("GAP_UNFILLABLE", "BLOCKER", `${label}: gap ${pair.gap} mm needs a filler but is narrower than the filler threshold ${threshold} mm`, { sourceObjectId: pair.left.objectId });
       else roomMsg("FILLER_REQUIRED", "BLOCKER", `${label}: gap ${pair.gap} mm exceeds ${maxGap} mm; a filler (or an INTENTIONAL_GAP override) is required`, { sourceObjectId: pair.left.objectId });
     }
+  }
+  // Design Studio Slice 6E: a "near miss" DX warning — two cabinets in the same run left with a small gap
+  // instead of snapped flush. Deliberately independent of the PlanningStandard (`value()` above): it must not be
+  // silenced or enabled by whether MIN_CABINET_GAP/MAX_GAP_WITHOUT_FILLER happen to be defined, and it never
+  // duplicates a pair already flagged by a BLOCKER-level gap check. NEAR_MISS_GAP_MM is a UI heuristic threshold,
+  // not a Lintel-approved construction dimension.
+  const NEAR_MISS_GAP_MM = 30;
+  for (const pair of adjacentPairs) {
+    if (pair.gap <= EPS || pair.gap > NEAR_MISS_GAP_MM) continue;
+    const key = pairKey(pair.left.objectId, pair.right.objectId);
+    if (gapOverrides.has(key) || gapFlagged.has(key)) continue;
+    roomMsg("CABINET_GAP_NOT_TOUCHING", "WARNING", `${pair.left.objectCode} ↔ ${pair.right.objectCode}: gap of ${pair.gap} mm — not snapped together; confirm this is intentional`, { sourceObjectId: pair.left.objectId });
   }
   for (const key of [...needed].sort()) {
     const def = PLANNING_VARIABLES.find((v) => v.key === key);

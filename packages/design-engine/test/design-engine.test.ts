@@ -374,6 +374,15 @@ describe("KIT_BASE_HOB (Slice 5 step 5: hob cabinet)", () => {
     expect(r.hardwareRequirements.filter((h) => h.category !== "HINGE")).toHaveLength(0);
   });
 
+  it("reports APPLIANCE_UNKNOWN (BLOCKER, from parameter resolution) when the referenced appliance id is not in the catalog, with no appliance reference or cutout generated (Slice 6E: this is the existing, sufficient 'appliance conflict' error rule — no new engine rule invented)", () => {
+    const r = run(hobObj({ parameters: { hob: "NOT_A_REAL_APPLIANCE" } }));
+    const m = r.validation.messages.find((x) => x.code === "APPLIANCE_UNKNOWN");
+    expect(m).toMatchObject({ severity: "BLOCKER", sourceObjectId: "o1", path: "parameters.hob" });
+    expect(m?.message).toMatch(/NOT_A_REAL_APPLIANCE/);
+    expect(r.appliances).toEqual([]);
+    expect(r.cutouts).toEqual([]);
+  });
+
   it("derives one COUNTERTOP cutout from the referenced hob appliance's own installation envelope (Slice 5 step 6)", () => {
     const r = run(hobObj());
     expect(r.cutouts).toEqual([{

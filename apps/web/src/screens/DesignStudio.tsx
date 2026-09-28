@@ -188,7 +188,14 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null);
   const selectObject = (lineageId: string | null) => { setSelectedId(lineageId); setSelectedComponentId(null); };
   const selectComponent = (lineageId: string, componentId: string) => { setSelectedId(lineageId); setSelectedComponentId(componentId); };
-  const [bottomTab, setBottomTab] = useState<"PLAN" | "ELEVATION" | "BOM">("PLAN");
+  const [bottomTab, setBottomTab] = useState<"PLAN" | "ELEVATION" | "BOM" | "VALIDATION">("PLAN");
+  /** Slice 6E: clicking a validation issue selects its object (highlighted in every synchronized view — Slice
+   * 6D's shared `selectedId`) and switches to Plan, the most generally useful view for the spatial checks (overlap,
+   * wall penetration, room boundary, corner placement, near-miss gap) this slice implements. */
+  const goToValidationIssue = (lineageId: string | null): void => {
+    selectObject(lineageId);
+    if (lineageId !== null) setBottomTab("PLAN");
+  };
   const [bom, setBom] = useState<Schemas["Snapshot"] | null>(null);
   const m = model.data;
   const objects = m?.objects ?? [];
@@ -345,6 +352,9 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
               <button type="button" className={bottomTab === "PLAN" ? "current" : ""} onClick={() => { setBottomTab("PLAN"); }}>Plan</button>
               <button type="button" className={bottomTab === "ELEVATION" ? "current" : ""} onClick={() => { setBottomTab("ELEVATION"); }}>Elevation</button>
               <button type="button" className={bottomTab === "BOM" ? "current" : ""} onClick={() => { setBottomTab("BOM"); }}>BOM</button>
+              <button type="button" className={bottomTab === "VALIDATION" ? "current" : ""} onClick={() => { setBottomTab("VALIDATION"); }}>
+                Validation{m !== null && (m.validation.counts.BLOCKER + m.validation.counts.ERROR) > 0 ? ` (${String(m.validation.counts.BLOCKER + m.validation.counts.ERROR)})` : ""}
+              </button>
               <button type="button" onClick={() => { setSelVersion(); go("outputs"); }}>All outputs →</button>
             </nav>
             {m !== null && bottomTab === "PLAN" && (
@@ -368,6 +378,7 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
                 {bom !== null && <SnapshotView s={bom} />}
               </div>
             )}
+            {m !== null && bottomTab === "VALIDATION" && <ValidationPanel m={m} onGoTo={goToValidationIssue} />}
             {m !== null && objects.length === 0 && <p>Add a cabinet from the library to begin.</p>}
           </div>
         </div>
@@ -389,6 +400,51 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
         </aside>
       </div>
     </Section>
+  );
+}
+
+/**
+ * Slice 6E: the Design Studio's own validation panel — part of the workspace (a bottom-bar tab alongside Plan /
+ * Elevation / BOM), not a separate screen. Reads only `m.validation`/`m.objects[].messages`, the same resolved
+ * model every other view reads; it computes nothing (no collision/containment/gap logic lives here — see
+ * `packages/design-engine/src/room.ts` and `resolve-cabinet.ts`). BLOCKER and ERROR are bucketed together as
+ * "Errors" for this display only; the underlying BLOCKER/ERROR distinction (which gates `canApprove`) is
+ * untouched. Clicking an issue selects its object — highlighted, via Slice 6D's shared `selectedId`, in Plan,
+ * Elevation and the 3D viewport alike — and switches to the most useful view for it.
+ */
+function ValidationPanel({ m, onGoTo }: { readonly m: ModelPreview; readonly onGoTo: (lineageId: string | null) => void }) {
+  const codeOf = new Map(m.objects.map((o) => [o.lineageId, o.objectCode]));
+  const errors = m.validation.messages.filter((x) => x.severity === "BLOCKER" || x.severity === "ERROR");
+  const warnings = m.validation.messages.filter((x) => x.severity === "WARNING");
+  const passedCount = m.objects.filter((o) => o.messages.length === 0).length + (m.validation.messages.some((x) => x.lineageId === null) ? 0 : 1);
+
+  return (
+    <div className="studio-validation">
+      <p>
+        <Badge tone={errors.length > 0 ? "bad" : "ok"}>{errors.length > 0 ? "❌" : "✓"} {errors.length} Error{errors.length === 1 ? "" : "s"}</Badge>{" "}
+        <Badge tone={warnings.length > 0 ? "warn" : "ok"}>⚠ {warnings.length} Warning{warnings.length === 1 ? "" : "s"}</Badge>{" "}
+        <Badge tone="ok">✓ {passedCount} Passed</Badge>
+      </p>
+      {errors.length === 0 && warnings.length === 0 ? (
+        <p>No issues — every check on the current design passed. A designer can trust this design to be manufacturable as placed.</p>
+      ) : (
+        <ul className="validation-list">
+          {[...errors, ...warnings].map((x, i) => (
+            <li key={i}>
+              <button
+                type="button"
+                className="validation-issue"
+                disabled={x.lineageId === null}
+                title={x.lineageId === null ? "Room-level check — no single cabinet to select" : "Select and locate this cabinet"}
+                onClick={() => { onGoTo(x.lineageId); }}
+              >
+                <Badge tone={x.severity === "WARNING" ? "warn" : "bad"}>{x.severity}</Badge> <code>{x.code}</code> — {x.lineageId === null ? "Room" : codeOf.get(x.lineageId) ?? "Object"}: {x.message}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 

@@ -30,6 +30,33 @@ export function nextFreeX(items: readonly RunItem[]): number {
   return items.reduce((m, it) => Math.max(m, it.x + it.width), 0);
 }
 
+/** Whether a corner leg's along-wall `end` sits flush against the FAR end of a `wallLengthMm`-long wall (a
+ * "return leg", `@lintel/cabinet-engine`'s `cornerPairPlacement`: `leg1Along = wallLength - width`) rather than
+ * near its start (a "front leg", which begins a little way in and behaves like any ordinary cabinet for
+ * `nextFreeX`'s existing rightward-append — see `nextFreeAlong` below). */
+export function isFarEndAnchored(legEndAlongMm: number, wallLengthMm: number, epsMm = 1): boolean {
+  return Math.abs(legEndAlongMm - wallLengthMm) <= epsMm;
+}
+
+/**
+ * Hardening (P1-1, run + corner continuity): where a new `newWidthMm`-wide cabinet should go on a wall, corner-
+ * aware. With no `farEndAnchorAlongMm`, this is exactly `nextFreeX` — append after whatever is already on the
+ * wall (0 for an empty wall; a corner leg flush against the wall's NEAR end already behaves correctly here,
+ * since `items` including it makes `nextFreeX` start right after its own end).
+ *
+ * A corner leg flush against the wall's FAR end is different: appending after it would place new cabinets past
+ * the room's own corner. Given `farEndAnchorAlongMm` (that leg's own along-wall `start`, which never moves —
+ * the leg sits at the room's physical corner regardless of what else is on the wall), new cabinets instead pack
+ * against it and grow AWAY from the corner — the mirror image of the ordinary case — so a run built cabinet-by-
+ * cabinet after its corner ends up in exactly the same place as one built before it (`items` here excludes the
+ * corner leg itself, which is never in this "pack toward the corner" chain).
+ */
+export function nextFreeAlong(items: readonly RunItem[], newWidthMm: number, farEndAnchorAlongMm?: number): number {
+  if (farEndAnchorAlongMm === undefined) return nextFreeX(items);
+  const leftEdge = items.reduce((m, it) => Math.min(m, it.x), farEndAnchorAlongMm);
+  return leftEdge - newWidthMm;
+}
+
 /** A uniform scale that fits a `w` × `h` millimetre extent into a `boxW` × `boxH` pixel box with `pad` pixels around. */
 export function fit(w: number, h: number, boxW: number, boxH: number, pad = 24): { scale: number; ox: number; oy: number } {
   if (w <= 0 || h <= 0) return { scale: 1, ox: pad, oy: pad };

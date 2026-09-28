@@ -18,8 +18,10 @@ import { CABINET_LIBRARY, compileCreate, compileUpdate, cornerPairPlacement, dec
 import type { ScreenProps } from "../App";
 import type { ModelPreview, Schemas } from "../api/client";
 import { api, idempotency, must, versionWithEtag } from "../api/client";
-import { nextFreeX, placeOnWall } from "../geometry";
+import { isFarEndAnchored, nearestWall, nextFreeAlong, placeOnWall } from "../geometry";
 import type { WallId } from "../geometry";
+import { packAgainstCorner, shiftedChainOverlaps } from "../cornerAttach";
+import type { CornerAttachItem } from "../cornerAttach";
 import { snapshotOf, SnapshotView } from "./Outputs";
 import { usablePins } from "./Layout";
 import type { Param, Pins } from "./Layout";
@@ -29,6 +31,7 @@ import type { ReflowObject } from "../reflow";
 import { Action, Badge, ErrorBox, ErrorBoundary, Field, Section, useLoad } from "../ui";
 import type { DimensionLimit } from "../validation";
 import { dimensionError } from "../validation";
+import { classifyValidationCode } from "../validationGroups";
 import { Viewport3D } from "./Viewport3D";
 
 const ELEVATION_WALLS = ["A", "B", "C", "D"] as const;
@@ -44,6 +47,21 @@ interface RunInfo {
   readonly length: number;
   readonly position: number;
   readonly adjacents: readonly { readonly code: string; readonly gap: number; readonly touching: boolean; readonly side: "left" | "right" }[];
+}
+
+/** P1-2 (expose corner relationship): plain-language projection of the engine's own derived `CORNER`
+ * relationship for the selected cabinet — never a new fact, just `m.relationships` read and worded for a
+ * designer instead of an engineer (no relationship ids, no "DERIVED"/"CORNER" type strings). `cornerLabel`
+ * matches `relationships[].wallIds` exactly as `packages/design-engine/src/room.ts`'s own `CORNERS` list orders
+ * them (e.g. "AB" for the A→B corner) — the same short, wall-letter naming already used for wall selectors
+ * throughout this screen, not a new vocabulary. */
+interface CornerInfo {
+  readonly cornerLabel: string;
+  readonly wallId: string;
+  readonly otherWallId: string;
+  readonly otherCode: string;
+  readonly gapMm: number;
+  readonly touching: boolean;
 }
 
 function shutterFront(shutterCount: 1 | 2, overlay: OverlayMode, widthMm: number, heightMm: number): CabinetFront {
@@ -117,6 +135,14 @@ function paramString(params: readonly Param[], key: string): string {
 function limitOf(params: readonly Param[], key: string): DimensionLimit {
   const p = params.find((x) => x.key === key);
   return { min: p?.min ?? null, max: p?.max ?? null };
+}
+
+/** Hardening (P1-1/P1-2/P1-3): the lineage ids of every object that's one leg of a CORNER relationship — the
+ * engine's own derived fact (`packages/design-engine/src/room.ts`'s `CORNERS` loop), read the same way in all
+ * three places that need it: corner-aware placement, the Properties panel's "Corner" readout, and resize/reflow's
+ * fixed-boundary check. Never a separate "is this a corner leg" flag on the object itself. */
+function cornerLineageIdsOf(m: ModelPreview): Set<string> {
+  return new Set(m.relationships.filter((r) => r.type === "CORNER").flatMap((r) => r.lineageIds));
 }
 
 /** Remediation P2: every reference-data entity of `type` that has at least one usable (pinnable) version,
@@ -282,6 +308,19 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
     return { runId: run.runId, wallId: run.wallId, count: run.lineageIds.length, length: run.length, position, adjacents };
   })();
 
+  /** P1-2: same idea as `runInfo` just above, for the engine's derived `CORNER` relationship instead of
+   * `SAME_WALL_RUN`/`ADJACENT` — nothing computed, only read and worded for a designer. */
+  const cornerInfo: CornerInfo | null = (() => {
+    if (m === null || selected === undefined) return null;
+    const rel = m.relationships.find((r) => r.type === "CORNER" && r.lineageIds.includes(selected.lineageId));
+    if (rel === undefined) return null;
+    const otherId = rel.lineageIds.find((id) => id !== selected.lineageId);
+    const other = objects.find((o) => o.lineageId === otherId);
+    const wallId = selected.placement?.wallId ?? rel.wallIds[0] ?? "?";
+    const otherWallId = rel.wallIds.find((w) => w !== wallId) ?? rel.wallIds[rel.wallIds.length - 1] ?? "?";
+    return { cornerLabel: rel.wallIds.join(""), wallId, otherWallId, otherCode: other?.objectCode ?? "?", gapMm: rel.gap ?? 0, touching: rel.touching ?? false };
+  })();
+
   const nextObjectCode = (offset = 0) => {
     const n2 = objects.reduce((mx, o) => Math.max(mx, Number(/(\d+)$/.exec(o.objectCode)?.[1] ?? 0)), 0) + 1 + offset;
     return `BC-${String(n2).padStart(3, "0")}`;
@@ -342,17 +381,33 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
     return must(api.POST("/api/v1/design-versions/{versionId}/objects", { params: { path: { versionId }, header: { "If-Match": etag } }, body }));
   };
 
-  /** Hardening (real-designer UX audit P0-1): placed on the wall the designer actually chose in the library
-   * panel, never hardcoded to wall A — the next free position is computed in THAT wall's own along-wall
-   * coordinates (from the objects already resolved onto it), then converted to a room position/rotation by the
-   * same `placeOnWall` the Properties panel's Wall/Along/Distance fields and Plan's drag-to-snap already use.
-   * There is no separate "add-time" placement model: this is the one room-wall model every view derives from. */
+  /** Hardening (real-designer UX audit P0-1, generalised in P1-1): placed on the wall the designer actually
+   * chose in the library panel, never hardcoded to wall A — the next free position is computed in THAT wall's
+   * own along-wall coordinates (from the objects already resolved onto it), then converted to a room
+   * position/rotation by the same `placeOnWall` the Properties panel's Wall/Along/Distance fields and Plan's
+   * drag-to-snap already use. There is no separate "add-time" placement model: this is the one room-wall model
+   * every view derives from.
+   *
+   * P1-1 (run + corner continuity): if this wall already carries a corner leg flush against its FAR end (a
+   * "return leg" — see `geometry.ts`'s `isFarEndAnchored`), the new cabinet packs against it instead of being
+   * appended past it (`nextFreeAlong`) — the same anchor `addCornerPair` below packs an existing run against
+   * when the corner is added second, so the two build orders converge on the identical layout. */
   const addCabinet = async (type: CabinetType, wallId: WallId) => {
     const p = await pinnedProductByCode(version.pins.productCatalogVersionId, type.productCode);
     if (p === null) throw new Error(`The pinned product catalog does not define ${type.productCode}.`);
     if (m === null) throw new Error("The room's model has not loaded yet.");
+    const width = paramNumber(p.params, "width");
+    if (width === undefined) throw new Error("The pinned product does not define a default width.");
     const onWall = objects.filter((o): o is Obj & { placement: NonNullable<Obj["placement"]> } => o.placement !== null && o.placement.wallId === wallId);
-    const alongMm = nextFreeX(onWall.map((o) => ({ id: o.objectId, x: o.placement.alongWall.start, width: o.dimensions.width })));
+    const cornerIds = cornerLineageIdsOf(m);
+    const wallLength = m.room.walls.find((w) => w.wallId === wallId)?.length ?? (wallId === "A" || wallId === "C" ? m.room.length : m.room.width);
+    const farEndLeg = onWall.find((o) => cornerIds.has(o.lineageId) && isFarEndAnchored(o.placement.alongWall.end, wallLength));
+    const others = farEndLeg === undefined ? onWall : onWall.filter((o) => o.lineageId !== farEndLeg.lineageId);
+    const alongMm = nextFreeAlong(
+      others.map((o) => ({ id: o.objectId, x: o.placement.alongWall.start, width: o.dimensions.width })),
+      width,
+      farEndLeg?.placement.alongWall.start,
+    );
     const moved = placeOnWall(wallId, alongMm, 0, m.room.length, m.room.width);
     const position = { xMm: moved.x, yMm: 0, zMm: moved.z };
     const instance = buildInstance(type, p, nextObjectCode(), position, moved.rotationY);
@@ -364,7 +419,16 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
   /** Slice 4 (D-A corner only), generalised to all 4 room corners in Slice 6C: an L-corner cabinet is two
    * ordinary `type` instances, positioned by `cornerPairPlacement` so their footprints meet exactly at the
    * chosen room corner without overlap (`corner.ts`). Two sequential creates, re-reading the version's ETag
-   * between them (the first create advances it). */
+   * between them (the first create advances it).
+   *
+   * P1-1 (run + corner continuity): `cornerPairPlacement`'s two legs are always flush against the room's own
+   * physical corner — never negotiable. What a build-order can leave wrong is either wall's *pre-existing* run:
+   * built before the corner (Order A), it doesn't yet know to stop short of the leg (an accidental gap); it
+   * could equally already occupy the space the leg now needs (an overlap). Both are closed by packing that
+   * whole existing chain, as one rigid group, flush against the new leg (`packAgainstCorner` — same helper,
+   * both walls), BEFORE either object is created: if it can't fit, nothing is written and the designer sees why
+   * (never a silent overlap). This is what makes "run then corner" and "corner then run" converge on the exact
+   * same resolved layout — `addCabinet` above packs the other direction, against an already-placed leg. */
   const addCornerPair = async (type: CabinetType, corner: CornerId) => {
     if (m === null) throw new Error("The room's model has not loaded yet.");
     const p = await pinnedProductByCode(version.pins.productCatalogVersionId, type.productCode);
@@ -373,10 +437,43 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
     const depth = paramNumber(p.params, "depth");
     if (width === undefined || depth === undefined) throw new Error("The pinned product does not define default width/depth.");
     const { returnLeg, frontLeg } = cornerPairPlacement(corner, { widthMm: width, depthMm: depth }, { lengthMm: m.room.length, widthMm: m.room.width });
+
+    const cornerIds = cornerLineageIdsOf(m);
+    const wallLenOf = (wallId: WallId): number => m.room.walls.find((w) => w.wallId === wallId)?.length ?? (wallId === "A" || wallId === "C" ? m.room.length : m.room.width);
+    const chainOn = (wallId: WallId): readonly (Obj & { placement: NonNullable<Obj["placement"]> })[] =>
+      objects.filter((o): o is Obj & { placement: NonNullable<Obj["placement"]> } =>
+        o.placement !== null && o.placement.wallId === wallId && o.placement.distanceToWall <= 1 && !cornerIds.has(o.lineageId));
+    const asItems = (chain: readonly (Obj & { placement: NonNullable<Obj["placement"]> })[]): readonly CornerAttachItem[] =>
+      chain.map((o) => ({ id: o.objectId, start: o.placement.alongWall.start, end: o.placement.alongWall.end }));
+
+    const w1 = nearestWall(returnLeg.position.xMm, returnLeg.position.zMm, m.room.length, m.room.width);
+    const w2 = nearestWall(frontLeg.position.xMm, frontLeg.position.zMm, m.room.length, m.room.width);
+    const chain1 = chainOn(w1.wallId);
+    const chain2 = chainOn(w2.wallId);
+    const plan1 = packAgainstCorner(asItems(chain1), { start: w1.along, end: w1.along + width, endAnchored: true }, wallLenOf(w1.wallId));
+    const plan2 = packAgainstCorner(asItems(chain2), { start: w2.along, end: w2.along + width, endAnchored: false }, wallLenOf(w2.wallId));
+    for (const [wallId, plan, chain] of [[w1.wallId, plan1, chain1], [w2.wallId, plan2, chain2]] as const) {
+      if (plan.kind === "blocked") throw new Error(`Wall ${wallId}: ${plan.message}`);
+      if (plan.kind === "shift") {
+        const others = objects
+          .filter((o): o is Obj & { placement: NonNullable<Obj["placement"]> } => o.placement !== null && o.placement.wallId === wallId && !chain.some((c) => c.objectId === o.objectId))
+          .map((o) => ({ id: o.objectId, start: o.placement.alongWall.start, end: o.placement.alongWall.end }));
+        if (shiftedChainOverlaps(asItems(chain), plan.deltaMm, others)) throw new Error(`Wall ${wallId}: closing the gap to the corner would overlap another cabinet on this wall. Move it out of the way first.`);
+      }
+    }
+
     const returnInstance = buildInstance(type, p, nextObjectCode(), returnLeg.position, returnLeg.rotationY, "INSET");
     await createObject(returnInstance);
     const frontInstance = buildInstance(type, p, nextObjectCode(1), frontLeg.position, frontLeg.rotationY, "INSET");
     const frontCreated = await createObject(frontInstance);
+    for (const [wallId, plan] of [[w1.wallId, plan1], [w2.wallId, plan2]] as const) {
+      if (plan.kind !== "shift") continue;
+      for (const s of plan.shifts) {
+        const obj = objects.find((o) => o.objectId === s.id);
+        const moved = placeOnWall(wallId, s.start, obj?.placement?.distanceToWall ?? 0, m.room.length, m.room.width);
+        await patchObject(s.id, { position: { xMm: moved.x, yMm: obj?.transform.y ?? 0, zMm: moved.z }, rotationY: moved.rotationY });
+      }
+    }
     selectObject(frontCreated.object.lineageId);
     refresh();
   };
@@ -491,7 +588,7 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
                     const created = await must(api.POST("/api/v1/design-versions/{versionId}/bom-snapshots", { params: { path: { versionId }, header: { "Idempotency-Key": idempotency() } }, body: { purpose: "PRELIMINARY" } }));
                     setBom(await snapshotOf("BOM", created.snapshot.id));
                   }} />
-                  {bom !== null && <SnapshotView s={bom} />}
+                  {bom !== null && <SnapshotView s={bom} objects={objects.map((o) => ({ lineageId: o.lineageId, objectCode: o.objectCode }))} />}
                 </div>
               )}
               {m !== null && bottomTab === "VALIDATION" && <ValidationPanel m={m} onGoTo={goToValidationIssue} />}
@@ -519,6 +616,7 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
                 placement={propertiesState.selected.placement}
                 room={m === null ? null : { length: m.room.length, width: m.room.width }}
                 runInfo={runInfo}
+                cornerInfo={cornerInfo}
                 dimensionLimits={dimensionLimits}
                 materials={materials.data ?? []}
                 finishes={finishes.data ?? []}
@@ -540,38 +638,72 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
  * untouched. Clicking an issue selects its object — highlighted, via Slice 6D's shared `selectedId`, in Plan,
  * Elevation and the 3D viewport alike — and switches to the most useful view for it.
  */
+/** P1-4 (validation signal cleanup): one design/reference-data message list, rendered identically in both of
+ * `ValidationPanel`'s sections below — same click-to-locate behaviour as before this split, just filtered. */
+function ValidationIssueList({ items, codeOf, onGoTo }: { readonly items: readonly ModelPreview["validation"]["messages"][number][]; readonly codeOf: ReadonlyMap<string, string>; readonly onGoTo: (lineageId: string | null) => void }) {
+  return (
+    <ul className="validation-list">
+      {items.map((x, i) => (
+        <li key={i}>
+          <button
+            type="button"
+            className="validation-issue"
+            disabled={x.lineageId === null}
+            title={x.lineageId === null ? "Room-level check — no single cabinet to select" : "Select and locate this cabinet"}
+            onClick={() => { onGoTo(x.lineageId); }}
+          >
+            <Badge tone={x.severity === "WARNING" ? "warn" : "bad"}>{x.severity}</Badge> <code>{x.code}</code> — {x.lineageId === null ? "Room" : codeOf.get(x.lineageId) ?? "Object"}: {x.message}
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** P1-4 (validation signal cleanup): the same underlying `m.validation.messages` as before — no severity, code
+ * or count is removed or weakened (`STANDARD_UNKNOWN_VARIABLE` included) — split into "Design issues" (what a
+ * designer can fix by moving, resizing or replacing a cabinet: collision, wall/room boundary, corner/run
+ * continuity, clearances, appliance conflicts) and "Reference/data health" (gaps in the construction
+ * standard/catalog/recipe data itself, e.g. an undeclared variable) via `classifyValidationCode`. The post-P0
+ * benchmark's finding this addresses: a designer reading "94 ERROR" during a whole session had no way to tell,
+ * from the badge alone, that all 94 were reference-data noise and zero were about placement. */
 function ValidationPanel({ m, onGoTo }: { readonly m: ModelPreview; readonly onGoTo: (lineageId: string | null) => void }) {
   const codeOf = new Map(m.objects.map((o) => [o.lineageId, o.objectCode]));
-  const errors = m.validation.messages.filter((x) => x.severity === "BLOCKER" || x.severity === "ERROR");
-  const warnings = m.validation.messages.filter((x) => x.severity === "WARNING");
+  const design = m.validation.messages.filter((x) => classifyValidationCode(x.code) === "DESIGN");
+  const referenceData = m.validation.messages.filter((x) => classifyValidationCode(x.code) === "REFERENCE_DATA");
+  const blockersOf = (list: typeof design) => list.filter((x) => x.severity === "BLOCKER" || x.severity === "ERROR");
+  const warningsOf = (list: typeof design) => list.filter((x) => x.severity === "WARNING");
+  const designBlockers = blockersOf(design);
+  const designWarnings = warningsOf(design);
+  const refBlockers = blockersOf(referenceData);
+  const refWarnings = warningsOf(referenceData);
   const passedCount = m.objects.filter((o) => o.messages.length === 0).length + (m.validation.messages.some((x) => x.lineageId === null) ? 0 : 1);
 
   return (
     <div className="studio-validation">
-      <p>
-        <Badge tone={errors.length > 0 ? "bad" : "ok"}>{errors.length > 0 ? "❌" : "✓"} {errors.length} Error{errors.length === 1 ? "" : "s"}</Badge>{" "}
-        <Badge tone={warnings.length > 0 ? "warn" : "ok"}>⚠ {warnings.length} Warning{warnings.length === 1 ? "" : "s"}</Badge>{" "}
-        <Badge tone="ok">✓ {passedCount} Passed</Badge>
-      </p>
-      {errors.length === 0 && warnings.length === 0 ? (
-        <p>No issues — every check on the current design passed. A designer can trust this design to be manufacturable as placed.</p>
-      ) : (
-        <ul className="validation-list">
-          {[...errors, ...warnings].map((x, i) => (
-            <li key={i}>
-              <button
-                type="button"
-                className="validation-issue"
-                disabled={x.lineageId === null}
-                title={x.lineageId === null ? "Room-level check — no single cabinet to select" : "Select and locate this cabinet"}
-                onClick={() => { onGoTo(x.lineageId); }}
-              >
-                <Badge tone={x.severity === "WARNING" ? "warn" : "bad"}>{x.severity}</Badge> <code>{x.code}</code> — {x.lineageId === null ? "Room" : codeOf.get(x.lineageId) ?? "Object"}: {x.message}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <section className="validation-group">
+        <h3>Design issues</h3>
+        <p>
+          <Badge tone={designBlockers.length > 0 ? "bad" : "ok"}>{designBlockers.length > 0 ? "❌" : "✓"} {designBlockers.length} Design Blocker{designBlockers.length === 1 ? "" : "s"}</Badge>{" "}
+          <Badge tone={designWarnings.length > 0 ? "warn" : "ok"}>⚠ {designWarnings.length} Design Warning{designWarnings.length === 1 ? "" : "s"}</Badge>{" "}
+          <Badge tone="ok">✓ {passedCount} Passed</Badge>
+        </p>
+        <small>Collision, wall/room boundary, corner and run continuity, clearances, appliance conflicts — problems with how this design is actually placed and sized.</small>
+        {design.length === 0
+          ? <p>No design issues — every placement, sizing, corner and run check on the current design passed. A designer can trust this design to be manufacturable as placed.</p>
+          : <ValidationIssueList items={design} codeOf={codeOf} onGoTo={onGoTo} />}
+      </section>
+      <section className="validation-group">
+        <h3>Reference/data health</h3>
+        <p>
+          <Badge tone="info">{refBlockers.length} Reference issue{refBlockers.length === 1 ? "" : "s"}</Badge>{" "}
+          <Badge tone="info">{refWarnings.length} Reference warning{refWarnings.length === 1 ? "" : "s"}</Badge>
+        </p>
+        <small>Gaps in the underlying construction standard, catalog or recipe data itself (e.g. an unresolved reference-data variable, code <code>STANDARD_UNKNOWN_VARIABLE</code>) — not something a designer can fix by moving or resizing a cabinet.</small>
+        {referenceData.length === 0
+          ? <p>No reference/data-health issues.</p>
+          : <ValidationIssueList items={referenceData} codeOf={codeOf} onGoTo={onGoTo} />}
+      </section>
     </div>
   );
 }
@@ -638,7 +770,7 @@ function CabinetLibraryPanel({ canEdit, onAdd, onAddCornerPair }: { readonly can
 
 const DRAWER_COUNTS = [2, 3, 4] as const;
 
-function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponentId, onSelectComponentId, applianceId, placement, room, runInfo, dimensionLimits, materials, finishes }: {
+function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponentId, onSelectComponentId, applianceId, placement, room, runInfo, cornerInfo, dimensionLimits, materials, finishes }: {
   readonly instance: CabinetInstance; readonly canEdit: boolean; readonly onSave: (next: CabinetInstance) => Promise<void>; readonly onRemove: () => Promise<void>;
   /** Slice 2.1: which drawer front (by resolved `componentId`), if any, is selected in the 3D view or elevation. */
   readonly selectedComponentId: string | null;
@@ -654,6 +786,9 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
   /** Slice 6B: this cabinet's run membership (null only when it isn't placed at all), read-only — a run is
    * derived from geometry, never edited directly; a cabinet with no neighbour is simply a run of one. */
   readonly runInfo: RunInfo | null;
+  /** P1-2: this cabinet's corner membership (null when it isn't one leg of a corner pair), read-only, worded for
+   * a designer — "the AB corner", never the relationship's own id or type string. */
+  readonly cornerInfo: CornerInfo | null;
   /** Remediation P0: the pinned product's own width/height/depth limits, checked before Save so an out-of-range
    * value is rejected here instead of being persisted (undefined limits, e.g. while still loading, mean "not
    * checked yet" — never treated as "anything goes"; the server's own validation still applies regardless). */
@@ -811,6 +946,13 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
             : runInfo.adjacents.map((a) => (
               <p key={a.code}>{a.side === "left" ? "←" : "→"} {a.code}: {a.touching ? "touching (gap 0 mm)" : `gap ${String(a.gap)} mm`}</p>
             ))}
+        </>
+      )}
+      {cornerInfo !== null && (
+        <>
+          <h3>Corner</h3>
+          <p>This cabinet is connected to the {cornerInfo.cornerLabel} corner, joining wall {cornerInfo.wallId} to wall {cornerInfo.otherWallId} via {cornerInfo.otherCode}.</p>
+          <p>{cornerInfo.touching ? "Touching — exactly connected, no gap." : `Gap ${String(cornerInfo.gapMm)} mm — not fully connected.`}</p>
         </>
       )}
       {isPanel ? null : noFront ? (

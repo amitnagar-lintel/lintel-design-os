@@ -588,7 +588,7 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
                     const created = await must(api.POST("/api/v1/design-versions/{versionId}/bom-snapshots", { params: { path: { versionId }, header: { "Idempotency-Key": idempotency() } }, body: { purpose: "PRELIMINARY" } }));
                     setBom(await snapshotOf("BOM", created.snapshot.id));
                   }} />
-                  {bom !== null && <SnapshotView s={bom} objectCodes={objects.map((o) => o.objectCode)} />}
+                  {bom !== null && <SnapshotView s={bom} objects={objects.map((o) => ({ objectId: o.objectId, objectCode: o.objectCode }))} />}
                 </div>
               )}
               {m !== null && bottomTab === "VALIDATION" && <ValidationPanel m={m} onGoTo={goToValidationIssue} />}

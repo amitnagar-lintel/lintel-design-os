@@ -107,7 +107,7 @@ export function OutputsScreen({ sel }: ScreenProps) {
         </table>
         {(graph.data?.hiddenKinds.length ?? 0) > 0 && <p>Not visible with your role: {graph.data?.hiddenKinds.join(", ")}.</p>}
       </Section>
-      {open !== null && <SnapshotView s={open} objectCodes={model.data?.objects.map((o) => o.objectCode) ?? []} />}
+      {open !== null && <SnapshotView s={open} objects={model.data?.objects.map((o) => ({ objectId: o.objectId, objectCode: o.objectCode })) ?? []} />}
     </>
   );
 }
@@ -123,13 +123,13 @@ export function parseHandOver(code: string): HandOver {
 
 /** Headline figures of a snapshot as the API returned them, its full payload, and — P2, BOM only — a readable
  * table (presentation only: every figure here is exactly what `roomBom`/`packages/types/src/bom.ts`'s `BOMItem`
- * already computed, just laid out for a designer instead of the raw JSON collapsed below it). `objectCodes`
- * (needed only to attribute a BOM line to the cabinet it belongs to) is optional — omit it, or pass `[]`, where
- * the design's objects aren't already loaded; every other snapshot kind ignores it entirely. */
-export function SnapshotView({ s, objectCodes = [] }: { readonly s: Schemas["Snapshot"]; readonly objectCodes?: readonly string[] }) {
+ * already computed, just laid out for a designer instead of the raw JSON collapsed below it). `objects`
+ * (needed only to attribute a BOM line to the cabinet it belongs to, by id) is optional — omit it, or pass `[]`,
+ * where the design's objects aren't already loaded; every other snapshot kind ignores it entirely. */
+export function SnapshotView({ s, objects = [] }: { readonly s: Schemas["Snapshot"]; readonly objects?: readonly { readonly objectId: string; readonly objectCode: string }[] }) {
   const p = (s.payload ?? {}) as Record<string, unknown>;
   const totals = (p.totals ?? {}) as Record<string, unknown>;
-  const bomRows = s.kind === "BOM" ? bomTableRows(p, objectCodes) : [];
+  const bomRows = s.kind === "BOM" ? bomTableRows(p, objects) : [];
   return (
     <Section title={`${s.kind} ${s.purpose} — ${s.id}`}>
       <p>Design version <code>{s.designVersionId}</code> ({s.designVersionStatus}) · input <code>{s.input.hash.slice(0, 19)}…</code> · engine {s.engine.name} {s.engine.version} · {s.blockerCount} BLOCKER, {s.warningCount} WARNING</p>

@@ -1,11 +1,18 @@
 /**
  * P2 (readable BOM): a presentation-only projection of a generated BOM snapshot's raw payload
- * (`packages/types/src/bom.ts`'s `BOM`/`BOMItem` — read here only as loosely-typed JSON, the same way
+ * (`packages/types/src/room-commercial.ts`'s `RoomBOM` — read here only as loosely-typed JSON, the same way
  * `Outputs.tsx`'s `SnapshotView` already treats every output payload, since the API types a snapshot's payload
  * as opaque JSON at this layer, not a compile-time-checked shape) into one flat, designer-readable table:
- * Cabinet | Component | Qty | Material | Finish | Hardware. This computes nothing the BOM engine didn't already
+ * Cabinet | Component | Qty | Material | Finish | Hardware.
+ *
+ * A `RoomBOM` is NOT a flat item list: it's `{ objectBoms: BOM[], totals: RoomBomTotal[], ... }`, one `BOM` per
+ * design object (`packages/types/src/bom.ts`), each carrying its own `items: BOMItem[]` AND a `trace.objectId`
+ * — the exact object identity every other view already keys by, so a line is attributed to its cabinet by that
+ * id, never by guessing from a component-id string. This computes nothing the BOM engine didn't already
  * compute — no quantity, price or material choice originates here, only how to lay out fields that already
- * exist on each item, dispatched by its `kind` (PANEL/BOARD/EDGE_BAND/FINISH/HARDWARE/APPLIANCE).
+ * exist on each item, dispatched by its `kind` (PANEL/BOARD/EDGE_BAND/FINISH/HARDWARE/APPLIANCE). The room-level
+ * `totals` (aggregated across cabinets) are intentionally not shown here — this table is the per-cabinet detail
+ * the raw JSON disclosure still carries in full alongside it.
  */
 export interface BomTableRow {
   readonly cabinet: string;
@@ -18,24 +25,15 @@ export interface BomTableRow {
 
 const str = (v: unknown): string | undefined => (typeof v === "string" ? v : undefined);
 const num = (v: unknown): number | undefined => (typeof v === "number" ? v : undefined);
+const record = (v: unknown): Record<string, unknown> => (typeof v === "object" && v !== null ? (v as Record<string, unknown>) : {});
 
-/** Which known object code (e.g. "BC-001") a component belongs to — component ids are always
- * `${objectCode}-${suffix}` (`packages/design-engine/src/components.ts`'s `componentId`), so an exact `id-`
- * prefix match against a known code wins; "—" when nothing matches (e.g. a whole-room summary item, if the BOM
- * engine ever produces one — never invented). */
-function cabinetOf(sourceComponentIds: readonly string[], objectCodes: readonly string[]): string {
-  return objectCodes.find((code) => sourceComponentIds.some((id) => id === code || id.startsWith(`${code}-`))) ?? "—";
-}
-
-function rowOf(item: Record<string, unknown>, objectCodes: readonly string[]): BomTableRow | null {
+function rowOf(item: Record<string, unknown>, cabinet: string): BomTableRow | null {
   const kind = str(item.kind);
   if (kind === undefined) return null;
   const description = str(item.description) ?? "—";
   const quantity = num(item.quantity);
   const unit = str(item.unit);
   const qty = quantity === undefined ? "—" : unit === undefined ? String(quantity) : `${String(quantity)} ${unit}`;
-  const sourceComponentIds = Array.isArray(item.sourceComponentIds) ? item.sourceComponentIds.filter((x): x is string => typeof x === "string") : [];
-  const cabinet = cabinetOf(sourceComponentIds, objectCodes);
   const base = { cabinet, component: description, qty };
 
   switch (kind) {
@@ -62,12 +60,22 @@ function rowOf(item: Record<string, unknown>, objectCodes: readonly string[]): B
   }
 }
 
-/** `objectCodes`: every object code in the design (order doesn't affect correctness — matching is an exact
- * prefix test — but every known cabinet must be included for its components to be attributed to it). */
-export function bomTableRows(payload: Record<string, unknown>, objectCodes: readonly string[]): readonly BomTableRow[] {
-  const items = Array.isArray(payload.items) ? payload.items : [];
-  return items
-    .filter((x): x is Record<string, unknown> => typeof x === "object" && x !== null)
-    .map((x) => rowOf(x, objectCodes))
-    .filter((x): x is BomTableRow => x !== null);
+/** `objects`: every design object's own id and code — never invented, always read off the same resolved model
+ * every other view uses — so each `objectBoms[]` entry (keyed by its own `trace.objectId`) can be attributed to
+ * the right cabinet. */
+export function bomTableRows(payload: Record<string, unknown>, objects: readonly { readonly objectId: string; readonly objectCode: string }[]): readonly BomTableRow[] {
+  const codeById = new Map(objects.map((o) => [o.objectId, o.objectCode]));
+  const objectBoms = Array.isArray(payload.objectBoms) ? payload.objectBoms : [];
+  const rows: BomTableRow[] = [];
+  for (const ob of objectBoms) {
+    const obRec = record(ob);
+    const objectId = str(record(obRec.trace).objectId);
+    const cabinet = objectId === undefined ? "—" : codeById.get(objectId) ?? "—";
+    const items = Array.isArray(obRec.items) ? obRec.items : [];
+    for (const it of items) {
+      const row = rowOf(record(it), cabinet);
+      if (row !== null) rows.push(row);
+    }
+  }
+  return rows;
 }

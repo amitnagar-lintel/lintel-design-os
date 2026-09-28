@@ -189,8 +189,13 @@ export function Plan({ m, canEdit = false, selectedId = null, onSelect, onMove }
   );
 }
 
-export function Elevation({ m, selectedComponentId, onSelectComponent }: {
+export function Elevation({ m, selectedId = null, onSelect, selectedComponentId, onSelectComponent }: {
   readonly m: ModelPreview;
+  /** Slice 6D: the whole-object selection every view shares (the same `lineageId` Plan/3D use) — not a
+   * separate elevation-only selection model. */
+  readonly selectedId?: string | null;
+  /** Slice 6D: fired when a cabinet's front is clicked anywhere on it (not just a DRAWER_FRONT). */
+  readonly onSelect?: (lineageId: string) => void;
   /** Slice 2.1: which component (e.g. one drawer front) is highlighted, if any. */
   readonly selectedComponentId?: string | null;
   /** Slice 2.1: fired when a DRAWER_FRONT rect is clicked. */
@@ -203,18 +208,40 @@ export function Elevation({ m, selectedComponentId, onSelectComponent }: {
   return (
     <svg viewBox={`0 0 ${String(W)} ${String(H)}`} role="img" aria-label="Wall A elevation">
       <rect x={X(0)} y={Y(m.room.height)} width={m.room.length * s} height={m.room.height * s} className="room" />
+      {/* Slice 6D: one whole-cabinet click target per object, behind its own components, so every cabinet
+          (shutter, open, corner leg, filler/end panel — not just a drawer bank) is selectable as a whole by
+          clicking anywhere on its front, using the same persistent lineageId Plan/3D already select by. This is
+          a hit-target only (no visible stroke) — the selection outline itself is drawn on top of every
+          component further below, so it's never hidden behind an opaque shutter/panel fill. */}
+      {onA.map((o) => o.placement === null ? null : (
+        <rect
+          key={`${o.lineageId}-whole`}
+          className={`cab-whole${onSelect !== undefined ? " clickable" : ""}`}
+          x={X(o.placement.alongWall.start)} y={Y(o.dimensions.height)} width={(o.placement.alongWall.end - o.placement.alongWall.start) * s} height={o.dimensions.height * s}
+          onClick={onSelect !== undefined ? () => { onSelect(o.lineageId); } : undefined}
+        />
+      ))}
       {onA.flatMap((o) => o.components.map((c) => {
-        const clickable = c.componentType === "DRAWER_FRONT" && onSelectComponent !== undefined;
+        const componentClickable = c.componentType === "DRAWER_FRONT" && onSelectComponent !== undefined;
+        const clickable = componentClickable || onSelect !== undefined;
         const selected = c.componentId === selectedComponentId;
         const className = `${c.componentType === "SHUTTER" ? "shutter" : "panel"}${selected ? " selected" : ""}${clickable ? " clickable" : ""}`;
         return (
           <rect
             key={`${o.lineageId}-${c.componentId}`} className={className}
             x={X(c.box.min.x)} y={Y(c.box.min.y + c.box.size.y)} width={c.box.size.x * s} height={c.box.size.y * s}
-            onClick={clickable ? () => { onSelectComponent(o.lineageId, c.componentId, c.componentType); } : undefined}
+            onClick={componentClickable ? () => { onSelectComponent(o.lineageId, c.componentId, c.componentType); onSelect?.(o.lineageId); } : onSelect !== undefined ? () => { onSelect(o.lineageId); } : undefined}
           />
         );
       }))}
+      {/* Slice 6D: the whole-cabinet selection outline, drawn on top of every component so it's always
+          visible regardless of what opaque fronts sit underneath. */}
+      {onA.map((o) => o.placement === null || o.lineageId !== selectedId ? null : (
+        <rect
+          key={`${o.lineageId}-outline`} className="cab-whole-outline"
+          x={X(o.placement.alongWall.start)} y={Y(o.dimensions.height)} width={(o.placement.alongWall.end - o.placement.alongWall.start) * s} height={o.dimensions.height * s}
+        />
+      ))}
       {onA.map((o) => o.placement === null ? null : (
         <g key={o.lineageId}>
           <text className="dim" x={X((o.placement.alongWall.start + o.placement.alongWall.end) / 2)} y={Y(0) + 14} textAnchor="middle">{o.dimensions.width}</text>

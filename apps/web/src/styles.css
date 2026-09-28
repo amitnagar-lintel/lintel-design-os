@@ -64,6 +64,7 @@ svg text { font-size: 11px; fill: #333; pointer-events: none; } svg .cab-label {
 .studio-tabs button.current { background: var(--accent); color: #fff; }
 .studio-bom { max-height: 420px; overflow: auto; }
 .studio-validation { max-height: 420px; overflow: auto; }
+.validation-group + .validation-group { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
 .validation-list { list-style: none; margin: 0; padding: 0; }
 .validation-list li { margin: 4px 0; }
 button.validation-issue { display: block; width: 100%; text-align: left; background: #fbfcfe; }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { arrangeRun, clampAlong, fit, footprintBox, inr, nearestWall, nextFreeX, placeOnWall, snapToNeighbors } from "../src/geometry.js";
+import { arrangeRun, clampAlong, fit, footprintBox, inr, isFarEndAnchored, nearestWall, nextFreeAlong, nextFreeX, placeOnWall, snapToNeighbors } from "../src/geometry.js";
 
 describe("pilot UI layout helpers (user placement only)", () => {
   it("arranges a run edge to edge in the current left-to-right order and reports only the moves", () => {
@@ -17,6 +17,32 @@ describe("pilot UI layout helpers (user placement only)", () => {
     expect(f.ox).toBeCloseTo(20);
     expect(inr(3221500)).toBe("₹32,215.00");
     expect(inr(null)).toBe("—");
+  });
+});
+
+describe("nextFreeAlong (P1-1: run + corner continuity)", () => {
+  it("is exactly nextFreeX when there is no corner anchor", () => {
+    expect(nextFreeAlong([], 600)).toBe(0);
+    expect(nextFreeAlong([{ id: "a", x: 0, width: 600 }, { id: "b", x: 600, width: 750 }], 600)).toBe(1350);
+  });
+  it("packs new cabinets AWAY from a far-end-anchored corner leg (an empty wall) — flush against it first", () => {
+    // 4000mm wall, a 600mm corner leg flush at its far end (3400-4000): the first ordinary cabinet packs
+    // immediately against it, extending left, exactly like the manual gap-fix in the post-P0 benchmark.
+    expect(nextFreeAlong([], 600, 3400)).toBe(2800);
+  });
+  it("keeps packing leftward (away from the corner) as more cabinets are added, regardless of order", () => {
+    const afterFirst = [{ id: "a", x: 2800, width: 600 }];
+    expect(nextFreeAlong(afterFirst, 900, 3400)).toBe(1900);
+    const afterSecond = [...afterFirst, { id: "b", x: 1900, width: 900 }];
+    expect(nextFreeAlong(afterSecond, 600, 3400)).toBe(1300);
+    // Same final chain as building the run first, then the corner (600+900+600 flush against a leg at 3400):
+    // the whole chain occupies [1300, 3400] either way.
+  });
+  it("isFarEndAnchored distinguishes a return leg (flush at the wall's own length) from a front leg (near 0)", () => {
+    expect(isFarEndAnchored(4000, 4000)).toBe(true);
+    expect(isFarEndAnchored(3999.6, 4000)).toBe(true); // within the default 1mm tolerance
+    expect(isFarEndAnchored(600, 4000)).toBe(false);
+    expect(isFarEndAnchored(0, 4000)).toBe(false);
   });
 });
 

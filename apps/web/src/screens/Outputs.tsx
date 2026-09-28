@@ -7,6 +7,7 @@ import { useState } from "react";
 import type { ScreenProps } from "../App";
 import type { Schemas } from "../api/client";
 import { api, idempotency, must, versionWithEtag } from "../api/client";
+import { bomTableRows } from "../bomTable";
 import { inr } from "../geometry";
 import { Action, Badge, ErrorBox, Field, Section, useLoad } from "../ui";
 
@@ -106,7 +107,7 @@ export function OutputsScreen({ sel }: ScreenProps) {
         </table>
         {(graph.data?.hiddenKinds.length ?? 0) > 0 && <p>Not visible with your role: {graph.data?.hiddenKinds.join(", ")}.</p>}
       </Section>
-      {open !== null && <SnapshotView s={open} />}
+      {open !== null && <SnapshotView s={open} objectCodes={model.data?.objects.map((o) => o.objectCode) ?? []} />}
     </>
   );
 }
@@ -120,10 +121,15 @@ export function parseHandOver(code: string): HandOver {
   return { id: v.id, contentHash: v.contentHash, pricingStandardVersionId: v.pricingStandardVersionId, quotationPolicyVersionId: v.quotationPolicyVersionId };
 }
 
-/** Headline figures of a snapshot as the API returned them, and its full payload. */
-export function SnapshotView({ s }: { readonly s: Schemas["Snapshot"] }) {
+/** Headline figures of a snapshot as the API returned them, its full payload, and — P2, BOM only — a readable
+ * table (presentation only: every figure here is exactly what `roomBom`/`packages/types/src/bom.ts`'s `BOMItem`
+ * already computed, just laid out for a designer instead of the raw JSON collapsed below it). `objectCodes`
+ * (needed only to attribute a BOM line to the cabinet it belongs to) is optional — omit it, or pass `[]`, where
+ * the design's objects aren't already loaded; every other snapshot kind ignores it entirely. */
+export function SnapshotView({ s, objectCodes = [] }: { readonly s: Schemas["Snapshot"]; readonly objectCodes?: readonly string[] }) {
   const p = (s.payload ?? {}) as Record<string, unknown>;
   const totals = (p.totals ?? {}) as Record<string, unknown>;
+  const bomRows = s.kind === "BOM" ? bomTableRows(p, objectCodes) : [];
   return (
     <Section title={`${s.kind} ${s.purpose} — ${s.id}`}>
       <p>Design version <code>{s.designVersionId}</code> ({s.designVersionStatus}) · input <code>{s.input.hash.slice(0, 19)}…</code> · engine {s.engine.name} {s.engine.version} · {s.blockerCount} BLOCKER, {s.warningCount} WARNING</p>
@@ -132,6 +138,16 @@ export function SnapshotView({ s }: { readonly s: Schemas["Snapshot"] }) {
       )}
       {s.kind === "QUOTATION" && s.purpose === "FOR_PRODUCTION" && s.commercial !== null && s.commercial.quotationPolicyVersionId !== null && (
         <p>Hand-over code for Sales (issues this exact quotation): <code className="handover">{handOverCode({ id: s.id, contentHash: s.contentHash, pricingStandardVersionId: s.commercial.pricingStandardVersionId, quotationPolicyVersionId: s.commercial.quotationPolicyVersionId })}</code></p>
+      )}
+      {s.kind === "BOM" && (
+        bomRows.length === 0 ? <p>No BOM lines.</p> : (
+          <table className="bom-table">
+            <thead><tr><th>Cabinet</th><th>Component</th><th>Qty</th><th>Material</th><th>Finish</th><th>Hardware</th></tr></thead>
+            <tbody>
+              {bomRows.map((r, i) => <tr key={i}><td>{r.cabinet}</td><td>{r.component}</td><td>{r.qty}</td><td>{r.material}</td><td>{r.finish}</td><td>{r.hardware}</td></tr>)}
+            </tbody>
+          </table>
+        )
       )}
       <details><summary>Full payload (as stored)</summary><pre>{JSON.stringify(p, null, 2)}</pre></details>
     </Section>

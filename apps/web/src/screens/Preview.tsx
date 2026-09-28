@@ -8,7 +8,7 @@ import type { ScreenProps } from "../App";
 import type { ModelPreview } from "../api/client";
 import { api, must } from "../api/client";
 import { clampAlong, fit, footprintBox, mm, nearestWall, placeOnWall, snapToNeighbors } from "../geometry";
-import type { QuarterTurn } from "../geometry";
+import type { QuarterTurn, WallId } from "../geometry";
 import { Badge, ErrorBox, Section, useLoad } from "../ui";
 
 type Obj = ModelPreview["objects"][number];
@@ -189,8 +189,13 @@ export function Plan({ m, canEdit = false, selectedId = null, onSelect, onMove }
   );
 }
 
-export function Elevation({ m, selectedId = null, onSelect, selectedComponentId, onSelectComponent }: {
+export function Elevation({ m, wallId = "A", selectedId = null, onSelect, selectedComponentId, onSelectComponent }: {
   readonly m: ModelPreview;
+  /** Remediation P1 (Slice 6F follow-up): which of the room's 4 walls this elevation draws. Every wall derives
+   * from the exact same resolved model as every other view (`m.objects[].placement.wallId`/`alongWall`, already
+   * wall-relative regardless of which wall an object is on) — this is a display selector only, never a
+   * separate per-wall kitchen model. Defaults to "A" so every existing call site keeps its old behaviour. */
+  readonly wallId?: WallId;
   /** Slice 6D: the whole-object selection every view shares (the same `lineageId` Plan/3D use) — not a
    * separate elevation-only selection model. */
   readonly selectedId?: string | null;
@@ -201,19 +206,22 @@ export function Elevation({ m, selectedId = null, onSelect, selectedComponentId,
   /** Slice 2.1: fired when a DRAWER_FRONT rect is clicked. */
   readonly onSelectComponent?: (lineageId: string, componentId: string, componentType: string) => void;
 }) {
-  const { scale: s, ox, oy } = fit(m.room.length, m.room.height, W, H, 36);
+  // Walls A/C run the room's length; B/D run its width — read the wall's own real length from the model rather
+  // than assuming, so this generalises to any rectangular room.
+  const wallLength = m.room.walls.find((w) => w.wallId === wallId)?.length ?? m.room.length;
+  const { scale: s, ox, oy } = fit(wallLength, m.room.height, W, H, 36);
   const X = (x: number) => ox + x * s;
   const Y = (y: number) => oy + (m.room.height - y) * s;
-  const onA = m.objects.filter((o) => o.placement?.wallId === "A");
+  const onWall = m.objects.filter((o) => o.placement?.wallId === wallId);
   return (
-    <svg viewBox={`0 0 ${String(W)} ${String(H)}`} role="img" aria-label="Wall A elevation">
-      <rect x={X(0)} y={Y(m.room.height)} width={m.room.length * s} height={m.room.height * s} className="room" />
+    <svg viewBox={`0 0 ${String(W)} ${String(H)}`} role="img" aria-label={`Wall ${wallId} elevation`}>
+      <rect x={X(0)} y={Y(m.room.height)} width={wallLength * s} height={m.room.height * s} className="room" />
       {/* Slice 6D: one whole-cabinet click target per object, behind its own components, so every cabinet
           (shutter, open, corner leg, filler/end panel — not just a drawer bank) is selectable as a whole by
           clicking anywhere on its front, using the same persistent lineageId Plan/3D already select by. This is
           a hit-target only (no visible stroke) — the selection outline itself is drawn on top of every
           component further below, so it's never hidden behind an opaque shutter/panel fill. */}
-      {onA.map((o) => o.placement === null ? null : (
+      {onWall.map((o) => o.placement === null ? null : (
         <rect
           key={`${o.lineageId}-whole`}
           className={`cab-whole${onSelect !== undefined ? " clickable" : ""}`}
@@ -221,7 +229,7 @@ export function Elevation({ m, selectedId = null, onSelect, selectedComponentId,
           onClick={onSelect !== undefined ? () => { onSelect(o.lineageId); } : undefined}
         />
       ))}
-      {onA.flatMap((o) => o.components.map((c) => {
+      {onWall.flatMap((o) => o.components.map((c) => {
         const componentClickable = c.componentType === "DRAWER_FRONT" && onSelectComponent !== undefined;
         const clickable = componentClickable || onSelect !== undefined;
         const selected = c.componentId === selectedComponentId;
@@ -236,19 +244,19 @@ export function Elevation({ m, selectedId = null, onSelect, selectedComponentId,
       }))}
       {/* Slice 6D: the whole-cabinet selection outline, drawn on top of every component so it's always
           visible regardless of what opaque fronts sit underneath. */}
-      {onA.map((o) => o.placement === null || o.lineageId !== selectedId ? null : (
+      {onWall.map((o) => o.placement === null || o.lineageId !== selectedId ? null : (
         <rect
           key={`${o.lineageId}-outline`} className="cab-whole-outline"
           x={X(o.placement.alongWall.start)} y={Y(o.dimensions.height)} width={(o.placement.alongWall.end - o.placement.alongWall.start) * s} height={o.dimensions.height * s}
         />
       ))}
-      {onA.map((o) => o.placement === null ? null : (
+      {onWall.map((o) => o.placement === null ? null : (
         <g key={o.lineageId}>
           <text className="dim" x={X((o.placement.alongWall.start + o.placement.alongWall.end) / 2)} y={Y(0) + 14} textAnchor="middle">{o.dimensions.width}</text>
           <text className="cab-label" x={X((o.placement.alongWall.start + o.placement.alongWall.end) / 2)} y={Y(o.dimensions.height) - 6} textAnchor="middle">{o.objectCode}</text>
         </g>
       ))}
-      <text className="dim" x={X(m.room.length / 2)} y={Y(m.room.height) - 8} textAnchor="middle">Wall A · {mm(m.room.length)} · height {mm(m.room.height)}</text>
+      <text className="dim" x={X(wallLength / 2)} y={Y(m.room.height) - 8} textAnchor="middle">Wall {wallId} · {mm(wallLength)} · height {mm(m.room.height)}</text>
     </svg>
   );
 }

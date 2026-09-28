@@ -1,6 +1,6 @@
 /** Small presentational pieces shared by the screens. */
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { Component, useEffect, useState } from "react";
 import { ApiError } from "./api/client";
 
 export function ErrorBox({ error }: { readonly error: unknown }) {
@@ -35,6 +35,49 @@ export function Section({ title, children, aside }: { readonly title: string; re
 
 export function Badge({ children, tone }: { readonly children: ReactNode; readonly tone?: "ok" | "warn" | "bad" | "info" }) {
   return <span className={`badge ${tone ?? "info"}`}>{children}</span>;
+}
+
+/**
+ * Remediation P0 (Slice 6F follow-up): a secondary safety net, not the primary fix. The Design Studio already
+ * validates/rejects an out-of-range dimension before Save (`validation.ts`) and degrades gracefully around a
+ * decode failure for the selected object alone (`screens/DesignStudio.tsx`'s own try/catch around
+ * `decodeCabinetInstance`); this boundary exists only for whatever else could still throw during render, so that
+ * NO error anywhere in the wrapped subtree can ever blank the whole screen. It never hides the underlying error
+ * (PRD/CLAUDE.md: never hide a validation error) and never loses the surrounding screen (the version selector,
+ * nav, etc. above it keep working — project/design identity is never lost, since it lives in `App`'s own state,
+ * outside this boundary). `resetKey` clears a caught error automatically once the condition that caused it may
+ * have changed (e.g. a different object selected, or the model reloaded).
+ */
+interface ErrorBoundaryProps {
+  readonly children: ReactNode;
+  readonly resetKey?: string | number;
+  readonly onReset?: () => void;
+}
+interface ErrorBoundaryState {
+  readonly error: Error | null;
+}
+export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  override state: ErrorBoundaryState = { error: null };
+
+  static getDerivedStateFromError(error: unknown): ErrorBoundaryState {
+    return { error: error instanceof Error ? error : new Error(String(error)) };
+  }
+
+  override componentDidUpdate(prev: ErrorBoundaryProps): void {
+    if (this.state.error !== null && prev.resetKey !== this.props.resetKey) this.setState({ error: null });
+  }
+
+  override render(): ReactNode {
+    const { error } = this.state;
+    if (error === null) return this.props.children;
+    return (
+      <div className="error" role="alert">
+        <p><strong>Something went wrong while rendering this screen:</strong> {error.message}</p>
+        <p>The rest of your design has not been lost. Try again, or reload the model.</p>
+        <button type="button" onClick={() => { this.setState({ error: null }); this.props.onReset?.(); }}>Try again</button>
+      </div>
+    );
+  }
 }
 
 /** Loads when `key` changes; `reload` refetches. */

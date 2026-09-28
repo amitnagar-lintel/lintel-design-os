@@ -16,6 +16,25 @@ const SELECTED_COLOR = 0x3b82f6;
 /** Slice 2.1: a single selected component (e.g. one drawer front) within an already-selected object. */
 const SELECTED_COMPONENT_COLOR = 0xf59e0b;
 
+/**
+ * Remediation P2 (Slice 6F follow-up): a presentational colour per catalog material/finish id — the same kind of
+ * componentType→colour mapping this file already did before this change (never a business calculation; see
+ * CLAUDE.md "Do not couple Three.js directly to business calculations"), just keyed by the resolved component's
+ * own `materialId`/`finishId` instead of only its `componentType`. An id with no entry falls back to today's
+ * fixed colours, so an unmapped or future catalog value never breaks rendering. The two current defaults
+ * (`BOARD_BWP_18` for carcass, `LAMINATE_WHITE` for front finish) are chosen to match the colours this viewport
+ * already used before materials/finishes became editable, so an unedited cabinet looks exactly as it did.
+ */
+const MATERIAL_COLORS: Readonly<Record<string, number>> = {
+  BOARD_BWP_18: CARCASS_COLOR,
+  BOARD_HDHMR_18: 0xcbb27a,
+  BOARD_BACK_6: BACK_COLOR,
+};
+const FINISH_COLORS: Readonly<Record<string, number>> = {
+  LAMINATE_WHITE: SHUTTER_COLOR,
+};
+const FRONT_COMPONENT_TYPES = new Set(["SHUTTER", "DRAWER_FRONT", "FILLER", "END_PANEL"]);
+
 interface Tracked {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene: THREE.Scene;
@@ -130,7 +149,13 @@ export function Viewport3D({ model, selectedId, onSelect, selectedComponentId, o
         const geometry = new THREE.BoxGeometry(Math.max(1, c.box.size.x), Math.max(1, c.box.size.y), Math.max(1, c.box.size.z));
         const isBack = c.componentType === "BACK";
         const componentSelected = selected && c.componentId === selectedComponentId;
-        const color = componentSelected ? SELECTED_COMPONENT_COLOR : selected ? SELECTED_COLOR : c.componentType === "SHUTTER" ? SHUTTER_COLOR : isBack ? BACK_COLOR : CARCASS_COLOR;
+        // Remediation P2: a front-like component (shutter/drawer front/filler/end panel) is coloured by its own
+        // finish; everything else (carcass sides, back, internals) by its own material — both read straight off
+        // the resolved component the engine already produced, never recomputed here.
+        const baseColor = FRONT_COMPONENT_TYPES.has(c.componentType)
+          ? FINISH_COLORS[c.finishId ?? ""] ?? SHUTTER_COLOR
+          : MATERIAL_COLORS[c.materialId] ?? (isBack ? BACK_COLOR : CARCASS_COLOR);
+        const color = componentSelected ? SELECTED_COMPONENT_COLOR : selected ? SELECTED_COLOR : baseColor;
         const material = new THREE.MeshStandardMaterial({ color, transparent: isBack, opacity: isBack ? 0.35 : 1 });
         const mesh = new THREE.Mesh(geometry, material);
         mesh.position.set(c.box.min.x + c.box.size.x / 2, c.box.min.y + c.box.size.y / 2, c.box.min.z + c.box.size.z / 2);

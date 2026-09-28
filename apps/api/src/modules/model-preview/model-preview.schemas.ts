@@ -25,6 +25,15 @@ export const ModelComponent = z.strictObject({
   finishId: z.string().nullable(),
   finishedFaces: z.number().int(),
   grainDirection: z.string(),
+  /**
+   * This component's own along-wall range (mm from the object's placement wall's left end), computed the exact
+   * same way as the object's own `placement.alongWall` (`@lintel/geometry-engine`'s `wallFrame`/`relativeToWall`)
+   * — never the object's placement wall's `box.min.x`, which only equals the along-wall coordinate for walls A/C
+   * (for B/D the along-wall axis is `box.z`). Elevation renders every component from this field, whatever wall
+   * it's on, instead of re-deriving (and risking re-deriving wrong) the room-axis-to-wall-axis mapping itself.
+   * `null` only when the object itself has no placement (see the object's own `messages`).
+   */
+  alongWall: z.strictObject({ start: z.number(), end: z.number() }).nullable(),
 });
 
 /**

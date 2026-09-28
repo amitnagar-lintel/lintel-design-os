@@ -24,6 +24,8 @@ import { snapshotOf, SnapshotView } from "./Outputs";
 import { usablePins } from "./Layout";
 import type { Param, Pins } from "./Layout";
 import { Elevation, Plan, ValidationBadges } from "./Preview";
+import { planReflow } from "../reflow";
+import type { ReflowObject } from "../reflow";
 import { Action, Badge, ErrorBox, ErrorBoundary, Field, Section, useLoad } from "../ui";
 import type { DimensionLimit } from "../validation";
 import { dimensionError } from "../validation";
@@ -340,11 +342,20 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
     return must(api.POST("/api/v1/design-versions/{versionId}/objects", { params: { path: { versionId }, header: { "If-Match": etag } }, body }));
   };
 
-  const addCabinet = async (type: CabinetType) => {
+  /** Hardening (real-designer UX audit P0-1): placed on the wall the designer actually chose in the library
+   * panel, never hardcoded to wall A — the next free position is computed in THAT wall's own along-wall
+   * coordinates (from the objects already resolved onto it), then converted to a room position/rotation by the
+   * same `placeOnWall` the Properties panel's Wall/Along/Distance fields and Plan's drag-to-snap already use.
+   * There is no separate "add-time" placement model: this is the one room-wall model every view derives from. */
+  const addCabinet = async (type: CabinetType, wallId: WallId) => {
     const p = await pinnedProductByCode(version.pins.productCatalogVersionId, type.productCode);
     if (p === null) throw new Error(`The pinned product catalog does not define ${type.productCode}.`);
-    const position = { xMm: nextFreeX(objects.map((o) => ({ id: o.objectId, x: o.transform.x, width: o.dimensions.width }))), yMm: 0, zMm: 0 };
-    const instance = buildInstance(type, p, nextObjectCode(), position, 0);
+    if (m === null) throw new Error("The room's model has not loaded yet.");
+    const onWall = objects.filter((o): o is Obj & { placement: NonNullable<Obj["placement"]> } => o.placement !== null && o.placement.wallId === wallId);
+    const alongMm = nextFreeX(onWall.map((o) => ({ id: o.objectId, x: o.placement.alongWall.start, width: o.dimensions.width })));
+    const moved = placeOnWall(wallId, alongMm, 0, m.room.length, m.room.width);
+    const position = { xMm: moved.x, yMm: 0, zMm: moved.z };
+    const instance = buildInstance(type, p, nextObjectCode(), position, moved.rotationY);
     const created = await createObject(instance);
     selectObject(created.object.lineageId);
     refresh();
@@ -370,10 +381,44 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
     refresh();
   };
 
-  const saveCabinet = async (objectId: string, next: CabinetInstance) => {
+  const patchObject = async (objectId: string, body: object) => {
     const { etag } = await versionWithEtag(versionId);
-    const body = compileUpdate(next);
     await must(api.PATCH("/api/v1/design-objects/{objectId}", { params: { path: { objectId }, header: { "If-Match": etag } }, body }));
+  };
+
+  /** Hardening (real-designer UX audit P0-3): a width change that would otherwise leave a run cabinet overlapping
+   * its right-hand neighbour instead shifts every following same-run cabinet by the same amount, keeping the run
+   * contiguous — computed by `planReflow` from the model's own run/relationship data, never a separate placement
+   * model. When the shift is impossible (would push a cabinet off the wall, or would need to move a corner leg),
+   * NOTHING is written — not even the resize itself — so the previous valid state is exactly preserved and the
+   * designer sees a clear reason why, instead of a silent overlap. */
+  const saveCabinet = async (current: Obj, next: CabinetInstance) => {
+    const deltaMm = next.dimensions.widthMm - current.dimensions.width;
+    const run = m === null || current.placement === null ? undefined : m.runs.find((r) => r.lineageIds.includes(current.lineageId));
+    const runWallId = run === undefined ? null : run.wallId;
+    const plan = run === undefined || runWallId === null || m === null
+      ? { kind: "none" as const }
+      : planReflow(
+        {
+          runLineageIds: run.lineageIds,
+          wallId: runWallId,
+          wallLength: m.room.walls.find((w) => w.wallId === run.wallId)?.length ?? run.length,
+          cornerLineageIds: new Set(m.relationships.filter((r) => r.type === "CORNER").flatMap((r) => r.lineageIds)),
+          objectsByLineageId: new Map(objects.flatMap((o): [string, ReflowObject][] => (o.placement === null ? [] : [[o.lineageId, {
+            objectId: o.objectId, objectCode: o.objectCode, alongWall: o.placement.alongWall, distanceToWall: o.placement.distanceToWall, yMm: o.transform.y,
+          }]]))),
+        },
+        current.lineageId,
+        deltaMm,
+      );
+    if (plan.kind === "blocked") throw new Error(plan.message);
+    await patchObject(current.objectId, compileUpdate(next));
+    if (plan.kind === "shift" && m !== null && runWallId !== null) {
+      for (const s of plan.shifts) {
+        const moved = placeOnWall(runWallId, s.along, s.distanceToWall, m.room.length, m.room.width);
+        await patchObject(s.objectId, { position: { xMm: moved.x, yMm: s.yMm, zMm: moved.z }, rotationY: moved.rotationY });
+      }
+    }
     refresh();
   };
 
@@ -466,7 +511,7 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
               <PropertiesPanel
                 instance={propertiesState.instance}
                 canEdit={canEdit}
-                onSave={(next) => saveCabinet(propertiesState.selected.objectId, next)}
+                onSave={(next) => saveCabinet(propertiesState.selected, next)}
                 onRemove={() => removeCabinet(propertiesState.selected.objectId)}
                 selectedComponentId={selectedComponentId}
                 onSelectComponentId={(componentId) => { setSelectedComponentId(componentId); }}
@@ -538,13 +583,29 @@ const CORNERS: readonly { readonly id: CornerId; readonly label: string }[] = [
   { id: "CD", label: "C-D" },
 ];
 
-function CabinetLibraryPanel({ canEdit, onAdd, onAddCornerPair }: { readonly canEdit: boolean; readonly onAdd: (type: CabinetType) => Promise<void>; readonly onAddCornerPair: (type: CabinetType, corner: CornerId) => Promise<void> }) {
+const WALLS: readonly { readonly id: WallId; readonly label: string }[] = [
+  { id: "A", label: "A" },
+  { id: "B", label: "B" },
+  { id: "C", label: "C" },
+  { id: "D", label: "D" },
+];
+
+function CabinetLibraryPanel({ canEdit, onAdd, onAddCornerPair }: { readonly canEdit: boolean; readonly onAdd: (type: CabinetType, wall: WallId) => Promise<void>; readonly onAddCornerPair: (type: CabinetType, corner: CornerId) => Promise<void> }) {
   const categories = ["BASE", "WALL", "TALL", "CORNER", "FILLER"] as const;
+  /** Hardening (real-designer UX audit P0-1): which wall the next plain "+ Add" places against — every ordinary
+   * cabinet used to always land on wall A regardless of intent; this is now an explicit designer choice, exactly
+   * like the existing Corner selector already is for "+ Add pair". */
+  const [wall, setWall] = useState<WallId>("A");
   /** Slice 6C: which of the room's 4 corners the next "+ Add pair" click places at (was D-A only). */
   const [corner, setCorner] = useState<CornerId>("DA");
   return (
     <>
       <h3>Cabinet library</h3>
+      <Field label="Add to wall" hint="Where a plain “+ Add” places the next cabinet.">
+        <select value={wall} disabled={!canEdit} onChange={(e) => { setWall(e.target.value as WallId); }}>
+          {WALLS.map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}
+        </select>
+      </Field>
       {categories.map((category) => (
         <div key={category} className="cabinet-lib-group">
           <h4>{category}</h4>
@@ -563,7 +624,7 @@ function CabinetLibraryPanel({ canEdit, onAdd, onAddCornerPair }: { readonly can
                   <strong>{entry.label}</strong>
                   <p>{entry.description}</p>
                 </div>
-                {availability.kind === "AVAILABLE" && <Action label="+ Add" disabled={!canEdit} run={() => onAdd(availability.cabinetType)} />}
+                {availability.kind === "AVAILABLE" && <Action label="+ Add" disabled={!canEdit} run={() => onAdd(availability.cabinetType, wall)} />}
                 {availability.kind === "AVAILABLE_CORNER_PAIR" && <Action label="+ Add pair" disabled={!canEdit} run={() => onAddCornerPair(availability.cabinetType, corner)} />}
                 {availability.kind === "PLANNED" && <Badge tone="info">Slice {availability.slice}</Badge>}
               </div>

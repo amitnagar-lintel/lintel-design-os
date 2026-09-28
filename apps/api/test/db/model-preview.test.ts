@@ -69,6 +69,48 @@ describe("GET /design-versions/{id}/model", () => {
     expect(runs[0]!.n).toBe("0");
   });
 
+  it("gives every component its own along-wall range from the SAME wall-relative conversion as the object's own placement — not the room-global box, which only coincides with along-wall on walls A/C (hardening P0-2: multi-wall Elevation)", async () => {
+    const f = issueFixtures(api, d);
+    const { versionId } = await f.draftVersion();
+    const productVersionId = (d.deps.items.product as { versionId: string }).versionId;
+    let etag = (await api.request({ method: "GET", url: `/api/v1/design-versions/${versionId}`, as: d.w.users.DESIGNER })).headers.etag as string;
+    const onA = await api.request({ method: "POST", url: `/api/v1/design-versions/${versionId}/objects`, as: d.w.users.DESIGNER, payload: cabinet(productVersionId, "OBJ-WALL-A", 0), headers: { "if-match": etag } });
+    expect(onA.statusCode).toBe(201);
+    etag = onA.headers.etag as string;
+    // Room is 4200 (length, wall A/C) x 3200 (width, wall B/D); flush against wall B (x = room length) at along=0.
+    const onB = await api.request({
+      method: "POST", url: `/api/v1/design-versions/${versionId}/objects`, as: d.w.users.DESIGNER, headers: { "if-match": etag },
+      payload: { ...cabinet(productVersionId, "OBJ-WALL-B", 0), position: { xMm: 4200, yMm: 0, zMm: 0 }, rotationY: 270 },
+    });
+    expect(onB.statusCode).toBe(201);
+
+    const m = ModelPreviewResponse.parse((await model(versionId, d.w.users.DESIGNER)).json());
+    const a = m.objects.find((o) => o.objectCode === "OBJ-WALL-A")!;
+    const b = m.objects.find((o) => o.objectCode === "OBJ-WALL-B")!;
+    expect(a.placement).toMatchObject({ wallId: "A" });
+    expect(b.placement).toMatchObject({ wallId: "B", alongWall: { start: 0, end: 600 } });
+    expect(a.components.length).toBeGreaterThan(0);
+    expect(b.components.length).toBeGreaterThan(0);
+
+    // Every component's own along-wall range must fall inside its object's own placement.alongWall range —
+    // true on any wall only if each component was projected through that wall's own frame, not a shared axis.
+    for (const c of [...a.components, ...b.components]) expect(c.alongWall).not.toBeNull();
+    const aRange = a.placement!.alongWall;
+    const bRange = b.placement!.alongWall;
+    for (const c of a.components) {
+      expect(c.alongWall!.start).toBeGreaterThanOrEqual(aRange.start - 1e-6);
+      expect(c.alongWall!.end).toBeLessThanOrEqual(aRange.end + 1e-6);
+    }
+    for (const c of b.components) {
+      expect(c.alongWall!.start).toBeGreaterThanOrEqual(bRange.start - 1e-6);
+      expect(c.alongWall!.end).toBeLessThanOrEqual(bRange.end + 1e-6);
+    }
+    // The regression this guards: on wall B, a component's raw box.min.x sits near the room's fixed depth-lock
+    // coordinate (~4200), nowhere near its correct 0-600mm along-wall range — confirming the fix actually
+    // changed which axis is used, not just that some value happens to be present.
+    for (const c of b.components) expect(c.box.min.x).toBeGreaterThan(bRange.end);
+  });
+
   it("is tenant-safe, internal-only and needs reference.read; unknown versions are 404", async () => {
     const f = issueFixtures(api, d);
     const { versionId } = await f.draftVersion();

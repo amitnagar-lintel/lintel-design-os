@@ -16,6 +16,7 @@
     "@lintel/db-tools": "workspace:*",
     "@lintel/design-engine": "workspace:*",
     "@lintel/drawing-engine": "workspace:*",
+    "@lintel/geometry-engine": "workspace:*",
     "@lintel/hettich-engine": "workspace:*",
     "@lintel/persistence": "workspace:*",
     "@lintel/pricing-engine": "workspace:*",

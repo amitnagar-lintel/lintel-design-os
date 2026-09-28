@@ -331,6 +331,27 @@ export async function productVersion(c: Tx, w: World, product: Item, recipeVersi
   return { entityId: pm.entityId, versionId: pm.versionId };
 }
 
+/**
+ * Remediation (Slice 6F follow-up, hardening) test support: another exact version of an existing product, with
+ * declared width/height/depth limits on the given keys (mirrors `apps/db-tools/src/pilot/rehearsal-dataset.ts`'s
+ * own `withLimits`) — `KIT_BASE_STANDARD`'s own catalog data declares none, so DB tests that need to prove the
+ * API rejects an out-of-range dimension need a product version that actually declares one.
+ */
+export async function productVersionWithLimits(
+  c: Tx, w: World, product: Item, recipeVersionId: string, versionNumber: number, limits: Readonly<Record<string, readonly [number, number]>>,
+): Promise<Item> {
+  const pm = meta(w, "DESIGN_HEAD", { entityId: product.entityId, versionNumber });
+  const def = {
+    ...KIT_BASE_STANDARD,
+    parameters: KIT_BASE_STANDARD.parameters.map((p) => {
+      const lim = (p.kind === "number" || p.kind === "integer") ? limits[p.key] : undefined;
+      return lim === undefined ? p : { ...p, min: lim[0], max: lim[1] };
+    }),
+  };
+  await insertRow(c, "product_version", strip(productToRow(def, pm, { orgId: w.org, recipeVersionId }, "Lintel catalog")));
+  return { entityId: pm.entityId, versionId: pm.versionId };
+}
+
 export async function hettichDataset(c: Tx, w: World, o: VersionOpts & { readonly hettich?: Parameters<typeof syntheticHettichDataset>[1] } = {}): Promise<string> {
   const m = meta(w, "PROCUREMENT", { ...(o.entityId === undefined ? {} : { entityId: o.entityId }), versionNumber: o.versionNumber ?? 1 });
   const dataset = o.complete === true ? syntheticHettichDataset(HETTICH_PRODUCTION_DATASET, o.hettich ?? {}) : HETTICH_PRODUCTION_DATASET;

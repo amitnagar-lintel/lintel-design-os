@@ -13,6 +13,7 @@ import type { StoredResponse } from "../../common/idempotency/idempotency.servic
 import type { DesignObjectRow } from "../../infrastructure/persistence/design-versions.repository.js";
 import { designVersionsRepository as repo } from "../../infrastructure/persistence/design-versions.repository.js";
 import { etagOf, lockDraft, refreshHashes, stateOf, toObject, toOverride } from "./design-content.js";
+import { dimensionFieldErrors, productDimensionLimits } from "./dimension-limits.js";
 import type { ObjectInput, ObjectUpdate, OverrideCreate } from "./design-versions.schemas.js";
 
 /**
@@ -31,6 +32,20 @@ export class DesignObjectsService {
   private async finish(tx: Tx, versionId: string, status: number, body: Record<string, unknown>, location?: string): Promise<StoredResponse> {
     const v = await refreshHashes(tx, versionId);
     return { status, body: { ...body, designVersion: stateOf(v) }, headers: { etag: etagOf(v), ...(location === undefined ? {} : { location }) } };
+  }
+
+  /**
+   * Remediation (Slice 6F follow-up, hardening): the authoritative check — the pinned product's own width/height/
+   * depth limits, enforced here regardless of whether the request came through the Design Studio UI (which
+   * already checks this client-side for immediate feedback, `apps/web/src/validation.ts`) or a direct API call.
+   * Rejects (400 VALIDATION_FAILED, the same structured field-error shape every other request validation in this
+   * API already returns) before anything is written, so an out-of-range value is never persisted.
+   */
+  private async checkDimensions(tx: Tx, productVersionId: string, dimensions: { readonly widthMm: number; readonly heightMm: number; readonly depthMm: number }): Promise<void> {
+    const limits = await productDimensionLimits(tx, productVersionId);
+    if (limits === null) return;
+    const errors = dimensionFieldErrors(dimensions, limits);
+    if (errors.length > 0) throw new ApiProblem("VALIDATION_FAILED", "cabinet dimensions are outside the pinned product's declared limits", { errors });
   }
 
   list(scope: RequestScope, versionId: string, q: PageQuery) {
@@ -55,6 +70,7 @@ export class DesignObjectsService {
   create(scope: RequestScope, versionId: string, ifMatch: string | undefined, b: ObjectInput): Promise<StoredResponse> {
     return this.uow.run(scope, { action: "design_version.author" }, async (tx) => {
       await lockDraft(tx, versionId, ifMatch);
+      await this.checkDimensions(tx, b.productVersionId, b.dimensions);
       const row: DesignObjectRow = {
         id: randomUUID(), org_id: scope.org.orgId, design_version_id: versionId, object_code: b.objectCode, lineage_id: b.lineageId ?? randomUUID(),
         object_type: b.objectType, product_code: b.productCode, product_version_id: b.productVersionId,
@@ -81,6 +97,7 @@ export class DesignObjectsService {
         width_mm: b.dimensions?.widthMm ?? current.width_mm, height_mm: b.dimensions?.heightMm ?? current.height_mm, depth_mm: b.dimensions?.depthMm ?? current.depth_mm,
         parameters: b.parameters ?? current.parameters,
       };
+      await this.checkDimensions(tx, next.product_version_id, { widthMm: next.width_mm, heightMm: next.height_mm, depthMm: next.depth_mm });
       const updated = await repo.updateObject(tx, next);
       if (updated === null) throw new ApiProblem("NOT_FOUND");
       return this.finish(tx, current.design_version_id, 200, { object: toObject(updated) });

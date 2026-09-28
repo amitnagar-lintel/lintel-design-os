@@ -6,10 +6,12 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { computeEngineManifest } from "../../src/infrastructure/engines/engine-manifest.build.js";
 import { ObjectResponse, ValidationRunResponse, VersionResponse, VersionState } from "../../src/modules/design-versions/design-versions.schemas.js";
+import type { Tx } from "../../../../tests/db/support/db.js";
+import { catalogVersion, productVersionWithLimits } from "../../../../tests/db/support/world.js";
 import type { DomainWorld } from "../support/domain.js";
 import { cabinet, domainWorld, key, productCatalogVariants } from "../support/domain.js";
 import type { Api, Problem } from "../support/harness.js";
-import { sql, startApi, TEST_BUILD, world } from "../support/harness.js";
+import { admin, sql, startApi, TEST_BUILD, world } from "../support/harness.js";
 
 let api: Api;
 let d: DomainWorld;
@@ -36,6 +38,30 @@ async function getVersion(id: string): Promise<{ v: ReturnType<typeof VersionRes
 }
 const addObject = (versionId: string, etag: string | undefined, body: Record<string, unknown>) =>
   api.request({ method: "POST", url: `/api/v1/design-versions/${versionId}/objects`, as: as("DESIGNER"), payload: body, ...(etag === undefined ? {} : { headers: { "if-match": etag } }) });
+
+/**
+ * Remediation (Slice 6F follow-up, hardening) test support: a product version that actually declares a
+ * width limit (the world's own product does not — `KIT_BASE_STANDARD`'s catalog data leaves every dimension
+ * unbounded), in its own catalog version so it can be pinned and used to create/update objects through the API.
+ */
+async function limitedProductWorld(widthLimit: readonly [number, number]): Promise<{ productVersionId: string; catalogVersionId: string }> {
+  const product = d.deps.items.product;
+  const recipe = d.deps.items.recipe;
+  if (product === undefined || recipe === undefined) throw new Error("world has no product");
+  const c = await admin();
+  try {
+    await c.query("BEGIN");
+    const tx = c as unknown as Tx;
+    const entity = (await c.query<{ entity_id: string }>("SELECT entity_id FROM design_os.product_catalog_version WHERE id = $1", [d.pins.productCatalogVersionId])).rows[0]?.entity_id;
+    if (entity === undefined) throw new Error("no product catalog");
+    const limited = await productVersionWithLimits(tx, d.w, product, recipe.versionId, 3, { width: widthLimit });
+    const catalogVersionId = await catalogVersion(tx, d.w, "product", [["product", product.entityId, limited.versionId]], { entityId: entity, versionNumber: 4 });
+    await c.query("COMMIT");
+    return { productVersionId: limited.versionId, catalogVersionId };
+  } finally {
+    await c.end();
+  }
+}
 const transition = (versionId: string, etag: string, body: Record<string, unknown>, role: keyof DomainWorld["w"]["users"] = "DESIGNER", k = key()) =>
   api.request({ method: "POST", url: `/api/v1/design-versions/${versionId}/transitions`, as: as(role), payload: body, headers: { "if-match": etag, "idempotency-key": k } });
 const validate = (versionId: string, headers: Record<string, string> = {}, payload: Record<string, unknown> = {}) =>
@@ -104,6 +130,37 @@ describe("draft content: objects and overrides", () => {
     expect([outside.statusCode, problem(outside).code]).toEqual([422, "INVALID_REFERENCE"]);
     expect((await addObject(v.id, etag, { ...cabinet(productVersionId, "OBJ-KIT-010"), rotationY: 45 })).statusCode).toBe(400);
     expect((await addObject(v.id, etag, { ...cabinet(productVersionId, "OBJ-KIT-011"), dimensions: { widthMm: 0, heightMm: 720, depthMm: 560 } })).statusCode).toBe(400);
+  });
+  it("cabinet dimensions outside the pinned product's own declared limits are rejected server-side on create AND update — never only client-side (Slice 6F remediation hardening)", async () => {
+    const { productVersionId: limitedId, catalogVersionId } = await limitedProductWorld([20, 300]);
+    const v = VersionResponse.parse((await newVersion({ pins: { ...d.pins, productCatalogVersionId: catalogVersionId } })).json());
+    let { etag } = await getVersion(v.id);
+
+    // Create: an out-of-range width is rejected before anything is persisted.
+    const badCreate = await addObject(v.id, etag, { ...cabinet(limitedId, "OBJ-LIM-001"), dimensions: { widthMm: 600, heightMm: 720, depthMm: 560 } });
+    expect(badCreate.statusCode).toBe(400);
+    expect(problem(badCreate).code).toBe("VALIDATION_FAILED");
+    expect(problem(badCreate).errors).toEqual([{ path: "body.dimensions.widthMm", code: "out_of_range", message: "must be at most 300 mm (got 600)" }]);
+    expect((await api.request({ method: "GET", url: `/api/v1/design-versions/${v.id}/objects`, as: as("DESIGNER") })).json<{ items: unknown[] }>().items).toEqual([]);
+
+    // A valid width succeeds.
+    const created = await addObject(v.id, etag, { ...cabinet(limitedId, "OBJ-LIM-001"), dimensions: { widthMm: 100, heightMm: 720, depthMm: 560 } });
+    expect(created.statusCode).toBe(201);
+    const obj = ObjectResponse.parse(created.json<{ object: unknown }>().object);
+    etag = created.headers.etag as string;
+
+    // Update: an out-of-range PATCH is rejected, and the previously valid width is preserved (not overwritten).
+    const badUpdate = await api.request({ method: "PATCH", url: `/api/v1/design-objects/${obj.id}`, as: as("DESIGNER"), payload: { dimensions: { widthMm: 1, heightMm: 720, depthMm: 560 } }, headers: { "if-match": etag } });
+    expect(badUpdate.statusCode).toBe(400);
+    expect(problem(badUpdate).code).toBe("VALIDATION_FAILED");
+    expect(problem(badUpdate).errors).toEqual([{ path: "body.dimensions.widthMm", code: "out_of_range", message: "must be at least 20 mm (got 1)" }]);
+    const stillGood = await api.request({ method: "GET", url: `/api/v1/design-objects/${obj.id}`, as: as("DESIGNER") });
+    expect(ObjectResponse.parse(stillGood.json()).dimensions).toEqual({ widthMm: 100, heightMm: 720, depthMm: 560 });
+
+    // A valid correction succeeds.
+    const goodUpdate = await api.request({ method: "PATCH", url: `/api/v1/design-objects/${obj.id}`, as: as("DESIGNER"), payload: { dimensions: { widthMm: 250, heightMm: 720, depthMm: 560 } }, headers: { "if-match": etag } });
+    expect(goodUpdate.statusCode).toBe(200);
+    expect(ObjectResponse.parse(goodUpdate.json<{ object: unknown }>().object).dimensions).toEqual({ widthMm: 250, heightMm: 720, depthMm: 560 });
   });
   it("updating keeps lineage and code; overrides reference lineage ids, keep their version history, and block deleting a referenced object", async () => {
     const v = VersionResponse.parse((await newVersion()).json());

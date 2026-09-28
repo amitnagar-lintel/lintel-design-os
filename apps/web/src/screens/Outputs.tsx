@@ -107,7 +107,7 @@ export function OutputsScreen({ sel }: ScreenProps) {
         </table>
         {(graph.data?.hiddenKinds.length ?? 0) > 0 && <p>Not visible with your role: {graph.data?.hiddenKinds.join(", ")}.</p>}
       </Section>
-      {open !== null && <SnapshotView s={open} objects={model.data?.objects.map((o) => ({ objectId: o.objectId, objectCode: o.objectCode })) ?? []} />}
+      {open !== null && <SnapshotView s={open} objects={model.data?.objects.map((o) => ({ lineageId: o.lineageId, objectCode: o.objectCode })) ?? []} />}
     </>
   );
 }
@@ -126,7 +126,7 @@ export function parseHandOver(code: string): HandOver {
  * already computed, just laid out for a designer instead of the raw JSON collapsed below it). `objects`
  * (needed only to attribute a BOM line to the cabinet it belongs to, by id) is optional — omit it, or pass `[]`,
  * where the design's objects aren't already loaded; every other snapshot kind ignores it entirely. */
-export function SnapshotView({ s, objects = [] }: { readonly s: Schemas["Snapshot"]; readonly objects?: readonly { readonly objectId: string; readonly objectCode: string }[] }) {
+export function SnapshotView({ s, objects = [] }: { readonly s: Schemas["Snapshot"]; readonly objects?: readonly { readonly lineageId: string; readonly objectCode: string }[] }) {
   const p = (s.payload ?? {}) as Record<string, unknown>;
   const totals = (p.totals ?? {}) as Record<string, unknown>;
   const bomRows = s.kind === "BOM" ? bomTableRows(p, objects) : [];

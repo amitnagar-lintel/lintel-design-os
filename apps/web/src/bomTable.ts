@@ -6,9 +6,13 @@
  * Cabinet | Component | Qty | Material | Finish | Hardware.
  *
  * A `RoomBOM` is NOT a flat item list: it's `{ objectBoms: BOM[], totals: RoomBomTotal[], ... }`, one `BOM` per
- * design object (`packages/types/src/bom.ts`), each carrying its own `items: BOMItem[]` AND a `trace.objectId`
- * — the exact object identity every other view already keys by, so a line is attributed to its cabinet by that
- * id, never by guessing from a component-id string. This computes nothing the BOM engine didn't already
+ * design object (`packages/types/src/bom.ts`), each carrying its own `items: BOMItem[]` and a `trace.objectId`.
+ * That field is the design-ENGINE's own internal identity, which is the object's `lineageId`, not the API's
+ * per-version `objectId` — confirmed by `packages/design-engine/src/resolve-cabinet.ts`'s `src =
+ * object.objectId` feeding `trace.objectId` directly, and by `model-preview.service.ts`'s own `byLineage =
+ * new Map(rows.objects.map((o) => [o.lineage_id, o]))` keyed lookup of that same field. So a line is attributed
+ * to its cabinet by `lineageId`, never a component-id-string guess and never the API `objectId`. This computes
+ * nothing the BOM engine didn't already
  * compute — no quantity, price or material choice originates here, only how to lay out fields that already
  * exist on each item, dispatched by its `kind` (PANEL/BOARD/EDGE_BAND/FINISH/HARDWARE/APPLIANCE). The room-level
  * `totals` (aggregated across cabinets) are intentionally not shown here — this table is the per-cabinet detail
@@ -60,17 +64,17 @@ function rowOf(item: Record<string, unknown>, cabinet: string): BomTableRow | nu
   }
 }
 
-/** `objects`: every design object's own id and code — never invented, always read off the same resolved model
- * every other view uses — so each `objectBoms[]` entry (keyed by its own `trace.objectId`) can be attributed to
- * the right cabinet. */
-export function bomTableRows(payload: Record<string, unknown>, objects: readonly { readonly objectId: string; readonly objectCode: string }[]): readonly BomTableRow[] {
-  const codeById = new Map(objects.map((o) => [o.objectId, o.objectCode]));
+/** `objects`: every design object's own lineage id and code — never invented, always read off the same
+ * resolved model every other view uses — so each `objectBoms[]` entry (keyed by its own `trace.objectId`,
+ * which is actually a lineage id — see this module's own doc comment) can be attributed to the right cabinet. */
+export function bomTableRows(payload: Record<string, unknown>, objects: readonly { readonly lineageId: string; readonly objectCode: string }[]): readonly BomTableRow[] {
+  const codeByLineageId = new Map(objects.map((o) => [o.lineageId, o.objectCode]));
   const objectBoms = Array.isArray(payload.objectBoms) ? payload.objectBoms : [];
   const rows: BomTableRow[] = [];
   for (const ob of objectBoms) {
     const obRec = record(ob);
-    const objectId = str(record(obRec.trace).objectId);
-    const cabinet = objectId === undefined ? "—" : codeById.get(objectId) ?? "—";
+    const lineageId = str(record(obRec.trace).objectId);
+    const cabinet = lineageId === undefined ? "—" : codeByLineageId.get(lineageId) ?? "—";
     const items = Array.isArray(obRec.items) ? obRec.items : [];
     for (const it of items) {
       const row = rowOf(record(it), cabinet);

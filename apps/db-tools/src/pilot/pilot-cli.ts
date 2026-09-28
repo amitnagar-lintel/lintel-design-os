@@ -12,6 +12,9 @@
  *       connection), migrated; the API and the UI started against it; the rehearsal organization onboarded; the
  *       rehearsal dataset (LOCAL REHEARSAL ONLY, synthetic) loaded and approved through the intake CLI; one access token
  *       per person written to .pilot/tokens. Runs until Ctrl-C.
+ *       Env: PILOT_POSTGRES_URL (admin connection; only needed if it isn't a passwordless local superuser),
+ *       PILOT_API_PORT (3000), PILOT_WEB_PORT (5173), PILOT_WEB_HOST (127.0.0.1; set 0.0.0.0 for LAN access —
+ *       see docs/LOCAL-DESIGN-STUDIO.md).
  *
  *   pnpm pilot:templates [--out <dir>]
  *       Writes the production intake templates (NULL = still to be provided) and their README to docs/pilot/intake-templates.
@@ -94,6 +97,13 @@ async function demo(args: ReturnType<typeof parseArgs>, io: Io, migrationsDir: s
   const webPort = Number(env.PILOT_WEB_PORT ?? 5173);
   const apiUrl = `http://127.0.0.1:${String(apiPort)}`;
   const webUrl = `http://127.0.0.1:${String(webPort)}`;
+  /** Local dev tooling only (never a product setting): which interface the UI dev server binds to.
+   * `127.0.0.1` (default) keeps this machine-only, exactly as before. Set `PILOT_WEB_HOST=0.0.0.0` to also
+   * reach it from another device on the same network — see `docs/LOCAL-DESIGN-STUDIO.md`'s LAN section. The
+   * API already binds `0.0.0.0` (`apps/api/src/main.ts`) and is reached through the UI dev server's own `/api`
+   * proxy (`apps/web/vite.config.ts`), which runs on THIS machine regardless of which device's browser is
+   * asking — so nothing about the API URL, CORS, or (loopback-only) Postgres needs to change for LAN access. */
+  const webHost = env.PILOT_WEB_HOST ?? "127.0.0.1";
   const s = localSecrets();
   const reset = args.flags.get("reset") === true;
   const rehearse = args.flags.get("rehearse") === true;
@@ -102,7 +112,12 @@ async function demo(args: ReturnType<typeof parseArgs>, io: Io, migrationsDir: s
 
   // 1. The disposable database, the CI stand-ins of Supabase (LOCAL only), migrations, the API's login role.
   const root = new pg.Client({ connectionString: adminUrl });
-  await root.connect();
+  try {
+    await root.connect();
+  } catch (e) {
+    const cause = e instanceof Error ? e.message : String(e);
+    throw new RefusedError("GUARD", `could not connect to PostgreSQL as the admin role (${adminUrl.replace(/:[^:@/]*@/, ":***@")}): ${cause}. Is PostgreSQL running? If it needs a password (or a different admin user), set PILOT_POSTGRES_URL, e.g. PILOT_POSTGRES_URL='postgresql://postgres:<password>@127.0.0.1:5432/postgres' — see docs/LOCAL-DESIGN-STUDIO.md.`);
+  }
   try {
     if (reset) await root.query(`DROP DATABASE IF EXISTS ${DEMO_DB} WITH (FORCE)`);
     if ((await root.query("SELECT 1 FROM pg_database WHERE datname = $1", [DEMO_DB])).rowCount === 0) await root.query(`CREATE DATABASE ${DEMO_DB}`);
@@ -161,12 +176,13 @@ async function demo(args: ReturnType<typeof parseArgs>, io: Io, migrationsDir: s
 
     // 5. The UI.
     if (web) {
-      const w = spawn("pnpm", ["--filter", "@lintel/web", "exec", "vite", "--host", "127.0.0.1", "--port", String(webPort), "--strictPort"], {
+      const w = spawn("pnpm", ["--filter", "@lintel/web", "exec", "vite", "--host", webHost, "--port", String(webPort), "--strictPort"], {
         cwd: ROOT, env: { ...process.env, LINTEL_API_URL: apiUrl, VITE_APP_ENV: "local" }, stdio: ["ignore", "inherit", "inherit"],
       });
       children.push(w);
       if (!await waitFor(webUrl, 60)) throw new RefusedError("GUARD", `the UI did not start at ${webUrl}`);
       io.out(`ui         ${webUrl}`);
+      if (webHost !== "127.0.0.1") io.out(`           bound to ${webHost} (PILOT_WEB_HOST) — Vite's own "Network:" line above has the exact LAN URL; PostgreSQL stays loopback-only regardless`);
     }
     if (exitAfter) {
       stop();

@@ -229,18 +229,24 @@ export function Elevation({ m, wallId = "A", selectedId = null, onSelect, select
           onClick={onSelect !== undefined ? () => { onSelect(o.lineageId); } : undefined}
         />
       ))}
-      {onWall.flatMap((o) => o.components.map((c) => {
+      {onWall.flatMap((o) => o.components.flatMap((c) => {
+        // Multi-wall Elevation (hardening): a component's horizontal position comes from its own `alongWall`
+        // (the same wallFrame/relativeToWall conversion the object's own placement.alongWall already uses),
+        // never `box.min.x`/`box.size.x` directly — those are room-global and only happen to equal the
+        // along-wall coordinate for walls A/C (for B/D, along-wall is `box.z`). `alongWall` is null only when
+        // the object itself has no placement, which can't be true here (this object is already in `onWall`).
+        if (c.alongWall === null) return [];
         const componentClickable = c.componentType === "DRAWER_FRONT" && onSelectComponent !== undefined;
         const clickable = componentClickable || onSelect !== undefined;
         const selected = c.componentId === selectedComponentId;
         const className = `${c.componentType === "SHUTTER" ? "shutter" : "panel"}${selected ? " selected" : ""}${clickable ? " clickable" : ""}`;
-        return (
+        return [(
           <rect
             key={`${o.lineageId}-${c.componentId}`} className={className}
-            x={X(c.box.min.x)} y={Y(c.box.min.y + c.box.size.y)} width={c.box.size.x * s} height={c.box.size.y * s}
+            x={X(c.alongWall.start)} y={Y(c.box.min.y + c.box.size.y)} width={(c.alongWall.end - c.alongWall.start) * s} height={c.box.size.y * s}
             onClick={componentClickable ? () => { onSelectComponent(o.lineageId, c.componentId, c.componentType); onSelect?.(o.lineageId); } : onSelect !== undefined ? () => { onSelect(o.lineageId); } : undefined}
           />
-        );
+        )];
       }))}
       {/* Slice 6D: the whole-cabinet selection outline, drawn on top of every component so it's always
           visible regardless of what opaque fronts sit underneath. */}

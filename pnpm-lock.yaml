@@ -89,6 +89,9 @@ importers:
       '@lintel/drawing-engine':
         specifier: workspace:*
         version: link:../../packages/drawing-engine
+      '@lintel/geometry-engine':
+        specifier: workspace:*
+        version: link:../../packages/geometry-engine
       '@lintel/hettich-engine':
         specifier: workspace:*
         version: link:../../packages/hettich-engine

@@ -1,4 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
+import { relativeToWall, wallFrame } from "@lintel/geometry-engine";
 import type { ValidationMessage } from "@lintel/types";
 import type { RequestScope } from "../../common/auth/context.js";
 import { UnitOfWork } from "../../common/db/unit-of-work.js";
@@ -37,12 +38,17 @@ export class ModelPreviewService {
       const byLineage = new Map(rows.objects.map((o) => [o.lineage_id, o]));
       const placements = new Map(resolved.placements.map((p) => [p.objectId, p]));
       const messages = resolved.validation.messages.map(message);
+      const { length: roomLength, width: roomWidth } = resolved.room;
 
       const objects: ModelObject[] = resolved.cabinets.map((c) => {
         const row = byLineage.get(c.object.objectId);
         if (row === undefined) throw new Error(`resolved object ${c.object.objectId} is not an input of this version`);
         const p = placements.get(c.object.objectId);
         const boxes = new Map((p?.components ?? []).map((x) => [x.componentId, x.box]));
+        // Multi-wall Elevation (hardening): each component's own along-wall range, from the same
+        // wallFrame/relativeToWall the object's own placement.alongWall already uses — one conversion, reused,
+        // not re-derived per wall in the renderer.
+        const frame = p === undefined ? null : wallFrame(p.wallId, roomLength, roomWidth);
         return {
           objectId: row.id, lineageId: row.lineage_id, objectCode: c.object.objectCode, objectType: c.object.objectType,
           productCode: row.product_code, productVersionId: row.product_version_id,
@@ -52,9 +58,13 @@ export class ModelPreviewService {
           placement: p === undefined ? null : { wallId: p.wallId, rotationY: p.rotationY, envelope: p.envelope, alongWall: { ...p.alongWall }, distanceToWall: p.distanceToWall },
           components: c.components.flatMap((k) => {
             const box = boxes.get(k.componentId);
-            return box === undefined ? [] : [{
+            if (box === undefined) return [];
+            const rel = frame === null ? null : relativeToWall(box, frame);
+            const alongWall = rel === null ? null : { start: rel.start, end: rel.end };
+            return [{
               componentId: k.componentId, componentType: k.componentType, dimensions: { ...k.dimensions }, box,
               materialId: k.materialId, finishId: k.finishId, finishedFaces: k.finishedFaces, grainDirection: k.grainDirection,
+              alongWall,
             }];
           }),
           cutouts: c.cutouts.map((cut) => ({

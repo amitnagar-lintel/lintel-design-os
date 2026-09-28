@@ -1516,6 +1516,10 @@ export interface components {
                     finishId: string | null;
                     finishedFaces: number;
                     grainDirection: string;
+                    alongWall: {
+                        start: number;
+                        end: number;
+                    } | null;
                 }[];
                 cutouts: {
                     cutoutId: string;

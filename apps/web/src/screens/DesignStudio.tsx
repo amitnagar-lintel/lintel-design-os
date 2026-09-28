@@ -24,8 +24,12 @@ import { snapshotOf, SnapshotView } from "./Outputs";
 import { usablePins } from "./Layout";
 import type { Param, Pins } from "./Layout";
 import { Elevation, Plan, ValidationBadges } from "./Preview";
-import { Action, Badge, ErrorBox, Field, Section, useLoad } from "../ui";
+import { Action, Badge, ErrorBox, ErrorBoundary, Field, Section, useLoad } from "../ui";
+import type { DimensionLimit } from "../validation";
+import { dimensionError } from "../validation";
 import { Viewport3D } from "./Viewport3D";
+
+const ELEVATION_WALLS = ["A", "B", "C", "D"] as const;
 
 type Obj = ModelPreview["objects"][number];
 
@@ -103,6 +107,21 @@ function paramNumber(params: readonly Param[], key: string): number | undefined 
 function paramString(params: readonly Param[], key: string): string {
   const value = params.find((p) => p.key === key)?.default;
   return typeof value === "string" ? value : "";
+}
+
+/** Remediation P0: a pinned product's own declared min/max for one dimension key, or `{min:null,max:null}` (no
+ * limit declared) when the key isn't found — never invented, always read off the exact catalog data the recipe
+ * itself resolves against (see `apps/db-tools/src/pilot/rehearsal-dataset.ts`'s `withLimits`). */
+function limitOf(params: readonly Param[], key: string): DimensionLimit {
+  const p = params.find((x) => x.key === key);
+  return { min: p?.min ?? null, max: p?.max ?? null };
+}
+
+/** Remediation P2: every reference-data entity of `type` that has at least one usable (pinnable) version,
+ * by its exact catalog code — never invented, always the live TEST_FIXTURE/reference catalog. */
+async function usableCodes(type: "material" | "finish"): Promise<string[]> {
+  const r = await must(api.GET("/api/v1/reference-data/{type}/entities", { params: { path: { type }, query: { limit: 200 } } }));
+  return r.items.filter((e) => e.usableVersions.length > 0).map((e) => e.code).sort();
 }
 
 /** Same lookup Layout.tsx's `pinnedProduct` does, generalised to any product code (Layout.tsx's own version stays
@@ -197,11 +216,50 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
     if (lineageId !== null) setBottomTab("PLAN");
   };
   const [bom, setBom] = useState<Schemas["Snapshot"] | null>(null);
+  /** Remediation P1: which of the room's 4 walls the Elevation tab currently draws — a view choice only, never
+   * a separate per-wall model (Elevation still derives every cabinet from this same resolved `m`). */
+  const [elevationWall, setElevationWall] = useState<WallId>("A");
   const m = model.data;
   const objects = m?.objects ?? [];
   const selected: Obj | undefined = objects.find((o) => o.lineageId === selectedId) ?? objects[0];
   const cabinetType: CabinetType | undefined = selected === undefined ? undefined : findAvailableCabinetType(selected.productCode);
   const refresh = () => { setN((x) => x + 1); model.reload(); };
+
+  /** Remediation P0: the selected cabinet's own pinned product limits (width/height/depth min/max), fetched once
+   * per product code — the same source `pinnedProductByCode` already reads for a brand-new cabinet's defaults,
+   * reused here so an *edit* is checked against the identical real catalog limits. */
+  const limits = useLoad(
+    () => (selected === undefined ? Promise.resolve(null) : pinnedProductByCode(version.pins.productCatalogVersionId, selected.productCode)),
+    `slimits:${selected?.productCode ?? ""}:${version.pins.productCatalogVersionId}`,
+  );
+  const dimensionLimits = limits.data === null ? undefined : {
+    width: limitOf(limits.data.params, "width"),
+    height: limitOf(limits.data.params, "height"),
+    depth: limitOf(limits.data.params, "depth"),
+  };
+
+  /** Remediation P2: the live catalog's own usable materials/finishes, fetched once (not per cabinet) — the
+   * Properties panel offers exactly these, never an invented value. */
+  const materials = useLoad(() => usableCodes("material"), "smaterials");
+  const finishes = useLoad(() => usableCodes("finish"), "sfinishes");
+
+  /** Remediation P0: `decodeCabinetInstance` throws when a persisted value (e.g. an out-of-range width saved
+   * before this fix existed) leaves the recipe unable to generate the components it needs to decode — see
+   * `packages/cabinet-engine/src/decode.ts`'s `requireComponent`. Catching it here means that ONE cabinet's bad
+   * data degrades only the Properties panel, with a clear, visible message and a way back (deselect), instead of
+   * throwing during render and blanking the whole screen. The `ErrorBoundary` further down is the secondary net
+   * for anything else unexpected. A discriminated union (rather than two loose nullable variables) keeps
+   * `selected` and its successfully decoded `instance` tied together, so the render below never needs to assert
+   * past `undefined`. */
+  type PropertiesState = { readonly kind: "none" } | { readonly kind: "error"; readonly message: string } | { readonly kind: "ok"; readonly selected: Obj; readonly instance: CabinetInstance };
+  const propertiesState: PropertiesState = (() => {
+    if (selected === undefined || cabinetType === undefined) return { kind: "none" };
+    try {
+      return { kind: "ok", selected, instance: decodeCabinetInstance(selected, cabinetType) };
+    } catch (e) {
+      return { kind: "error", message: e instanceof Error ? e.message : String(e) };
+    }
+  })();
 
   /** Slice 6B: the selected cabinet's run membership and adjacency, straight from the engine's own derived
    * `runs`/`relationships` (see packages/design-engine/src/room.ts) — a run is emergent from geometry, not a
@@ -338,67 +396,92 @@ function Studio({ version, canEdit, go, setSelVersion }: { readonly version: Sch
     <Section title={`Design Studio — version ${String(version.versionNumber)}`} aside={m === null ? undefined : <ValidationBadges m={m} />}>
       <ErrorBox error={model.error} />
       {!canEdit && <p>This version is {version.status}: it can no longer be edited. Create a new DRAFT version above to change the design.</p>}
-      <div className="studio">
-        <aside className="studio-library">
-          <CabinetLibraryPanel canEdit={canEdit} onAdd={addCabinet} onAddCornerPair={addCornerPair} />
-        </aside>
-        <div className="studio-center">
-          <Viewport3D
-            model={m} selectedId={selected?.lineageId ?? null} onSelect={selectObject}
-            selectedComponentId={selectedComponentId} onSelectComponent={selectComponent}
-          />
-          <div className="studio-bottom">
-            <nav className="studio-tabs">
-              <button type="button" className={bottomTab === "PLAN" ? "current" : ""} onClick={() => { setBottomTab("PLAN"); }}>Plan</button>
-              <button type="button" className={bottomTab === "ELEVATION" ? "current" : ""} onClick={() => { setBottomTab("ELEVATION"); }}>Elevation</button>
-              <button type="button" className={bottomTab === "BOM" ? "current" : ""} onClick={() => { setBottomTab("BOM"); }}>BOM</button>
-              <button type="button" className={bottomTab === "VALIDATION" ? "current" : ""} onClick={() => { setBottomTab("VALIDATION"); }}>
-                Validation{m !== null && (m.validation.counts.BLOCKER + m.validation.counts.ERROR) > 0 ? ` (${String(m.validation.counts.BLOCKER + m.validation.counts.ERROR)})` : ""}
-              </button>
-              <button type="button" onClick={() => { setSelVersion(); go("outputs"); }}>All outputs →</button>
-            </nav>
-            {m !== null && bottomTab === "PLAN" && (
-              <Plan
-                m={m} canEdit={canEdit} selectedId={selected?.lineageId ?? null} onSelect={selectObject}
-                onMove={(lineageId, next) => {
-                  const o = objects.find((x) => x.lineageId === lineageId);
-                  if (o !== undefined) void moveCabinet(o.objectId, { xMm: next.xMm, yMm: next.yMm, zMm: next.zMm }, next.rotationY);
-                }}
-              />
-            )}
-            {m !== null && bottomTab === "ELEVATION" && (
-              <Elevation m={m} selectedId={selected?.lineageId ?? null} onSelect={selectObject} selectedComponentId={selectedComponentId} onSelectComponent={selectComponent} />
-            )}
-            {bottomTab === "BOM" && (
-              <div className="studio-bom">
-                <Action kind="primary" label="Generate BOM (PRELIMINARY)" run={async () => {
-                  const created = await must(api.POST("/api/v1/design-versions/{versionId}/bom-snapshots", { params: { path: { versionId }, header: { "Idempotency-Key": idempotency() } }, body: { purpose: "PRELIMINARY" } }));
-                  setBom(await snapshotOf("BOM", created.snapshot.id));
-                }} />
-                {bom !== null && <SnapshotView s={bom} />}
-              </div>
-            )}
-            {m !== null && bottomTab === "VALIDATION" && <ValidationPanel m={m} onGoTo={goToValidationIssue} />}
-            {m !== null && objects.length === 0 && <p>Add a cabinet from the library to begin.</p>}
-          </div>
-        </div>
-        <aside className="studio-properties">
-          {selected !== undefined && cabinetType !== undefined ? (
-            <PropertiesPanel
-              instance={decodeCabinetInstance(selected, cabinetType)}
-              canEdit={canEdit}
-              onSave={(next) => saveCabinet(selected.objectId, next)}
-              onRemove={() => removeCabinet(selected.objectId)}
-              selectedComponentId={selectedComponentId}
-              onSelectComponentId={(componentId) => { setSelectedComponentId(componentId); }}
-              applianceId={typeof selected.parameters.oven === "string" ? selected.parameters.oven : typeof selected.parameters.hob === "string" ? selected.parameters.hob : null}
-              placement={selected.placement}
-              room={m === null ? null : { length: m.room.length, width: m.room.width }}
-              runInfo={runInfo}
+      <ErrorBoundary resetKey={`${versionId}:${String(n)}`} onReset={refresh}>
+        <div className="studio">
+          <aside className="studio-library">
+            <CabinetLibraryPanel canEdit={canEdit} onAdd={addCabinet} onAddCornerPair={addCornerPair} />
+          </aside>
+          <div className="studio-center">
+            <Viewport3D
+              model={m} selectedId={selected?.lineageId ?? null} onSelect={selectObject}
+              selectedComponentId={selectedComponentId} onSelectComponent={selectComponent}
             />
-          ) : <p>Select a cabinet, or add one from the library.</p>}
-        </aside>
-      </div>
+            <div className="studio-bottom">
+              <nav className="studio-tabs">
+                <button type="button" className={bottomTab === "PLAN" ? "current" : ""} onClick={() => { setBottomTab("PLAN"); }}>Plan</button>
+                <button type="button" className={bottomTab === "ELEVATION" ? "current" : ""} onClick={() => { setBottomTab("ELEVATION"); }}>Elevation</button>
+                <button type="button" className={bottomTab === "BOM" ? "current" : ""} onClick={() => { setBottomTab("BOM"); }}>BOM</button>
+                <button type="button" className={bottomTab === "VALIDATION" ? "current" : ""} onClick={() => { setBottomTab("VALIDATION"); }}>
+                  Validation{m !== null && (m.validation.counts.BLOCKER + m.validation.counts.ERROR) > 0 ? ` (${String(m.validation.counts.BLOCKER + m.validation.counts.ERROR)})` : ""}
+                </button>
+                <button type="button" onClick={() => { setSelVersion(); go("outputs"); }}>All outputs →</button>
+              </nav>
+              {m !== null && bottomTab === "PLAN" && (
+                <Plan
+                  m={m} canEdit={canEdit} selectedId={selected?.lineageId ?? null} onSelect={selectObject}
+                  onMove={(lineageId, next) => {
+                    const o = objects.find((x) => x.lineageId === lineageId);
+                    if (o !== undefined) void moveCabinet(o.objectId, { xMm: next.xMm, yMm: next.yMm, zMm: next.zMm }, next.rotationY);
+                  }}
+                />
+              )}
+              {m !== null && bottomTab === "ELEVATION" && (
+                <>
+                  {/* Remediation P1: a wall selector, not another hardcoded wall — every one of the room's 4
+                      walls is always selectable, since a rectangular room always has all 4. */}
+                  <nav className="studio-tabs elevation-walls">
+                    {ELEVATION_WALLS.map((w) => (
+                      <button key={w} type="button" className={elevationWall === w ? "current" : ""} onClick={() => { setElevationWall(w); }}>Wall {w}</button>
+                    ))}
+                  </nav>
+                  <Elevation
+                    m={m} wallId={elevationWall} selectedId={selected?.lineageId ?? null} onSelect={selectObject}
+                    selectedComponentId={selectedComponentId} onSelectComponent={selectComponent}
+                  />
+                </>
+              )}
+              {bottomTab === "BOM" && (
+                <div className="studio-bom">
+                  <Action kind="primary" label="Generate BOM (PRELIMINARY)" run={async () => {
+                    const created = await must(api.POST("/api/v1/design-versions/{versionId}/bom-snapshots", { params: { path: { versionId }, header: { "Idempotency-Key": idempotency() } }, body: { purpose: "PRELIMINARY" } }));
+                    setBom(await snapshotOf("BOM", created.snapshot.id));
+                  }} />
+                  {bom !== null && <SnapshotView s={bom} />}
+                </div>
+              )}
+              {m !== null && bottomTab === "VALIDATION" && <ValidationPanel m={m} onGoTo={goToValidationIssue} />}
+              {m !== null && objects.length === 0 && <p>Add a cabinet from the library to begin.</p>}
+            </div>
+          </div>
+          <aside className="studio-properties">
+            {propertiesState.kind === "error" ? (
+              <div className="error" role="alert">
+                <p><strong>This cabinet&apos;s data could not be resolved:</strong> {propertiesState.message}</p>
+                <p>This usually means a saved value (e.g. a width) is outside what the current product recipe can
+                  build. The rest of the design is unaffected. Check the Validation tab, then fix or remove this
+                  cabinet.</p>
+                <button type="button" onClick={() => { selectObject(null); }}>Deselect this cabinet</button>
+              </div>
+            ) : propertiesState.kind === "ok" ? (
+              <PropertiesPanel
+                instance={propertiesState.instance}
+                canEdit={canEdit}
+                onSave={(next) => saveCabinet(propertiesState.selected.objectId, next)}
+                onRemove={() => removeCabinet(propertiesState.selected.objectId)}
+                selectedComponentId={selectedComponentId}
+                onSelectComponentId={(componentId) => { setSelectedComponentId(componentId); }}
+                applianceId={typeof propertiesState.selected.parameters.oven === "string" ? propertiesState.selected.parameters.oven : typeof propertiesState.selected.parameters.hob === "string" ? propertiesState.selected.parameters.hob : null}
+                placement={propertiesState.selected.placement}
+                room={m === null ? null : { length: m.room.length, width: m.room.width }}
+                runInfo={runInfo}
+                dimensionLimits={dimensionLimits}
+                materials={materials.data ?? []}
+                finishes={finishes.data ?? []}
+              />
+            ) : <p>Select a cabinet, or add one from the library.</p>}
+          </aside>
+        </div>
+      </ErrorBoundary>
     </Section>
   );
 }
@@ -494,7 +577,7 @@ function CabinetLibraryPanel({ canEdit, onAdd, onAddCornerPair }: { readonly can
 
 const DRAWER_COUNTS = [2, 3, 4] as const;
 
-function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponentId, onSelectComponentId, applianceId, placement, room, runInfo }: {
+function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponentId, onSelectComponentId, applianceId, placement, room, runInfo, dimensionLimits, materials, finishes }: {
   readonly instance: CabinetInstance; readonly canEdit: boolean; readonly onSave: (next: CabinetInstance) => Promise<void>; readonly onRemove: () => Promise<void>;
   /** Slice 2.1: which drawer front (by resolved `componentId`), if any, is selected in the 3D view or elevation. */
   readonly selectedComponentId: string | null;
@@ -510,6 +593,14 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
   /** Slice 6B: this cabinet's run membership (null only when it isn't placed at all), read-only — a run is
    * derived from geometry, never edited directly; a cabinet with no neighbour is simply a run of one. */
   readonly runInfo: RunInfo | null;
+  /** Remediation P0: the pinned product's own width/height/depth limits, checked before Save so an out-of-range
+   * value is rejected here instead of being persisted (undefined limits, e.g. while still loading, mean "not
+   * checked yet" — never treated as "anything goes"; the server's own validation still applies regardless). */
+  readonly dimensionLimits?: { readonly width: DimensionLimit; readonly height: DimensionLimit; readonly depth: DimensionLimit } | undefined;
+  /** Remediation P2: the live catalog's own usable material/finish codes — never invented, always exactly what
+   * `reference-data/material` and `reference-data/finish` currently list as usable. */
+  readonly materials: readonly string[];
+  readonly finishes: readonly string[];
 }) {
   const isDrawer = instance.recipe.productCode === "KIT_BASE_DRAWER";
   const isOpen = instance.recipe.productCode === "KIT_BASE_OPEN";
@@ -547,6 +638,11 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
   const [wallId, setWallId] = useState<WallId>(placement?.wallId ?? "A");
   const [alongMm, setAlongMm] = useState(String(placement?.alongWall.start ?? 0));
   const [distanceMm, setDistanceMm] = useState(String(placement?.distanceToWall ?? 0));
+  /** Remediation P2: editable material/finish, initialised from the resolved model and resynced whenever a
+   * different cabinet is selected, exactly like every other field above. */
+  const [carcassMaterialId, setCarcassMaterialId] = useState(instance.finish.carcassMaterialId);
+  const [frontMaterialId, setFrontMaterialId] = useState(instance.finish.frontMaterialId);
+  const [frontFinishId, setFrontFinishId] = useState(instance.finish.frontFinishId);
 
   useEffect(() => {
     setWidth(String(instance.dimensions.widthMm));
@@ -559,6 +655,9 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
     setPulloutCount(String(currentPulloutCount));
     setWasteBin(currentWasteBin);
     setDrawerHeights(currentDrawerHeights);
+    setCarcassMaterialId(instance.finish.carcassMaterialId);
+    setFrontMaterialId(instance.finish.frontMaterialId);
+    setFrontFinishId(instance.finish.frontFinishId);
     // Resync the editable fields whenever a different cabinet becomes selected.
   }, [instance.instanceId]);
 
@@ -586,7 +685,16 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
     setDrawerHeights((prev) => prev.map((h, i) => (i === index ? value : h)));
   };
 
+  /** Remediation P0: checked against the pinned product's own real limits (never invented — see
+   * `apps/db-tools/src/pilot/rehearsal-dataset.ts`'s `withLimits`). `dimensionLimits` undefined (still loading)
+   * means "not checked yet", not "anything goes" — Save stays disabled until the limits are in. */
+  const widthError = dimensionLimits === undefined ? "Checking width limits…" : dimensionError("Width", Number(width), dimensionLimits.width);
+  const heightError = dimensionLimits === undefined ? "Checking height limits…" : dimensionError("Height", Number(height), dimensionLimits.height);
+  const depthError = dimensionLimits === undefined ? "Checking depth limits…" : dimensionError("Depth", Number(depth), dimensionLimits.depth);
+  const canSave = canEdit && widthError === null && heightError === null && depthError === null;
+
   const save = async (): Promise<void> => {
+    if (!canSave) return;
     const widthMm = Number(width);
     const heightMm = Number(height);
     const depthMm = Number(depth);
@@ -597,6 +705,7 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
       dimensions: { widthMm, heightMm, depthMm },
       front: noFront ? OPEN_FRONT : isDrawer ? drawerBankFront(drawerCount, overlay, widthMm, heightMm, drawerHeights.map(Number)) : shutterFront(shutterCount, overlay, widthMm, heightMm),
       internals: isPanel ? [] : noFront ? shelves(Math.max(0, Math.trunc(Number(shelfCount)))) : isPullout ? pullouts(Math.max(0, Math.trunc(Number(pulloutCount)))) : isSink ? wasteBinInternals(wasteBin) : instance.internals,
+      finish: { ...instance.finish, carcassMaterialId, frontMaterialId, frontFinishId },
     });
   };
 
@@ -604,9 +713,18 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
     <>
       <h3>Properties — {instance.objectCode}</h3>
       <Field label="Cabinet type"><input value={instance.cabinetType.label} disabled /></Field>
-      <Field label="Width (mm)"><input className="num" value={width} disabled={!canEdit} onChange={(e) => { setWidth(e.target.value); }} /></Field>
-      <Field label="Height (mm)"><input className="num" value={height} disabled={!canEdit} onChange={(e) => { setHeight(e.target.value); }} /></Field>
-      <Field label="Depth (mm)"><input className="num" value={depth} disabled={!canEdit} onChange={(e) => { setDepth(e.target.value); }} /></Field>
+      <Field label="Width (mm)">
+        <input className="num" value={width} disabled={!canEdit} onChange={(e) => { setWidth(e.target.value); }} />
+        {widthError !== null && <small className="field-error">{widthError}</small>}
+      </Field>
+      <Field label="Height (mm)">
+        <input className="num" value={height} disabled={!canEdit} onChange={(e) => { setHeight(e.target.value); }} />
+        {heightError !== null && <small className="field-error">{heightError}</small>}
+      </Field>
+      <Field label="Depth (mm)">
+        <input className="num" value={depth} disabled={!canEdit} onChange={(e) => { setDepth(e.target.value); }} />
+        {depthError !== null && <small className="field-error">{depthError}</small>}
+      </Field>
       {room === null ? null : (
         <>
           <h3>Position</h3>
@@ -701,24 +819,38 @@ function PropertiesPanel({ instance, canEdit, onSave, onRemove, selectedComponen
               <Field label="Drawer box height (mm)"><input value={selectedDrawer.boxHeightMm === null ? "—" : String(selectedDrawer.boxHeightMm)} disabled /></Field>
               <Field label="Front thickness (mm)"><input value={String(selectedDrawer.frontThicknessMm)} disabled /></Field>
               <Field label="Gap to drawer below (mm)"><input value={selectedDrawer.gapBelowMm === null ? "—" : String(selectedDrawer.gapBelowMm)} disabled /></Field>
-              <Field label="Finish"><input value={instance.finish.frontFinishId} disabled /></Field>
+              <Field label="Finish"><input value={frontFinishId} disabled /></Field>
               <Field label="Hardware"><input value={selectedDrawer.runner === null ? "Runner pair (resolved in BOM)" : `${String(selectedDrawer.runner.systemHeightMm)} mm runner`} disabled /></Field>
             </>
           )}
         </>
       )}
       <div className="row">
-        <Action kind="primary" label="Save" disabled={!canEdit} run={save} />
+        <Action kind="primary" label="Save" disabled={!canSave} title={canSave ? undefined : "Fix the highlighted field(s) first"} run={save} />
         <Action kind="danger" label="Remove" disabled={!canEdit} run={onRemove} />
       </div>
-      <details>
-        <summary>Finish (from the resolved model)</summary>
-        {isPanel
-          ? <p>Panel <code>{instance.finish.carcassMaterialId}</code> · Finish <code>{instance.finish.frontFinishId}</code></p>
-          : noFront
-          ? <p>Carcass <code>{instance.finish.carcassMaterialId}</code> · Back <code>{instance.finish.backMaterialId}</code> (no front{isOvenTower ? " this slice" : ": open cabinet"})</p>
-          : <p>Carcass <code>{instance.finish.carcassMaterialId}</code> · Back <code>{instance.finish.backMaterialId}</code> · Front <code>{instance.finish.frontMaterialId}</code> · Finish <code>{instance.finish.frontFinishId}</code></p>}
-      </details>
+      <h3>Finish</h3>
+      <Field label={isPanel ? "Panel material" : "Carcass material"}>
+        <select value={carcassMaterialId} disabled={!canEdit} onChange={(e) => { setCarcassMaterialId(e.target.value); }}>
+          {materials.map((id) => <option key={id} value={id}>{id}</option>)}
+        </select>
+      </Field>
+      {!noFront && (
+        <Field label="Front material">
+          <select value={frontMaterialId} disabled={!canEdit} onChange={(e) => { setFrontMaterialId(e.target.value); }}>
+            {materials.map((id) => <option key={id} value={id}>{id}</option>)}
+          </select>
+        </Field>
+      )}
+      {(!isOpen && !isOvenTower) && (
+        <Field label="Finish">
+          <select value={frontFinishId} disabled={!canEdit} onChange={(e) => { setFrontFinishId(e.target.value); }}>
+            {finishes.map((id) => <option key={id} value={id}>{id}</option>)}
+          </select>
+        </Field>
+      )}
+      <Field label="Back material"><input value={instance.finish.backMaterialId} disabled /></Field>
+      <small>Edge band material/finish is resolved automatically by construction rules and is not yet chosen per cabinet.</small>
       {!noFront && (
         <details>
           <summary>Hardware (rule-derived, not chosen here)</summary>

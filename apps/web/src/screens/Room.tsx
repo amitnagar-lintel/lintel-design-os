@@ -12,7 +12,12 @@ export function RoomScreen({ me, sel, setSel, go }: ScreenProps) {
     const list = await must(api.GET("/api/v1/projects/{projectId}/rooms", { params: { path: { projectId }, query: { limit: 100 } } }));
     return { items: await Promise.all(list.items.map((r) => must(api.GET("/api/v1/rooms/{roomId}", { params: { path: { roomId: r.id } } })))) };
   }, `rooms:${projectId}`);
-  const [f, setF] = useState({ name: "Kitchen", width: "", depth: "", height: "", wall: "", source: "" });
+  /** Creation friction: wall thickness and survey source both used to start empty, blocking "Create kitchen"
+   * until the designer typed something even when the real dimensions (width/depth/height — always required,
+   * never defaulted) were the only thing actually being decided. 150mm matches this repo's own reference wall
+   * thickness (`docs/PRD` and the rehearsal fixture data); "Manual entry" is a truthful default (that's what it
+   * is until edited), not an invented site survey — both stay fully editable for a real production survey. */
+  const [f, setF] = useState({ name: "Kitchen", width: "", depth: "", height: "", wall: "150", source: "Manual entry" });
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => { setF({ ...f, [k]: e.target.value }); };
   const num = (v: string) => Number(v);
   const valid = [f.width, f.depth, f.height, f.wall].every((v) => v.trim() !== "" && Number.isFinite(num(v)) && num(v) > 0) && f.source.trim() !== "";
@@ -57,6 +62,10 @@ export function RoomScreen({ me, sel, setSel, go }: ScreenProps) {
             }));
             setSel({ projectId, roomId: room.id });
             rooms.reload();
+            // Creation friction: the room's own survey is what canEdit/room.survey.write is for; once it
+            // exists, Design Studio is always the next step — go there directly instead of leaving the
+            // designer to find and click the room's own "Open" button next.
+            go("studio");
           }} />
         </Section>
       )}

@@ -6,10 +6,30 @@ import { Action, Badge, ErrorBox, Field, Section, useLoad } from "../ui";
 
 const PROJECT_ROLES = ["DESIGNER", "DESIGN_HEAD", "SITE_ENGINEER", "COSTING", "SALES", "FINANCE", "PRODUCTION", "PROCUREMENT"] as const;
 
+/** Creation friction: a client/project code used to be a second thing to invent, right next to the name that
+ * already says the same thing — this derives a starting code from the name (letters/digits only, `_` for
+ * everything else, matching the API's own "Letters, digits, - and _" rule), which is still an ordinary editable
+ * field, not a hidden value: typing in it directly overrides the derived one and stops it following the name. */
+function slugCode(name: string, maxLen = 24): string {
+  return name.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, maxLen);
+}
+
 export function ProjectScreen({ me, sel, setSel, go }: ScreenProps) {
   const projects = useLoad(() => must(api.GET("/api/v1/projects", { params: { query: { limit: 100 } } })), `projects:${me.userId}`);
   const [f, setF] = useState({ clientName: "", clientCode: "", phone: "", email: "", projectName: "", projectCode: "", site: "" });
+  const [codeEdited, setCodeEdited] = useState(false);
+  const [projectCodeEdited, setProjectCodeEdited] = useState(false);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => { setF({ ...f, [k]: e.target.value }); };
+  const setClientName = (e: { target: { value: string } }) => {
+    const clientName = e.target.value;
+    setF((prev) => ({ ...prev, clientName, ...(codeEdited ? {} : { clientCode: slugCode(clientName) }) }));
+  };
+  const setClientCode = (e: { target: { value: string } }) => { setCodeEdited(true); set("clientCode")(e); };
+  const setProjectName = (e: { target: { value: string } }) => {
+    const projectName = e.target.value;
+    setF((prev) => ({ ...prev, projectName, ...(projectCodeEdited ? {} : { projectCode: slugCode(projectName) }) }));
+  };
+  const setProjectCode = (e: { target: { value: string } }) => { setProjectCodeEdited(true); set("projectCode")(e); };
   const canWrite = me.permissions.includes("project.write");
 
   return (
@@ -35,13 +55,13 @@ export function ProjectScreen({ me, sel, setSel, go }: ScreenProps) {
       {canWrite && (
         <Section title="New project">
           <div className="grid">
-            <Field label="Client name"><input value={f.clientName} onChange={set("clientName")} /></Field>
-            <Field label="Client code" hint="Letters, digits, - and _"><input value={f.clientCode} onChange={set("clientCode")} /></Field>
-            <Field label="Client phone"><input value={f.phone} onChange={set("phone")} /></Field>
-            <Field label="Client email"><input value={f.email} onChange={set("email")} /></Field>
-            <Field label="Project name"><input value={f.projectName} onChange={set("projectName")} /></Field>
-            <Field label="Project code"><input value={f.projectCode} onChange={set("projectCode")} /></Field>
-            <Field label="Site address"><input value={f.site} onChange={set("site")} /></Field>
+            <Field label="Client name"><input value={f.clientName} onChange={setClientName} /></Field>
+            <Field label="Client code" hint="Letters, digits, - and _ — filled in from the name, editable"><input value={f.clientCode} onChange={setClientCode} /></Field>
+            <Field label="Client phone (optional)"><input value={f.phone} onChange={set("phone")} /></Field>
+            <Field label="Client email (optional)"><input value={f.email} onChange={set("email")} /></Field>
+            <Field label="Project name"><input value={f.projectName} onChange={setProjectName} /></Field>
+            <Field label="Project code" hint="Filled in from the name, editable"><input value={f.projectCode} onChange={setProjectCode} /></Field>
+            <Field label="Site address (optional)"><input value={f.site} onChange={set("site")} /></Field>
           </div>
           <Action kind="primary" label="Create client and project" run={async () => {
             const contact = Object.fromEntries(Object.entries({ phone: f.phone, email: f.email }).filter(([, v]) => v.trim() !== ""));

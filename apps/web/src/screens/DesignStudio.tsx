@@ -177,17 +177,20 @@ export function DesignStudioScreen({ me, sel, setSel, go }: ScreenProps) {
   const pinsNow = useLoad(usablePins, `spins:${roomId}`);
   const [designName, setDesignName] = useState("Kitchen design");
 
-  const createVersion = async (basedOn?: Schemas["VersionResponse"]) => {
-    if (designId === undefined) return;
+  /** Takes an explicit `forDesignId` rather than reading the outer `designId` closure — needed right after
+   * creating a brand-new design (below), where that outer `designId` is still stale (computed at the start of
+   * this render, before the design existed). */
+  const createVersionFor = async (forDesignId: string, basedOn?: Schemas["VersionResponse"]): Promise<void> => {
     const { pins, missing } = await usablePins();
     if (missing.length > 0) throw new Error(`No APPROVED reference data for: ${missing.join(", ")}`);
     const v = await must(api.POST("/api/v1/designs/{designId}/versions", {
-      params: { path: { designId }, header: { "Idempotency-Key": idempotency() } },
+      params: { path: { designId: forDesignId }, header: { "Idempotency-Key": idempotency() } },
       body: { pins: pins as Pins, changeReason: basedOn === undefined ? "Design Studio" : `Changes after version ${String(basedOn.versionNumber)}`, ...(basedOn === undefined ? {} : { basedOnVersionId: basedOn.id }) },
     }));
-    setSel({ ...sel, designId, versionId: v.id });
+    setSel({ ...sel, designId: forDesignId, versionId: v.id });
     versions.reload();
   };
+  const createVersion = (basedOn?: Schemas["VersionResponse"]): Promise<void> => (designId === undefined ? Promise.resolve() : createVersionFor(designId, basedOn));
 
   return (
     <>
@@ -196,10 +199,16 @@ export function DesignStudioScreen({ me, sel, setSel, go }: ScreenProps) {
         {designs.data?.items.length === 0 ? (
           <div className="row">
             <Field label="Design name"><input value={designName} onChange={(e) => { setDesignName(e.target.value); }} /></Field>
+            {/* Creation friction: a brand-new design's first version is created in this same click whenever
+                reference data is already usable — previously this always needed a second, separate "Create
+                version" click even though nothing new was being decided between the two. Re-versioning an
+                EXISTING design (a deliberate "changes after vN" decision) stays its own explicit action below. */}
             <Action kind="primary" label="Create design" run={async () => {
               const d = await must(api.POST("/api/v1/rooms/{roomId}/designs", { params: { path: { roomId }, header: { "Idempotency-Key": idempotency() } }, body: { name: designName.trim() } }));
               setSel({ ...sel, designId: d.id, versionId: undefined });
               designs.reload();
+              const { missing } = await usablePins();
+              if (missing.length === 0) await createVersionFor(d.id);
             }} />
           </div>
         ) : (
